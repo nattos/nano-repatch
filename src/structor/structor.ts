@@ -1,0 +1,159 @@
+
+// Based on README.md
+/* ===================================================================
+ * 1. Core Static Types (The "Shape")
+ * =================================================================== */
+
+export type AtomicType =
+  | { kind: 'atomic'; type: 'number' }
+  | { kind: 'atomic'; type: 'string' }
+  | { kind: 'atomic'; type: 'boolean' }
+  | { kind: 'atomic'; type: 'any' };
+
+export interface FunctorType {
+  kind: 'functor';
+  input: StructorType;
+  output: StructorType;
+}
+
+export interface ArrayType {
+  kind: 'array';
+  size: number | 'dynamic'; // 'dynamic' for runtime-sized/ragged arrays
+  element: StructorType;
+}
+
+export interface RecordType {
+  kind: 'record';
+  fields: Record<string, StructorType>; // Named/tagged inputs
+  untagged: StructorType[];             // Ordered/untagged inputs
+}
+
+export interface GraphType {
+  kind: 'graph';
+  inputs: RecordType;
+  outputs: RecordType;
+}
+
+export type StructorType =
+  | AtomicType
+  | FunctorType
+  | ArrayType
+  | RecordType
+  | GraphType;
+
+/* ===================================================================
+ * 2. Core Runtime Types (The "Data")
+ * =================================================================== */
+
+export type Functor = (input: Structor) => Structor;
+export interface StructorArray extends Array<Structor> {}
+export interface StructorRecord {
+  fields: Record<string, Structor>;
+  untagged: Structor[];
+}
+
+export type Structor =
+  | number
+  | string
+  | boolean
+  | Functor
+  | StructorArray
+  | StructorRecord;
+
+/* ===================================================================
+ * 3. Node Definitions
+ * =================================================================== */
+
+export type NodeDefinition = PrimitiveNodeDefinition | GraphDefinition;
+
+// Faking the contexts for now
+export interface AnalysisContext {
+    broadcast: (config: BroadcastConfig, inputs: RecordType) => any;
+};
+export interface ExecutionContext {
+    broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
+};
+
+
+/**
+ * A "black box" operation implemented in native TypeScript.
+ */
+export interface PrimitiveNodeDefinition {
+  id: string;
+  kind: 'primitive';
+
+  /** Static analysis function: computes output types from input types. */
+  computeOutputTypes: (
+    inputType: RecordType,
+    context: AnalysisContext,
+  ) => RecordType;
+
+  /** Runtime execution function: computes output data from input data. */
+  execute: (
+    input: StructorRecord,
+    context: ExecutionContext,
+  ) => StructorRecord;
+}
+
+/**
+ * A composite node implemented as a nested graph.
+ */
+export interface GraphDefinition {
+  id: string;
+  kind: 'graph';
+  type: GraphType; // The pre-computed I/O signature of this graph
+  nodes: Record<string, NodeInstance>;
+  // Simplified for test purposes
+  inputs: Record<string, { nodeId: string; port: string | number }>;
+  outputs: Record<string, { nodeId: string; port: string | number }>;
+}
+
+// Added for GraphDefinition
+export interface NodeInstance {
+    definition: NodeDefinition;
+    // other instance properties
+}
+
+
+/* ===================================================================
+ * 4. The Universal Broadcast Operation Config
+ * =================================================================== */
+
+/**
+ * This is the "query" a node sends to the broadcast engine
+ * to request its data in a specific shape.
+ */
+export interface BroadcastConfig {
+  /**
+   * Defines the output "channels" the node's logic will receive.
+   */
+  outputs: Record<
+    string,
+    {
+      /** Which *named* input fields to pull from. `['*']` means all. */
+      fromFields: string[];
+      /**
+       * Which *untagged* inputs to pull from.
+       * `true` (all), `false` (none), or `[0, 2]` (specific indices).
+       */
+      fromUntagged: boolean | number[];
+      /**
+       * How to combine all collected inputs for this channel.
+       */
+      combine: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' };
+      /**
+       * (Optional) Request that all data in this channel be coerced to a number
+       * during the broadcast operation.
+       */
+      coerceTo?: 'number';
+    }
+  >;
+
+  /**
+   * How to align the resulting channels relative to each other.
+   * 'none': Pass channels as-is (e.g., { values: [...], min: 5, max: 10 }).
+   * 'vector': Tensor-broadcast and "zip" all 'collect' channels
+   * (e.g., { 'broadcasted': [[v1, m1], [v2, m2], ...] }).
+   */
+  reshape: 'none' | 'vector';
+}
