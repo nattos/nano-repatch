@@ -1,13 +1,17 @@
+
 import { GraphDefinition, NodeDefinition, Structor, StructorRecord, ExecutionContext } from "./structor";
 import { NodeRepository } from "./repository";
 
+interface NodeState {
+    output: StructorRecord;
+    config: Structor | null;
+    isDirty: boolean;
+}
+
 export class GraphExecutor {
-    private nodeOutputs: Map<string, StructorRecord> = new Map();
-    private nodeConfigs: Map<string, Structor> = new Map();
-    private dirtyNodes: Set<string> = new Set();
+    private nodeStates: Map<string, NodeState> = new Map();
     private executionOrder: string[] = [];
     private downstreamMap: Map<string, string[]> = new Map();
-    private upstreamMap: Map<string, string[]> = new Map();
     private graphInputs: Map<string, Structor> = new Map();
 
     constructor(private graph: GraphDefinition, private repository: NodeRepository) {
@@ -21,17 +25,14 @@ export class GraphExecutor {
 
         for (const nodeId of nodeIds) {
             this.downstreamMap.set(nodeId, []);
-            this.upstreamMap.set(nodeId, []);
             inDegree.set(nodeId, 0);
         }
 
         for (const conn of this.graph.connections) {
             this.downstreamMap.get(conn.fromNode)?.push(conn.toNode);
-            this.upstreamMap.get(conn.toNode)?.push(conn.fromNode);
             inDegree.set(conn.toNode, (inDegree.get(conn.toNode) || 0) + 1);
         }
 
-        // Topological Sort (Kahn's algorithm)
         const queue: string[] = [];
         for (const nodeId of nodeIds) {
             if (inDegree.get(nodeId) === 0) {
@@ -42,7 +43,6 @@ export class GraphExecutor {
         while (queue.length > 0) {
             const u = queue.shift()!;
             this.executionOrder.push(u);
-
             for (const v of this.downstreamMap.get(u) || []) {
                 inDegree.set(v, (inDegree.get(v) || 0) - 1);
                 if (inDegree.get(v) === 0) {
@@ -58,11 +58,11 @@ export class GraphExecutor {
 
     private initializeStates() {
         for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {
-            this.nodeOutputs.set(nodeId, { fields: {}, untagged: [] });
-            this.dirtyNodes.add(nodeId);
-            if (instance.defaultConfig !== undefined) {
-                this.nodeConfigs.set(nodeId, instance.defaultConfig);
-            }
+            this.nodeStates.set(nodeId, {
+                output: { fields: {}, untagged: [] },
+                config: instance.defaultConfig ?? null,
+                isDirty: true,
+            });
         }
     }
 
@@ -75,17 +75,22 @@ export class GraphExecutor {
     }
 
     public setNodeConfig(nodeId: string, config: Structor): void {
-        this.nodeConfigs.set(nodeId, config);
-        this.markDirty(nodeId);
+        const state = this.nodeStates.get(nodeId);
+        if (state) {
+            state.config = config;
+            this.markDirty(nodeId);
+        }
     }
 
-    public getNodeConfig(nodeId: string): Structor | undefined {
-        return this.nodeConfigs.get(nodeId);
+    public getNodeConfig(nodeId: string): Structor | null | undefined {
+        return this.nodeStates.get(nodeId)?.config;
     }
 
     public markDirty(nodeId: string): void {
-        if (this.dirtyNodes.has(nodeId)) return;
-        this.dirtyNodes.add(nodeId);
+        const state = this.nodeStates.get(nodeId);
+        if (!state || state.isDirty) return;
+        
+        state.isDirty = true;
         for (const downstreamNodeId of this.downstreamMap.get(nodeId) || []) {
             this.markDirty(downstreamNodeId);
         }
@@ -93,7 +98,8 @@ export class GraphExecutor {
 
     public update(): void {
         for (const nodeId of this.executionOrder) {
-            if (!this.dirtyNodes.has(nodeId)) {
+            const state = this.nodeStates.get(nodeId);
+            if (!state || !state.isDirty) {
                 continue;
             }
 
@@ -106,10 +112,9 @@ export class GraphExecutor {
 
             const inputRecord: StructorRecord = { fields: {}, untagged: [] };
 
-            // Gather inputs from upstream nodes
             for (const conn of this.graph.connections) {
                 if (conn.toNode === nodeId) {
-                    const upstreamOutput = this.nodeOutputs.get(conn.fromNode);
+                    const upstreamOutput = this.nodeStates.get(conn.fromNode)?.output;
                     if (upstreamOutput) {
                         const value = typeof conn.fromPort === 'string'
                             ? upstreamOutput.fields[conn.fromPort]
@@ -124,7 +129,6 @@ export class GraphExecutor {
                 }
             }
 
-            // Gather inputs from graph inputs
             for (const [graphInputName, conn] of Object.entries(this.graph.inputs)) {
                 if (conn.nodeId === nodeId) {
                     const value = this.graphInputs.get(graphInputName);
@@ -140,8 +144,6 @@ export class GraphExecutor {
 
             const context: ExecutionContext = {
                 broadcast: (config, inputs) => {
-                    // This is a placeholder. A real broadcast engine is needed.
-                    // For the tests, this will be mocked.
                     if (config.reshape === 'vector') {
                         const values = [...Object.values(inputs.fields), ...inputs.untagged];
                         return { broadcasted: [values] };
@@ -151,26 +153,20 @@ export class GraphExecutor {
                 repository: this.repository
             };
             
-            const config = this.nodeConfigs.get(nodeId) || null;
-
-            const outputRecord = definition.execute(inputRecord, config, context);
-            this.nodeOutputs.set(nodeId, outputRecord);
+            state.output = definition.execute(inputRecord, state.config, context);
+            state.isDirty = false;
         }
-
-        this.dirtyNodes.clear();
     }
 
-
-
     public getNodeOutput(nodeId: string): StructorRecord | undefined {
-        return this.nodeOutputs.get(nodeId);
+        return this.nodeStates.get(nodeId)?.output;
     }
 
     public getGraphOutput(outputName: string): Structor | undefined {
         const connection = this.graph.outputs[outputName];
         if (!connection) return undefined;
 
-        const nodeOutput = this.nodeOutputs.get(connection.nodeId);
+        const nodeOutput = this.nodeStates.get(connection.nodeId)?.output;
         if (!nodeOutput) return undefined;
 
         if (typeof connection.port === 'string') {
