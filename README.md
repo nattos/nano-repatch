@@ -62,6 +62,17 @@ Nodes do not have simple, fixed-arity inputs. Instead, each node receives a sing
 
 It is entirely up to the node's definition to decide how to interpret this "grab bag" of data. This is achieved via the Universal Broadcast Operation.
 
+### 4. Runtime & Execution
+
+The graph is brought to life by a `GraphExecutor`. This class takes a `GraphDefinition` and manages its runtime state. It's responsible for:
+
+* **Executing nodes** in the correct topological order.
+* **Storing the output** of every node.
+* **Efficiently performing iterative updates.** When an input to the graph changes, the executor uses a dirty-tracking mechanism to re-calculate only the downstream nodes that are affected.
+
+Node definitions themselves are managed by a `NodeRepository`. This allows for a pluggable system where new nodes (or sets of nodes) can be registered and made available to the graph. The executor uses this repository to look up a node's definition by its ID during execution.
+
+
 ## Key Feature: The Universal Broadcast Operation
 
 The core innovation of Structor is the **Universal Broadcast Operation**. It provides a single, declarative API for a node to consume its messy "grab bag" of inputs.
@@ -274,13 +285,58 @@ export interface GraphDefinition {
   kind: 'graph';
   type: GraphType; // The pre-computed I/O signature of this graph
   nodes: Record<string, NodeInstance>;
-  inputs: Record<NodePort, { nodeId: string; port: NodePort }>;
-  outputs: Record<NodePort, { nodeId: string; port: NodePort }>;
+  connections: {
+    fromNode: string;
+    fromPort: string | number;
+    toNode: string;
+    toPort: string | number;
+  }[];
+  inputs: Record<string, { nodeId: string; port: string | number }>;
+  outputs: Record<string, { nodeId: string; port: string | number }>;
+}
+
+/**
+ * An instance of a node within a graph. It refers to a definition
+ * stored in a NodeRepository.
+ */
+export interface NodeInstance {
+    definitionId: string;
+    // In the future, this will hold instance-specific config,
+    // e.g., the value for a 'literal' node.
 }
 
 /* ===================================================================
- * 4. The Universal Broadcast Operation Config
+ * 4. Execution & Management
  * =================================================================== */
+
+/**
+ * Manages a collection of available NodeDefinitions.
+ */
+export class NodeRepository {
+  register(node: NodeType): void;
+  get(id: string): NodeDefinition | undefined;
+}
+
+/**
+ * Manages the runtime state and execution of a single graph instance.
+ */
+export class GraphExecutor {
+  constructor(graph: GraphDefinition, repository: NodeRepository);
+
+  /** Sets the value of a named graph input. */
+  setInput(inputName: string, value: Structor): void;
+
+  /** Triggers a recalculation of the graph based on dirty nodes. */
+  update(): void;
+
+  /** Retrieves the output of a named graph output port. */
+  getGraphOutput(outputName: string): Structor | undefined;
+}
+
+/* ===================================================================
+ * 5. The Universal Broadcast Operation Config
+ * =================================================================== */
+
 
 /**
  * This is the "query" a node sends to the broadcast engine
