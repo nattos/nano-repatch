@@ -107,6 +107,7 @@ export interface GraphDefinition {
   kind: 'graph';
   type: GraphType; // The pre-computed I/O signature of this graph
   nodes: Record<string, NodeInstance>;
+  connections: { fromNode: string; fromPort: string | number; toNode: string; toPort: string | number; }[];
   // Simplified for test purposes
   inputs: Record<string, { nodeId: string; port: string | number }>;
   outputs: Record<string, { nodeId: string; port: string | number }>;
