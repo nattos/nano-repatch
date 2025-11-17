@@ -85,16 +85,19 @@ export interface ExecutionContext {
 export interface PrimitiveNodeDefinition {
   id: string;
   kind: 'primitive';
+  configType?: StructorType;
 
   /** Static analysis function: computes output types from input types. */
   computeOutputTypes: (
     inputType: RecordType,
+    config: StructorType,
     context: AnalysisContext,
   ) => RecordType;
 
   /** Runtime execution function: computes output data from input data. */
   execute: (
     input: StructorRecord,
+    config: Structor,
     context: ExecutionContext,
   ) => StructorRecord;
 }
@@ -116,7 +119,7 @@ export interface GraphDefinition {
 // Added for GraphDefinition
 export interface NodeInstance {
     definitionId: string;
-    // other instance properties
+    defaultConfig?: Structor;
 }
 
 

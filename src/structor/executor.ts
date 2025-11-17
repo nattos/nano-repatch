@@ -3,6 +3,7 @@ import { NodeRepository } from "./repository";
 
 export class GraphExecutor {
     private nodeOutputs: Map<string, StructorRecord> = new Map();
+    private nodeConfigs: Map<string, Structor> = new Map();
     private dirtyNodes: Set<string> = new Set();
     private executionOrder: string[] = [];
     private downstreamMap: Map<string, string[]> = new Map();
@@ -11,7 +12,7 @@ export class GraphExecutor {
 
     constructor(private graph: GraphDefinition, private repository: NodeRepository) {
         this.buildDependencyMaps();
-        this.initializeOutputs();
+        this.initializeStates();
     }
 
     private buildDependencyMaps() {
@@ -55,10 +56,13 @@ export class GraphExecutor {
         }
     }
 
-    private initializeOutputs() {
-        for (const nodeId of Object.keys(this.graph.nodes)) {
+    private initializeStates() {
+        for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {
             this.nodeOutputs.set(nodeId, { fields: {}, untagged: [] });
             this.dirtyNodes.add(nodeId);
+            if (instance.defaultConfig !== undefined) {
+                this.nodeConfigs.set(nodeId, instance.defaultConfig);
+            }
         }
     }
 
@@ -68,6 +72,15 @@ export class GraphExecutor {
         if (connection) {
             this.markDirty(connection.nodeId);
         }
+    }
+
+    public setNodeConfig(nodeId: string, config: Structor): void {
+        this.nodeConfigs.set(nodeId, config);
+        this.markDirty(nodeId);
+    }
+
+    public getNodeConfig(nodeId: string): Structor | undefined {
+        return this.nodeConfigs.get(nodeId);
     }
 
     public markDirty(nodeId: string): void {
@@ -137,8 +150,10 @@ export class GraphExecutor {
                 },
                 repository: this.repository
             };
+            
+            const config = this.nodeConfigs.get(nodeId) || null;
 
-            const outputRecord = definition.execute(inputRecord, context);
+            const outputRecord = definition.execute(inputRecord, config, context);
             this.nodeOutputs.set(nodeId, outputRecord);
         }
 

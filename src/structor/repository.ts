@@ -1,5 +1,5 @@
 import { NodeDefinition } from './structor';
-import { primitive_add, primitive_clamp, make_literal_primitive, primitive_apply } from './primitives';
+import { primitive_add, primitive_clamp, primitive_literal, primitive_apply } from './primitives';
 
 export interface NodeType {
     id: string;
@@ -48,15 +48,8 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-    id: 'literal_5',
+    id: 'literal',
     version: '1.0.0',
-    displayName: 'Constant 5',
-    definition: make_literal_primitive(5, { kind: 'atomic', type: 'number' })
-});
-
-defaultNodeRepository.register({
-    id: 'literal_10',
-    version: '1.0.0',
-    displayName: 'Constant 10',
-    definition: make_literal_primitive(10, { kind: 'atomic', type: 'number' })
+    displayName: 'Literal',
+    definition: primitive_literal
 });

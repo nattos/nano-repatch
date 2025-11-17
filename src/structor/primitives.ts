@@ -1,4 +1,3 @@
-
 import { 
     AtomicType,
     BroadcastConfig,
@@ -14,18 +13,12 @@ import {
 
 const numberType: AtomicType = { kind: 'atomic', type: 'number' };
 
-
 export const primitive_add: PrimitiveNodeDefinition = {
     id: 'primitive:add',
     kind: 'primitive',
-    computeOutputTypes: (inputType: RecordType, context: AnalysisContext): RecordType => {
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
         const inputNames = [...Object.keys(inputType.fields), ...inputType.untagged.map((_, i) => i)];
-
-        const broadcastConfig: BroadcastConfig = {
-            outputs: {},
-            reshape: 'vector',
-        };
-
+        const broadcastConfig: BroadcastConfig = { outputs: {}, reshape: 'vector' };
         for (const name of inputNames) {
             if (typeof name === 'number') {
                 broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
@@ -33,27 +26,15 @@ export const primitive_add: PrimitiveNodeDefinition = {
                 broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
             }
         }
-
         const broadcastResultType = context.broadcast(broadcastConfig, inputType);
-
         if (broadcastResultType.kind === 'array' && broadcastResultType.size === 1) {
             return { kind: 'record', fields: {}, untagged: [broadcastResultType.element] };
         }
-
-        return {
-            kind: 'record',
-            fields: {},
-            untagged: [broadcastResultType]
-        };
+        return { kind: 'record', fields: {}, untagged: [broadcastResultType] };
     },
-    execute: (input, context) => {
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
         const inputNames = [...Object.keys(input.fields), ...input.untagged.map((_, i) => i)];
-
-        const broadcastConfig: BroadcastConfig = {
-            outputs: {},
-            reshape: 'vector',
-        };
-
+        const broadcastConfig: BroadcastConfig = { outputs: {}, reshape: 'vector' };
         for (const name of inputNames) {
             if (typeof name === 'number') {
                 broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
@@ -61,24 +42,17 @@ export const primitive_add: PrimitiveNodeDefinition = {
                 broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
             }
         }
-        
         const broadcastResult = context.broadcast(broadcastConfig, input);
-
         const sum = broadcastResult.broadcasted.map((tuple: number[]) => tuple.reduce((a, b) => a + b, 0));
-
         const result = sum.length === 1 && broadcastResult.broadcasted.length === 1 ? sum[0] : sum;
-
-        return {
-            fields: {},
-            untagged: [result]
-        };
+        return { fields: {}, untagged: [result] };
     }
 };
 
 export const primitive_clamp: PrimitiveNodeDefinition = {
     id: 'primitive:clamp',
     kind: 'primitive',
-    computeOutputTypes: (inputType, context) => {
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
         const broadcastConfig: BroadcastConfig = {
             outputs: {
                 'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
@@ -87,16 +61,10 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
             },
             reshape: 'none',
         };
-
         const broadcastResultType = context.broadcast(broadcastConfig, inputType);
-        
-        return {
-            kind: 'record',
-            fields: {},
-            untagged: [broadcastResultType.fields.value]
-        };
+        return { kind: 'record', fields: {}, untagged: [broadcastResultType.fields.value] };
     },
-    execute: (input, context) => {
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
         const broadcastConfig: BroadcastConfig = {
             outputs: {
                 'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
@@ -105,52 +73,36 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
             },
             reshape: 'none',
         };
-        
         const broadcastResult = context.broadcast(broadcastConfig, input) as { fields: { value: number[], min: number, max: number } };
-
         const clamped = broadcastResult.fields.value.map(v => 
             Math.max(broadcastResult.fields.min, Math.min(v, broadcastResult.fields.max))
         );
-
-        return {
-            fields: {},
-            untagged: [clamped]
-        };
+        return { fields: {}, untagged: [clamped] };
     }
 };
 
-export const make_literal_primitive = (value: Structor, type: StructorType): PrimitiveNodeDefinition => ({
-    id: `primitive:literal:${JSON.stringify(value)}`,
+export const primitive_literal: PrimitiveNodeDefinition = {
+    id: 'primitive:literal',
     kind: 'primitive',
-    computeOutputTypes: (inputType, context) => ({
-        kind: 'record',
-        fields: {},
-        untagged: [type]
-    }),
-    execute: (input, context) => ({
-        fields: {},
-        untagged: [value]
-    }),
-});
+    configType: { kind: 'any' }, // This literal can hold any type of value
+    computeOutputTypes: (inputType: RecordType, configType: StructorType, context: AnalysisContext) => {
+        return { kind: 'record', fields: {}, untagged: [configType] };
+    },
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+        return { fields: {}, untagged: [config] };
+    },
+};
 
 export const primitive_apply: PrimitiveNodeDefinition = {
     id: 'primitive:apply',
     kind: 'primitive',
-    computeOutputTypes: (inputType, context) => {
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
         const functorType = inputType.fields['functor'] as FunctorType;
-        // In a real scenario, we would assert that functorType.input matches inputType.fields['input']
-        return {
-            kind: 'record',
-            fields: {},
-            untagged: [functorType.output]
-        };
+        return { kind: 'record', fields: {}, untagged: [functorType.output] };
     },
-    execute: (input, context) => {
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
         const functor = input.fields['functor'] as Functor;
         const inputValue = input.fields['input'];
-        return {
-            fields: {},
-            untagged: [functor(inputValue)]
-        };
+        return { fields: {}, untagged: [functor(inputValue)] };
     }
 };
