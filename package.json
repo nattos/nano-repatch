@@ -1,0 +1,26 @@
+{
+  "name": "nano-repatch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "lit": "^2.8.0",
+    "mobx": "^6.13.7",
+    "vite-plugin-run": "^0.6.1"
+  },
+  "dependencies": {
+    "@adobe/lit-mobx": "^2.2.2",
+    "@types/audioworklet": "^0.0.82",
+    "typescript": "^5.2.2",
+    "vite": "^7.1.9",
+    "vite-plugin-static-copy": "^3.1.3"
+  }
+}

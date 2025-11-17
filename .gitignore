@@ -1,0 +1,17 @@
+.DS_Store
+
+/.DS_Store
+DerivedData/
+
+.vs
+Build/Windows/x64/Debug/
+Build/Windows/x64/Release/
+
+.vscode
+
+.venv
+/__pycache__/
+/run/
+
+node_modules/
+dist
