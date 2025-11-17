@@ -60,6 +60,8 @@ export type Structor =
   | StructorArray
   | StructorRecord;
 
+import { NodeRepository } from './repository';
+
 /* ===================================================================
  * 3. Node Definitions
  * =================================================================== */
@@ -69,9 +71,11 @@ export type NodeDefinition = PrimitiveNodeDefinition | GraphDefinition;
 // Faking the contexts for now
 export interface AnalysisContext {
     broadcast: (config: BroadcastConfig, inputs: RecordType) => any;
+    repository: NodeRepository;
 };
 export interface ExecutionContext {
     broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
+    repository: NodeRepository;
 };
 
 
@@ -110,9 +114,10 @@ export interface GraphDefinition {
 
 // Added for GraphDefinition
 export interface NodeInstance {
-    definition: NodeDefinition;
+    definitionId: string;
     // other instance properties
 }
+
 
 
 /* ===================================================================

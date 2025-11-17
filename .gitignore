@@ -13,5 +13,7 @@ Build/Windows/x64/Release/
 /__pycache__/
 /run/
 
+.jj
+
 node_modules/
 dist

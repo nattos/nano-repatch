@@ -1,0 +1,156 @@
+
+import { 
+    AtomicType,
+    BroadcastConfig,
+    ExecutionContext,
+    PrimitiveNodeDefinition,
+    RecordType,
+    Structor,
+    StructorType,
+    AnalysisContext,
+    Functor,
+    FunctorType
+} from "./structor";
+
+const numberType: AtomicType = { kind: 'atomic', type: 'number' };
+
+
+export const primitive_add: PrimitiveNodeDefinition = {
+    id: 'primitive:add',
+    kind: 'primitive',
+    computeOutputTypes: (inputType: RecordType, context: AnalysisContext): RecordType => {
+        const inputNames = [...Object.keys(inputType.fields), ...inputType.untagged.map((_, i) => i)];
+
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {},
+            reshape: 'vector',
+        };
+
+        for (const name of inputNames) {
+            if (typeof name === 'number') {
+                broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
+            } else {
+                broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
+            }
+        }
+
+        const broadcastResultType = context.broadcast(broadcastConfig, inputType);
+
+        if (broadcastResultType.kind === 'array' && broadcastResultType.size === 1) {
+            return { kind: 'record', fields: {}, untagged: [broadcastResultType.element] };
+        }
+
+        return {
+            kind: 'record',
+            fields: {},
+            untagged: [broadcastResultType]
+        };
+    },
+    execute: (input, context) => {
+        const inputNames = [...Object.keys(input.fields), ...input.untagged.map((_, i) => i)];
+
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {},
+            reshape: 'vector',
+        };
+
+        for (const name of inputNames) {
+            if (typeof name === 'number') {
+                broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
+            } else {
+                broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
+            }
+        }
+        
+        const broadcastResult = context.broadcast(broadcastConfig, input);
+
+        const sum = broadcastResult.broadcasted.map((tuple: number[]) => tuple.reduce((a, b) => a + b, 0));
+
+        const result = sum.length === 1 && broadcastResult.broadcasted.length === 1 ? sum[0] : sum;
+
+        return {
+            fields: {},
+            untagged: [result]
+        };
+    }
+};
+
+export const primitive_clamp: PrimitiveNodeDefinition = {
+    id: 'primitive:clamp',
+    kind: 'primitive',
+    computeOutputTypes: (inputType, context) => {
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {
+                'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
+                'min': { fromFields: ['min'], fromUntagged: false, combine: { reduce: 'min' } },
+                'max': { fromFields: ['max'], fromUntagged: false, combine: { reduce: 'max' } },
+            },
+            reshape: 'none',
+        };
+
+        const broadcastResultType = context.broadcast(broadcastConfig, inputType);
+        
+        return {
+            kind: 'record',
+            fields: {},
+            untagged: [broadcastResultType.fields.value]
+        };
+    },
+    execute: (input, context) => {
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {
+                'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
+                'min': { fromFields: ['min'], fromUntagged: false, combine: { reduce: 'min' } },
+                'max': { fromFields: ['max'], fromUntagged: false, combine: { reduce: 'max' } },
+            },
+            reshape: 'none',
+        };
+        
+        const broadcastResult = context.broadcast(broadcastConfig, input) as { fields: { value: number[], min: number, max: number } };
+
+        const clamped = broadcastResult.fields.value.map(v => 
+            Math.max(broadcastResult.fields.min, Math.min(v, broadcastResult.fields.max))
+        );
+
+        return {
+            fields: {},
+            untagged: [clamped]
+        };
+    }
+};
+
+export const make_literal_primitive = (value: Structor, type: StructorType): PrimitiveNodeDefinition => ({
+    id: `primitive:literal:${JSON.stringify(value)}`,
+    kind: 'primitive',
+    computeOutputTypes: (inputType, context) => ({
+        kind: 'record',
+        fields: {},
+        untagged: [type]
+    }),
+    execute: (input, context) => ({
+        fields: {},
+        untagged: [value]
+    }),
+});
+
+export const primitive_apply: PrimitiveNodeDefinition = {
+    id: 'primitive:apply',
+    kind: 'primitive',
+    computeOutputTypes: (inputType, context) => {
+        const functorType = inputType.fields['functor'] as FunctorType;
+        // In a real scenario, we would assert that functorType.input matches inputType.fields['input']
+        return {
+            kind: 'record',
+            fields: {},
+            untagged: [functorType.output]
+        };
+    },
+    execute: (input, context) => {
+        const functor = input.fields['functor'] as Functor;
+        const inputValue = input.fields['input'];
+        return {
+            fields: {},
+            untagged: [functor(inputValue)]
+        };
+    }
+};
