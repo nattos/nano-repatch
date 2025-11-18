@@ -14,13 +14,14 @@
   "license": "ISC",
   "devDependencies": {
     "lit": "^2.8.0",
-    "mobx": "^6.13.7",
+    "mobx": "^6.15.0",
     "vite-plugin-run": "^0.6.1",
     "vitest": "^4.0.9"
   },
   "dependencies": {
     "@adobe/lit-mobx": "^2.2.2",
     "@types/audioworklet": "^0.0.82",
+    "immer": "^10.2.0",
     "typescript": "^5.2.2",
     "vite": "^7.1.9",
     "vite-plugin-static-copy": "^3.1.3"

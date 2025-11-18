@@ -180,8 +180,8 @@ describe('AppController', () => {
             const finalState = controller.getState();
             expect(Object.keys(finalState.nodes).length).toBe(2);
             const finalNodeB = first(Object.values(finalState.nodes).filter(n => n.id !== nodeA.id))!;
-            expect(finalNodeB.x).toBe(30);
-            expect(finalNodeB.y).toBe(30);
+            expect(finalNodeB.x).toBe(50); // 20 (initial) + 30 (dx)
+            expect(finalNodeB.y).toBe(50); // 20 (initial) + 30 (dy)
             expect(Object.keys(finalState.connections).length).toBe(1);
             const conn = first(finalState.connections)!;
             expect(conn.fromNodeId).toBe(nodeA.id);
