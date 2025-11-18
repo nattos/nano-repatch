@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { autorun, toJS, runInAction } from 'mobx';
 import { AppController, AppState, GridNode, Connection } from './state';
 
 // A helper to get the first item from a record
@@ -27,8 +28,11 @@ describe('AppController', () => {
                 connections: {},
             };
             controller = new AppController(initialState);
-            // For now, observableState is a direct copy. This test will become more meaningful with MobX.
-            expect(controller.observableState).toEqual(initialState);
+            // Use `runInAction` to create a reactive context for the read operation,
+            // which prevents MobX from warning about it in a test environment.
+            runInAction(() => {
+                expect(toJS(controller.observableState)).toEqual(initialState);
+            });
         });
     });
 
@@ -259,6 +263,55 @@ describe('AppController', () => {
 
             expect(initialState).not.toBe(nextState);
             expect(initialState.nodes).not.toBe(nextState.nodes);
+        });
+    });
+
+    describe('MobX Integration', () => {
+        it('should react to node creation', () => {
+            const history: number[] = [];
+            const dispose = autorun(() => {
+                history.push(Object.keys(controller.observableState.nodes).length);
+            });
+
+            expect(history).toEqual([0]);
+            controller.createNode('A', 0, 0);
+            expect(history).toEqual([0, 1]);
+
+            dispose();
+        });
+
+        it('should react to node config changes', () => {
+            const node = controller.createNode('A', 0, 0);
+            
+            const history: any[] = [];
+            const dispose = autorun(() => {
+                history.push(controller.observableState.nodes[node.id]?.config.value);
+            });
+
+            expect(history).toEqual([undefined]);
+            controller.setNodeConfig(node.id, { value: 100 });
+            expect(history).toEqual([undefined, 100]);
+
+            dispose();
+        });
+
+        it('should batch updates within a transaction', () => {
+            const history: number[] = [];
+            const dispose = autorun(() => {
+                history.push(Object.keys(controller.observableState.nodes).length);
+            });
+
+            expect(history).toEqual([0]);
+
+            controller.transaction(c => {
+                c.createNode('A', 0, 0);
+                c.createNode('B', 10, 10);
+            });
+
+            // Should only fire once for the whole transaction
+            expect(history).toEqual([0, 2]);
+
+            dispose();
         });
     });
 });
