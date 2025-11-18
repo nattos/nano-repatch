@@ -1,5 +1,8 @@
 import { observable, action, makeObservable, configure } from 'mobx';
-import { produce, setAutoFreeze } from 'immer';
+import { produce, setAutoFreeze, enableMapSet } from 'immer';
+
+// Enable Immer support for Map and Set
+enableMapSet();
 
 // Immer and MobX can have issues working together if Immer freezes the state.
 // We disable auto-freezing to allow MobX to wrap the state objects.
@@ -37,9 +40,22 @@ export interface Connection {
     };
 }
 
-export interface AppState {
+// The canonical, serializable state of the graph
+export interface GraphState {
     nodes: Record<string, GridNode>;
     connections: Record<string, Connection>;
+}
+
+// The full application state, including the canonical graph and
+// derived, non-serializable lookup maps for performance.
+export interface AppState {
+    graph: GraphState;
+    auxiliary: {
+        // map from a node ID to the IDs of its outgoing connections
+        outgoingConnections: Map<string, string[]>;
+        // map from a node ID to the IDs of its incoming connections
+        incomingConnections: Map<string, string[]>;
+    };
 }
 
 // Part 2: Mutations
@@ -65,9 +81,14 @@ export class AppController {
     private bufferedMutations: AppMutation[] = [];
     private draftState: AppState | null = null;
 
-    constructor(initialState?: AppState) {
-        this.currentState = initialState || { nodes: {}, connections: {} };
-        this.observableState = observable(JSON.parse(JSON.stringify(this.currentState)));
+    constructor(initialState?: GraphState) {
+        const graphState = initialState || { nodes: {}, connections: {} };
+        this.currentState = {
+            graph: graphState,
+            auxiliary: this.buildAuxiliaryMaps(graphState),
+        };
+        // MobX can make Maps observable directly
+        this.observableState = observable(this.currentState);
         
         makeObservable(this, {
             observableState: observable,
@@ -76,17 +97,14 @@ export class AppController {
     }
 
     public getState(): Readonly<AppState> {
-        // If inside a transaction, return the draft state so changes are readable.
         return this.isTransactionActive && this.draftState ? this.draftState : this.currentState;
     }
 
     public dispatch(mutations: AppMutation[], isUndoRedo: boolean = false): void {
         if (mutations.length === 0) return;
 
-        // If a transaction is active, buffer the mutations instead of dispatching immediately.
         if (this.isTransactionActive) {
             this.bufferedMutations.push(...mutations);
-            // Apply mutations to the draft state for in-transaction reads.
             this.applyMutations(this.draftState!, mutations);
             return;
         }
@@ -108,29 +126,30 @@ export class AppController {
     }
 
     public transaction(callback: (draftController: this) => void): void {
-        // Start transaction
         this.isTransactionActive = true;
         this.bufferedMutations = [];
-        // The draft state is a mutable copy for this transaction
-        this.draftState = JSON.parse(JSON.stringify(this.currentState));
+        this.draftState = JSON.parse(JSON.stringify(this.currentState, (key, value) => 
+            value instanceof Map ? Array.from(value.entries()) : value
+        ));
+        // Re-hydrate maps after serialization
+        if (this.draftState) {
+            this.draftState.auxiliary.incomingConnections = new Map(this.draftState.auxiliary.incomingConnections);
+            this.draftState.auxiliary.outgoingConnections = new Map(this.draftState.auxiliary.outgoingConnections);
+        }
+
 
         try {
             callback(this);
-
-            // If callback completes, commit the transaction
             const mutationsToDispatch = [...this.bufferedMutations];
             this.isTransactionActive = false;
             this.bufferedMutations = [];
             this.draftState = null;
-            
             this.dispatch(mutationsToDispatch);
-
         } catch (e) {
-            // If anything goes wrong, discard the transaction
             this.isTransactionActive = false;
             this.bufferedMutations = [];
             this.draftState = null;
-            throw e; // Re-throw the error
+            throw e;
         }
     }
 
@@ -141,12 +160,12 @@ export class AppController {
     }
 
     public deleteNode(nodeId: string): void {
-        const state = this.getState(); // Use getState to read from draft if in transaction
-        const nodeToDelete = state.nodes[nodeId];
+        const state = this.getState();
+        const nodeToDelete = state.graph.nodes[nodeId];
         if (!nodeToDelete) return;
 
         const mutations: AppMutation[] = [];
-        for (const conn of Object.values(state.connections)) {
+        for (const conn of Object.values(state.graph.connections)) {
             if (conn.fromNodeId === nodeId || conn.toNodeId === nodeId) {
                 mutations.push({ type: 'connection.delete', connection: conn });
             }
@@ -162,7 +181,7 @@ export class AppController {
     }
 
     public deleteConnection(connectionId: string): void {
-        const connToDelete = this.getState().connections[connectionId];
+        const connToDelete = this.getState().graph.connections[connectionId];
         if (connToDelete) {
             this.dispatch([{ type: 'connection.delete', connection: connToDelete }]);
         }
@@ -171,7 +190,7 @@ export class AppController {
     public moveNodes(nodeIds: string[], dx: number, dy: number): void {
         const state = this.getState();
         const moves = nodeIds.map(id => {
-            const node = state.nodes[id];
+            const node = state.graph.nodes[id];
             return { nodeId: id, from: { x: node.x, y: node.y }, to: { x: node.x + dx, y: node.y + dy } };
         });
         this.dispatch([{ type: 'node.move', moves }]);
@@ -180,7 +199,7 @@ export class AppController {
     public setNodeConfig(nodeId: string, configUpdate: Partial<any>): void {
         const state = this.getState();
         const fromConfig: Partial<any> = {};
-        const currentNode = state.nodes[nodeId];
+        const currentNode = state.graph.nodes[nodeId];
         for (const key in configUpdate) {
             if (Object.prototype.hasOwnProperty.call(configUpdate, key)) {
                 fromConfig[key] = currentNode.config[key];
@@ -209,32 +228,65 @@ export class AppController {
         }
     }
 
+    private buildAuxiliaryMaps(graphState: GraphState): AppState['auxiliary'] {
+        const outgoingConnections = new Map<string, string[]>();
+        const incomingConnections = new Map<string, string[]>();
+
+        for (const node of Object.values(graphState.nodes)) {
+            outgoingConnections.set(node.id, []);
+            incomingConnections.set(node.id, []);
+        }
+
+        for (const conn of Object.values(graphState.connections)) {
+            outgoingConnections.get(conn.fromNodeId)?.push(conn.id);
+            incomingConnections.get(conn.toNodeId)?.push(conn.id);
+        }
+        return { outgoingConnections, incomingConnections };
+    }
+
     private applyMutations(state: AppState, mutations: AppMutation[]): void {
         for (const mutation of mutations) {
             switch (mutation.type) {
                 case 'node.create':
-                    state.nodes[mutation.node.id] = mutation.node;
+                    state.graph.nodes[mutation.node.id] = mutation.node;
+                    state.auxiliary.outgoingConnections.set(mutation.node.id, []);
+                    state.auxiliary.incomingConnections.set(mutation.node.id, []);
                     break;
                 case 'node.delete':
-                    delete state.nodes[mutation.node.id];
+                    delete state.graph.nodes[mutation.node.id];
+                    state.auxiliary.outgoingConnections.delete(mutation.node.id);
+                    state.auxiliary.incomingConnections.delete(mutation.node.id);
                     break;
                 case 'connection.create':
-                    state.connections[mutation.connection.id] = mutation.connection;
+                    state.graph.connections[mutation.connection.id] = mutation.connection;
+                    state.auxiliary.outgoingConnections.get(mutation.connection.fromNodeId)?.push(mutation.connection.id);
+                    state.auxiliary.incomingConnections.get(mutation.connection.toNodeId)?.push(mutation.connection.id);
                     break;
                 case 'connection.delete':
-                    delete state.connections[mutation.connection.id];
+                    const conn = mutation.connection;
+                    delete state.graph.connections[conn.id];
+                    const outgoing = state.auxiliary.outgoingConnections.get(conn.fromNodeId);
+                    if (outgoing) {
+                        const index = outgoing.indexOf(conn.id);
+                        if (index > -1) outgoing.splice(index, 1);
+                    }
+                    const incoming = state.auxiliary.incomingConnections.get(conn.toNodeId);
+                    if (incoming) {
+                        const index = incoming.indexOf(conn.id);
+                        if (index > -1) incoming.splice(index, 1);
+                    }
                     break;
                 case 'node.move':
                     for (const move of mutation.moves) {
-                        if (state.nodes[move.nodeId]) {
-                            state.nodes[move.nodeId].x = move.to.x;
-                            state.nodes[move.nodeId].y = move.to.y;
+                        if (state.graph.nodes[move.nodeId]) {
+                            state.graph.nodes[move.nodeId].x = move.to.x;
+                            state.graph.nodes[move.nodeId].y = move.to.y;
                         }
                     }
                     break;
                 case 'node.setConfig':
-                    if (state.nodes[mutation.nodeId]) {
-                        Object.assign(state.nodes[mutation.nodeId].config, mutation.to);
+                    if (state.graph.nodes[mutation.nodeId]) {
+                        Object.assign(state.graph.nodes[mutation.nodeId].config, mutation.to);
                     }
                     break;
             }
