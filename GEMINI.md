@@ -35,3 +35,24 @@ This analysis reflects the state of the system after implementing the initial te
 3.  **The Broadcast Engine:** While a strength in theory, the `broadcast` engine is also a potential pitfall. Its implementation is complex, and its rules for reshaping and reducing data need to be both powerful and intuitive. If it's difficult for a developer to predict what shape their data will have after a broadcast, it will become a frequent source of bugs and frustration.
 
 4.  **Performance at Scale:** The current data structures (`Structor` as plain objects/arrays) are fine for control logic and small datasets. However, the README mentions inspiration from tensor frameworks. For any serious numerical or data-processing work, these generic objects will be a performance bottleneck. A future version would need to integrate with more performant backends like TypedArrays, WebAssembly, or even GPU libraries, which would be a complex undertaking.
+
+## App State & Controller Implementation (As of 2025-11-17)
+
+This entry summarizes the implementation of the application state management engine (`AppController`).
+
+### Process
+
+The implementation followed a rigorous Test-Driven Development (TDD) approach:
+1.  A detailed design for the state, mutations, and controller was written as comments.
+2.  A comprehensive test suite was created, defining the full public API and behavior (including transactions and undo/redo) as failing tests.
+3.  The `AppController` and its dependencies (`immer`, `mobx`) were implemented incrementally, with the goal of making the tests pass one by one.
+4.  The process concluded with all 25 tests passing, including complex transaction and reactivity tests.
+
+### Architectural Improvements
+
+This implementation addresses several key architectural aspects and weaknesses identified earlier:
+
+1.  **Instance Configuration:** The system now has a formal mechanism for handling instance-specific node configuration. The `AppController` manages this state, and the `GraphExecutor` uses it, resolving a key design weakness.
+2.  **Builder Engine:** We now have a robust, well-tested engine for the application layer. It handles the state of the visual graph editor, including node positions, connections, and configurations.
+3.  **Transactional Integrity:** The `transaction` method provides a powerful API for grouping operations. Its implementation supports atomic commits and rollbacks (via undo) and, crucially, allows for "in-transaction reads" of the draft state. This enables advanced features like speculative edits and on-the-fly validation.
+4.  **Reactive UI Layer:** The integration with MobX is now tested. The `observableState` provides a reactive mirror of the application state, and the controller ensures that updates are batched efficiently within transactions, providing a solid foundation for a responsive UI.

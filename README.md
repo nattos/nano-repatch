@@ -167,6 +167,14 @@ The entire system is designed to be statically analyzable. When a graph is loade
 
 This process allows the system to pre-compute the *exact* type and dimensions of every connection in the graph, enabling powerful compile-time error checking and optimization.
 
+## Application State Management
+
+While the `GraphExecutor` runs a `GraphDefinition`, the application itself needs a way to build and manage the state of the visual graph editor. This is handled by the `AppController`.
+
+The `AppController` is the central engine for the application's UI state. It manages an `AppState` object, which contains the grid of nodes and their connections. All modifications (creating nodes, moving them, connecting them) are handled through methods on the controller.
+
+It uses a transactional, command-based pattern with a full undo/redo stack. For UI integration, it provides a `mobx`-powered observable mirror of the state, ensuring that UI components can react efficiently to any changes.
+
 ## First-Class Strings and Functors
 
 Operations are generalized for all types, including `string` and `Functor`.
@@ -263,16 +271,19 @@ export type NodeDefinition = PrimitiveNodeDefinition | GraphDefinition;
 export interface PrimitiveNodeDefinition {
   id: string;
   kind: 'primitive';
+  configType?: StructorType; // The type of config this node expects
 
   /** Static analysis function: computes output types from input types. */
   computeOutputTypes: (
     inputType: RecordType,
+    config: StructorType,
     context: AnalysisContext,
   ) => RecordType;
 
   /** Runtime execution function: computes output data from input data. */
   execute: (
     input: StructorRecord,
+    config: Structor,
     context: ExecutionContext,
   ) => StructorRecord;
 }
@@ -301,8 +312,7 @@ export interface GraphDefinition {
  */
 export interface NodeInstance {
     definitionId: string;
-    // In the future, this will hold instance-specific config,
-    // e.g., the value for a 'literal' node.
+    defaultConfig?: Structor; // Default config for this instance
 }
 
 /* ===================================================================
