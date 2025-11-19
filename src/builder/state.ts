@@ -23,10 +23,12 @@ const generateId = (prefix: string) => `${prefix}-${nextId++}`;
 // Part 1: Core Data Structures
 export interface GridNode {
     id: string;
-    typeId: string;
     x: number;
     y: number;
-    config: any;
+    config: {
+        typeId: string;
+        [key: string]: any;
+    };
 }
 
 export interface Connection {
@@ -154,7 +156,12 @@ export class AppController {
     }
 
     public createNode(typeId: string, x: number, y: number): GridNode {
-        const newNode: GridNode = { id: generateId('node'), typeId, x, y, config: {} };
+        const newNode: GridNode = {
+            id: generateId('node'),
+            x,
+            y,
+            config: { typeId },
+        };
         this.dispatch([{ type: 'node.create', node: newNode }]);
         return newNode;
     }
