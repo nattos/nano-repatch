@@ -1,29 +1,31 @@
 import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
+import { globalStyles } from './styles';
+import './views/graph-editor';
 
 @customElement('nano-repatch')
 export class App extends MobxLitElement {
-  static readonly styles = css`
+  static readonly styles = [
+    globalStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 20px;
-      font-family: 'Questrial', sans-serif;
-      color: #e0e0e0;
-      background-color: #121212;
-      width: 100%;
+      color: var(--app-text-color1);
+      background-color: var(--app-bg-color1);
+      width: 100vw;
+      height: 100vh;
       box-sizing: border-box;
     }
-  `;
+  `];
 
 
   render() {
     return html`
-      hello world
+      <graph-editor></graph-editor>
     `;
   }
 }
-
-document.body.innerHTML = '<nano-repatch></nano-repatch>';

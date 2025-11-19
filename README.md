@@ -196,6 +196,28 @@ Operations are generalized for all types, including `string` and `Functor`.
 
   * Its `computeOutputTypes` function will also return a `FunctorType`, allowing the static analysis to continue through this new, composed function.
 
+## UI Concept
+
+The design pillars are clean and solid behaviours. As little menu digging as possible. "Playability" like an instrument, yet uncluttered. As little "config" as possible. The editor should feel like a canvas you paint on, in broad strokes.
+
+With that, our main editor area will consist of a grid. Grid columns are of a standard length (this will allow node types to provide custom UI, right in the editor area). Nodes are placed in the center of grid cells. The grid is sparse, so some cells may be empty, allowing the user to layout nodes in a semantically meaningful way.
+
+Double clicking on an empty cell creates a new node there.
+
+The borders between cells are also highly relevant. When mousing over them, they will given an indication they are interatible. Double clicking on one inserts space there.
+
+When dragging a node, dragging into an empty cell moves it there. When dragging onto a cell border, space is inserted before moving. When multi-dragging cells, the cells move as a whole, retaining their shape. A rectangular area the size of the shape is made available, unless an area the entire size of the shape is available.
+
+Cells and cell borders are also selectable, allowing multi-select and deletion.
+
+Nodes themselves will be highly rounded. In the case of the simplest node, a "hub", which simply passes on inputs, it will reduce gracefully to being a circle.
+
+For nodes with editable values, they will be rounded rectangles with the same rounding as that circle (they appear to be "grown" versions of the circle). For inputs with the default data type (a scalar number), a horizontal slider like element will be displayed, stacked into a column, one per input, allowing immediate access to that parameter, and "playability". We have not decided on the styling of these slider elements, but we want to maintain playability, but have the editability of "Ableton Live" controls, where they can be easily selected, edited exactly with text inputs, and reset to a "default value".
+
+Connections between nodes will be rendered as nicely styled lines that will be algorithmically laid out (instead of just doing a bee-line or crow's flight, or another un-coordinated rendering method). Specifically, they will tend to flow along the borders of grid cells, instead of through the cells themselves, so that things do not overlap. When multiple connections are flowing through the same "channel", they will space out, which will end up looking like traces on a PCB. (this algorithm is nice-to-have, and will implement things such that this will be fairly easy to add in the future, but initially, it can just do simple, un-coordinated placement).
+
+Finally, there will be a small inspector popup in the bottom right, that allows for tweaking values that do not fit cleanly into sliders, such as the node's "type".
+
 ## Core API Definitions
 
 *The following types define the core public-facing API of the Structor system.*
