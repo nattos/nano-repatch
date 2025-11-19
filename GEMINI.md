@@ -56,3 +56,18 @@ This implementation addresses several key architectural aspects and weaknesses i
 2.  **Builder Engine:** We now have a robust, well-tested engine for the application layer. It handles the state of the visual graph editor, including node positions, connections, and configurations.
 3.  **Transactional Integrity:** The `transaction` method provides a powerful API for grouping operations. Its implementation supports atomic commits and rollbacks (via undo) and, crucially, allows for "in-transaction reads" of the draft state. This enables advanced features like speculative edits and on-the-fly validation.
 4.  **Reactive UI Layer:** The integration with MobX is now tested. The `observableState` provides a reactive mirror of the application state, and the controller ensures that updates are batched efficiently within transactions, providing a solid foundation for a responsive UI.
+
+## Final Architectural Refinements (As of 2025-11-17)
+
+This entry covers the final refactorings of the `AppController` state.
+
+### Changes Implemented
+
+1.  **Auxiliary Lookup Maps:** The `AppState` was refactored to use ES6 `Map` objects for the `incomingConnections` and `outgoingConnections` lookup tables instead of plain objects. This improves performance and makes the code's intent clearer. The `immer` dependency was updated to enable its `MapSet` plugin to support this change.
+2.  **Dynamic Node Types:** The `GridNode` structure was changed to make the node's type more flexible. The `typeId` was moved from a top-level property into the `config` object. This allows the node's type to be changed dynamically via the standard `setNodeConfig` mutation. The config object is now also designed to hold type-specific configuration data in separate sub-objects, which are preserved even when the `typeId` changes.
+
+### Personal Note on Process
+
+During the refactoring of the test suite for these changes, several existing test cases were inadvertently removed and had to be added back. This serves as an important reminder:
+
+**Be careful to retain all existing test cases when refactoring test files.** It is better to have a temporarily failing test that needs to be updated than to lose test coverage for a scenario. The comprehensive test suite is a critical asset for ensuring the project's stability.

@@ -169,11 +169,13 @@ This process allows the system to pre-compute the *exact* type and dimensions of
 
 ## Application State Management
 
-While the `GraphExecutor` runs a `GraphDefinition`, the application itself needs a way to build and manage the state of the visual graph editor. This is handled by the `AppController`.
+While the `GraphExecutor` runs a `GraphDefinition`, an application needs a way to build and manage the state of the visual graph editor. This is handled by the `AppController`.
 
-The `AppController` is the central engine for the application's UI state. It manages an `AppState` object, which contains the grid of nodes and their connections. All modifications (creating nodes, moving them, connecting them) are handled through methods on the controller.
+The `AppController` is the central engine for the application's UI state. It manages an `AppState` object, which contains two parts:
+1.  **`graph`**: The canonical, serializable `GraphState` (the nodes and connections that define the graph).
+2.  **`auxiliary`**: A set of non-serializable, derived lookup maps (e.g., `nodeId -> incoming_connections`) that are kept in sync with the graph and used by the UI for efficient querying and rendering.
 
-It uses a transactional, command-based pattern with a full undo/redo stack. For UI integration, it provides a `mobx`-powered observable mirror of the state, ensuring that UI components can react efficiently to any changes.
+All modifications are handled through methods on the controller, which uses a transactional, command-based pattern with a full undo/redo stack. For UI integration, it provides a `mobx`-powered observable mirror of the `AppState`, ensuring that UI components can react efficiently to any changes.
 
 ## First-Class Strings and Functors
 
@@ -344,8 +346,44 @@ export class GraphExecutor {
 }
 
 /* ===================================================================
- * 5. The Universal Broadcast Operation Config
+ * 5. Builder State
  * =================================================================== */
+
+/**
+ * The `AppController` manages a state object that represents the visual
+ * graph being edited. This state is separate from the core `Structor` types.
+ */
+
+// The canonical, serializable state of the graph
+export interface GraphState {
+    nodes: Record<string, GridNode>;
+    connections: Record<string, Connection>;
+}
+
+// The full application state, including performance-enhancing lookup maps
+export interface AppState {
+    graph: GraphState;
+    auxiliary: {
+        outgoingConnections: Map<string, string[]>;
+        incomingConnections: Map<string, string[]>;
+    };
+}
+
+// Represents a node in the visual editor grid
+export interface GridNode {
+    id: string;
+    x: number;
+    y: number;
+    config: {
+        typeId: string; // The ID of the node's type, e.g., 'add'
+        [key: string]: any; // Type-specific config is stored in a sub-object
+    };
+}
+
+/* ===================================================================
+ * 6. The Universal Broadcast Operation Config
+ * =================================================================== */
+
 
 
 /**
