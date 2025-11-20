@@ -32,7 +32,7 @@ export interface GridNode {
 }
 
 export interface Connection {
-    id:string;
+    id: string;
     fromNodeId: string;
     fromPort: string | number;
     toNodeId: string;
@@ -65,7 +65,7 @@ export interface AppState {
 export type AppMutation =
     | { type: 'node.create', node: GridNode }
     | { type: 'node.delete', node: GridNode }
-    | { type: 'node.move', moves: { nodeId: string, from: {x: number, y: number}, to: {x: number, y: number} }[] }
+    | { type: 'node.move', moves: { nodeId: string, from: { x: number, y: number }, to: { x: number, y: number } }[] }
     | { type: 'node.setConfig', nodeId: string, from: Partial<any>, to: Partial<any> }
     | { type: 'connection.create', connection: Connection }
     | { type: 'connection.delete', connection: Connection }
@@ -94,7 +94,7 @@ export class AppController {
         };
         // MobX can make Maps and Sets observable directly
         this.observableState = observable(this.currentState);
-        
+
         makeObservable(this, {
             observableState: observable,
             applyMutationsToObservable: action,
@@ -133,7 +133,7 @@ export class AppController {
     public transaction(callback: (draftController: this) => void): void {
         this.isTransactionActive = true;
         this.bufferedMutations = [];
-        this.draftState = JSON.parse(JSON.stringify(this.currentState, (key, value) => 
+        this.draftState = JSON.parse(JSON.stringify(this.currentState, (key, value) =>
             (value instanceof Map || value instanceof Set) ? Array.from(value.entries()) : value
         ));
         // Re-hydrate maps and sets after serialization
@@ -207,6 +207,23 @@ export class AppController {
         this.dispatch([{ type: 'node.move', moves }]);
     }
 
+    public insertSpace(axis: 'x' | 'y', afterIndex: number, amount: number = 1): void {
+        const state = this.getState();
+        const nodesToMove: string[] = [];
+
+        for (const node of Object.values(state.graph.nodes)) {
+            if (axis === 'x' && node.x > afterIndex) {
+                nodesToMove.push(node.id);
+            } else if (axis === 'y' && node.y > afterIndex) {
+                nodesToMove.push(node.id);
+            }
+        }
+
+        if (nodesToMove.length > 0) {
+            this.moveNodes(nodesToMove, axis === 'x' ? amount : 0, axis === 'y' ? amount : 0);
+        }
+    }
+
     public setNodeConfig(nodeId: string, configUpdate: Partial<any>): void {
         const state = this.getState();
         const fromConfig: Partial<any> = {};
@@ -219,7 +236,7 @@ export class AppController {
         this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
     }
 
-    public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void {}
+    public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void { }
 
     public selectNodes(nodeIds: string[], additive: boolean = false): void {
         const state = this.getState();
@@ -229,7 +246,7 @@ export class AppController {
         }
         this.dispatch([{ type: 'selection.set', from: state.selection, to: newSelection }]);
     }
-    
+
     public undo(): void {
         const mutationsToUndo = this.undoStack.pop();
         if (mutationsToUndo) {
@@ -315,7 +332,7 @@ export class AppController {
             }
         }
     }
-    
+
     private applyMutationsToObservable(mutations: AppMutation[]): void {
         this.applyMutations(this.observableState, mutations);
     }

@@ -2,7 +2,7 @@ import 'puppeteer';
 
 describe('App', () => {
   beforeAll(async () => {
-    await page.goto('http://localhost:5174');
+    await page.goto('http://localhost:5173');
   });
 
   it('should display "graph-editor"', async () => {

@@ -27,10 +27,38 @@ export class GraphGrid extends MobxLitElement {
 
   private handleDblClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
+
+    // Check if we clicked on a cell
     if (target.classList.contains('cell')) {
       const x = parseInt(target.dataset.x || '0');
       const y = parseInt(target.dataset.y || '0');
       this.controller.createNode('literal', x, y);
+      return;
+    }
+
+    // Check if we clicked on the grid background (gaps)
+    const rect = this.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // Grid settings
+    const cellSize = 100;
+    const gapSize = 10;
+    const totalSize = cellSize + gapSize;
+
+    const modX = clickX % totalSize;
+    const modY = clickY % totalSize;
+
+    // Check for vertical gap click (insert horizontal space)
+    if (modX >= cellSize) {
+      const colIndex = Math.floor(clickX / totalSize);
+      this.controller.insertSpace('x', colIndex);
+    }
+
+    // Check for horizontal gap click (insert vertical space)
+    if (modY >= cellSize) {
+      const rowIndex = Math.floor(clickY / totalSize);
+      this.controller.insertSpace('y', rowIndex);
     }
   }
 
@@ -43,6 +71,22 @@ export class GraphGrid extends MobxLitElement {
       bubbles: true,
       composed: true,
     }));
+  }
+
+  private handleConnectionDelete(e: CustomEvent<{ connectionId: string }>) {
+    this.controller.deleteConnection(e.detail.connectionId);
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener('dblclick', this.handleDblClick);
+    this.addEventListener('connection-delete', this.handleConnectionDelete as EventListener);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener('dblclick', this.handleDblClick);
+    this.removeEventListener('connection-delete', this.handleConnectionDelete as EventListener);
   }
 
   render() {
@@ -59,7 +103,6 @@ export class GraphGrid extends MobxLitElement {
               data-x=${x}
               data-y=${y}
               style="grid-column: ${x + 1}; grid-row: ${y + 1};"
-              @dblclick=${this.handleDblClick}
             ></div>
           `);
         }
@@ -77,17 +120,17 @@ export class GraphGrid extends MobxLitElement {
         ></graph-node>
       `)}
       ${Object.values(connections).map(conn => {
-        const fromNode = nodes[conn.fromNodeId];
-        const toNode = nodes[conn.toNodeId];
-        if (!fromNode || !toNode) return '';
-        return html`
+      const fromNode = nodes[conn.fromNodeId];
+      const toNode = nodes[conn.toNodeId];
+      if (!fromNode || !toNode) return '';
+      return html`
           <graph-connection
             .connection=${conn}
             .from=${{ x: fromNode.x, y: fromNode.y }}
             .to=${{ x: toNode.x, y: toNode.y }}
           ></graph-connection>
         `;
-      })}
+    })}
     `;
   }
 }
