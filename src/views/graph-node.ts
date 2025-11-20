@@ -23,6 +23,26 @@ export class GraphNode extends MobxLitElement {
       height: 80px;
       color: white;
       cursor: grab;
+      position: relative;
+    }
+
+    .port {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: #555;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .in-port {
+      top: -10px;
+      left: 30px;
+    }
+
+    .out-port {
+      bottom: -10px;
+      left: 30px;
     }
   `;
 
@@ -43,9 +63,36 @@ export class GraphNode extends MobxLitElement {
     });
   }
 
+  private handlePortClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const port = target.dataset.port;
+    const type = target.dataset.type;
+    this.dispatchEvent(new CustomEvent('port-click', {
+      detail: {
+        nodeId: this.node.id,
+        port,
+        type,
+      },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+private handleClick() {
+    this.dispatchEvent(new CustomEvent('node-click', {
+      detail: {
+        nodeId: this.node.id,
+      },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   render() {
     return html`
-      <div @pointerdown=${this.handlePointerDown}>${this.node.config.typeId}</div>
+      <div class="port in-port" data-port="0" data-type="in" @click=${this.handlePortClick}></div>
+      <div @pointerdown=${this.handlePointerDown} @click=${this.handleClick}>${this.node.config.typeId}</div>
+      <div class="port out-port" data-port="0" data-type="out" @click=${this.handlePortClick}></div>
     `;
   }
 }

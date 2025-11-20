@@ -52,6 +52,7 @@ export interface GraphState {
 // derived, non-serializable lookup maps for performance.
 export interface AppState {
     graph: GraphState;
+    selection: Set<string>;
     auxiliary: {
         // map from a node ID to the IDs of its outgoing connections
         outgoingConnections: Map<string, string[]>;
@@ -68,7 +69,8 @@ export type AppMutation =
     | { type: 'node.setConfig', nodeId: string, from: Partial<any>, to: Partial<any> }
     | { type: 'connection.create', connection: Connection }
     | { type: 'connection.delete', connection: Connection }
-    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> };
+    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> }
+    | { type: 'selection.set', from: Set<string>, to: Set<string> };
 
 // Part 3: The Controller
 export class AppController {
@@ -87,9 +89,10 @@ export class AppController {
         const graphState = initialState || { nodes: {}, connections: {} };
         this.currentState = {
             graph: graphState,
+            selection: new Set(),
             auxiliary: this.buildAuxiliaryMaps(graphState),
         };
-        // MobX can make Maps observable directly
+        // MobX can make Maps and Sets observable directly
         this.observableState = observable(this.currentState);
         
         makeObservable(this, {
@@ -131,12 +134,13 @@ export class AppController {
         this.isTransactionActive = true;
         this.bufferedMutations = [];
         this.draftState = JSON.parse(JSON.stringify(this.currentState, (key, value) => 
-            value instanceof Map ? Array.from(value.entries()) : value
+            (value instanceof Map || value instanceof Set) ? Array.from(value.entries()) : value
         ));
-        // Re-hydrate maps after serialization
+        // Re-hydrate maps and sets after serialization
         if (this.draftState) {
             this.draftState.auxiliary.incomingConnections = new Map(this.draftState.auxiliary.incomingConnections);
             this.draftState.auxiliary.outgoingConnections = new Map(this.draftState.auxiliary.outgoingConnections);
+            this.draftState.selection = new Set(this.draftState.selection);
         }
 
 
@@ -216,6 +220,15 @@ export class AppController {
     }
 
     public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void {}
+
+    public selectNodes(nodeIds: string[], additive: boolean = false): void {
+        const state = this.getState();
+        const newSelection = additive ? new Set(state.selection) : new Set<string>();
+        for (const id of nodeIds) {
+            newSelection.add(id);
+        }
+        this.dispatch([{ type: 'selection.set', from: state.selection, to: newSelection }]);
+    }
     
     public undo(): void {
         const mutationsToUndo = this.undoStack.pop();
@@ -296,6 +309,9 @@ export class AppController {
                         Object.assign(state.graph.nodes[mutation.nodeId].config, mutation.to);
                     }
                     break;
+                case 'selection.set':
+                    state.selection = mutation.to;
+                    break;
             }
         }
     }
@@ -325,6 +341,9 @@ export class AppController {
                     break;
                 case 'node.setConfig':
                     inverse.push({ type: 'node.setConfig', nodeId: m.nodeId, from: m.to, to: m.from });
+                    break;
+                case 'selection.set':
+                    inverse.push({ type: 'selection.set', from: m.to, to: m.from });
                     break;
                 default:
                     console.warn(`Inverse for mutation type ${(m as any).type} not implemented.`);

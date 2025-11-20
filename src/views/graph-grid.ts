@@ -2,6 +2,7 @@ import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { AppController } from '../builder/state';
+import './graph-connection';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -16,6 +17,7 @@ export class GraphGrid extends MobxLitElement {
       width: 100%;
       height: 100%;
       gap: 10px;
+      position: relative;
     }
 
     .cell {
@@ -32,8 +34,19 @@ export class GraphGrid extends MobxLitElement {
     }
   }
 
+  private handleNodeClick(e: CustomEvent<{ nodeId: string }>) {
+    this.dispatchEvent(new CustomEvent('node-click', {
+      detail: {
+        nodeId: e.detail.nodeId,
+        additive: (e.composedPath()[0] as HTMLElement).closest('graph-node')!.shadowRoot!.querySelector('div')!.matches(':active'),
+      },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   render() {
-    const { nodes } = this.controller.observableState.graph;
+    const { nodes, connections } = this.controller.observableState.graph;
     const nodePositions = new Set(Object.values(nodes).map(n => `${n.x},${n.y}`));
 
     const cells = [];
@@ -60,8 +73,21 @@ export class GraphGrid extends MobxLitElement {
           .controller=${this.controller}
           .node=${node}
           style="grid-column: ${node.x + 1}; grid-row: ${node.y + 1};"
+          @node-click=${this.handleNodeClick}
         ></graph-node>
       `)}
+      ${Object.values(connections).map(conn => {
+        const fromNode = nodes[conn.fromNodeId];
+        const toNode = nodes[conn.toNodeId];
+        if (!fromNode || !toNode) return '';
+        return html`
+          <graph-connection
+            .connection=${conn}
+            .from=${{ x: fromNode.x, y: fromNode.y }}
+            .to=${{ x: toNode.x, y: toNode.y }}
+          ></graph-connection>
+        `;
+      })}
     `;
   }
 }
