@@ -26,7 +26,8 @@ export class GraphGrid extends MobxLitElement {
   `;
 
   private handleDblClick(e: MouseEvent) {
-    const target = e.target as HTMLElement;
+    const path = e.composedPath();
+    const target = path[0] as HTMLElement;
 
     // Check if we clicked on a cell
     if (target.classList.contains('cell')) {
