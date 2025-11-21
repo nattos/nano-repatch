@@ -63,6 +63,7 @@ export class GraphEditor extends MobxLitElement {
     return html`
       <graph-grid
         .controller=${this.controller}
+        .selectedPort=${this.selectedPort}
         @port-click=${this.handlePortClick}
         @node-click=${this.handleNodeClick}
       ></graph-grid>

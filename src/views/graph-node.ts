@@ -9,6 +9,12 @@ export class GraphNode extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
 
+  @property({ type: Boolean, reflect: true })
+  selected = false;
+
+  @property({ attribute: false })
+  connectingPort: { port: string, type: 'in' | 'out' } | null = null;
+
   @property({ attribute: false })
   controller!: AppController;
 
@@ -24,6 +30,13 @@ export class GraphNode extends MobxLitElement {
       color: white;
       cursor: grab;
       position: relative;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    :host([selected]) {
+      border-color: #00aaff;
+      box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
     }
 
     .port {
@@ -33,6 +46,17 @@ export class GraphNode extends MobxLitElement {
       background-color: #555;
       border-radius: 50%;
       cursor: pointer;
+      transition: background-color 0.2s, transform 0.2s;
+    }
+
+    .port:hover {
+      background-color: #777;
+      transform: scale(1.2);
+    }
+
+    .port.connecting {
+      background-color: #00ff00;
+      box-shadow: 0 0 5px #00ff00;
     }
 
     .in-port {
@@ -118,14 +142,27 @@ export class GraphNode extends MobxLitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('pointerdown', this.handlePointerDown);
-    this.removeEventListener('click', this.handleClick);
+    this.removeEventListener('click', this.handleClick as EventListener);
   }
 
   render() {
+    const isConnectingIn = this.connectingPort?.type === 'in' && this.connectingPort?.port === '0';
+    const isConnectingOut = this.connectingPort?.type === 'out' && this.connectingPort?.port === '0';
+
     return html`
-      <div class="port in-port" data-port="0" data-type="in" @click=${this.handlePortClick}></div>
+      <div
+        class="port in-port ${isConnectingIn ? 'connecting' : ''}"
+        data-port="0"
+        data-type="in"
+        @click=${this.handlePortClick}
+      ></div>
       <div>${this.node.config.typeId}</div>
-      <div class="port out-port" data-port="0" data-type="out" @click=${this.handlePortClick}></div>
+      <div
+        class="port out-port ${isConnectingOut ? 'connecting' : ''}"
+        data-port="0"
+        data-type="out"
+        @click=${this.handlePortClick}
+      ></div>
     `;
   }
 }
