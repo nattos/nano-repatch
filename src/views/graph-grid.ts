@@ -63,11 +63,12 @@ export class GraphGrid extends MobxLitElement {
     }
   }
 
-  private handleNodeClick(e: CustomEvent<{ nodeId: string }>) {
+  private handleNodeClick(e: CustomEvent<{ nodeId: string, shiftKey: boolean, ctrlKey: boolean, metaKey: boolean }>) {
+    e.stopPropagation();
     this.dispatchEvent(new CustomEvent('node-click', {
       detail: {
         nodeId: e.detail.nodeId,
-        additive: (e.composedPath()[0] as HTMLElement).closest('graph-node')!.shadowRoot!.querySelector('div')!.matches(':active'),
+        additive: e.detail.shiftKey || e.detail.ctrlKey || e.detail.metaKey,
       },
       bubbles: true,
       composed: true,

@@ -35,6 +35,13 @@ export class InspectorPopup extends MobxLitElement {
     }
   }
 
+  private handleValueChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    if (this.node) {
+      this.controller.setNodeConfig(this.node.id, { value: target.value });
+    }
+  }
+
   render() {
     if (!this.node) return html``;
 
@@ -50,6 +57,16 @@ export class InspectorPopup extends MobxLitElement {
             <option value="apply">Apply</option>
           </select>
         </div>
+        ${this.node.config.typeId === 'literal' ? html`
+          <div>
+            <label>Value:</label>
+            <input
+              type="text"
+              .value=${this.node.config.value || ''}
+              @input=${this.handleValueChange}
+            />
+          </div>
+        ` : ''}
       </div>
     `;
   }

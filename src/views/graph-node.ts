@@ -55,7 +55,7 @@ export class GraphNode extends MobxLitElement {
     // If the node is not selected, select it (replacing current selection)
     // This mimics standard behavior where dragging an unselected item selects it.
     if (!this.controller.observableState.selection.has(this.node.id)) {
-      this.controller.selectNodes([this.node.id], false);
+      this.controller.selectNodes([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
     }
 
     new PointerDragOp(e, this, {
@@ -96,10 +96,13 @@ export class GraphNode extends MobxLitElement {
     }));
   }
 
-  private handleClick() {
+  private handleClick(e: MouseEvent) {
     this.dispatchEvent(new CustomEvent('node-click', {
       detail: {
         nodeId: this.node.id,
+        shiftKey: e.shiftKey,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
       },
       bubbles: true,
       composed: true,
@@ -109,7 +112,7 @@ export class GraphNode extends MobxLitElement {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('pointerdown', this.handlePointerDown);
-    this.addEventListener('click', this.handleClick);
+    this.addEventListener('click', this.handleClick as EventListener);
   }
 
   disconnectedCallback() {
