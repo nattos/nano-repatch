@@ -1,4 +1,4 @@
-import { 
+import {
     AtomicType,
     BroadcastConfig,
     ExecutionContext,
@@ -8,7 +8,8 @@ import {
     StructorType,
     AnalysisContext,
     Functor,
-    FunctorType
+    FunctorType,
+    StructorRecord
 } from "./structor";
 
 const numberType: AtomicType = { kind: 'atomic', type: 'number' };
@@ -74,7 +75,7 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
             reshape: 'none',
         };
         const broadcastResult = context.broadcast(broadcastConfig, input) as { fields: { value: number[], min: number, max: number } };
-        const clamped = broadcastResult.fields.value.map(v => 
+        const clamped = broadcastResult.fields.value.map(v =>
             Math.max(broadcastResult.fields.min, Math.min(v, broadcastResult.fields.max))
         );
         return { fields: {}, untagged: [clamped] };
