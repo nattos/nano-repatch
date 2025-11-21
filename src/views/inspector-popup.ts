@@ -16,10 +16,9 @@ export class InspectorPopup extends MobxLitElement {
   static readonly styles = css`
     :host {
       position: absolute;
-      top: 0;
-      right: 0;
-      width: 250px;
-      height: 100%;
+      bottom: 20px;
+      right: 20px;
+      min-width: 250px;
       background-color: #222;
       color: white;
       border-left: 1px solid #444;

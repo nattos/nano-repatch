@@ -38,24 +38,8 @@ export class GraphEditor extends MobxLitElement {
       overflow: hidden;
     }
 
-    .grid-container {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-
     inspector-popup {
-      width: 250px;
-      position: relative; /* Override absolute positioning from inspector styles if needed, but better to let it be */
-      /* Actually, inspector-popup has absolute positioning in its own styles.
-         We should probably override it here or rely on it being absolute to the right.
-         But since we want a flex layout, we should make inspector-popup behave nicely.
-         However, inspector-popup styles set it to absolute top 0 right 0.
-         If we want it to be part of the flex flow, we need to override that.
-       */
-      position: static;
-      height: 100%;
-      border-left: 1px solid #444;
+      border: 1px solid #444;
     }
   `;
 
@@ -89,14 +73,12 @@ export class GraphEditor extends MobxLitElement {
     const selectedNode = selectedNodeId ? graph.nodes[selectedNodeId] : null;
 
     return html`
-      <div class="grid-container">
-        <graph-grid
-          .controller=${this.controller}
-          .selectedPort=${this.selectedPort}
-          @port-click=${this.handlePortClick}
-          @node-click=${this.handleNodeClick}
-        ></graph-grid>
-      </div>
+      <graph-grid
+        .controller=${this.controller}
+        .selectedPort=${this.selectedPort}
+        @port-click=${this.handlePortClick}
+        @node-click=${this.handleNodeClick}
+      ></graph-grid>
       <inspector-popup
         .controller=${this.controller}
         .node=${selectedNode}
