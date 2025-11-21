@@ -32,23 +32,49 @@ export class GraphEditor extends MobxLitElement {
 
   static readonly styles = css`
     :host {
-      display: block;
-      width: 100%;
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .grid-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    inspector-popup {
+      width: 250px;
+      position: relative; /* Override absolute positioning from inspector styles if needed, but better to let it be */
+      /* Actually, inspector-popup has absolute positioning in its own styles.
+         We should probably override it here or rely on it being absolute to the right.
+         But since we want a flex layout, we should make inspector-popup behave nicely.
+         However, inspector-popup styles set it to absolute top 0 right 0.
+         If we want it to be part of the flex flow, we need to override that.
+       */
+      position: static;
       height: 100%;
+      border-left: 1px solid #444;
     }
   `;
 
-  private handlePortClick(e: CustomEvent<PortClickEvent>) {
-    const { detail } = e;
-    if (this.selectedPort) {
-      if (this.selectedPort.type === 'out' && detail.type === 'in') {
-        this.controller.createConnection(this.selectedPort.nodeId, this.selectedPort.port, detail.nodeId, detail.port);
-      } else if (this.selectedPort.type === 'in' && detail.type === 'out') {
-        this.controller.createConnection(detail.nodeId, detail.port, this.selectedPort.nodeId, this.selectedPort.port);
-      }
-      this.selectedPort = null;
+  private handlePortClick(e: CustomEvent<{ nodeId: string, port: string, type: 'in' | 'out' }>) {
+    const { nodeId, port, type } = e.detail;
+
+    if (!this.selectedPort) {
+      // First click: select the port
+      this.selectedPort = { nodeId, port, type };
     } else {
-      this.selectedPort = detail;
+      // Second click: try to create a connection
+      if (this.selectedPort.nodeId !== nodeId && this.selectedPort.type !== type) {
+        const from = this.selectedPort.type === 'out' ? this.selectedPort : { nodeId, port, type };
+        const to = this.selectedPort.type === 'in' ? this.selectedPort : { nodeId, port, type };
+
+        this.controller.createConnection(from.nodeId, from.port, to.nodeId, to.port);
+      }
+      // Reset selection
+      this.selectedPort = null;
     }
   }
 
@@ -57,20 +83,23 @@ export class GraphEditor extends MobxLitElement {
   }
 
   render() {
-    const selectedNodeId = this.controller.observableState.selection.values().next().value;
-    const selectedNode = selectedNodeId ? this.controller.observableState.graph.nodes[selectedNodeId] : null;
+    const { selection, graph } = this.controller.observableState;
+    // If multiple nodes are selected, we just show the first one for now, or null if empty
+    const selectedNodeId = selection.size === 1 ? selection.values().next().value : null;
+    const selectedNode = selectedNodeId ? graph.nodes[selectedNodeId] : null;
 
     return html`
-      <graph-grid
-        .controller=${this.controller}
-        .selectedPort=${this.selectedPort}
-        @port-click=${this.handlePortClick}
-        @node-click=${this.handleNodeClick}
-      ></graph-grid>
+      <div class="grid-container">
+        <graph-grid
+          .controller=${this.controller}
+          .selectedPort=${this.selectedPort}
+          @port-click=${this.handlePortClick}
+          @node-click=${this.handleNodeClick}
+        ></graph-grid>
+      </div>
       <inspector-popup
         .controller=${this.controller}
         .node=${selectedNode}
-        ?active=${selectedNode}
       ></inspector-popup>
     `;
   }

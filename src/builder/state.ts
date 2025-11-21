@@ -1,4 +1,4 @@
-import { observable, action, makeObservable, configure } from 'mobx';
+import { observable, action, makeObservable, configure, computed } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
 
 // Enable Immer support for Map and Set
@@ -97,18 +97,21 @@ export class AppController {
 
         makeObservable(this, {
             observableState: observable,
-            // applyMutationsToObservable is private and already an action method,
-            // but makeObservable with annotations object usually expects public properties.
-            // Since we are using it internally, we can omit it here if it's not needed for external observability,
-            // OR we can cast it if we really need it.
-            // However, looking at MobX docs, private methods can be actions.
-            // The issue is likely the type definition in this specific setup.
-            // Let's try removing it from here and using @action decorator if possible,
-            // or just assuming it works because it's called from within an action or we can wrap it.
-            // Actually, let's just remove it from the object literal if it causes type errors
-            // and rely on the fact that it modifies observable state.
-            // Better yet, let's just cast `this` to any to bypass the strict type check for this private method.
+            // @ts-ignore
+            undoStack: observable,
+            // @ts-ignore
+            redoStack: observable,
+            canUndo: computed,
+            canRedo: computed,
         } as any);
+    }
+
+    public get canUndo(): boolean {
+        return this.undoStack.length > 0;
+    }
+
+    public get canRedo(): boolean {
+        return this.redoStack.length > 0;
     }
 
     public getState(): Readonly<AppState> {
