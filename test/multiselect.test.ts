@@ -53,6 +53,20 @@ describe('Multi-select E2E', () => {
     }, index, modifiers);
   }
 
+  async function clickPort(nodeIndex, type) {
+    const gridHandle = await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid');
+    await gridHandle.evaluate((grid, nodeIndex, type) => {
+      const nodes = grid.shadowRoot.querySelectorAll('graph-node');
+      const node = nodes[nodeIndex];
+      const portSelector = type === 'in' ? '.in-port' : '.out-port';
+      const portElement = node.shadowRoot.querySelector(portSelector);
+      portElement.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        composed: true
+      }));
+    }, nodeIndex, type);
+  }
+
   async function waitForSelectionSize(size) {
     await page.waitForFunction((expectedSize) => {
       return window.testing.localController.observableState.selection.size === expectedSize;
@@ -98,5 +112,36 @@ describe('Multi-select E2E', () => {
     await clickNode(1); // No modifiers
 
     await waitForSelectionSize(1);
+  });
+
+  it('should select a single connection', async () => {
+    await createNode(0, 0);
+    await createNode(2, 0);
+
+    // create connection
+    await clickPort(0, 'out');
+    await new Promise(r => setTimeout(r, 100)); // give time for state to update
+    await clickPort(1, 'in');
+
+    await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-connection');
+
+    // click connection
+    await page.evaluate(() => {
+        const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
+        const path = conn.shadowRoot.querySelector('path');
+        path.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          composed: true
+        }));
+    });
+    
+    await waitForSelectionSize(1);
+    
+    const isSelected = await page.evaluate(() => {
+        const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
+        return conn.hasAttribute('selected');
+    });
+
+    expect(isSelected).toBe(true);
   });
 });
