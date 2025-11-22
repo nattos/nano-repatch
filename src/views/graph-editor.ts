@@ -1,6 +1,6 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import { AppController, LocalController } from '../builder/state';
 import './graph-grid';
 import './inspector-popup';
@@ -12,9 +12,6 @@ export class GraphEditor extends MobxLitElement {
 
   @property({ attribute: false })
   localController = new LocalController();
-
-  @state()
-  selectedPort: { nodeId: string, port: string, type: 'in' | 'out' } | null = null;
 
   constructor() {
     super();
@@ -44,20 +41,21 @@ export class GraphEditor extends MobxLitElement {
 
   private handlePortClick(e: CustomEvent<{ nodeId: string, port: string, type: 'in' | 'out' }>) {
     const { nodeId, port, type } = e.detail;
+    const currentInflightOp = this.localController.observableState.inflightPortConnectionOperation;
 
-    if (!this.selectedPort) {
+    if (!currentInflightOp) {
       // First click: select the port
-      this.selectedPort = { nodeId, port, type };
+      this.localController.setInflightPortConnectionOperation({ nodeId, port, type });
     } else {
       // Second click: try to create a connection
-      if (this.selectedPort.nodeId !== nodeId && this.selectedPort.type !== type) {
-        const from = this.selectedPort.type === 'out' ? this.selectedPort : { nodeId, port, type };
-        const to = this.selectedPort.type === 'in' ? this.selectedPort : { nodeId, port, type };
+      if (currentInflightOp.nodeId !== nodeId && currentInflightOp.type !== type) {
+        const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId, port, type };
+        const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId, port, type };
 
         this.controller.createConnection(from.nodeId, from.port, to.nodeId, to.port);
       }
       // Reset selection
-      this.selectedPort = null;
+      this.localController.setInflightPortConnectionOperation(null);
     }
   }
 
@@ -70,7 +68,6 @@ export class GraphEditor extends MobxLitElement {
       <graph-grid
         .controller=${this.controller}
         .localController=${this.localController}
-        .selectedPort=${this.selectedPort}
         @port-click=${this.handlePortClick}
         @node-click=${this.handleNodeClick}
       ></graph-grid>

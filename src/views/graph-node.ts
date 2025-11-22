@@ -9,12 +9,6 @@ export class GraphNode extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
 
-  @property({ type: Boolean, reflect: true })
-  selected = false;
-
-  @property({ attribute: false })
-  connectingPort: { port: string, type: 'in' | 'out' } | null = null;
-
   @property({ attribute: false })
   controller!: AppController;
 
@@ -189,8 +183,14 @@ export class GraphNode extends MobxLitElement {
   }
 
   render() {
-    const isConnectingIn = this.connectingPort?.type === 'in' && this.connectingPort?.port === '0';
-    const isConnectingOut = this.connectingPort?.type === 'out' && this.connectingPort?.port === '0';
+    const { selection, inflightPortConnectionOperation } = this.localController.observableState;
+    const isSelected = selection.has(this.node.id);
+    const connectingPort = inflightPortConnectionOperation && inflightPortConnectionOperation.nodeId === this.node.id ? inflightPortConnectionOperation : null;
+
+    const isConnectingIn = connectingPort?.type === 'in' && connectingPort?.port === '0';
+    const isConnectingOut = connectingPort?.type === 'out' && connectingPort?.port === '0';
+
+    this.toggleAttribute('selected', isSelected);
 
     this.localController.defineSelectable({
       path: this.node.id,

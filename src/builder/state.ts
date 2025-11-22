@@ -403,6 +403,7 @@ export class AppController {
 export interface LocalState {
     selection: Map<string, Selectable>;
     queuedSelection: Set<string>;
+    inflightPortConnectionOperation: { nodeId: string, port: string, type: 'in' | 'out' } | null;
 }
 
 export interface Selectable {
@@ -421,6 +422,7 @@ export class LocalController {
         this.observableState = observable({
             selection: new Map<string, Selectable>(),
             queuedSelection: new Set<string>(),
+            inflightPortConnectionOperation: null,
         });
         makeObservable(this);
     }
@@ -471,5 +473,10 @@ export class LocalController {
                 this.observableState.queuedSelection.add(path);
             }
         }
+    }
+
+    @action
+    public setInflightPortConnectionOperation(port: { nodeId: string, port: string, type: 'in' | 'out' } | null): void {
+        this.observableState.inflightPortConnectionOperation = port;
     }
 }

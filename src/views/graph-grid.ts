@@ -14,9 +14,6 @@ export class GraphGrid extends MobxLitElement {
   @property({ attribute: false })
   localController!: LocalController;
 
-  @property({ attribute: false })
-  selectedPort: { nodeId: string, port: string, type: 'in' | 'out' } | null = null;
-
   static readonly styles = css`
     :host {
       display: grid;
@@ -128,8 +125,6 @@ export class GraphGrid extends MobxLitElement {
           .controller=${this.controller}
           .localController=${this.localController}
           .node=${node}
-          .selected=${selection.has(node.id)}
-          .connectingPort=${this.selectedPort && this.selectedPort.nodeId === node.id ? { port: this.selectedPort.port, type: this.selectedPort.type } : null}
           style="grid-column: ${node.x + 1}; grid-row: ${node.y + 1};"
           @node-click=${this.handleNodeClick}
         ></graph-node>
