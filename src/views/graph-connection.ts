@@ -2,7 +2,7 @@ import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { Connection } from '../builder/state';
-import { localController } from '../builder/controllers';
+import { appController, localController } from '../builder/controllers';
 
 @customElement('graph-connection')
 export class GraphConnection extends MobxLitElement {
@@ -80,6 +80,7 @@ export class GraphConnection extends MobxLitElement {
 
     localController.defineSelectable({
       path: this.connection.id,
+      renderInspectorContent: () => this.renderInspectorContent()
     });
 
     return html`
@@ -89,6 +90,35 @@ export class GraphConnection extends MobxLitElement {
         <!-- Visible stroke -->
         <path class="visible-path" d=${d} stroke="white" stroke-width="2" fill="none" style="pointer-events: none;" />
       </svg>
+    `;
+  }
+
+  private handlePortChange(e: Event, port: 'fromPort' | 'toPort') {
+    const target = e.target as HTMLInputElement;
+    appController.setConnectionPorts(this.connection.id, { [port]: target.value });
+  }
+
+  private renderInspectorContent() {
+    return html`
+      <h3>Connection</h3>
+      <div class="field">
+        <label>From Port:</label>
+        <input
+          type="text"
+          .value=${this.connection.fromPort.toString()}
+          @input=${(e: Event) => this.handlePortChange(e, 'fromPort')}
+          data-testid="from-port-input"
+        />
+      </div>
+      <div class="field">
+        <label>To Port:</label>
+        <input
+          type="text"
+          .value=${this.connection.toPort.toString()}
+          @input=${(e: Event) => this.handlePortChange(e, 'toPort')}
+          data-testid="to-port-input"
+        />
+      </div>
     `;
   }
 }

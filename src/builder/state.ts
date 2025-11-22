@@ -69,7 +69,8 @@ export type AppMutation =
     | { type: 'node.setConfig', nodeId: string, from: Partial<any>, to: Partial<any> }
     | { type: 'connection.create', connection: Connection }
     | { type: 'connection.delete', connection: Connection }
-    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> };
+    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> }
+    | { type: 'connection.setPorts', connectionId: string, from: { fromPort?: string | number, toPort?: string | number }, to: { fromPort?: string | number, toPort?: string | number } };
 
 // Part 3: The Controller
 export class AppController {
@@ -248,6 +249,17 @@ export class AppController {
         this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
     }
 
+    public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {
+        const state = this.getState();
+        const connection = state.graph.connections[connectionId];
+        if (!connection) return;
+
+        const from = { fromPort: connection.fromPort, toPort: connection.toPort };
+        const to = { fromPort: ports.fromPort ?? connection.fromPort, toPort: ports.toPort ?? connection.toPort };
+
+        this.dispatch([{ type: 'connection.setPorts', connectionId, from, to }]);
+    }
+
     public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void { }
 
     public clear(): void {
@@ -358,6 +370,16 @@ export class AppController {
                         Object.assign(state.graph.nodes[mutation.nodeId].config, mutation.to);
                     }
                     break;
+                case 'connection.setPorts':
+                    if (state.graph.connections[mutation.connectionId]) {
+                        if (mutation.to.fromPort !== undefined) {
+                            state.graph.connections[mutation.connectionId].fromPort = mutation.to.fromPort;
+                        }
+                        if (mutation.to.toPort !== undefined) {
+                            state.graph.connections[mutation.connectionId].toPort = mutation.to.toPort;
+                        }
+                    }
+                    break;
             }
         }
     }
@@ -389,6 +411,9 @@ export class AppController {
                     break;
                 case 'node.setConfig':
                     inverse.push({ type: 'node.setConfig', nodeId: m.nodeId, from: m.to, to: m.from });
+                    break;
+                case 'connection.setPorts':
+                    inverse.push({ type: 'connection.setPorts', connectionId: m.connectionId, from: m.to, to: m.from });
                     break;
                 default:
                     console.warn(`Inverse for mutation type ${(m as any).type} not implemented.`);
