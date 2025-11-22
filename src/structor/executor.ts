@@ -148,6 +148,40 @@ export class GraphExecutor {
                         const values = [...Object.values(inputs.fields), ...inputs.untagged];
                         return { broadcasted: [values] };
                     }
+
+                    if (config.reshape === 'none') {
+                        const result: { fields: Record<string, any> } = { fields: {} };
+                        for (const [outputName, outputConfig] of Object.entries(config.outputs)) {
+                            const values: any[] = [];
+                            if (outputConfig.fromFields) {
+                                for (const fieldName of outputConfig.fromFields) {
+                                    if (inputs.fields[fieldName] !== undefined) {
+                                        values.push(inputs.fields[fieldName]);
+                                    }
+                                }
+                            }
+                            if (Array.isArray(outputConfig.fromUntagged)) {
+                                for (const index of outputConfig.fromUntagged) {
+                                    if (inputs.untagged[index] !== undefined) {
+                                        values.push(inputs.untagged[index]);
+                                    }
+                                }
+                            }
+                            
+                            if (outputConfig.combine === 'first') {
+                                result.fields[outputName] = values[0];
+                            } else if (outputConfig.combine === 'collect') {
+                                result.fields[outputName] = values;
+                            } else if (typeof outputConfig.combine === 'object' && 'reduce' in outputConfig.combine) {
+                                if (outputConfig.combine.reduce === 'min') {
+                                    result.fields[outputName] = Math.min(...values);
+                                } else if (outputConfig.combine.reduce === 'max') {
+                                    result.fields[outputName] = Math.max(...values);
+                                }
+                            }
+                        }
+                        return result;
+                    }
                     return { fields: {} };
                 },
                 repository: this.repository

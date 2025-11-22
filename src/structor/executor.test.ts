@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { GraphExecutor } from './executor';
 import { NodeRepository } from './repository';
 import { GraphDefinition, PrimitiveNodeDefinition, AtomicType, StructorRecord, ExecutionContext, Structor } from './structor';
+import { primitive_fmod } from './primitives';
 
 const numberType: AtomicType = { kind: 'atomic', type: 'number' };
 
@@ -31,6 +32,7 @@ describe('GraphExecutor', () => {
     const testRepo = new NodeRepository();
     testRepo.register({ id: 'add', version: '1.0.0', displayName: 'Add', definition: mock_primitive_add });
     testRepo.register({ id: 'literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
+    testRepo.register({ id: 'fmod', version: '1.0.0', displayName: 'FMod', definition: primitive_fmod });
 
     const testGraph: GraphDefinition = {
         id: 'testGraph', kind: 'graph',
@@ -82,5 +84,36 @@ describe('GraphExecutor', () => {
         expect(addExecute).toHaveBeenCalledTimes(2); // Adder is downstream, should re-run
         expect(literalExecute).toHaveBeenCalledTimes(2); // Literal itself re-ran
         expect(literalExecute).toHaveBeenCalledWith(expect.anything(), 100, expect.anything());
+    });
+
+    it('should correctly execute fmod', () => {
+        const fmodGraph: GraphDefinition = {
+            id: 'fmodGraph', kind: 'graph',
+            type: {
+                kind: 'graph',
+                inputs: { kind: 'record', fields: {}, untagged: [] },
+                outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, untagged: [] },
+            },
+            nodes: {
+                'dividend': { definitionId: 'literal', defaultConfig: 10 },
+                'divisor': { definitionId: 'literal', defaultConfig: 3 },
+                'fmod': { definitionId: 'fmod' },
+            },
+            inputs: {},
+            connections: [
+                { fromNode: 'dividend', fromPort: 0, toNode: 'fmod', toPort: 'dividend' },
+                { fromNode: 'divisor', fromPort: 0, toNode: 'fmod', toPort: 'divisor' }
+            ],
+            outputs: {
+                'div': { nodeId: 'fmod', port: 'div' },
+                'mod': { nodeId: 'fmod', port: 'mod' }
+            },
+        };
+
+        const executor = new GraphExecutor(fmodGraph, testRepo);
+        executor.update();
+
+        expect(executor.getGraphOutput('div')).toBe(3);
+        expect(executor.getGraphOutput('mod')).toBe(1);
     });
 });

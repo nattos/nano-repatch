@@ -1,5 +1,5 @@
 import { NodeDefinition, StructorType } from './structor';
-import { primitive_add, primitive_clamp, primitive_literal, primitive_apply } from './primitives';
+import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod } from './primitives';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
@@ -65,6 +65,21 @@ defaultNodeRepository.register({
     ],
     outputs: [
         { name: '0', type: NumberType, description: 'The clamped value.' }
+    ]
+});
+
+defaultNodeRepository.register({
+    id: 'fmod',
+    version: '1.0.0',
+    displayName: 'FMod',
+    definition: primitive_fmod,
+    inputs: [
+        { name: 'dividend', type: NumberType, description: 'Dividend' },
+        { name: 'divisor', type: NumberType, description: 'Divisor', defaultValue: 1, range: [0, 10] },
+    ],
+    outputs: [
+        { name: 'div', type: NumberType, description: 'The integer division result.' },
+        { name: 'mod', type: NumberType, description: 'The remainder.' }
     ]
 });
 

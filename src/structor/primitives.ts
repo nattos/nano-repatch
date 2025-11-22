@@ -82,6 +82,36 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
     }
 };
 
+export const primitive_fmod: PrimitiveNodeDefinition = {
+    id: 'primitive:fmod',
+    kind: 'primitive',
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {
+                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: 'first' },
+                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: 'first' },
+            },
+            reshape: 'none',
+        };
+        context.broadcast(broadcastConfig, inputType);
+        return { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, untagged: [] };
+    },
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+        const broadcastConfig: BroadcastConfig = {
+            outputs: {
+                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: 'first' },
+                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: 'first' },
+            },
+            reshape: 'none',
+        };
+        const broadcastResult = context.broadcast(broadcastConfig, input) as { fields: { dividend: number, divisor: number } };
+        const { dividend, divisor } = broadcastResult.fields;
+        const div = Math.floor(dividend / divisor);
+        const mod = dividend % divisor;
+        return { fields: { div, mod }, untagged: [] };
+    }
+};
+
 export const primitive_literal: PrimitiveNodeDefinition = {
     id: 'primitive:literal',
     kind: 'primitive',

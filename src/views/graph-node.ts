@@ -246,6 +246,7 @@ export class GraphNode extends MobxLitElement {
           <option value="add">Add</option>
           <option value="literal">Literal</option>
           <option value="clamp">Clamp</option>
+          <option value="fmod">FMod</option>
           <option value="apply">Apply</option>
         </select>
       </div>
