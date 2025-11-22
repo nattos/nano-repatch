@@ -1,4 +1,4 @@
-import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
+import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { GridNode, AppController, LocalController } from '../builder/state';
@@ -82,7 +82,7 @@ export class GraphNode extends MobxLitElement {
     // If the node is not selected, select it (replacing current selection)
     // This mimics standard behavior where dragging an unselected item selects it.
     if (!this.localController.observableState.selection.has(this.node.id)) {
-      this.localController.selectNodes([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
+      this.localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
     }
 
     new PointerDragOp(e, this, {
@@ -97,7 +97,12 @@ export class GraphNode extends MobxLitElement {
         const dy = Math.round(delta[1] / 110);
 
         // Move all selected nodes
-        const nodesToMove = Array.from(this.localController.observableState.selection);
+        // We need to filter selection to only include nodes (since selection can contain anything)
+        // But for now, we assume all selected items are nodes if we are dragging a node.
+        // Or we can check if the ID starts with 'node-'
+        const nodesToMove = Array.from(this.localController.observableState.selection.keys())
+          .filter(id => id.startsWith('node-'));
+
         this.controller.moveNodes(nodesToMove, dx, dy);
 
         this.style.transform = '';
@@ -148,9 +153,49 @@ export class GraphNode extends MobxLitElement {
     this.removeEventListener('click', this.handleClick as EventListener);
   }
 
+  private handleTypeChange(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    this.controller.setNodeConfig(this.node.id, { typeId: target.value });
+  }
+
+  private handleValueChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    this.controller.setNodeConfig(this.node.id, { value: target.value });
+  }
+
+  renderInspectorContent() {
+    return html`
+      <h3>Inspector</h3>
+      <div class="field">
+        <label>Type:</label>
+        <select .value=${this.node.config.typeId} @change=${this.handleTypeChange.bind(this)}>
+          <option value="add">Add</option>
+          <option value="literal">Literal</option>
+          <option value="clamp">Clamp</option>
+          <option value="apply">Apply</option>
+        </select>
+      </div>
+      ${this.node.config.typeId === 'literal' ? html`
+        <div class="field">
+          <label>Value:</label>
+          <input
+            type="text"
+            .value=${this.node.config.value || ''}
+            @input=${this.handleValueChange.bind(this)}
+          />
+        </div>
+      ` : ''}
+    `;
+  }
+
   render() {
     const isConnectingIn = this.connectingPort?.type === 'in' && this.connectingPort?.port === '0';
     const isConnectingOut = this.connectingPort?.type === 'out' && this.connectingPort?.port === '0';
+
+    this.localController.defineSelectable({
+      path: this.node.id,
+      renderInspectorContent: () => this.renderInspectorContent()
+    });
 
     return html`
       <div

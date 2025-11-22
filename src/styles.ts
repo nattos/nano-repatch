@@ -23,12 +23,6 @@ export const globalStyles = css`
     --app-bg-color1: #222222;
     --app-bg-color2: #313131;
 
-    --note-width: 2.0em;
-    --track-height: 5em;
-    --short-track-height: 3em;
-
-    --app-track-grid-color: var(--app-color3);
-
     color: var(--app-text-color2);
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;

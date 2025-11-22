@@ -1,15 +1,9 @@
-import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
+import { MobxLitElement } from './mobx-lit-element';
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { AppController, LocalController } from '../builder/state';
 import './graph-grid';
 import './inspector-popup';
-
-interface PortClickEvent {
-  nodeId: string;
-  port: string;
-  type: 'in' | 'out';
-}
 
 @customElement('graph-editor')
 export class GraphEditor extends MobxLitElement {
@@ -39,6 +33,7 @@ export class GraphEditor extends MobxLitElement {
       height: 100vh;
       overflow: hidden;
       position: relative;
+      user-select: none;
     }
 
     graph-grid {
@@ -67,16 +62,10 @@ export class GraphEditor extends MobxLitElement {
   }
 
   private handleNodeClick(e: CustomEvent<{ nodeId: string, additive: boolean }>) {
-    this.localController.selectNodes([e.detail.nodeId], e.detail.additive);
+    this.localController.queueSelectPaths([e.detail.nodeId], e.detail.additive);
   }
 
   render() {
-    const { graph } = this.controller.observableState;
-    const { selection } = this.localController.observableState;
-    // If multiple nodes are selected, we just show the first one for now, or null if empty
-    const selectedNodeId = selection.size === 1 ? selection.values().next().value : null;
-    const selectedNode = selectedNodeId ? graph.nodes[selectedNodeId] : null;
-
     return html`
       <graph-grid
         .controller=${this.controller}
@@ -87,7 +76,7 @@ export class GraphEditor extends MobxLitElement {
       ></graph-grid>
       <inspector-popup
         .controller=${this.controller}
-        .node=${selectedNode}
+        .localController=${this.localController}
       ></inspector-popup>
     `;
   }

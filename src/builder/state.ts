@@ -1,5 +1,6 @@
 import { observable, action, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
+import { HTMLTemplateResult } from 'lit';
 
 // Enable Immer support for Map and Set
 enableMapSet();
@@ -12,8 +13,8 @@ setAutoFreeze(false);
 configure({
     enforceActions: "always",
     computedRequiresReaction: true,
-    reactionRequiresObservable: true,
-    observableRequiresReaction: true,
+    reactionRequiresObservable: false,
+    observableRequiresReaction: false,
 });
 
 // Simple ID generator
@@ -400,7 +401,17 @@ export class AppController {
 
 // Part 4: Local Controller (UI State)
 export interface LocalState {
-    selection: Set<string>;
+    selection: Map<string, Selectable>;
+    queuedSelection: Set<string>;
+}
+
+export interface Selectable {
+    path: string;
+    renderInspectorContent?(): HTMLTemplateResult | undefined;
+}
+
+export interface SelectableHandle {
+    select(): void;
 }
 
 export class LocalController {
@@ -408,18 +419,57 @@ export class LocalController {
 
     constructor() {
         this.observableState = observable({
-            selection: new Set<string>(),
+            selection: new Map<string, Selectable>(),
+            queuedSelection: new Set<string>(),
         });
         makeObservable(this);
     }
 
+    public defineSelectable(selectable: Selectable): SelectableHandle {
+        // If this path is in the queue, promote it to selection immediately
+        if (this.observableState.queuedSelection.has(selectable.path)) {
+            this.observableState.queuedSelection.delete(selectable.path);
+            runInAction(() => {
+              this.observableState.selection.set(selectable.path, selectable);
+            });
+        }
+
+        // If this path is ALREADY selected, update the selectable instance
+        // (e.g. if the component re-rendered with new data)
+        if (this.observableState.selection.has(selectable.path)) {
+            runInAction(() => {
+              this.observableState.selection.set(selectable.path, selectable);
+            });
+        }
+
+        return {
+            select: action(() => {
+                // Clear others if not additive?
+                // For now, let's assume single select or we need an additive flag in the handle?
+                // The handle.select() is usually called by a click handler which might have modifiers.
+                // But here we are just defining the capability.
+                // Let's keep it simple: select() replaces selection.
+                this.observableState.selection.clear();
+                this.observableState.selection.set(selectable.path, selectable);
+            })
+        };
+    }
+
     @action
-    public selectNodes(nodeIds: string[], additive: boolean = false): void {
+    public queueSelectPaths(paths: string[], additive: boolean = false): void {
         if (!additive) {
             this.observableState.selection.clear();
+            this.observableState.queuedSelection.clear();
         }
-        for (const id of nodeIds) {
-            this.observableState.selection.add(id);
+
+        for (const path of paths) {
+            // If we already have the selectable, select it directly
+            if (this.observableState.selection.has(path)) {
+                // It's already selected, do nothing (or update timestamp if we tracked that)
+            } else {
+                // Otherwise, queue it and wait for defineSelectable to claim it
+                this.observableState.queuedSelection.add(path);
+            }
         }
     }
 }

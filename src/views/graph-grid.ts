@@ -1,4 +1,5 @@
-import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
+import { MobxLitElement } from './mobx-lit-element';
+
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { AppController, LocalController } from '../builder/state';
@@ -25,6 +26,7 @@ export class GraphGrid extends MobxLitElement {
       height: 100%;
       gap: 10px;
       position: relative;
+      user-select: none;
     }
 
     .cell {

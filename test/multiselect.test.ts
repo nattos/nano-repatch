@@ -5,8 +5,9 @@ jest.setTimeout(5000);
 
 describe('Multi-select E2E', () => {
   beforeAll(async () => {
-    await page.goto('http://localhost:5173');
     page.on('console', msg => process.stderr.write('PAGE LOG: ' + msg.text() + '\n'));
+    page.on('pageerror', err => process.stderr.write('PAGE ERROR: ' + err.toString() + '\n'));
+    await page.goto('http://localhost:5173');
     await page.waitForSelector('nano-repatch');
   });
 
@@ -58,18 +59,32 @@ describe('Multi-select E2E', () => {
     }, index, modifiers);
   }
 
-  async function getSelectionSize() {
-    return await page.evaluate(() => {
+  async function waitForSelectionSize(size) {
+    await page.waitForFunction((expectedSize) => {
       const app = document.querySelector('nano-repatch');
       const editor = app.shadowRoot.querySelector('graph-editor');
-      return editor.localController.observableState.selection.size;
-    });
+      return editor.localController.observableState.selection.size === expectedSize;
+    }, {}, size);
   }
 
   it('should select a single node', async () => {
     await createNode(0, 0);
+
+    // Debug DOM
+    await page.evaluate(() => {
+      const app = document.querySelector('nano-repatch');
+      const editor = app.shadowRoot.querySelector('graph-editor');
+      const grid = editor.shadowRoot.querySelector('graph-grid');
+      console.log('Debug DOM: grid exists?', !!grid);
+      if (grid) {
+        console.log('Debug DOM: grid shadowRoot exists?', !!grid.shadowRoot);
+        console.log('Debug DOM: graph-node count:', grid.shadowRoot.querySelectorAll('graph-node').length);
+        console.log('Debug DOM: grid innerHTML:', grid.shadowRoot.innerHTML);
+      }
+    });
+
     await clickNode(0);
-    expect(await getSelectionSize()).toBe(1);
+    await waitForSelectionSize(1);
   });
 
   it('should add to selection with shift key', async () => {
@@ -77,10 +92,10 @@ describe('Multi-select E2E', () => {
     await createNode(2, 0);
 
     await clickNode(0);
-    expect(await getSelectionSize()).toBe(1);
+    await waitForSelectionSize(1);
 
     await clickNode(1, { shift: true });
-    expect(await getSelectionSize()).toBe(2);
+    await waitForSelectionSize(2);
   });
 
   it('should replace selection without modifiers', async () => {
@@ -90,6 +105,6 @@ describe('Multi-select E2E', () => {
     await clickNode(0);
     await clickNode(1); // No modifiers
 
-    expect(await getSelectionSize()).toBe(1);
+    await waitForSelectionSize(1);
   });
 });

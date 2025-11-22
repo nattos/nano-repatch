@@ -17,7 +17,7 @@ describe('Selection Undo E2E', () => {
       if (editor && editor.controller) {
         editor.controller.clear();
         // Clear selection too
-        editor.localController.selectNodes([]);
+        editor.localController.queueSelectPaths([], false);
         // Clear undo stack
         editor.controller.undoStack = [];
         editor.controller.redoStack = [];
@@ -64,12 +64,12 @@ describe('Selection Undo E2E', () => {
     });
   }
 
-  async function getSelectionSize() {
-    return await page.evaluate(() => {
+  async function waitForSelectionSize(size) {
+    await page.waitForFunction((expectedSize) => {
       const app = document.querySelector('nano-repatch');
       const editor = app.shadowRoot.querySelector('graph-editor');
-      return editor.localController.observableState.selection.size;
-    });
+      return editor.localController.observableState.selection.size === expectedSize;
+    }, {}, size);
   }
 
   async function undo() {
@@ -88,13 +88,13 @@ describe('Selection Undo E2E', () => {
     await clickNode(0);
     // Selection should NOT add to undo stack
     expect(await getUndoStackSize()).toBe(1);
-    expect(await getSelectionSize()).toBe(1);
+    await waitForSelectionSize(1);
   });
 
   it('should preserve selection when undoing other actions', async () => {
     await createNode(0, 0);
     await clickNode(0);
-    expect(await getSelectionSize()).toBe(1);
+    await waitForSelectionSize(1);
 
     await createNode(2, 0);
     expect(await getUndoStackSize()).toBe(2); // 2 creations
@@ -103,11 +103,7 @@ describe('Selection Undo E2E', () => {
     await undo();
     expect(await getUndoStackSize()).toBe(1);
 
-    // Selection should still be active on the first node (if logic allows)
-    // Note: Our current logic might not explicitly preserve selection if the selected node wasn't touched,
-    // but the key is that undoing the node creation shouldn't *force* a selection change via the undo system.
-    // However, if we undo the creation of a node that WAS selected, it would disappear from selection naturally.
-    // Here we selected the first node, then created a second. Undoing the second creation should leave the first node selected.
-    expect(await getSelectionSize()).toBe(1);
+    // Selection should still be active on the first node
+    await waitForSelectionSize(1);
   });
 });

@@ -1,17 +1,17 @@
-import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
+import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { GridNode, AppController } from '../builder/state';
+import { AppController, LocalController } from '../builder/state';
 
 import './ui-button';
 
 @customElement('inspector-popup')
 export class InspectorPopup extends MobxLitElement {
   @property({ attribute: false })
-  node: GridNode | null = null;
+  controller!: AppController;
 
   @property({ attribute: false })
-  controller!: AppController;
+  localController!: LocalController;
 
   static readonly styles = css`
     :host {
@@ -66,21 +66,10 @@ export class InspectorPopup extends MobxLitElement {
     }
   `;
 
-  private handleTypeChange(e: Event) {
-    const target = e.target as HTMLSelectElement;
-    if (this.node) {
-      this.controller.setNodeConfig(this.node.id, { typeId: target.value });
-    }
-  }
-
-  private handleValueChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    if (this.node) {
-      this.controller.setNodeConfig(this.node.id, { value: target.value });
-    }
-  }
-
   render() {
+    const selection = this.localController.observableState.selection;
+    const hasSelection = selection.size > 0;
+
     return html`
       <div class="header">
         <ui-button
@@ -97,28 +86,9 @@ export class InspectorPopup extends MobxLitElement {
         ></ui-button>
       </div>
       <div class="content">
-        ${this.node ? html`
-          <h3>Inspector</h3>
-          <div class="field">
-            <label>Type:</label>
-            <select .value=${this.node.config.typeId} @change=${this.handleTypeChange}>
-              <option value="add">Add</option>
-              <option value="literal">Literal</option>
-              <option value="clamp">Clamp</option>
-              <option value="apply">Apply</option>
-            </select>
-          </div>
-          ${this.node.config.typeId === 'literal' ? html`
-            <div class="field">
-              <label>Value:</label>
-              <input
-                type="text"
-                .value=${this.node.config.value || ''}
-                @input=${this.handleValueChange}
-              />
-            </div>
-          ` : ''}
-        ` : html`
+        ${hasSelection ?
+        Array.from(selection.values()).map(selectable => selectable.renderInspectorContent ? selectable.renderInspectorContent() : '')
+        : html`
           <div style="color: #666; text-align: center; margin-top: 50px;">
             Select a node to inspect
           </div>
