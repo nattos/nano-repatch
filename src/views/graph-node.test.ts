@@ -1,0 +1,39 @@
+import { fixture, html, expect } from '@open-wc/testing';
+
+import './graph-node'; // Import graph-node directly
+import { GraphNode } from './graph-node';
+import { GridNode } from '../builder/state'; // Import GridNode
+
+describe('GraphNode', () => {
+  let clampNode: GraphNode;
+  let testNode: GridNode;
+
+  beforeEach(async () => {
+    testNode = {
+      id: 'node-test-clamp',
+      x: 0,
+      y: 0,
+      config: { typeId: 'clamp' }
+    };
+    
+    clampNode = await fixture(html`<graph-node .node=${testNode}></graph-node>`);
+    await clampNode.updateComplete;
+  });
+
+  it('renders correct ports and virtual inputs for a clamp node', async () => {
+    const inPorts = clampNode.shadowRoot!.querySelectorAll('.in-port');
+    const outPorts = clampNode.shadowRoot!.querySelectorAll('.out-port');
+    
+    expect(inPorts.length).to.equal(3, 'Should have 3 input ports (including virtual ones)');
+    expect(outPorts.length).to.equal(1, 'Should have 1 output port');
+
+    const inPortNames = Array.from(inPorts).map(p => p.getAttribute('data-port'));
+    expect(inPortNames).to.have.members(['', 'min', 'max']);
+
+    const outPortNames = Array.from(outPorts).map(p => p.getAttribute('data-port'));
+    expect(outPortNames).to.have.members(['0']);
+
+    const virtualInputs = clampNode.shadowRoot!.querySelectorAll('.virtual-input-field');
+    expect(virtualInputs.length).to.equal(2, 'Should have 2 virtual inputs');
+  });
+});
