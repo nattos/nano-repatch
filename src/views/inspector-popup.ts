@@ -1,18 +1,12 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { AppController, LocalController } from '../builder/state';
+import { appController, localController } from '../builder/controllers';
 
 import './ui-button';
 
 @customElement('inspector-popup')
 export class InspectorPopup extends MobxLitElement {
-  @property({ attribute: false })
-  controller!: AppController;
-
-  @property({ attribute: false })
-  localController!: LocalController;
-
   static readonly styles = css`
     :host {
       position: absolute;
@@ -67,7 +61,7 @@ export class InspectorPopup extends MobxLitElement {
   `;
 
   render() {
-    const selection = this.localController.observableState.selection;
+    const selection = localController.observableState.selection;
     const hasSelection = selection.size > 0;
 
     return html`
@@ -75,14 +69,14 @@ export class InspectorPopup extends MobxLitElement {
         <ui-button
           id="undo-btn"
           icon="la-undo"
-          ?disabled=${!this.controller.canUndo}
-          @click=${() => this.controller.undo()}
+          ?disabled=${!appController.canUndo}
+          @click=${() => appController.undo()}
         ></ui-button>
         <ui-button
           id="redo-btn"
           icon="la-redo"
-          ?disabled=${!this.controller.canRedo}
-          @click=${() => this.controller.redo()}
+          ?disabled=${!appController.canRedo}
+          @click=${() => appController.redo()}
         ></ui-button>
       </div>
       <div class="content">

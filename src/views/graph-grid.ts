@@ -1,19 +1,12 @@
 import { MobxLitElement } from './mobx-lit-element';
-
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { AppController, LocalController } from '../builder/state';
+import { customElement } from 'lit/decorators.js';
+import { appController, localController } from '../builder/controllers';
 import './graph-connection';
 import './graph-node';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
-  @property({ attribute: false })
-  controller!: AppController;
-
-  @property({ attribute: false })
-  localController!: LocalController;
-
   static readonly styles = css`
     :host {
       display: grid;
@@ -39,7 +32,7 @@ export class GraphGrid extends MobxLitElement {
     if (target.classList.contains('cell')) {
       const x = parseInt(target.dataset.x || '0');
       const y = parseInt(target.dataset.y || '0');
-      this.controller.createNode('literal', x, y);
+      appController.createNode('literal', x, y);
       return;
     }
 
@@ -59,30 +52,18 @@ export class GraphGrid extends MobxLitElement {
     // Check for vertical gap click (insert horizontal space)
     if (modX >= cellSize) {
       const colIndex = Math.floor(clickX / totalSize);
-      this.controller.insertSpace('x', colIndex);
+      appController.insertSpace('x', colIndex);
     }
 
     // Check for horizontal gap click (insert vertical space)
     if (modY >= cellSize) {
       const rowIndex = Math.floor(clickY / totalSize);
-      this.controller.insertSpace('y', rowIndex);
+      appController.insertSpace('y', rowIndex);
     }
   }
 
-  private handleNodeClick(e: CustomEvent<{ nodeId: string, shiftKey: boolean, ctrlKey: boolean, metaKey: boolean }>) {
-    e.stopPropagation();
-    this.dispatchEvent(new CustomEvent('node-click', {
-      detail: {
-        nodeId: e.detail.nodeId,
-        additive: e.detail.shiftKey || e.detail.ctrlKey || e.detail.metaKey,
-      },
-      bubbles: true,
-      composed: true,
-    }));
-  }
-
   private handleConnectionDelete(e: CustomEvent<{ connectionId: string }>) {
-    this.controller.deleteConnection(e.detail.connectionId);
+    appController.deleteConnection(e.detail.connectionId);
   }
 
   connectedCallback() {
@@ -98,8 +79,7 @@ export class GraphGrid extends MobxLitElement {
   }
 
   render() {
-    const { nodes, connections } = this.controller.observableState.graph;
-    const { selection } = this.localController.observableState;
+    const { nodes, connections } = appController.observableState.graph;
     const nodePositions = new Set(Object.values(nodes).map(n => `${n.x},${n.y}`));
 
     const cells = [];
@@ -122,11 +102,8 @@ export class GraphGrid extends MobxLitElement {
       ${cells}
       ${Object.values(nodes).map(node => html`
         <graph-node
-          .controller=${this.controller}
-          .localController=${this.localController}
           .node=${node}
           style="grid-column: ${node.x + 1}; grid-row: ${node.y + 1};"
-          @node-click=${this.handleNodeClick}
         ></graph-node>
       `)}
       ${Object.values(connections).map(conn => {

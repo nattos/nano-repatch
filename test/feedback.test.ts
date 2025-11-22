@@ -13,11 +13,7 @@ describe('Visual Feedback E2E', () => {
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (editor && editor.controller) {
-        editor.controller.clear();
-      }
+      window.testing.appController.clear();
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
@@ -31,10 +27,8 @@ describe('Visual Feedback E2E', () => {
   });
 
   async function createNode(x, y) {
-    const appHandle = await page.waitForSelector('nano-repatch');
-    await appHandle.evaluate((app, x, y) => {
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      editor.controller.createNode('literal', x, y);
+    await page.evaluate((x, y) => {
+      window.testing.appController.createNode('literal', x, y);
     }, x, y);
 
     await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-node');
@@ -84,26 +78,7 @@ describe('Visual Feedback E2E', () => {
 
   it('should apply connecting class to clicked port', async () => {
     await createNode(0, 0);
-
-    // Manually dispatch the custom event to bypass any issues with simulated clicks
-    await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      const grid = editor.shadowRoot.querySelector('graph-grid');
-      const node = grid.shadowRoot.querySelector('graph-node');
-
-      const detail = {
-        nodeId: node.node.id,
-        port: '0',
-        type: 'out'
-      };
-      
-      node.dispatchEvent(new CustomEvent('port-click', {
-        detail,
-        bubbles: true,
-        composed: true
-      }));
-    });
+    await clickPort(0, 'out'); // Use the original helper
 
     // Wait for the class to be applied
     await page.waitForFunction(() => {

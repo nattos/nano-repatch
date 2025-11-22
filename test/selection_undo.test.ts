@@ -12,16 +12,12 @@ describe('Selection Undo E2E', () => {
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (editor && editor.controller) {
-        editor.controller.clear();
-        // Clear selection too
-        editor.localController.queueSelectPaths([], false);
-        // Clear undo stack
-        editor.controller.undoStack = [];
-        editor.controller.redoStack = [];
-      }
+      window.testing.appController.clear();
+      // Clear selection too
+      window.testing.localController.queueSelectPaths([], false);
+      // Clear undo stack
+      window.testing.appController.undoStack = [];
+      window.testing.appController.redoStack = [];
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
@@ -35,10 +31,8 @@ describe('Selection Undo E2E', () => {
   });
 
   async function createNode(x, y) {
-    const appHandle = await page.waitForSelector('nano-repatch');
-    await appHandle.evaluate((app, x, y) => {
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      editor.controller.createNode('literal', x, y);
+    await page.evaluate((x, y) => {
+      window.testing.appController.createNode('literal', x, y);
     }, x, y);
     await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-node');
   }
@@ -58,25 +52,19 @@ describe('Selection Undo E2E', () => {
 
   async function getUndoStackSize() {
     return await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      return editor.controller.undoStack.length;
+      return window.testing.appController.undoStack.length;
     });
   }
 
   async function waitForSelectionSize(size) {
     await page.waitForFunction((expectedSize) => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      return editor.localController.observableState.selection.size === expectedSize;
+      return window.testing.localController.observableState.selection.size === expectedSize;
     }, {}, size);
   }
 
   async function undo() {
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      editor.controller.undo();
+      window.testing.appController.undo();
     });
   }
 

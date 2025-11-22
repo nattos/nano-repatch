@@ -12,11 +12,7 @@ describe('Inspector E2E', () => {
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (editor && editor.controller) {
-        editor.controller.clear();
-      }
+      window.testing.appController.clear();
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
@@ -30,10 +26,8 @@ describe('Inspector E2E', () => {
   });
 
   async function createNode(x, y, type = 'literal') {
-    const appHandle = await page.waitForSelector('nano-repatch');
-    await appHandle.evaluate((app, x, y, type) => {
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      editor.controller.createNode(type, x, y);
+    await page.evaluate((x, y, type) => {
+      window.testing.appController.createNode(type, x, y);
     }, x, y, type);
 
     await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-node');
@@ -99,10 +93,8 @@ describe('Inspector E2E', () => {
 
     // Verify controller state
     const value = await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      const nodeId = Object.keys(editor.controller.observableState.graph.nodes)[0];
-      return editor.controller.observableState.graph.nodes[nodeId].config.value;
+      const nodeId = Object.keys(window.testing.appController.observableState.graph.nodes)[0];
+      return window.testing.appController.observableState.graph.nodes[nodeId].config.value;
     });
 
     expect(value).toBe('123');

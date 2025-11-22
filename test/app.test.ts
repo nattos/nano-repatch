@@ -12,12 +12,7 @@ describe('Graph Editor E2E', () => {
   beforeEach(async () => {
     // Clear the graph state instead of reloading
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      const grid = editor.shadowRoot.querySelector('graph-grid');
-      if (grid && grid.controller) {
-        grid.controller.clear();
-      }
+      window.testing.appController.clear();
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {

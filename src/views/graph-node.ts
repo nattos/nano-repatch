@@ -1,19 +1,14 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { GridNode, AppController, LocalController } from '../builder/state';
+import { GridNode } from '../builder/state';
+import { appController, localController } from '../builder/controllers';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 
 @customElement('graph-node')
 export class GraphNode extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
-
-  @property({ attribute: false })
-  controller!: AppController;
-
-  @property({ attribute: false })
-  localController!: LocalController;
 
   static readonly styles = css`
     :host {
@@ -74,30 +69,22 @@ export class GraphNode extends MobxLitElement {
     }
 
     // If the node is not selected, select it (replacing current selection)
-    // This mimics standard behavior where dragging an unselected item selects it.
-    if (!this.localController.observableState.selection.has(this.node.id)) {
-      this.localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
+    if (!localController.observableState.selection.has(this.node.id)) {
+      localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
     }
 
     new PointerDragOp(e, this, {
       move: (e, delta) => {
-        // Visual feedback for the dragged node
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
-        // TODO: We should ideally show visual feedback for ALL selected nodes,
-        // but for now we just show it for the one being dragged.
       },
       accept: (e, delta) => {
         const dx = Math.round(delta[0] / 110);
         const dy = Math.round(delta[1] / 110);
 
-        // Move all selected nodes
-        // We need to filter selection to only include nodes (since selection can contain anything)
-        // But for now, we assume all selected items are nodes if we are dragging a node.
-        // Or we can check if the ID starts with 'node-'
-        const nodesToMove = Array.from(this.localController.observableState.selection.keys())
+        const nodesToMove = Array.from(localController.observableState.selection.keys())
           .filter(id => id.startsWith('node-'));
 
-        this.controller.moveNodes(nodesToMove, dx, dy);
+        appController.moveNodes(nodesToMove, dx, dy);
 
         this.style.transform = '';
       },
@@ -109,30 +96,26 @@ export class GraphNode extends MobxLitElement {
 
   private handlePortClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    const port = target.dataset.port;
-    const type = target.dataset.type;
-    this.dispatchEvent(new CustomEvent('port-click', {
-      detail: {
-        nodeId: this.node.id,
-        port,
-        type,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    const port = target.dataset.port!;
+    const type = target.dataset.type as 'in' | 'out';
+    
+    const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
+
+    if (!currentInflightOp) {
+      localController.setInflightPortConnectionOperation({ nodeId: this.node.id, port, type });
+    } else {
+      if (currentInflightOp.nodeId !== this.node.id && currentInflightOp.type !== type) {
+        const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.node.id, port, type };
+        const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.node.id, port, type };
+
+        appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
+      }
+      localController.setInflightPortConnectionOperation(null);
+    }
   }
 
   private handleClick(e: MouseEvent) {
-    this.dispatchEvent(new CustomEvent('node-click', {
-      detail: {
-        nodeId: this.node.id,
-        shiftKey: e.shiftKey,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
   }
 
   connectedCallback() {
@@ -149,12 +132,12 @@ export class GraphNode extends MobxLitElement {
 
   private handleTypeChange(e: Event) {
     const target = e.target as HTMLSelectElement;
-    this.controller.setNodeConfig(this.node.id, { typeId: target.value });
+    appController.setNodeConfig(this.node.id, { typeId: target.value });
   }
 
   private handleValueChange(e: Event) {
     const target = e.target as HTMLInputElement;
-    this.controller.setNodeConfig(this.node.id, { value: target.value });
+    appController.setNodeConfig(this.node.id, { value: target.value });
   }
 
   renderInspectorContent() {
@@ -183,7 +166,7 @@ export class GraphNode extends MobxLitElement {
   }
 
   render() {
-    const { selection, inflightPortConnectionOperation } = this.localController.observableState;
+    const { selection, inflightPortConnectionOperation } = localController.observableState;
     const isSelected = selection.has(this.node.id);
     const connectingPort = inflightPortConnectionOperation && inflightPortConnectionOperation.nodeId === this.node.id ? inflightPortConnectionOperation : null;
 
@@ -192,7 +175,7 @@ export class GraphNode extends MobxLitElement {
 
     this.toggleAttribute('selected', isSelected);
 
-    this.localController.defineSelectable({
+    localController.defineSelectable({
       path: this.node.id,
       renderInspectorContent: () => this.renderInspectorContent()
     });

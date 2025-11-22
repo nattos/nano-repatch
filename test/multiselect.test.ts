@@ -14,11 +14,7 @@ describe('Multi-select E2E', () => {
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (editor && editor.controller) {
-        editor.controller.clear();
-      }
+      window.testing.appController.clear();
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
@@ -32,10 +28,8 @@ describe('Multi-select E2E', () => {
   });
 
   async function createNode(x, y) {
-    const appHandle = await page.waitForSelector('nano-repatch');
-    await appHandle.evaluate((app, x, y) => {
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      editor.controller.createNode('literal', x, y);
+    await page.evaluate((x, y) => {
+      window.testing.appController.createNode('literal', x, y);
     }, x, y);
 
     await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-node');
@@ -61,9 +55,7 @@ describe('Multi-select E2E', () => {
 
   async function waitForSelectionSize(size) {
     await page.waitForFunction((expectedSize) => {
-      const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      return editor.localController.observableState.selection.size === expectedSize;
+      return window.testing.localController.observableState.selection.size === expectedSize;
     }, {}, size);
   }
 
