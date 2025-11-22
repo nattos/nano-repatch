@@ -1,13 +1,17 @@
 import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
-import { css, html } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { AppController } from '../builder/state';
+import { AppController, LocalController } from '../builder/state';
 import './graph-connection';
+import './graph-node';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
   @property({ attribute: false })
   controller!: AppController;
+
+  @property({ attribute: false })
+  localController!: LocalController;
 
   @property({ attribute: false })
   selectedPort: { nodeId: string, port: string, type: 'in' | 'out' } | null = null;
@@ -96,7 +100,7 @@ export class GraphGrid extends MobxLitElement {
 
   render() {
     const { nodes, connections } = this.controller.observableState.graph;
-    const { selection } = this.controller.observableState;
+    const { selection } = this.localController.observableState;
     const nodePositions = new Set(Object.values(nodes).map(n => `${n.x},${n.y}`));
 
     const cells = [];
@@ -120,6 +124,7 @@ export class GraphGrid extends MobxLitElement {
       ${Object.values(nodes).map(node => html`
         <graph-node
           .controller=${this.controller}
+          .localController=${this.localController}
           .node=${node}
           .selected=${selection.has(node.id)}
           .connectingPort=${this.selectedPort && this.selectedPort.nodeId === node.id ? { port: this.selectedPort.port, type: this.selectedPort.type } : null}

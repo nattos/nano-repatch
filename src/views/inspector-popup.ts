@@ -18,13 +18,17 @@ export class InspectorPopup extends MobxLitElement {
       position: absolute;
       bottom: 20px;
       right: 20px;
-      min-width: 250px;
+      width: 300px;
+      max-height: 80vh;
       background-color: #222;
       color: white;
-      border-left: 1px solid #444;
+      border: 1px solid #444;
+      border-radius: 8px;
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      z-index: 100;
     }
 
     .header {

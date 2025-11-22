@@ -1,9 +1,8 @@
 import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
-import { css, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
-import { AppController } from '../builder/state';
+import { LitElement, html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { AppController, LocalController } from '../builder/state';
 import './graph-grid';
-import './graph-node';
 import './inspector-popup';
 
 interface PortClickEvent {
@@ -14,11 +13,14 @@ interface PortClickEvent {
 
 @customElement('graph-editor')
 export class GraphEditor extends MobxLitElement {
-  @state()
-  private controller = new AppController();
+  @property({ attribute: false })
+  controller = new AppController();
+
+  @property({ attribute: false })
+  localController = new LocalController();
 
   @state()
-  private selectedPort: PortClickEvent | null = null;
+  selectedPort: { nodeId: string, port: string, type: 'in' | 'out' } | null = null;
 
   constructor() {
     super();
@@ -32,14 +34,16 @@ export class GraphEditor extends MobxLitElement {
 
   static readonly styles = css`
     :host {
-      display: flex;
+      display: block;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      position: relative;
     }
 
-    inspector-popup {
-      border: 1px solid #444;
+    graph-grid {
+      width: 100%;
+      height: 100%;
     }
   `;
 
@@ -63,11 +67,12 @@ export class GraphEditor extends MobxLitElement {
   }
 
   private handleNodeClick(e: CustomEvent<{ nodeId: string, additive: boolean }>) {
-    this.controller.selectNodes([e.detail.nodeId], e.detail.additive);
+    this.localController.selectNodes([e.detail.nodeId], e.detail.additive);
   }
 
   render() {
-    const { selection, graph } = this.controller.observableState;
+    const { graph } = this.controller.observableState;
+    const { selection } = this.localController.observableState;
     // If multiple nodes are selected, we just show the first one for now, or null if empty
     const selectedNodeId = selection.size === 1 ? selection.values().next().value : null;
     const selectedNode = selectedNodeId ? graph.nodes[selectedNodeId] : null;
@@ -75,6 +80,7 @@ export class GraphEditor extends MobxLitElement {
     return html`
       <graph-grid
         .controller=${this.controller}
+        .localController=${this.localController}
         .selectedPort=${this.selectedPort}
         @port-click=${this.handlePortClick}
         @node-click=${this.handleNodeClick}

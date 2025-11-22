@@ -1,7 +1,7 @@
 import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { GridNode, AppController } from '../builder/state';
+import { GridNode, AppController, LocalController } from '../builder/state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 
 @customElement('graph-node')
@@ -17,6 +17,9 @@ export class GraphNode extends MobxLitElement {
 
   @property({ attribute: false })
   controller!: AppController;
+
+  @property({ attribute: false })
+  localController!: LocalController;
 
   static readonly styles = css`
     :host {
@@ -78,8 +81,8 @@ export class GraphNode extends MobxLitElement {
 
     // If the node is not selected, select it (replacing current selection)
     // This mimics standard behavior where dragging an unselected item selects it.
-    if (!this.controller.observableState.selection.has(this.node.id)) {
-      this.controller.selectNodes([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
+    if (!this.localController.observableState.selection.has(this.node.id)) {
+      this.localController.selectNodes([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
     }
 
     new PointerDragOp(e, this, {
@@ -94,7 +97,7 @@ export class GraphNode extends MobxLitElement {
         const dy = Math.round(delta[1] / 110);
 
         // Move all selected nodes
-        const nodesToMove = Array.from(this.controller.observableState.selection);
+        const nodesToMove = Array.from(this.localController.observableState.selection);
         this.controller.moveNodes(nodesToMove, dx, dy);
 
         this.style.transform = '';

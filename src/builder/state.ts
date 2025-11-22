@@ -1,4 +1,4 @@
-import { observable, action, makeObservable, configure, computed } from 'mobx';
+import { observable, action, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
 
 // Enable Immer support for Map and Set
@@ -52,7 +52,6 @@ export interface GraphState {
 // derived, non-serializable lookup maps for performance.
 export interface AppState {
     graph: GraphState;
-    selection: Set<string>;
     auxiliary: {
         // map from a node ID to the IDs of its outgoing connections
         outgoingConnections: Map<string, string[]>;
@@ -69,8 +68,7 @@ export type AppMutation =
     | { type: 'node.setConfig', nodeId: string, from: Partial<any>, to: Partial<any> }
     | { type: 'connection.create', connection: Connection }
     | { type: 'connection.delete', connection: Connection }
-    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> }
-    | { type: 'selection.set', from: Set<string>, to: Set<string> };
+    | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> };
 
 // Part 3: The Controller
 export class AppController {
@@ -89,7 +87,6 @@ export class AppController {
         const graphState = initialState || { nodes: {}, connections: {} };
         this.currentState = {
             graph: graphState,
-            selection: new Set(),
             auxiliary: this.buildAuxiliaryMaps(graphState),
         };
         // MobX can make Maps and Sets observable directly
@@ -137,8 +134,10 @@ export class AppController {
 
             if (!isUndoRedo) {
                 const inverseMutations = this.createInverse(mutations);
-                this.undoStack.push(inverseMutations);
-                this.redoStack = [];
+                runInAction(() => {
+                    this.undoStack.push(inverseMutations);
+                    this.redoStack = [];
+                });
             }
         }
     }
@@ -153,7 +152,6 @@ export class AppController {
         if (this.draftState) {
             this.draftState.auxiliary.incomingConnections = new Map(this.draftState.auxiliary.incomingConnections);
             this.draftState.auxiliary.outgoingConnections = new Map(this.draftState.auxiliary.outgoingConnections);
-            this.draftState.selection = new Set(this.draftState.selection);
         }
 
 
@@ -251,15 +249,6 @@ export class AppController {
 
     public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void { }
 
-    public selectNodes(nodeIds: string[], additive: boolean = false): void {
-        const state = this.getState();
-        const newSelection = additive ? new Set(state.selection) : new Set<string>();
-        for (const id of nodeIds) {
-            newSelection.add(id);
-        }
-        this.dispatch([{ type: 'selection.set', from: state.selection, to: newSelection }]);
-    }
-
     public clear(): void {
         const state = this.getState();
         const mutations: AppMutation[] = [];
@@ -278,19 +267,31 @@ export class AppController {
     }
 
     public undo(): void {
-        const mutationsToUndo = this.undoStack.pop();
+        let mutationsToUndo: AppMutation[] | undefined;
+        runInAction(() => {
+            mutationsToUndo = this.undoStack.pop();
+        });
+
         if (mutationsToUndo) {
             const redoMutations = this.createInverse(mutationsToUndo);
-            this.redoStack.push(redoMutations);
+            runInAction(() => {
+                this.redoStack.push(redoMutations);
+            });
             this.dispatch(mutationsToUndo, true);
         }
     }
 
     public redo(): void {
-        const mutationsToRedo = this.redoStack.pop();
+        let mutationsToRedo: AppMutation[] | undefined;
+        runInAction(() => {
+            mutationsToRedo = this.redoStack.pop();
+        });
+
         if (mutationsToRedo) {
             const undoMutations = this.createInverse(mutationsToRedo);
-            this.undoStack.push(undoMutations);
+            runInAction(() => {
+                this.undoStack.push(undoMutations);
+            });
             this.dispatch(mutationsToRedo, true);
         }
     }
@@ -356,15 +357,14 @@ export class AppController {
                         Object.assign(state.graph.nodes[mutation.nodeId].config, mutation.to);
                     }
                     break;
-                case 'selection.set':
-                    state.selection = mutation.to;
-                    break;
             }
         }
     }
 
     private applyMutationsToObservable(mutations: AppMutation[]): void {
-        this.applyMutations(this.observableState, mutations);
+        runInAction(() => {
+            this.applyMutations(this.observableState, mutations);
+        });
     }
 
     private createInverse(mutations: AppMutation[]): AppMutation[] {
@@ -389,14 +389,37 @@ export class AppController {
                 case 'node.setConfig':
                     inverse.push({ type: 'node.setConfig', nodeId: m.nodeId, from: m.to, to: m.from });
                     break;
-                case 'selection.set':
-                    inverse.push({ type: 'selection.set', from: m.to, to: m.from });
-                    break;
                 default:
                     console.warn(`Inverse for mutation type ${(m as any).type} not implemented.`);
                     break;
             }
         }
         return inverse.reverse();
+    }
+}
+
+// Part 4: Local Controller (UI State)
+export interface LocalState {
+    selection: Set<string>;
+}
+
+export class LocalController {
+    public observableState: LocalState;
+
+    constructor() {
+        this.observableState = observable({
+            selection: new Set<string>(),
+        });
+        makeObservable(this);
+    }
+
+    @action
+    public selectNodes(nodeIds: string[], additive: boolean = false): void {
+        if (!additive) {
+            this.observableState.selection.clear();
+        }
+        for (const id of nodeIds) {
+            this.observableState.selection.add(id);
+        }
     }
 }
