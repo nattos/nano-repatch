@@ -117,3 +117,21 @@ This entry documents the implementation of the graph composition features and th
 
 *   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
 *   **Graph Loading:** Currently, subgraphs must be manually loaded into `LocalState`. A proper file/asset management system is needed to load and manage graph dependencies.
+
+## Compiler & Configuration State (As of 2025-11-23)
+
+This entry clarifies the current state of the graph compiler and the important distinction between UI-facing configuration and execution-facing configuration.
+
+### The Problem with `compiler.ts`
+
+The initial version of `src/builder/compiler.ts` was implemented with a simplifying assumption: that the `GridNode.config` object from the UI state could be directly mapped to the `defaultConfig` of a `NodeInstance` for the `GraphExecutor`. This assumption is incorrect and has led to a fragile implementation.
+
+### The Architectural Distinction
+
+There is a fundamental architectural separation between the state used by the visual editor and the state used by the execution engine:
+
+1.  **`GridNode.config` (UI State):** This is a simple, flat key-value object designed for ease of use by UI components like inspector panels, sliders, and text inputs. It holds "source of truth" data in a human-readable and editable format (e.g., `{ typeId: 'literal', literal: { value: 1.23 } }`). It is part of the `AppState`.
+
+2.  **`NodeInstance.defaultConfig` (Execution State):** This is a `Structor`-formatted value that is passed directly to a node's `execute` function. It must conform to the `configType` specified in the node's `PrimitiveNodeDefinition`. For a literal node, this would be a simple `Structor` like the number `1.23`, not the complex object used by the UI.
+
+The `compiler.ts` file's responsibility is to perform this translation. It must read the UI-friendly `GridNode.config` and produce the correct, `Structor`-formatted `defaultConfig` for the `NodeInstance`. The current implementation only performs a trivial, incorrect mapping for literal nodes and needs to be redesigned.

@@ -177,6 +177,8 @@ The `AppController` is the central engine for the application's UI state. It man
 
 All modifications are handled through methods on the controller, which uses a transactional, command-based pattern with a full undo/redo stack. For UI integration, it provides a `mobx`-powered observable mirror of the `AppState`, ensuring that UI components can react efficiently to any changes.
 
+It is important to distinguish between the UI-facing state and the execution-facing state. The `GridNode.config` object is a representation of a node's state designed to be easily manipulated by the UI (e.g., by inspector panels and sliders). In contrast, a `NodeInstance`'s `config` is a `Structor`-formatted value suitable for direct use by the `GraphExecutor`. The process of converting from the UI state to the execution state is handled by a compiler, and there may not be a one-to-one mapping between the two.
+
 ## First-Class Strings and Functors
 
 Operations are generalized for all types, including `string` and `Functor`.

@@ -118,8 +118,8 @@ export interface GraphDefinition {
 
 // Added for GraphDefinition
 export interface NodeInstance {
-    definitionId: string;
-    defaultConfig?: Structor;
+  definitionId: string;
+  defaultConfig?: Structor;
 }
 
 
