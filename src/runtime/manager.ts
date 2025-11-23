@@ -1,103 +1,121 @@
-import { makeAutoObservable, autorun, runInAction } from 'mobx';
-import { appController, localController } from '../builder/controllers';
+import {
+  makeObservable,
+  observable,
+  reaction,
+  runInAction,
+  when,
+} from 'mobx';
+import { AppController, AppState, LocalController } from '../builder/state';
 import { compileGraph } from '../builder/compiler';
 import { GraphExecutor } from '../structor/executor';
-import { defaultNodeRepository } from '../structor/repository';
-import { GraphDefinition } from '../structor/structor';
+import { NodeRepository } from '../structor/repository';
+import { ALL_PRIMITIVES } from '../structor/primitives';
 
 export class RuntimeManager {
-  public executor: GraphExecutor | null = null;
-  public outputs = new Map<string, any>();
-  public stats = { nodeCount: 0 };
+  @observable executor: GraphExecutor | null = null;
+  @observable outputs = new Map<string, any>();
+  @observable stats = {
+    nodeCount: 0,
+    executionTime: 0,
+  };
 
-  constructor() {
-    makeAutoObservable(this);
-    this.start();
-  }
+  private nodeRepository = new NodeRepository(ALL_PRIMITIVES);
 
-  private start() {
-    autorun(() => {
-      const appState = appController.observableState;
-      const loadedSubgraphs = localController.observableState.loadedSubgraphs;
+  constructor(
+    private appController: AppController,
+    private localController: LocalController
+  ) {
+    makeObservable(this);
 
-      // Compile the graph
-      // This will track dependencies on appState and loadedSubgraphs
-      const graphDef = compileGraph(appState, loadedSubgraphs);
+    // This reaction will trigger a full recompile when the graph structure changes.
+    reaction(
+      () => this.getStructuralSignature(this.appController.getState()),
+      () => {
+        this.recompileAndRun();
+      },
+      { fireImmediately: true, delay: 50 } // Debounce structural changes
+    );
 
-      this.handleUpdate(graphDef);
-    });
-  }
-
-  private handleUpdate(newGraph: GraphDefinition) {
-    runInAction(() => {
-      // Check if we need to recreate the executor
-      if (!this.executor || this.hasStructureChanged(this.executor['graph'], newGraph)) {
-        // Recreate
-        this.executor = new GraphExecutor(newGraph, defaultNodeRepository);
-      } else {
-        // Update Configs
-        for (const [nodeId, instance] of Object.entries(newGraph.nodes)) {
-          const currentConfig = this.executor.getNodeConfig(nodeId);
-          // Simple equality check for config (assuming it's a primitive or simple object)
-          // In a real app, we might need deep comparison or rely on immutable references.
-          // Since compileGraph creates new objects, reference equality fails.
-          // Let's use JSON stringify for now as a cheap deep equal for small configs.
-          if (instance.defaultConfig !== undefined && JSON.stringify(currentConfig) !== JSON.stringify(instance.defaultConfig)) {
-            this.executor.setNodeConfig(nodeId, instance.defaultConfig);
+    // This reaction handles configuration changes for existing nodes.
+    reaction(
+      () => this.getConfigSignature(this.appController.getState()),
+      () => {
+        if (this.executor) {
+          const state = this.appController.getState();
+          for (const node of Object.values(state.graph.inner.nodes)) {
+            // This is a simplification. We would need to know which node changed.
+            // A more robust implementation would get this from the mutation stream.
+            // For now, we just update all configs.
+            const { typeId, ...config } = node.config;
+            this.executor.setNodeConfig(node.id, config);
           }
+          this.runExecution();
         }
-      }
+      },
+      { delay: 50 } // Debounce config changes
+    );
+  }
 
-      // Execute
-      this.executor.update();
+  private getStructuralSignature(state: AppState): string {
+    // A signature that changes only when nodes or connections are added/removed.
+    const nodeIds = Object.keys(state.graph.inner.nodes).sort().join(',');
+    const connIds = Object.keys(state.graph.inner.connections)
+      .map(
+        (id) =>
+          `${state.graph.inner.connections[id].fromNodeId}->${state.graph.inner.connections[id].toNodeId}`
+      )
+      .sort()
+      .join(',');
+    return `${nodeIds}|${connIds}`;
+  }
 
-      // Update Outputs and Stats
-      this.outputs.clear();
-      // We need to expose a way to get all node outputs from executor
-      // GraphExecutor doesn't expose all states publicly, but we can access them if we change visibility
-      // or add a method. For now, let's assume we can iterate or we add a method.
-      // Let's cast to any to access private nodeStates for debugging/overlay
-      const states = (this.executor as any).nodeStates;
-      if (states) {
-        let executedCount = 0;
-        for (const [nodeId, state] of states.entries()) {
-          // We want to show the output value.
-          // state.output is a StructorRecord.
-          // We probably want to show the '0' output or the whole record.
-          // Let's show the whole record for now.
-          this.outputs.set(nodeId, state.output);
+  private getConfigSignature(state: AppState): string {
+    // A signature that changes when node configurations change.
+    return JSON.stringify(
+      Object.values(state.graph.inner.nodes).map((n) => n.config)
+    );
+  }
 
-          // Count executed nodes (dirty was false after update, but we don't track "was executed")
-          // Actually, executor doesn't expose "nodes executed in last update".
-          // We can approximate or add a metric to executor.
-          // For now, let's just count total nodes.
-          executedCount++;
-        }
-        this.stats.nodeCount = executedCount;
-      }
+  private recompileAndRun() {
+    console.log('Recompiling graph...');
+    const state = this.appController.getState();
+    const graphDef = compileGraph(
+      state,
+      this.localController.observableState.loadedSubgraphs
+    );
+
+    const newExecutor = new GraphExecutor(graphDef, this.nodeRepository);
+
+    runInAction(() => {
+      this.executor = newExecutor;
+      this.runExecution();
     });
   }
 
-  private hasStructureChanged(oldGraph: GraphDefinition, newGraph: GraphDefinition): boolean {
-    // 1. Compare Connections
-    if (oldGraph.connections.length !== newGraph.connections.length) return true;
-    // We assume order might be stable from compiler, but let's be safe?
-    // JSON stringify is fast enough for this scale.
-    if (JSON.stringify(oldGraph.connections) !== JSON.stringify(newGraph.connections)) return true;
-
-    // 2. Compare Nodes (Keys and Definitions)
-    const oldKeys = Object.keys(oldGraph.nodes).sort();
-    const newKeys = Object.keys(newGraph.nodes).sort();
-    if (JSON.stringify(oldKeys) !== JSON.stringify(newKeys)) return true;
-
-    for (const key of oldKeys) {
-      if (oldGraph.nodes[key].definitionId !== newGraph.nodes[key].definitionId) return true;
+  private runExecution() {
+    if (!this.executor) {
+      return;
     }
 
-    return false;
+    const startTime = performance.now();
+    this.executor.update();
+    const endTime = performance.now();
+
+    const newOutputs = this.executor.getOutputs();
+    const newStats = {
+      nodeCount: Object.keys(this.executor.graph.nodes).length,
+      executionTime: endTime - startTime,
+    };
+
+    runInAction(() => {
+      this.outputs.clear();
+      for (const [key, value] of newOutputs.entries()) {
+        // We only care about the untagged output for the debug view.
+        this.outputs.set(key, value.untagged[0]);
+      }
+      this.stats = newStats;
+    });
+
+    console.log(`Execution finished in ${newStats.executionTime.toFixed(2)}ms`);
   }
 }
-
-export const runtimeManager = new RuntimeManager();
-// Expose for testing
-(window as any).runtimeManager = runtimeManager;

@@ -47,9 +47,10 @@ export function compileGraph(
         // that pass data through.
 
         // Construct NodeInstance
+        const { typeId, ...config } = node.config;
         const instance: NodeInstance = {
-          definitionId: node.config.typeId,
-          defaultConfig: node.config.values // Pass values as config
+          definitionId: typeId,
+          defaultConfig: config
         };
 
         flatNodes[nodeId] = instance;

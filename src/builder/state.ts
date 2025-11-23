@@ -374,7 +374,10 @@ export class AppController {
           break;
         case 'node.setConfig':
           if (state.graph.inner.nodes[mutation.nodeId]) {
-            Object.assign(state.graph.inner.nodes[mutation.nodeId].config, mutation.to);
+            state.graph.inner.nodes[mutation.nodeId].config = {
+              ...state.graph.inner.nodes[mutation.nodeId].config,
+              ...mutation.to,
+            };
           }
           break;
         case 'connection.setPorts':

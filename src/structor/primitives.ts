@@ -157,14 +157,14 @@ export const primitive_output: PrimitiveNodeDefinition = {
     id: 'primitive:output',
     kind: 'primitive',
     computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-        // Identity: Output type is same as input type of '0'
-        const valType = inputType.fields['0'] || inputType.untagged[0] || { kind: 'atomic', type: 'any' };
-        return { kind: 'record', fields: { 'val': valType }, untagged: [] };
+        // Identity: Output type is same as input type of 'val'
+        const valType = inputType.fields['val'] || inputType.untagged[0] || { kind: 'atomic', type: 'any' };
+        return { kind: 'record', fields: { 'val': valType }, untagged: [valType] };
     },
     execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-        // Identity: Output value is input '0'
-        const val = input.fields['0'] !== undefined ? input.fields['0'] : input.untagged[0];
-        return { fields: { 'val': val }, untagged: [] };
+        // Identity: Output value is input 'val'
+        const val = input.fields['val'] !== undefined ? input.fields['val'] : input.untagged[0];
+        return { fields: { 'val': val }, untagged: [val] };
     }
 };
 
@@ -181,3 +181,14 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
         return { fields: {}, untagged: [] };
     }
 };
+
+export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = [
+    primitive_add,
+    primitive_clamp,
+    primitive_fmod,
+    primitive_literal,
+    primitive_apply,
+    primitive_input,
+    primitive_output,
+    primitive_subgraph
+];

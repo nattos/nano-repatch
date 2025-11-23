@@ -192,6 +192,14 @@ export class GraphExecutor {
         }
     }
 
+    public getOutputs(): Map<string, StructorRecord> {
+        const allOutputs = new Map<string, StructorRecord>();
+        for (const [nodeId, state] of this.nodeStates.entries()) {
+            allOutputs.set(nodeId, state.output);
+        }
+        return allOutputs;
+    }
+
     public getNodeOutput(nodeId: string): StructorRecord | undefined {
         return this.nodeStates.get(nodeId)?.output;
     }
