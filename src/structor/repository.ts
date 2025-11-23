@@ -1,6 +1,8 @@
+import { html, nothing } from 'lit';
 import { NodeDefinition, Structor, StructorType } from './structor';
 import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
-import type { GridNode } from '../builder/state';
+import type { GraphState, GridNode } from '../builder/state';
+import { parseFloatOr } from '../utils/utils';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
@@ -12,6 +14,11 @@ export interface PortHint {
   // For "virtual inputs"
   defaultValue?: any;
   range?: [number, number];
+}
+
+export type InspectorChangeHandler = (config: Partial<GridNode['config']>) => void;
+export interface GraphNodeRenderHandlers {
+  handleVirtualInputChange: (e: Event, portName: string) => void;
 }
 
 export interface NodeType {
@@ -33,7 +40,22 @@ export interface NodeType {
    * A custom Lit-element renderer for the node's body.
    * If not provided, a default renderer is used.
    */
-  renderBody?: (node: GridNode) => unknown;
+  renderBody?: (node: GridNode, handlers: GraphNodeRenderHandlers) => unknown;
+
+  /**
+   * A custom Lit-element renderer for the node's inspector content.
+   */
+  renderInspector?: (node: GridNode, onchange: InspectorChangeHandler) => unknown;
+
+  /**
+   * A function to dynamically get the ports for a node.
+   * Used for nodes like subgraphs where ports depend on internal state.
+   */
+  getPorts?: (node: GridNode, loadedSubgraphs: Map<string, GraphState>) => {
+    inputs: PortHint[];
+    outputs: PortHint[];
+    displayName?: string;
+  } | null;
 }
 
 export class NodeRepository {
@@ -49,6 +71,10 @@ export class NodeRepository {
 
   getNodeType(id: string): NodeType | undefined {
     return this.nodes.get(id);
+  }
+
+  getAllNodeTypes(): IterableIterator<NodeType> {
+    return this.nodes.values();
   }
 }
 
@@ -120,7 +146,32 @@ defaultNodeRepository.register({
     { name: '', type: AnyType, description: 'The literal value.' }
   ],
   compileConfig: (uiConfig) => uiConfig?.literal?.value ?? 0.0,
+  renderInspector: (node, onchange) => html`
+    <div class="field">
+      <label>Value:</label>
+      <input
+        type="text"
+        .value=${node.config?.literal?.value || 0}
+        @input=${(e: Event) => {
+          const value = parseFloatOr((e.target as HTMLInputElement).value) ?? 0;
+          onchange({ literal: { value } });
+        }}
+      />
+    </div>
+  `
 });
+
+const ioNodeBodyRenderer = (node: GridNode, { handleVirtualInputChange }: GraphNodeRenderHandlers) => html`
+  <div class="virtual-input-field-wrapper">
+    <label>Value:</label>
+    <input
+      type="text"
+      .value=${(node.config.values && node.config.values['0']) || ''}
+      @input=${(e: Event) => handleVirtualInputChange(e, '0')}
+      class="virtual-input-field"
+    />
+  </div>
+`;
 
 defaultNodeRepository.register({
   id: 'input',
@@ -130,7 +181,8 @@ defaultNodeRepository.register({
   inputs: [],
   outputs: [
     { name: '0', type: AnyType, description: 'The input value.' }
-  ]
+  ],
+  renderBody: ioNodeBodyRenderer,
 });
 
 defaultNodeRepository.register({
@@ -141,7 +193,8 @@ defaultNodeRepository.register({
   inputs: [
     { name: '0', type: AnyType, description: 'The output value.' }
   ],
-  outputs: []
+  outputs: [],
+  renderBody: ioNodeBodyRenderer,
 });
 
 defaultNodeRepository.register({
@@ -150,5 +203,42 @@ defaultNodeRepository.register({
   displayName: 'Subgraph',
   definition: primitive_subgraph,
   inputs: [],
-  outputs: []
+  outputs: [],
+  getPorts: (node, loadedSubgraphs) => {
+    const subgraphId = node.config.subgraphId;
+    const subgraph = loadedSubgraphs.get(subgraphId);
+    if (subgraph) {
+      const subgraphNodes = Object.values(subgraph.inner.nodes);
+      const inputs = subgraphNodes
+        .filter(n => n.config.typeId === 'input')
+        .sort((a, b) => a.y - b.y)
+        .map(n => ({ name: n.config.name || '0', description: 'Subgraph Input', type: AnyType }));
+
+      const outputs = subgraphNodes
+        .filter(n => n.config.typeId === 'output')
+        .sort((a, b) => a.y - b.y)
+        .map(n => ({ name: n.config.name || '0', description: 'Subgraph Output', type: AnyType }));
+
+      return {
+        inputs,
+        outputs,
+        displayName: `Subgraph: ${subgraphId}`
+      };
+    }
+    return {
+      inputs: [],
+      outputs: [],
+      displayName: `Subgraph (Not Found)`
+    };
+  },
+  renderInspector: (node, onchange) => html`
+    <div class="field">
+      <label>Subgraph ID:</label>
+      <input
+        type="text"
+        .value=${node.config.subgraphId || ''}
+        @change=${(e: Event) => onchange({ subgraphId: (e.target as HTMLInputElement).value })}
+      />
+    </div>
+  `
 });

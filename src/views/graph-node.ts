@@ -4,7 +4,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { GridNode } from '../builder/state';
 import { appController, localController } from '../builder/controllers';
 import { PointerDragOp } from '../utils/pointer-drag-op';
-import { defaultNodeRepository } from '../structor/repository'; // Import repository
+import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
 
 @customElement('graph-node')
@@ -261,13 +261,10 @@ export class GraphNode extends MobxLitElement {
     appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
   }
 
-  private handleLiteralInputChange(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const value = parseFloatOr(target.value) ?? 0;
-    appController.setNodeConfig(this.node.id, { literal: { value: value } });
-  }
-
   renderInspectorContent() {
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    const onchange = (config: object) => appController.setNodeConfig(this.node.id, config);
+
     return html`
       <h3>Inspector</h3>
       <div class="field">
@@ -277,36 +274,12 @@ export class GraphNode extends MobxLitElement {
       <div class="field">
         <label>Type:</label>
         <select .value=${this.node.config.typeId} @change=${this.handleTypeChange.bind(this)}>
-          <option value="add">Add</option>
-          <option value="literal">Literal</option>
-          <option value="clamp">Clamp</option>
-          <option value="fmod">FMod</option>
-          <option value="apply">Apply</option>
-          <option value="input">Input</option>
-          <option value="output">Output</option>
-          <option value="subgraph">Subgraph</option>
+          ${Array.from(defaultNodeRepository.getAllNodeTypes()).map(type => html`
+            <option value=${type.id}>${type.displayName}</option>
+          `)}
         </select>
       </div>
-      ${this.node.config.typeId === 'literal' ? html`
-        <div class="field">
-          <label>Value:</label>
-          <input
-            type="text"
-            .value=${this.node.config?.literal?.value || 0}
-            @input=${(e: Event) => this.handleLiteralInputChange(e)}
-          />
-        </div>
-      ` : ''}
-      ${this.node.config.typeId === 'subgraph' ? html`
-        <div class="field">
-          <label>Subgraph ID:</label>
-          <input
-            type="text"
-            .value=${this.node.config.subgraphId || ''}
-            @change=${(e: Event) => appController.setNodeConfig(this.node.id, { subgraphId: (e.target as HTMLInputElement).value })}
-          />
-        </div>
-      ` : ''}
+      ${nodeType?.renderInspector ? nodeType.renderInspector(this.node, onchange) : ''}
     `;
   }
 
@@ -322,35 +295,22 @@ export class GraphNode extends MobxLitElement {
       renderInspectorContent: () => this.renderInspectorContent()
     });
 
-    let inputs: any[] = [];
-    let outputs: any[] = [];
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    let inputs: PortHint[] = [];
+    let outputs: PortHint[] = [];
     let displayName = this.node.config.typeId;
 
-    if (this.node.config.typeId === 'subgraph') {
-      const subgraphId = this.node.config.subgraphId;
-      const subgraph = localController.observableState.loadedSubgraphs.get(subgraphId);
-      if (subgraph) {
-        // Dynamic ports from subgraph
-        const subgraphNodes = Object.values(subgraph.inner.nodes);
-        inputs = subgraphNodes
-          .filter(n => n.config.typeId === 'input')
-          .sort((a, b) => a.y - b.y)
-          .map(n => ({ name: n.config.name || '0', description: 'Subgraph Input', type: { kind: 'atomic', type: 'any' } }));
-
-        outputs = subgraphNodes
-          .filter(n => n.config.typeId === 'output')
-          .sort((a, b) => a.y - b.y)
-          .map(n => ({ name: n.config.name || '0', description: 'Subgraph Output', type: { kind: 'atomic', type: 'any' } }));
-
-        displayName = `Subgraph: ${subgraphId}`;
+    if (nodeType) {
+      const dynamicInfo = nodeType.getPorts?.(this.node, localController.observableState.loadedSubgraphs);
+      if (dynamicInfo) {
+        inputs = dynamicInfo.inputs;
+        outputs = dynamicInfo.outputs;
+        displayName = dynamicInfo.displayName || nodeType.displayName;
       } else {
-        displayName = `Subgraph (Not Found)`;
+        inputs = nodeType.inputs || [];
+        outputs = nodeType.outputs || [];
+        displayName = nodeType.displayName;
       }
-    } else {
-      const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
-      inputs = nodeType?.inputs || [{ name: '0', description: 'Input', type: { kind: 'atomic', type: 'any' } }];
-      outputs = nodeType?.outputs || [{ name: '0', description: 'Output', type: { kind: 'atomic', type: 'any' } }];
-      displayName = nodeType?.displayName || this.node.config.typeId;
     }
 
     // Get current incoming connections to this node
@@ -429,17 +389,7 @@ export class GraphNode extends MobxLitElement {
       }
       return null;
     })}
-    ${(this.node.config.typeId === 'input' || this.node.config.typeId === 'output') ? html`
-      <div class="virtual-input-field-wrapper">
-        <label>Value:</label>
-        <input
-          type="text"
-          .value=${(this.node.config.values && this.node.config.values['0']) || ''}
-          @input=${(e: Event) => this.handleVirtualInputChange(e, '0')}
-          class="virtual-input-field"
-        />
-      </div>
-    ` : ''}
+    ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
         </div>
       </div>
     `;
