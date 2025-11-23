@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+/// <reference types="vitest" />
+import { defineConfig } from 'vitest/config';
 import { run } from 'vite-plugin-run';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
@@ -17,5 +18,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['./vitest.setup.ts'],
   },
 });
