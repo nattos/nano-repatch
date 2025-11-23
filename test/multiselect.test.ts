@@ -27,10 +27,10 @@ describe('Multi-select E2E', () => {
     });
   });
 
-  async function createNode(x, y) {
-    await page.evaluate((x, y) => {
-      window.testing.appController.createNode('literal', x, y);
-    }, x, y);
+  async function createNode(type, x, y) {
+    await page.evaluate((type, x, y) => {
+      window.testing.appController.createNode(type, x, y);
+    }, type, x, y);
 
     await page.waitForSelector('nano-repatch >>> graph-editor >>> graph-grid >>> graph-node');
   }
@@ -74,7 +74,7 @@ describe('Multi-select E2E', () => {
   }
 
   it('should select a single node', async () => {
-    await createNode(0, 0);
+    await createNode('literal', 0, 0);
 
     // Debug DOM
     await page.evaluate(() => {
@@ -94,8 +94,8 @@ describe('Multi-select E2E', () => {
   });
 
   it('should add to selection with shift key', async () => {
-    await createNode(0, 0);
-    await createNode(2, 0);
+    await createNode('literal', 0, 0);
+    await createNode('literal', 2, 0);
 
     await clickNode(0);
     await waitForSelectionSize(1);
@@ -105,8 +105,8 @@ describe('Multi-select E2E', () => {
   });
 
   it('should replace selection without modifiers', async () => {
-    await createNode(0, 0);
-    await createNode(2, 0);
+    await createNode('literal', 0, 0);
+    await createNode('literal', 2, 0);
 
     await clickNode(0);
     await clickNode(1); // No modifiers
@@ -115,8 +115,8 @@ describe('Multi-select E2E', () => {
   });
 
   it('should select a single connection', async () => {
-    await createNode(0, 0);
-    await createNode(2, 0);
+    await createNode('literal', 0, 0);
+    await createNode('add', 2, 0);
 
     // create connection
     await clickPort(0, 'out');

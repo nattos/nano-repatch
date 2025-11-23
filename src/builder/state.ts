@@ -187,7 +187,7 @@ export class AppController {
       id: generateId('node'),
       x,
       y,
-      config: { typeId },
+      config: { typeId, values: {} },
     };
     this.dispatch([{ type: 'node.create', node: newNode }]);
     return newNode;
