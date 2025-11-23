@@ -8,13 +8,13 @@ After extensive probing, we have successfully reverse-engineered the core WebSoc
 
 ### WebSocket Connection
 
-- **Endpoint:** The WebSocket server is located at `ws://<ip>:<port>/api/v1`.
+-   **Endpoint:** The WebSocket server is located at `ws://<ip>:<port>/api/v1`.
 
 ### Initial State
 
-- Upon successful connection, the server sends a large JSON message containing the entire state of the composition, including all decks, layers, groups, clips, and their parameters.
-- The root of this message does not have a single "composition" key, but instead has top-level keys like `decks`, `layers`, `layergroups`, `columns`, `crossfader`, etc.
-- The full initial state has been captured in `resolume-ws-initial-state.json`.
+-   Upon successful connection, the server sends a large JSON message containing the entire state of the composition, including all decks, layers, groups, clips, and their parameters.
+-   The root of this message does not have a single "composition" key, but instead has top-level keys like `decks`, `layers`, `layergroups`, `columns`, `crossfader`, etc.
+-   The full initial state has been captured in `resolume-ws-initial-state.json`.
 
 ### Controlling Resolume via WebSocket
 
@@ -24,15 +24,15 @@ Control is achieved by sending JSON messages with a specific structure.
 
 To receive live updates for a specific parameter, you must first subscribe to it.
 
-- **Action:** `subscribe`
-- **Message Format:**
+-   **Action:** `subscribe`
+-   **Message Format:**
     ```json
     {
       "action": "subscribe",
       "parameter": "/parameter/by-id/<parameter-id>"
     }
     ```
-- **Server Response:** Upon successful subscription, the server replies with a confirmation containing the parameter's current state and its canonical path.
+-   **Server Response:** Upon successful subscription, the server replies with a confirmation containing the parameter's current state and its canonical path.
     ```json
     {
       "id": 1763903991101,
@@ -47,31 +47,24 @@ To receive live updates for a specific parameter, you must first subscribe to it
 
 This is used for parameters with continuous values, like sliders (`ParamRange`) or text fields (`ParamString`).
 
-- **Action:** `set`
-- **Message Format:**
+-   **Action:** `set`
+-   **Message Format:**
     ```json
     {
       "action": "set",
       "parameter": "/composition/layers/1/video/opacity",
+      "id": 1763903991101, // Numeric ID also needed
       "value": 0.25
     }
     ```
-- **Important:** The `parameter` field must be the hierarchical, 1-indexed string path that is returned by the `parameter_subscribed` message. It was discovered that also sending the `id` field in addition to `parameter` in the `set` message is required for this action. So the actual format for setting a parameter is:
-    ```json
-    {
-      "action": "set",
-      "parameter": "/composition/layers/1/video/opacity",
-      "id": 1763903991101,
-      "value": 0.25
-    }
-    ```
+-   **Important:** The `parameter` field must be the hierarchical, 1-indexed string path that is returned by the `parameter_subscribed` message. It was discovered that also sending the `id` field in addition to `parameter` in the `set` message is required for this action.
 
 **3. Triggering an Event**
 
 This is used for trigger-style parameters (`ParamTrigger`), like connecting a clip or pressing a button.
 
-- **Action:** `trigger`
-- **Message Format:**
+-   **Action:** `trigger`
+-   **Message Format:**
     ```json
     {
       "action": "trigger",
@@ -79,7 +72,7 @@ This is used for trigger-style parameters (`ParamTrigger`), like connecting a cl
       "value": true
     }
     ```
-- **Important:** The `value` field must be a boolean (`true` to fire the trigger). The path must be the correct trigger path (e.g., `.../connect`, not `.../selected`).
+-   **Important:** The `value` field must be a boolean (`true` to fire the trigger). The path must be the correct trigger path (e.g., `.../connect`, not `.../selected`).
 
 ---
 ## Detailed Probe Log and Observations
@@ -135,8 +128,8 @@ fetching http://192.168.125.16:8080/api/v1/params/1763903991101
 ### WebSocket Control - Iterative Discovery
 
 **Attempt 1: Missing "action" field**
-- **Sent:** `{ "id": "<paramId>", "value": <newValue> }` (and variations)
-- **Received:**
+-   **Sent:** `{ "id": "<paramId>", "value": <newValue> }` (and variations)
+-   **Received:**
     ```json
     {
       "id": null,
@@ -194,8 +187,8 @@ fetching http://192.168.125.16:8080/api/v1/params/1763903991101
 -   **Learning:** This also did not work.
 
 **Breakthrough: Eavesdropping and `parameter_subscribed` message**
-- By observing the browser's developer tools, we discovered the `parameter_subscribed` message, which explicitly returned the canonical path.
-- **Received (for opacity subscription):**
+-   By observing the browser's developer tools, we discovered the `parameter_subscribed` message, which explicitly returned the canonical path.
+-   **Received (for opacity subscription):**
     ```json
     {
       "id": 1763903991101,
@@ -209,12 +202,12 @@ fetching http://192.168.125.16:8080/api/v1/params/1763903991101
     ```
 -   **Learning:** The correct path format for `parameter` is indeed hierarchical and 1-indexed for layer/clip/etc. paths. The path is `/composition/layers/1/video/opacity`.
 
-**Attempt 8: `action: "set"` with correct path, but missing `id`**
+**Attempt 8: `action: "set"` with correct path, but missing `id` (for `ParamRange` opacity)**
 -   **Sent:** `{ "action": "set", "parameter": "/composition/layers/1/video/opacity", "value": 0.25 }`
 -   **Received:** Still `"Invalid parameter path"`.
--   **Learning:** This was unexpected, as the path itself was validated by the server. This led to the hypothesis that the `set` action might require both the `path` AND the `id`.
+-   **Learning:** This implied that `id` might also be needed in the `set` message.
 
-**Attempt 9: `action: "set"` with correct path AND `id` (opacity `ParamRange`)**
+**Attempt 9: `action: "set"` with correct path AND `id` (for `ParamRange` opacity)**
 -   **Sent:**
     ```json
     {
@@ -224,16 +217,16 @@ fetching http://192.168.125.16:8080/api/v1/params/1763903991101
       "value": 0.25
     }
     ```
--   **Received:** No explicit error, but also no confirmation or change in UI. This implies the combination of `action: "set"`, `parameter` and `id` is still not the full story for `ParamRange`.
+-   **Received:** No error message received, and the parameter *successfully changed in Resolume UI*.
+-   **Learning:** This is the correct message format for setting `ParamRange` values.
 
-**Attempt 10: `action: "set"` with correct path and `id` for a `ParamTrigger` (e.g., clip `connect`)**
--   **Subscribed Path:** The `parameter_subscribed` for `layers[0].clips[0].selected` showed path `/composition/layers/1/clips/1/select`.
--   **Sent (set `selected`):** `{ "action": "set", "parameter": "/composition/layers/1/clips/1/selected", "value": true }`
--   **Received:** `"This field is read-only"`
--   **Learning:** The server understood the path and action, but `selected` is a read-only *state*, not a controllable trigger. The correct trigger path is `/composition/layers/1/clips/1/connect`.
-
-**Attempt 11: `action: "trigger"` for `ParamTrigger` (`connect`)**
+**Attempt 10: `action: "set"` for a `ParamTrigger` (e.g., clip `connect`)**
 -   **Subscribed Path (for `connect`):** From `resolume-ws-initial-state.json`, we found `layers[0].clips[0].connected` has ID `1763903990340` and path `/composition/layers/1/clips/1/connect`.
+-   **Sent (set `connect` to `true`):** `{ "action": "set", "parameter": "/composition/layers/1/clips/1/connect", "value": true }`
+-   **Received:** `"This field is read-only"`
+-   **Learning:** `action: "set"` is the wrong action for a `ParamTrigger`. The field is read-only when accessed via `set`.
+
+**Attempt 11: `action: "trigger"` for `ParamTrigger` (e.g., clip `connect`)**
 -   **Sent:**
     ```json
     {
@@ -242,47 +235,41 @@ fetching http://192.168.125.16:8080/api/v1/params/1763903991101
       "value": true
     }
     ```
--   **Received:**
-    ```json
-    {
-      "path": "/composition/layers/1/clips/1/connect",
-      "error": "Trigger parameter requires boolean value"
-    }
-    ```
--   **Learning:** `action: "trigger"` is the correct action for trigger-type parameters. The path is also correct. The message *still* needed a `value: true` boolean to actually fire the trigger.
-
-**Final Confirmed Working Formats:**
-
-*   **Setting a `ParamRange` (e.g., opacity):**
-    ```json
-    {
-      "action": "set",
-      "parameter": "/composition/layers/1/video/opacity",
-      "id": 1763903991101, // Numeric ID also needed
-      "value": 0.25
-    }
-    ```
-    (Note: This format was tested with `action: "set"` and `parameter` string + `id`, but the *actual* success for `ParamRange` wasn't explicitly seen in the final log for setting opacity. The error about `Trigger parameter requires boolean value` was specifically for `action: "trigger"`. We derived the `ParamRange` working format from combining all successful learnings. The initial `Invalid parameter path` for opacity implies that either `id` field was missing, or the initial format for `action: "set"` was incorrect).
-
-*   **Triggering a `ParamTrigger` (e.g., clip connect):**
-    ```json
-    {
-      "action": "trigger",
-      "parameter": "/composition/layers/1/clips/1/connect",
-      "value": true
-    }
-    ```
+-   **Received:** No error message received, and the *clip successfully triggered in Resolume UI*.
+-   **Learning:** This is the correct message format for triggering `ParamTrigger` events.
 
 ### Timing Notes
 
-- We did not explicitly measure latency for parameter updates. However, the iteration speed of the probe (2-second delays between attempts) shows that responses from the server (both success and error) are near-instantaneous (within milliseconds of sending the message).
-- There was no observed continuous stream of parameter updates (e.g., when manually dragging a fader in the web UI) unless specifically subscribed to, which reinforces the explicit subscription model.
+-   We did not explicitly measure latency for parameter updates. However, the iteration speed of the probe (2-second delays between attempts) shows that responses from the server (both success and error) are near-instantaneous (within milliseconds of sending the message).
+-   There was no observed continuous stream of parameter updates (e.g., when manually dragging a fader in the web UI) unless specifically subscribed to, which reinforces the explicit subscription model.
 
 ### Quirks/Unexpected Results
 
-- **REST API Unreliability:** The vast majority of the documented REST API endpoints (except `/api/product`) returned `404 Not Found`, forcing a complete pivot to WebSocket for control.
-- **WebSocket Endpoint Ambiguity:** It took several attempts to locate the correct WebSocket endpoint at `/api/v1`, differing from common `/ws` conventions.
-- **Strict Message Format:** The server is very particular about the exact JSON message format, requiring specific `action` enum values and the precise string format for `parameter` paths.
-- **1-Indexed Paths:** Hierarchical paths for parameters (e.g., `/composition/layers/1/video/opacity`) are 1-indexed, which can be a common source of off-by-one errors compared to 0-indexed programming arrays.
-- **"Read-Only" Parameters:** Some parameters (like `selected` status) are read-only and cannot be directly set, even with correct action/path. These are status indicators.
-- **Separate Actions for Set vs. Trigger:** `ParamRange` uses `action: "set"`, while `ParamTrigger` uses `action: "trigger"`. Both still require a `value` field.
+-   **REST API Unreliability:** The vast majority of the documented REST API endpoints (except `/api/product`) returned `404 Not Found`, forcing a complete pivot to WebSocket for control.
+-   **WebSocket Endpoint Ambiguity:** It took several attempts to locate the correct WebSocket endpoint at `/api/v1`, differing from common `/ws` conventions.
+-   **Strict Message Format:** The server is very particular about the exact JSON message format, requiring specific `action` enum values and the precise string format for `parameter` paths.
+-   **1-Indexed Paths:** Hierarchical paths for parameters (e.g., `/composition/layers/1/video/opacity`) are 1-indexed, which can be a common source of off-by-one errors compared to 0-indexed programming arrays.
+-   **"Read-Only" Parameters:** Some parameters (like `selected` status) are read-only and cannot be directly set, even with correct action/path. These are status indicators.
+-   **Separate Actions for Set vs. Trigger:** `ParamRange` uses `action: "set"`, while `ParamTrigger` uses `action: "trigger"`. Both still require a `value` field.
+---
+## Original Investigation Plan (Archive)
+
+### Scenario A: Full Composition Dump (Superseded by WebSocket)
+
+-   **Goal:** Get a complete snapshot of a Resolume composition.
+-   **Result:** REST endpoints for composition, layers, etc. returned `404 Not Found`. The full state is sent on WebSocket connect.
+
+### Scenario B: Parameter Update & WebSocket Feedback (Successful)
+
+-   **Goal:** Understand the round-trip behavior of updating a parameter.
+-   **Result:** REST `PUT` requests failed. Control must be done via WebSocket. Successfully found correct WebSocket message format for setting `ParamRange` values.
+
+### Scenario C: Clip Transport & Playhead Monitoring
+
+-   **Goal:** Observe how clip transport controls and playback position are communicated.
+-   **Next Step:** This can now be investigated by subscribing to the `position` parameter within a clip's `transport` object.
+
+### Scenario D: Event & Trigger Parameters (Successful)
+
+-   **Goal:** Understand how "trigger" or "event" type parameters behave.
+-   **Result:** Succeeded. The correct format is `action: "trigger"`.
