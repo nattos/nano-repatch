@@ -89,7 +89,7 @@ export class GraphExecutor {
     public markDirty(nodeId: string): void {
         const state = this.nodeStates.get(nodeId);
         if (!state || state.isDirty) return;
-        
+
         state.isDirty = true;
         for (const downstreamNodeId of this.downstreamMap.get(nodeId) || []) {
             this.markDirty(downstreamNodeId);
@@ -119,7 +119,7 @@ export class GraphExecutor {
                         const value = typeof conn.fromPort === 'string'
                             ? upstreamOutput.fields[conn.fromPort]
                             : upstreamOutput.untagged[conn.fromPort];
-                        
+
                         if (typeof conn.toPort === 'string') {
                             inputRecord.fields[conn.toPort] = value;
                         } else {
@@ -167,16 +167,16 @@ export class GraphExecutor {
                                     }
                                 }
                             }
-                            
-                            if (outputConfig.combine === 'first') {
-                                result.fields[outputName] = values[0];
-                            } else if (outputConfig.combine === 'collect') {
+
+                            if (outputConfig.combine === 'collect') {
                                 result.fields[outputName] = values;
                             } else if (typeof outputConfig.combine === 'object' && 'reduce' in outputConfig.combine) {
                                 if (outputConfig.combine.reduce === 'min') {
                                     result.fields[outputName] = Math.min(...values);
                                 } else if (outputConfig.combine.reduce === 'max') {
                                     result.fields[outputName] = Math.max(...values);
+                                } else if (outputConfig.combine.reduce === 'first') {
+                                    result.fields[outputName] = values[0];
                                 }
                             }
                         }
@@ -186,8 +186,8 @@ export class GraphExecutor {
                 },
                 repository: this.repository
             };
-            
-            state.output = definition.execute(inputRecord, state.config, context);
+
+            state.output = definition.execute(inputRecord, state.config as any, context);
             state.isDirty = false;
         }
     }

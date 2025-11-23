@@ -172,13 +172,31 @@ export class GraphNode extends MobxLitElement {
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
       },
       accept: (e, delta) => {
-        const dx = Math.round(delta[0] / 110);
-        const dy = Math.round(delta[1] / 110);
+        let dx = Math.round(delta[0] / 110);
+        let dy = Math.round(delta[1] / 110);
 
-        const nodesToMove = Array.from(localController.observableState.selection.keys())
+        const selectedNodeIds = Array.from(localController.observableState.selection.keys())
           .filter(id => id.startsWith('node-'));
 
-        appController.moveNodes(nodesToMove, dx, dy);
+        // Check for pinned nodes in selection
+        const state = appController.getState();
+        const hasPinned = selectedNodeIds.some(id => {
+          const n = state.graph.inner.nodes[id];
+          return n && (n.config.typeId === 'input' || n.config.typeId === 'output');
+        });
+
+        if (hasPinned) {
+          dx = 0; // Lock X axis for pinned nodes
+        }
+
+        // Prevent moving normal nodes into pinned area (x < 1)
+        // This is harder to check for all nodes efficiently without iterating.
+        // But we can check the current node.
+        if (!hasPinned && this.node.x + dx < 1) {
+          dx = 1 - this.node.x;
+        }
+
+        appController.moveNodes(selectedNodeIds, dx, dy);
 
         this.style.transform = '';
       },
@@ -230,6 +248,11 @@ export class GraphNode extends MobxLitElement {
     appController.setNodeConfig(this.node.id, { typeId: target.value });
   }
 
+  private handleNameChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    appController.setNodeConfig(this.node.id, { name: target.value });
+  }
+
   private handleVirtualInputChange(e: Event, portName: string) {
     const target = e.target as HTMLInputElement;
     const value = target.value;
@@ -241,6 +264,10 @@ export class GraphNode extends MobxLitElement {
     return html`
       <h3>Inspector</h3>
       <div class="field">
+        <label>Name:</label>
+        <input type="text" .value=${this.node.config.name || ''} @change=${this.handleNameChange.bind(this)} />
+      </div>
+      <div class="field">
         <label>Type:</label>
         <select .value=${this.node.config.typeId} @change=${this.handleTypeChange.bind(this)}>
           <option value="add">Add</option>
@@ -248,6 +275,9 @@ export class GraphNode extends MobxLitElement {
           <option value="clamp">Clamp</option>
           <option value="fmod">FMod</option>
           <option value="apply">Apply</option>
+          <option value="input">Input</option>
+          <option value="output">Output</option>
+          <option value="subgraph">Subgraph</option>
         </select>
       </div>
       ${this.node.config.typeId === 'literal' ? html`
@@ -257,6 +287,16 @@ export class GraphNode extends MobxLitElement {
             type="text"
             .value=${this.node.config.value || ''}
             @input=${(e: Event) => this.handleVirtualInputChange(e, '0')}
+          />
+        </div>
+      ` : ''}
+      ${this.node.config.typeId === 'subgraph' ? html`
+        <div class="field">
+          <label>Subgraph ID:</label>
+          <input
+            type="text"
+            .value=${this.node.config.subgraphId || ''}
+            @change=${(e: Event) => appController.setNodeConfig(this.node.id, { subgraphId: (e.target as HTMLInputElement).value })}
           />
         </div>
       ` : ''}
@@ -275,9 +315,36 @@ export class GraphNode extends MobxLitElement {
       renderInspectorContent: () => this.renderInspectorContent()
     });
 
-    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
-    const inputs = nodeType?.inputs || [{ name: '0', description: 'Input', type: { kind: 'atomic', type: 'any' } }];
-    const outputs = nodeType?.outputs || [{ name: '0', description: 'Output', type: { kind: 'atomic', type: 'any' } }];
+    let inputs: any[] = [];
+    let outputs: any[] = [];
+    let displayName = this.node.config.typeId;
+
+    if (this.node.config.typeId === 'subgraph') {
+      const subgraphId = this.node.config.subgraphId;
+      const subgraph = localController.observableState.loadedSubgraphs.get(subgraphId);
+      if (subgraph) {
+        // Dynamic ports from subgraph
+        const subgraphNodes = Object.values(subgraph.inner.nodes);
+        inputs = subgraphNodes
+          .filter(n => n.config.typeId === 'input')
+          .sort((a, b) => a.y - b.y)
+          .map(n => ({ name: n.config.name || '0', description: 'Subgraph Input', type: { kind: 'atomic', type: 'any' } }));
+
+        outputs = subgraphNodes
+          .filter(n => n.config.typeId === 'output')
+          .sort((a, b) => a.y - b.y)
+          .map(n => ({ name: n.config.name || '0', description: 'Subgraph Output', type: { kind: 'atomic', type: 'any' } }));
+
+        displayName = `Subgraph: ${subgraphId}`;
+      } else {
+        displayName = `Subgraph (Not Found)`;
+      }
+    } else {
+      const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+      inputs = nodeType?.inputs || [{ name: '0', description: 'Input', type: { kind: 'atomic', type: 'any' } }];
+      outputs = nodeType?.outputs || [{ name: '0', description: 'Output', type: { kind: 'atomic', type: 'any' } }];
+      displayName = nodeType?.displayName || this.node.config.typeId;
+    }
 
     // Get current incoming connections to this node
     const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(this.node.id) || [];
@@ -324,7 +391,7 @@ export class GraphNode extends MobxLitElement {
         </div>
       </div>
       <div class="node-main-content">
-        <div class="node-title">${nodeType?.displayName || this.node.config.typeId}</div>
+        <div class="node-title">${this.node.config.name || displayName}</div>
         <div class="virtual-inputs-container">
           ${inputs.map(input => {
       const isConnected = connectedPorts.has(input.name);
@@ -332,18 +399,20 @@ export class GraphNode extends MobxLitElement {
       if (input.defaultValue !== undefined && !isConnected) {
         const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
           ? this.node.config.values[input.name]
-          : input.defaultValue;
+          : input.defaultValue || '';
+
+        const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
 
         return html`
                 <div class="virtual-input-field-wrapper">
                   <label for="${this.node.id}-${input.name}-virtual-input">${input.name}:</label>
                   <input
                     id="${this.node.id}-${input.name}-virtual-input"
-                    type="${input.type.type === 'number' ? 'range' : 'text'}"
+                    type="${isNumber ? 'range' : 'text'}"
                     .value=${currentValue.toString()}
                     .min=${input.range?.[0]?.toString() || ''}
                     .max=${input.range?.[1]?.toString() || ''}
-                    .step=${input.type.type === 'number' && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : ''}
+                    .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : ''}
                     @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
                     class="virtual-input-field"
                     title="${input.description}"
@@ -353,9 +422,19 @@ export class GraphNode extends MobxLitElement {
       }
       return null;
     })}
+    ${(this.node.config.typeId === 'input' || this.node.config.typeId === 'output') ? html`
+      <div class="virtual-input-field-wrapper">
+        <label>Value:</label>
+        <input
+          type="text"
+          .value=${(this.node.config.values && this.node.config.values['0']) || ''}
+          @input=${(e: Event) => this.handleVirtualInputChange(e, '0')}
+          class="virtual-input-field"
+        />
+      </div>
+    ` : ''}
         </div>
       </div>
     `;
   }
 }
-

@@ -1,6 +1,6 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { LitElement, html, css } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
 import './graph-connection';
 import './graph-node';
@@ -66,16 +66,44 @@ export class GraphGrid extends MobxLitElement {
     appController.deleteConnection(e.detail.connectionId);
   }
 
+  @property({ attribute: false })
+  scrollLeft = 0;
+
+  @property({ attribute: false })
+  clientWidth = 0;
+
+  private resizeObserver: ResizeObserver;
+
+  constructor() {
+    super();
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        this.clientWidth = entry.contentRect.width;
+      }
+    });
+  }
+
+  private handleScroll(e: Event) {
+    const target = e.target as HTMLElement;
+    this.scrollLeft = target.scrollLeft;
+  }
+
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('dblclick', this.handleDblClick);
     this.addEventListener('connection-delete', this.handleConnectionDelete as EventListener);
+    this.addEventListener('scroll', this.handleScroll);
+    this.resizeObserver.observe(this);
+    // Initial size
+    this.clientWidth = this.offsetWidth;
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('dblclick', this.handleDblClick);
     this.removeEventListener('connection-delete', this.handleConnectionDelete as EventListener);
+    this.removeEventListener('scroll', this.handleScroll);
+    this.resizeObserver.disconnect();
   }
 
   render() {
@@ -83,8 +111,10 @@ export class GraphGrid extends MobxLitElement {
     const nodePositions = new Set(Object.values(nodes).map(n => `${n.x},${n.y}`));
 
     const cells = [];
+    // Render grid cells only for the main area (x >= 1)
+    // We can render a background for the input/output columns if needed
     for (let y = 0; y < 10; y++) {
-      for (let x = 0; x < 10; x++) {
+      for (let x = 1; x < 10; x++) {
         if (!nodePositions.has(`${x},${y}`)) {
           cells.push(html`
             <div
@@ -98,23 +128,65 @@ export class GraphGrid extends MobxLitElement {
       }
     }
 
+    const getNodeScreenPos = (node: any) => {
+      if (node.config.typeId === 'input') {
+        // Pinned to left (visual x=10px padding)
+        // In grid coords (relative to origin): 10 + scrollLeft
+        // But we want grid units for connection.
+        // Connection expects pixels? No, GraphConnection takes grid units and multiplies by 110.
+        // Let's pass raw pixels to GraphConnection instead?
+        // No, GraphConnection logic is: startX = this.from.x * 110 + 90;
+        // So we need to reverse-engineer the "grid x" that would result in the correct pixel position.
+        // Target Pixel X = 10 + scrollLeft.
+        // (GridX * 110) = Target Pixel X.
+        // GridX = (10 + scrollLeft) / 110.
+        return { x: (10 + this.scrollLeft) / 110, y: node.y };
+      } else if (node.config.typeId === 'output') {
+        // Pinned to right (visual x = clientWidth - 130px) (120px width + 10px padding)
+        const targetPixelX = this.clientWidth - 130 + this.scrollLeft;
+        return { x: targetPixelX / 110, y: node.y };
+      } else {
+        return { x: node.x, y: node.y };
+      }
+    };
+
     return html`
       ${cells}
-      ${Object.values(nodes).map(node => html`
-        <graph-node
-          .node=${node}
-          style="grid-column: ${node.x + 1}; grid-row: ${node.y + 1};"
-        ></graph-node>
-      `)}
+      ${Object.values(nodes).map(node => {
+      let style = `grid-row: ${node.y + 1};`;
+      if (node.config.typeId === 'input') {
+        style += ` grid-column: 1; position: sticky; left: 10px; z-index: 10;`;
+      } else if (node.config.typeId === 'output') {
+        // For output, we want it pinned to right.
+        // Since it's a grid item, 'right: 10px' sticks to the right edge of the scrollport.
+        // But we need to place it in a column that is guaranteed to be on the right?
+        // Or just use position: sticky and a high column index?
+        // If we use grid-column: 1000, it will be far right.
+        style += ` grid-column: 1000; position: sticky; right: 10px; z-index: 10;`;
+      } else {
+        style += ` grid-column: ${node.x + 1};`;
+      }
+
+      return html`
+          <graph-node
+            .node=${node}
+            style="${style}"
+          ></graph-node>
+        `;
+    })}
       ${Object.values(connections).map(conn => {
       const fromNode = nodes[conn.fromNodeId];
       const toNode = nodes[conn.toNodeId];
       if (!fromNode || !toNode) return '';
+
+      const fromPos = getNodeScreenPos(fromNode);
+      const toPos = getNodeScreenPos(toNode);
+
       return html`
           <graph-connection
             .connection=${conn}
-            .from=${{ x: fromNode.x, y: fromNode.y }}
-            .to=${{ x: toNode.x, y: toNode.y }}
+            .from=${fromPos}
+            .to=${toPos}
           ></graph-connection>
         `;
     })}

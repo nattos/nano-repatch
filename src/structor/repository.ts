@@ -1,5 +1,5 @@
 import { NodeDefinition, StructorType } from './structor';
-import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod } from './primitives';
+import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
@@ -105,4 +105,35 @@ defaultNodeRepository.register({
   outputs: [
     { name: '0', type: AnyType, description: 'The literal value.' }
   ]
+});
+
+defaultNodeRepository.register({
+  id: 'input',
+  version: '1.0.0',
+  displayName: 'Input',
+  definition: primitive_input,
+  inputs: [],
+  outputs: [
+    { name: '0', type: AnyType, description: 'The input value.' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'output',
+  version: '1.0.0',
+  displayName: 'Output',
+  definition: primitive_output,
+  inputs: [
+    { name: '0', type: AnyType, description: 'The output value.' }
+  ],
+  outputs: []
+});
+
+defaultNodeRepository.register({
+  id: 'subgraph',
+  version: '1.0.0',
+  displayName: 'Subgraph',
+  definition: primitive_subgraph,
+  inputs: [],
+  outputs: []
 });

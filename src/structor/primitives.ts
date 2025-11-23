@@ -88,8 +88,8 @@ export const primitive_fmod: PrimitiveNodeDefinition = {
     computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
         const broadcastConfig: BroadcastConfig = {
             outputs: {
-                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: 'first' },
-                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: 'first' },
+                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: { reduce: 'first' } },
+                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: { reduce: 'first' } },
             },
             reshape: 'none',
         };
@@ -99,8 +99,8 @@ export const primitive_fmod: PrimitiveNodeDefinition = {
     execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
         const broadcastConfig: BroadcastConfig = {
             outputs: {
-                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: 'first' },
-                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: 'first' },
+                'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: { reduce: 'first' } },
+                'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: { reduce: 'first' } },
             },
             reshape: 'none',
         };
@@ -115,7 +115,7 @@ export const primitive_fmod: PrimitiveNodeDefinition = {
 export const primitive_literal: PrimitiveNodeDefinition = {
     id: 'primitive:literal',
     kind: 'primitive',
-    configType: { kind: 'any' }, // This literal can hold any type of value
+    configType: { kind: 'atomic', type: 'any' }, // This literal can hold any type of value
     computeOutputTypes: (inputType: RecordType, configType: StructorType, context: AnalysisContext) => {
         return { kind: 'record', fields: {}, untagged: [configType] };
     },
@@ -135,5 +135,41 @@ export const primitive_apply: PrimitiveNodeDefinition = {
         const functor = input.fields['functor'] as Functor;
         const inputValue = input.fields['input'];
         return { fields: {}, untagged: [functor(inputValue)] };
+    }
+};
+
+export const primitive_input: PrimitiveNodeDefinition = {
+    id: 'primitive:input',
+    kind: 'primitive',
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+        return { kind: 'record', fields: {}, untagged: [{ kind: 'atomic', type: 'any' }] };
+    },
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+        return { fields: {}, untagged: [config] };
+    }
+};
+
+export const primitive_output: PrimitiveNodeDefinition = {
+    id: 'primitive:output',
+    kind: 'primitive',
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+        return { kind: 'record', fields: {}, untagged: [] };
+    },
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+        return { fields: {}, untagged: [] };
+    }
+};
+
+export const primitive_subgraph: PrimitiveNodeDefinition = {
+    id: 'primitive:subgraph',
+    kind: 'primitive',
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+        // In a real implementation, we would look up the subgraph definition and return its output types.
+        // Since we can't access the config value (subgraphId) here, we return Any.
+        return { kind: 'record', fields: {}, untagged: [{ kind: 'atomic', type: 'any' }] };
+    },
+    execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+        // Subgraph execution logic would go here.
+        return { fields: {}, untagged: [] };
     }
 };

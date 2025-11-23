@@ -1,4 +1,11 @@
 import { fixture, html, expect, waitUntil } from '@open-wc/testing';
+
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  observe() { }
+  unobserve() { }
+  disconnect() { }
+};
 import { GraphEditor } from './graph-editor';
 import { appController, localController } from '../builder/controllers';
 import { Connection } from '../builder/state';
