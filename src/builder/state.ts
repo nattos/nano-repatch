@@ -28,6 +28,7 @@ export interface GridNode {
   y: number;
   config: {
     typeId: string;
+    name?: string;
     [key: string]: any;
   };
 }
@@ -243,7 +244,7 @@ export class AppController {
     }
   }
 
-  public setNodeConfig(nodeId: string, configUpdate: Partial<any>): void {
+  public setNodeConfig(nodeId: string, configUpdate: Partial<GridNode['config']>): void {
     const state = this.getState();
     const fromConfig: Partial<any> = {};
     const currentNode = state.graph.inner.nodes[nodeId];

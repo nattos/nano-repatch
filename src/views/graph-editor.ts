@@ -4,6 +4,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
 import './graph-grid';
 import './inspector-popup';
+import './debug-overlay';
 
 @customElement('graph-editor')
 export class GraphEditor extends MobxLitElement {
@@ -27,6 +28,7 @@ export class GraphEditor extends MobxLitElement {
     return html`
       <graph-grid></graph-grid>
       <inspector-popup></inspector-popup>
+      <debug-overlay></debug-overlay>
     `;
   }
 }

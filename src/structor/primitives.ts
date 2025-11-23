@@ -142,10 +142,14 @@ export const primitive_input: PrimitiveNodeDefinition = {
     id: 'primitive:input',
     kind: 'primitive',
     computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-        return { kind: 'record', fields: {}, untagged: [{ kind: 'atomic', type: 'any' }] };
+        // Identity: Output type is same as input type of 'val' (injected by executor)
+        const valType = inputType.fields['val'] || { kind: 'atomic', type: 'any' };
+        return { kind: 'record', fields: { 'val': valType }, untagged: [valType] };
     },
     execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-        return { fields: {}, untagged: [config] };
+        // Identity: Output value is input 'val'
+        const val = input.fields['val'];
+        return { fields: { 'val': val }, untagged: [val] };
     }
 };
 
@@ -153,10 +157,14 @@ export const primitive_output: PrimitiveNodeDefinition = {
     id: 'primitive:output',
     kind: 'primitive',
     computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-        return { kind: 'record', fields: {}, untagged: [] };
+        // Identity: Output type is same as input type of '0'
+        const valType = inputType.fields['0'] || inputType.untagged[0] || { kind: 'atomic', type: 'any' };
+        return { kind: 'record', fields: { 'val': valType }, untagged: [] };
     },
     execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-        return { fields: {}, untagged: [] };
+        // Identity: Output value is input '0'
+        const val = input.fields['0'] !== undefined ? input.fields['0'] : input.untagged[0];
+        return { fields: { 'val': val }, untagged: [] };
     }
 };
 
