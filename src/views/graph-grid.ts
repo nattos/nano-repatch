@@ -36,10 +36,26 @@ export class GraphGrid extends MobxLitElement {
       return;
     }
 
-    // Check if we clicked on the grid background (gaps)
+    // Check if we clicked on the grid background (gaps) or pinned columns
     const rect = this.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const clickY = e.clientY - rect.top; // Viewport relative Y
+
+    // Calculate grid row based on clickY + scrollTop
+    const scrollTop = this.scrollTop;
+    const gridY = Math.floor((clickY + scrollTop) / 110);
+
+    // Input Column (Left)
+    if (clickX < 130) {
+      appController.createNode('input', 0, gridY);
+      return;
+    }
+
+    // Output Column (Right)
+    if (clickX > this.clientWidth - 130) {
+      appController.createNode('output', 0, gridY);
+      return;
+    }
 
     // Grid settings
     const cellSize = 100;
