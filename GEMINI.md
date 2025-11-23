@@ -71,3 +71,23 @@ This entry covers the final refactorings of the `AppController` state.
 During the refactoring of the test suite for these changes, several existing test cases were inadvertently removed and had to be added back. This serves as an important reminder:
 
 **Be careful to retain all existing test cases when refactoring test files.** It is better to have a temporarily failing test that needs to be updated than to lose test coverage for a scenario. The comprehensive test suite is a critical asset for ensuring the project's stability.
+
+## Testing Strategy and Guidelines
+
+The project utilizes two distinct testing frameworks, each serving a specific purpose:
+
+1.  **Vitest (Unit/Component Tests):**
+    *   **Purpose:** Primarily used for unit and component-level testing, focusing on individual functions, classes, and UI components in isolation.
+    *   **Location:** Test files are typically co-located with their respective source files within the `src/` directory (e.g., `src/module/my-component.test.ts`).
+    *   **Execution:** Executed via `npm test`. The `vite.config.ts` is configured to discover these tests.
+
+2.  **Jest (End-to-End/E2E Tests):**
+    *   **Purpose:** Used for higher-level end-to-end testing, simulating user interactions across the entire application to ensure integrated functionality. These tests often involve browser automation (e.g., using Puppeteer).
+    *   **Location:** E2E test files are located in the top-level `test/` directory (e.g., `test/app.test.ts`).
+    *   **Execution:** Executed via `npm run test:e2e`.
+
+**Important Guidelines:**
+
+*   **Framework Segregation:** Do not mix Jest-specific syntax (e.g., `jest.setTimeout`) within Vitest tests, and vice-versa.
+*   **File Location:** Ensure test files are placed in their correct respective directories (`src/` for Vitest, `test/` for Jest) to be picked up by the appropriate test runner.
+*   **Configuration:** Avoid configuring Vitest (`vite.config.ts`) to include the `test/` directory, as this will cause Vitest to attempt running Jest tests, leading to `ReferenceError: jest is not defined` errors.
