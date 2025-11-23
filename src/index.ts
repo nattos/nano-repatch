@@ -2,7 +2,7 @@ import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
-import './views/graph-editor';
+import './views/workspace-layout';
 
 @customElement('nano-repatch')
 export class App extends MobxLitElement {
@@ -13,19 +13,20 @@ export class App extends MobxLitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 0;
       color: var(--app-text-color1);
       background-color: var(--app-bg-color1);
       width: 100vw;
       height: 100vh;
       box-sizing: border-box;
+      overflow: hidden;
     }
   `];
 
 
   render() {
     return html`
-      <graph-editor></graph-editor>
+      <workspace-layout></workspace-layout>
     `;
   }
 }

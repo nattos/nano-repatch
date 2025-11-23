@@ -289,6 +289,29 @@ export class AppController {
     this.dispatch(mutations);
   }
 
+  public loadGraph(graphState: GraphInnerState): void {
+    this.clear();
+
+    const mutations: AppMutation[] = [];
+
+    // Recreate nodes
+    for (const node of Object.values(graphState.nodes)) {
+      mutations.push({ type: 'node.create', node });
+    }
+
+    // Recreate connections
+    for (const conn of Object.values(graphState.connections)) {
+      mutations.push({ type: 'connection.create', connection: conn });
+    }
+
+    this.dispatch(mutations);
+    // Clear undo stack after loading a new graph
+    runInAction(() => {
+      this.undoStack = [];
+      this.redoStack = [];
+    });
+  }
+
   public undo(): void {
     let mutationsToUndo: AppMutation[] | undefined;
     runInAction(() => {
