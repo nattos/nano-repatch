@@ -3,6 +3,8 @@ import { fixture, html, expect } from '@open-wc/testing';
 import './graph-node'; // Import graph-node directly
 import { GraphNode } from './graph-node';
 import { GridNode } from '../builder/state'; // Import GridNode
+import { beforeEach, describe, it } from 'vitest';
+import { LitElement } from 'lit';
 
 describe('GraphNode', () => {
   let clampNode: GraphNode;
@@ -15,7 +17,7 @@ describe('GraphNode', () => {
       y: 0,
       config: { typeId: 'clamp' }
     };
-    
+
     clampNode = await fixture(html`<graph-node .node=${testNode}></graph-node>`);
     await clampNode.updateComplete;
   });
@@ -23,7 +25,7 @@ describe('GraphNode', () => {
   it('renders correct ports and virtual inputs for a clamp node', async () => {
     const inPorts = clampNode.shadowRoot!.querySelectorAll('.in-port');
     const outPorts = clampNode.shadowRoot!.querySelectorAll('.out-port');
-    
+
     expect(inPorts.length).to.equal(3, 'Should have 3 input ports (including virtual ones)');
     expect(outPorts.length).to.equal(1, 'Should have 1 output port');
 
@@ -44,13 +46,13 @@ describe('GraphNode', () => {
       y: 0,
       config: { typeId: 'fmod' }
     };
-    
+
     const fmodNode = await fixture(html`<graph-node .node=${fmodTestNode}></graph-node>`);
-    await fmodNode.updateComplete;
+    await (fmodNode as LitElement).updateComplete;
 
     const inPorts = fmodNode.shadowRoot!.querySelectorAll('.in-port');
     const outPorts = fmodNode.shadowRoot!.querySelectorAll('.out-port');
-    
+
     expect(inPorts.length).to.equal(2, 'Should have 2 input ports');
     expect(outPorts.length).to.equal(2, 'Should have 2 output ports');
 

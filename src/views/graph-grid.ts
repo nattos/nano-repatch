@@ -79,7 +79,7 @@ export class GraphGrid extends MobxLitElement {
   }
 
   render() {
-    const { nodes, connections } = appController.observableState.graph;
+    const { nodes, connections } = appController.observableState.graph.inner;
     const nodePositions = new Set(Object.values(nodes).map(n => `${n.x},${n.y}`));
 
     const cells = [];

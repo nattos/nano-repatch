@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { autorun, toJS, runInAction } from 'mobx';
-import { AppController, GraphState, GridNode, Connection } from './state';
+import { AppController, GraphInnerState, GridNode, Connection } from './state';
 
 // A helper to get the first item from a record
 const first = <T>(record: Record<string, T>): T | undefined => {
@@ -18,12 +18,12 @@ describe('AppController', () => {
     describe('Initialization', () => {
         it('should initialize with a default empty state', () => {
             const state = controller.getState();
-            expect(Object.keys(state.graph.nodes).length).toBe(0);
-            expect(state.auxiliary.incomingConnections.size).toBe(0);
+            expect(Object.keys(state.graph.inner.nodes).length).toBe(0);
+            expect(state.graph.auxiliary.incomingConnections.size).toBe(0);
         });
 
         it('should correctly build auxiliary maps from an initial state', () => {
-            const initialState: GraphState = {
+            const initialState: GraphInnerState = {
                 nodes: {
                     'node-1': { id: 'node-1', x: 10, y: 10, config: { typeId: 'literal', literal: { value: 5 } } },
                     'node-2': { id: 'node-2', x: 20, y: 10, config: { typeId: 'add' } },
@@ -34,8 +34,8 @@ describe('AppController', () => {
             };
             controller = new AppController(initialState);
             const state = controller.getState();
-            expect(state.auxiliary.outgoingConnections.get('node-1')).toEqual(['conn-1']);
-            expect(state.auxiliary.incomingConnections.get('node-2')).toEqual(['conn-1']);
+            expect(state.graph.auxiliary.outgoingConnections.get('node-1')).toEqual(['conn-1']);
+            expect(state.graph.auxiliary.incomingConnections.get('node-2')).toEqual(['conn-1']);
         });
     });
 
@@ -43,7 +43,7 @@ describe('AppController', () => {
         it('should create a new node with the correct typeId in config', () => {
             const newNode = controller.createNode('add', 5, 10);
             const state = controller.getState();
-            expect(state.graph.nodes[newNode.id].config.typeId).toBe('add');
+            expect(state.graph.inner.nodes[newNode.id].config.typeId).toBe('add');
         });
 
         it('should delete a node and clean up auxiliary maps', () => {
@@ -52,21 +52,21 @@ describe('AppController', () => {
             const conn = controller.createConnection(nodeA.id, 0, nodeB.id, 0);
             controller.deleteNode(nodeA.id);
             const state = controller.getState();
-            expect(state.graph.nodes[nodeA.id]).toBeUndefined();
-            expect(state.auxiliary.incomingConnections.has(nodeA.id)).toBe(false);
+            expect(state.graph.inner.nodes[nodeA.id]).toBeUndefined();
+            expect(state.graph.auxiliary.incomingConnections.has(nodeA.id)).toBe(false);
         });
 
         it('should move one or more nodes', () => {
             const node = controller.createNode('A', 0, 0);
             controller.moveNodes([node.id], 15, 25);
-            expect(controller.getState().graph.nodes[node.id].x).toBe(15);
+            expect(controller.getState().graph.inner.nodes[node.id].x).toBe(15);
         });
 
         it('should change a node typeId and preserve old config', () => {
             const node = controller.createNode('literal', 0, 0);
             controller.setNodeConfig(node.id, { literal: { value: 10 } });
             controller.setNodeConfig(node.id, { typeId: 'add' });
-            const finalNode = controller.getState().graph.nodes[node.id];
+            const finalNode = controller.getState().graph.inner.nodes[node.id];
             expect(finalNode.config.typeId).toBe('add');
             expect(finalNode.config.literal.value).toBe(10);
         });
@@ -83,14 +83,14 @@ describe('AppController', () => {
         it('should create a connection', () => {
             const conn = controller.createConnection(nodeA.id, 'out', nodeB.id, 'in');
             const state = controller.getState();
-            expect(state.graph.connections[conn.id]).toBeDefined();
+            expect(state.graph.inner.connections[conn.id]).toBeDefined();
         });
 
         it('should delete a connection', () => {
             const conn1 = controller.createConnection(nodeA.id, 0, nodeB.id, 0);
             controller.deleteConnection(conn1.id);
             const state = controller.getState();
-            expect(state.graph.connections[conn1.id]).toBeUndefined();
+            expect(state.graph.inner.connections[conn1.id]).toBeUndefined();
         });
     });
 
@@ -103,7 +103,7 @@ describe('AppController', () => {
             });
             const finalState = controller.getState();
             expect(finalState).not.toBe(initialState);
-            expect(Object.keys(finalState.graph.nodes).length).toBe(2);
+            expect(Object.keys(finalState.graph.inner.nodes).length).toBe(2);
         });
 
         it('should undo an entire transaction', () => {
@@ -112,7 +112,7 @@ describe('AppController', () => {
                 c.createNode('B', 10, 10);
             });
             controller.undo();
-            expect(Object.keys(controller.getState().graph.nodes).length).toBe(0);
+            expect(Object.keys(controller.getState().graph.inner.nodes).length).toBe(0);
         });
 
         it('should redo an entire transaction', () => {
@@ -122,7 +122,7 @@ describe('AppController', () => {
             });
             controller.undo();
             controller.redo();
-            expect(Object.keys(controller.getState().graph.nodes).length).toBe(2);
+            expect(Object.keys(controller.getState().graph.inner.nodes).length).toBe(2);
         });
 
         it('should handle a complex transaction', () => {
@@ -134,19 +134,19 @@ describe('AppController', () => {
                 c.moveNodes([nodeB.id], 30, 30);
             });
             const finalState = controller.getState();
-            const nodeB = Object.values(finalState.graph.nodes).find(n => n.id !== nodeA.id)!;
+            const nodeB = Object.values(finalState.graph.inner.nodes).find(n => n.id !== nodeA.id)!;
             expect(nodeB.x).toBe(50);
             controller.undo();
-            expect(controller.getState().graph).toEqual(initialState.graph);
+            expect(controller.getState().graph.inner).toEqual(initialState.graph.inner);
         });
 
         it('should allow in-transaction reads', () => {
             const nodeA = controller.createNode('A', 0, 0);
             controller.transaction(c => {
                 const nodeB = c.createNode('B', 10, 10);
-                expect(Object.keys(c.getState().graph.nodes).length).toBe(2);
+                expect(Object.keys(c.getState().graph.inner.nodes).length).toBe(2);
                 c.createConnection(nodeA.id, 0, nodeB.id, 0);
-                expect(Object.keys(c.getState().graph.connections).length).toBe(1);
+                expect(Object.keys(c.getState().graph.inner.connections).length).toBe(1);
             });
         });
 
@@ -156,7 +156,7 @@ describe('AppController', () => {
                 const nodeB = c.createNode('B', 10, 10);
                 c.deleteNode(nodeB.id);
             });
-            expect(controller.getState().graph).toEqual(initialState.graph);
+            expect(controller.getState().graph.inner).toEqual(initialState.graph.inner);
         });
     });
 
@@ -164,9 +164,9 @@ describe('AppController', () => {
         it('should undo/redo a single operation', () => {
             const node = controller.createNode('A', 0, 0);
             controller.undo();
-            expect(Object.keys(controller.getState().graph.nodes).length).toBe(0);
+            expect(Object.keys(controller.getState().graph.inner.nodes).length).toBe(0);
             controller.redo();
-            expect(Object.keys(controller.getState().graph.nodes).length).toBe(1);
+            expect(Object.keys(controller.getState().graph.inner.nodes).length).toBe(1);
         });
 
         it('should clear the redo stack on a new action', () => {
@@ -188,9 +188,9 @@ describe('AppController', () => {
             controller.deleteNode(nodeB.id);
             controller.undo();
             const undidState = controller.getState();
-            undidState.auxiliary.incomingConnections.get(nodeB.id)?.sort();
-            initialState.auxiliary.incomingConnections.get(nodeB.id)?.sort();
-            expect(undidState.graph).toEqual(initialState.graph);
+            undidState.graph.auxiliary.incomingConnections.get(nodeB.id)?.sort();
+            initialState.graph.auxiliary.incomingConnections.get(nodeB.id)?.sort();
+            expect(undidState.graph.inner).toEqual(initialState.graph.inner);
         });
     });
 
@@ -206,7 +206,7 @@ describe('AppController', () => {
     describe('MobX Integration', () => {
         it('should react to node creation', () => {
             const history: number[] = [];
-            const dispose = autorun(() => { history.push(Object.keys(controller.observableState.graph.nodes).length); });
+            const dispose = autorun(() => { history.push(Object.keys(controller.observableState.graph.inner.nodes).length); });
             expect(history).toEqual([0]);
             controller.createNode('A', 0, 0);
             expect(history).toEqual([0, 1]);
@@ -216,7 +216,7 @@ describe('AppController', () => {
         it('should react to node config changes', () => {
             const node = controller.createNode('literal', 0, 0);
             const history: any[] = [];
-            const dispose = autorun(() => { history.push(controller.observableState.graph.nodes[node.id]?.config.literal?.value); });
+            const dispose = autorun(() => { history.push(controller.observableState.graph.inner.nodes[node.id]?.config.literal?.value); });
             expect(history).toEqual([undefined]);
             controller.setNodeConfig(node.id, { literal: { value: 100 } });
             expect(history).toEqual([undefined, 100]);
@@ -225,7 +225,7 @@ describe('AppController', () => {
 
         it('should batch updates within a transaction', () => {
             const history: number[] = [];
-            const dispose = autorun(() => { history.push(Object.keys(controller.observableState.graph.nodes).length); });
+            const dispose = autorun(() => { history.push(Object.keys(controller.observableState.graph.inner.nodes).length); });
             expect(history).toEqual([0]);
             controller.transaction(c => {
                 c.createNode('A', 0, 0);

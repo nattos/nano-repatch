@@ -116,7 +116,7 @@ export class GraphNode extends MobxLitElement {
       background-color: #00ff00;
       box-shadow: 0 0 5px #00ff00;
     }
-    
+
     .port-label {
       font-size: 0.7em;
       white-space: nowrap;
@@ -193,7 +193,7 @@ export class GraphNode extends MobxLitElement {
     const target = e.target as HTMLElement;
     const port = target.dataset.port!;
     const type = target.dataset.type as 'in' | 'out';
-    
+
     const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
 
     if (!currentInflightOp) {
@@ -276,13 +276,13 @@ export class GraphNode extends MobxLitElement {
     });
 
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
-    const inputs = nodeType?.inputs || [{ name: '0', description: 'Input', type: {kind: 'atomic', type: 'any'} }];
-    const outputs = nodeType?.outputs || [{ name: '0', description: 'Output', type: {kind: 'atomic', type: 'any'} }];
+    const inputs = nodeType?.inputs || [{ name: '0', description: 'Input', type: { kind: 'atomic', type: 'any' } }];
+    const outputs = nodeType?.outputs || [{ name: '0', description: 'Output', type: { kind: 'atomic', type: 'any' } }];
 
     // Get current incoming connections to this node
-    const incomingConnections = appController.observableState.auxiliary.incomingConnections.get(this.node.id) || [];
+    const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(this.node.id) || [];
     const connectedPorts = new Set(incomingConnections.map(connId => {
-      const conn = appController.observableState.graph.connections[connId];
+      const conn = appController.observableState.graph.inner.connections[connId];
       return conn ? conn.toPort : null;
     }).filter(port => port !== null));
 
@@ -290,8 +290,8 @@ export class GraphNode extends MobxLitElement {
       <div class="ports-wrapper">
         <div class="inputs">
           ${inputs.map(input => {
-            const isConnecting = connectingPort?.type === 'in' && connectingPort?.port === input.name;
-            return html`
+      const isConnecting = connectingPort?.type === 'in' && connectingPort?.port === input.name;
+      return html`
               <div class="port-wrapper">
                 ${input.name ? html`<span class="port-label">${input.name}</span>` : ''}
                 <div
@@ -303,12 +303,12 @@ export class GraphNode extends MobxLitElement {
                 ></div>
               </div>
             `;
-          })}
+    })}
         </div>
         <div class="outputs">
           ${outputs.map(output => {
-            const isConnecting = connectingPort?.type === 'out' && connectingPort?.port === output.name;
-            return html`
+      const isConnecting = connectingPort?.type === 'out' && connectingPort?.port === output.name;
+      return html`
               <div class="port-wrapper">
                 <div
                   class="port out-port ${isConnecting ? 'connecting' : ''}"
@@ -320,21 +320,21 @@ export class GraphNode extends MobxLitElement {
                 ${output.name !== '0' ? html`<span class="port-label">${output.name}</span>` : ''}
               </div>
             `;
-          })}
+    })}
         </div>
       </div>
       <div class="node-main-content">
         <div class="node-title">${nodeType?.displayName || this.node.config.typeId}</div>
         <div class="virtual-inputs-container">
           ${inputs.map(input => {
-            const isConnected = connectedPorts.has(input.name);
-            // Render virtual input field if not connected and has a defaultValue
-            if (input.defaultValue !== undefined && !isConnected) {
-              const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
-                ? this.node.config.values[input.name]
-                : input.defaultValue;
+      const isConnected = connectedPorts.has(input.name);
+      // Render virtual input field if not connected and has a defaultValue
+      if (input.defaultValue !== undefined && !isConnected) {
+        const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
+          ? this.node.config.values[input.name]
+          : input.defaultValue;
 
-              return html`
+        return html`
                 <div class="virtual-input-field-wrapper">
                   <label for="${this.node.id}-${input.name}-virtual-input">${input.name}:</label>
                   <input
@@ -350,9 +350,9 @@ export class GraphNode extends MobxLitElement {
                   />
                 </div>
               `;
-            }
-            return null;
-          })}
+      }
+      return null;
+    })}
         </div>
       </div>
     `;

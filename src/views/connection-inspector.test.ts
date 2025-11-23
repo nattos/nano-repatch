@@ -4,6 +4,7 @@ import { appController, localController } from '../builder/controllers';
 import { Connection } from '../builder/state';
 
 import './graph-editor';
+import { beforeEach, describe, it } from 'vitest';
 
 describe('Connection Inspector', () => {
   let editor: GraphEditor;
@@ -11,7 +12,7 @@ describe('Connection Inspector', () => {
 
   beforeEach(async () => {
     editor = await fixture(html`<graph-editor></graph-editor>`);
-    
+
     appController.transaction(tr => {
       const node1 = tr.createNode('literal', 1, 1);
       const node2 = tr.createNode('add', 3, 1);
@@ -27,16 +28,16 @@ describe('Connection Inspector', () => {
 
     // Wait until the inspector is rendered
     await waitUntil(() => {
-        const inspector = editor.shadowRoot?.querySelector('inspector-popup');
-        if (!inspector) return false;
-        const fromPortInput = inspector.shadowRoot?.querySelector('[data-testid="from-port-input"]');
-        return fromPortInput !== null;
+      const inspector = editor.shadowRoot?.querySelector('inspector-popup');
+      if (!inspector) return false;
+      const fromPortInput = inspector.shadowRoot?.querySelector('[data-testid="from-port-input"]');
+      return fromPortInput !== null;
     });
 
     const inspector = editor.shadowRoot!.querySelector('inspector-popup')!;
     const fromPortInput = inspector.shadowRoot!.querySelector('[data-testid="from-port-input"]') as HTMLInputElement;
     const toPortInput = inspector.shadowRoot!.querySelector('[data-testid="to-port-input"]') as HTMLInputElement;
-    
+
     // Check initial values
     expect(fromPortInput.value).to.equal('0');
     expect(toPortInput.value).to.equal('0');
@@ -44,14 +45,14 @@ describe('Connection Inspector', () => {
     // 2. Change the value of the input fields
     fromPortInput.value = 'testFrom';
     fromPortInput.dispatchEvent(new Event('input'));
-    
+
     toPortInput.value = 'testTo';
     toPortInput.dispatchEvent(new Event('input'));
-    
+
     await editor.updateComplete;
 
     // 3. Check that the appController's state for the connection has been updated
-    const updatedConnection = appController.getState().graph.connections[connection.id];
+    const updatedConnection = appController.getState().graph.inner.connections[connection.id];
     expect(updatedConnection.fromPort).to.equal('testFrom');
     expect(updatedConnection.toPort).to.equal('testTo');
   });
