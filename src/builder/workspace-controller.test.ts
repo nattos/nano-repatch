@@ -101,4 +101,33 @@ describe('WorkspaceController', () => {
     // Check if appController loaded the graph (empty in this case)
     expect(appController.getState().graph.inner.nodes).toEqual({});
   });
+
+  it('should auto-save when graph changes', async () => {
+    await workspaceController.openFolder();
+    await workspaceController.openFile('test.json');
+
+    // Mock createWritable
+    const mockWritable = {
+      write: vi.fn(),
+      close: vi.fn(),
+    };
+    mockFileHandle.createWritable.mockResolvedValue(mockWritable);
+
+    vi.useFakeTimers();
+
+    // Trigger change
+    appController.createNode('test-node', 0, 0);
+
+    // Fast-forward debounce
+    vi.runAllTimers();
+
+    // We need to wait for the async saveCurrentGraph to complete
+    // Since runAllTimers is synchronous, the async promise resolution happens after
+    // We can use a small real delay or flush promises
+    vi.useRealTimers();
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(mockFileHandle.createWritable).toHaveBeenCalled();
+    expect(mockWritable.write).toHaveBeenCalled();
+  });
 });

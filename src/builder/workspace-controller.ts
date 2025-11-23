@@ -1,4 +1,4 @@
-import { makeObservable, observable, action, runInAction } from 'mobx';
+import { makeObservable, observable, action, runInAction, reaction, toJS } from 'mobx';
 import { AppController, GraphInnerState } from './state';
 
 const DB_NAME = 'nano-repatch-db';
@@ -52,6 +52,15 @@ export class WorkspaceController {
   constructor(private appController: AppController) {
     makeObservable(this);
     this.init();
+
+    // Auto-save reaction
+    reaction(
+      () => toJS(this.appController.observableState.graph.inner),
+      () => {
+        this.saveCurrentGraph();
+      },
+      { delay: 1000 } // Debounce save by 1s
+    );
   }
 
   private async init() {
@@ -61,6 +70,16 @@ export class WorkspaceController {
       runInAction(() => {
         this.currentDirHandle = handle;
       });
+
+      // Try to refresh files if we have permission
+      try {
+        const permission = await handle.queryPermission({ mode: 'readwrite' });
+        if (permission === 'granted') {
+          await this.refreshFiles();
+        }
+      } catch (e) {
+        console.warn('Failed to query permission on init', e);
+      }
     }
 
     // Check URL for graph ID
@@ -68,6 +87,8 @@ export class WorkspaceController {
     const graphId = params.get('graph');
     if (graphId) {
       this.currentGraphId = graphId;
+      // If we couldn't list files (no permission), we might still want to try loading this specific file
+      // if the user grants permission later.
     }
   }
 
