@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compileGraph } from './compiler';
 import { AppState, GraphState } from './state';
+import { defaultNodeRepository } from '../structor/repository';
 
 describe('Graph Compiler', () => {
   // Helper to create a simple graph state
@@ -36,7 +37,7 @@ describe('Graph Compiler', () => {
     const appState: AppState = { graph };
     const loadedSubgraphs = new Map();
 
-    const compiled = compileGraph(appState, loadedSubgraphs);
+    const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     expect(Object.keys(compiled.nodes)).toHaveLength(2);
     expect(compiled.nodes['n1'].definitionId).toBe('add');
@@ -83,7 +84,7 @@ describe('Graph Compiler', () => {
 
     const appState: AppState = { graph: mainGraph };
 
-    const compiled = compileGraph(appState, loadedSubgraphs);
+    const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     // Check Nodes
     // Should have: n1, n2, sub1.sub_in, sub1.sub_add, sub1.sub_out
@@ -117,3 +118,4 @@ describe('Graph Compiler', () => {
     });
   });
 });
+

@@ -9,7 +9,6 @@ import { AppController, AppState, LocalController } from '../builder/state';
 import { compileGraph } from '../builder/compiler';
 import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
-import { parseFloatOr } from '../utils/utils';
 
 export class RuntimeManager {
   @observable executor: GraphExecutor | null = null;
@@ -46,13 +45,12 @@ export class RuntimeManager {
             // This is a simplification. We would need to know which node changed.
             // A more robust implementation would get this from the mutation stream.
             // For now, we just update all configs.
-            const { typeId, ...config } = node.config;
-            // TODO: This needs to be part of the node definition, not hard-coded here. Each node
-            // needs to be able to translate its own config.
-            let instanceConfig = 0.0;
-            if (node.config.typeId === 'literal') {
-              instanceConfig = parseFloatOr(node.config?.['literal']?.value) ?? 0.0;
-            }
+            const { typeId } = node.config;
+            const nodeType = this.nodeRepository.getNodeType(typeId);
+            const instanceConfig = nodeType?.compileConfig
+              ? nodeType.compileConfig(node.config)
+              : undefined;
+
             this.executor.setNodeConfig(node.id, instanceConfig);
           }
           this.runExecution();
@@ -87,7 +85,8 @@ export class RuntimeManager {
     const state = this.appController.observableState;
     const graphDef = compileGraph(
       state,
-      this.localController.observableState.loadedSubgraphs
+      this.localController.observableState.loadedSubgraphs,
+      this.nodeRepository
     );
 
     const newExecutor = new GraphExecutor(graphDef, this.nodeRepository);

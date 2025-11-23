@@ -1,5 +1,6 @@
-import { NodeDefinition, StructorType } from './structor';
+import { NodeDefinition, Structor, StructorType } from './structor';
 import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
+import type { GridNode } from '../builder/state';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
@@ -20,6 +21,19 @@ export interface NodeType {
   definition: NodeDefinition;
   inputs?: PortHint[];
   outputs?: PortHint[];
+
+  /**
+   * A function that compiles the UI-friendly `GridNode.config` object
+   * into the `Structor`-formatted `defaultConfig` for a `NodeInstance`.
+   * If not provided, the config is assumed to be undefined.
+   */
+  compileConfig?: (uiConfig: any) => Structor;
+
+  /**
+   * A custom Lit-element renderer for the node's body.
+   * If not provided, a default renderer is used.
+   */
+  renderBody?: (node: GridNode) => unknown;
 }
 
 export class NodeRepository {
@@ -104,7 +118,8 @@ defaultNodeRepository.register({
   definition: primitive_literal,
   outputs: [
     { name: '', type: AnyType, description: 'The literal value.' }
-  ]
+  ],
+  compileConfig: (uiConfig) => uiConfig?.literal?.value ?? 0.0,
 });
 
 defaultNodeRepository.register({

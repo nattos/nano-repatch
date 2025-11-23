@@ -1,6 +1,7 @@
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance } from '../structor/structor';
 import { parseFloatOr } from '../utils/utils';
+import { NodeRepository } from '../structor/repository';
 
 /**
  * Compiles the current AppState into a flat GraphDefinition ready for execution.
@@ -8,7 +9,8 @@ import { parseFloatOr } from '../utils/utils';
  */
 export function compileGraph(
   appState: AppState,
-  loadedSubgraphs: Map<string, GraphState>
+  loadedSubgraphs: Map<string, GraphState>,
+  nodeRepository: NodeRepository
 ): GraphDefinition {
   const flatNodes: Record<string, NodeInstance> = {};
   const flatConnections: {
@@ -48,16 +50,16 @@ export function compileGraph(
         // that pass data through.
 
         // Construct NodeInstance
-        const { typeId, ...config } = node.config;
-        // TODO: This needs to be part of the node definition, not hard-coded here. Each node
-        // needs to be able to translate its own config.
-        let instanceConfig = 0.0;
-        if (node.config.typeId === 'literal') {
-          instanceConfig = node.config?.['literal']?.value ?? 0.0;
-        }
+        const { typeId } = node.config;
+
+        const nodeType = nodeRepository.getNodeType(typeId);
+        const instanceConfig = nodeType?.compileConfig
+          ? nodeType.compileConfig(node.config)
+          : undefined;
+
         const instance: NodeInstance = {
           definitionId: typeId,
-          defaultConfig: instanceConfig
+          defaultConfig: instanceConfig,
         };
 
         flatNodes[nodeId] = instance;
