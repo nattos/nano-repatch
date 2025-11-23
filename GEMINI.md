@@ -91,3 +91,29 @@ The project utilizes two distinct testing frameworks, each serving a specific pu
 *   **Framework Segregation:** Do not mix Jest-specific syntax (e.g., `jest.setTimeout`) within Vitest tests, and vice-versa.
 *   **File Location:** Ensure test files are placed in their correct respective directories (`src/` for Vitest, `test/` for Jest) to be picked up by the appropriate test runner.
 *   **Configuration:** Avoid configuring Vitest (`vite.config.ts`) to include the `test/` directory, as this will cause Vitest to attempt running Jest tests, leading to `ReferenceError: jest is not defined` errors.
+
+## Graph Inputs, Outputs, and Subgraphs (As of 2025-11-23)
+
+This entry documents the implementation of the graph composition features and the 3-column editor layout.
+
+### Features Implemented
+
+1.  **Graph Primitives:** Introduced `primitive_input`, `primitive_output`, and `primitive_subgraph`. These form the basis for defining graph interfaces and nesting graphs.
+2.  **3-Column Layout:** The `GraphGrid` was redesigned to support a 3-column layout:
+    *   **Input Column:** Pinned to the left, exclusively for `input` nodes.
+    *   **Output Column:** Pinned to the right, exclusively for `output` nodes.
+    *   **Main Grid:** The central area for standard nodes.
+    *   **Interaction:** Implemented drag restrictions to keep input/output nodes in their columns, and double-click handlers to create the appropriate node type based on the column clicked.
+3.  **Dynamic Subgraph Ports:** `GraphNode` was updated to dynamically generate input/output ports for `subgraph` nodes by looking up the referenced graph definition in `LocalState.loadedSubgraphs`.
+4.  **Virtual Inputs for Testing:** Added virtual input sliders to `input` and `output` nodes to facilitate manual testing and value injection.
+
+### Testing & Verification
+
+*   **Integration Tests:** Created `src/views/subgraph-integration.test.ts` to verify the dynamic port generation and virtual input rendering.
+*   **E2E Tests:** Created `test/double-click.test.ts` to verify the column-specific double-click behavior.
+*   **Regression Fix:** Identified and fixed a regression in `GraphExecutor` where `combine: { reduce: 'first' }` was not correctly handled in the broadcast engine.
+
+### Future Work
+
+*   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
+*   **Graph Loading:** Currently, subgraphs must be manually loaded into `LocalState`. A proper file/asset management system is needed to load and manage graph dependencies.

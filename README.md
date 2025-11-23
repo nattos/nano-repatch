@@ -196,25 +196,40 @@ Operations are generalized for all types, including `string` and `Functor`.
 
   * Its `computeOutputTypes` function will also return a `FunctorType`, allowing the static analysis to continue through this new, composed function.
 
+## Subgraphs and Composition
+
+Structor supports full graph composition. A graph can be treated as a node within another graph.
+
+*   **Graph Inputs/Outputs:** Special `input` and `output` nodes define the interface of a graph.
+*   **Subgraph Nodes:** A `subgraph` node represents an instance of another graph. Its input and output ports are dynamically generated based on the `input` and `output` nodes defined in the referenced graph.
+*   **Recursion:** The execution engine and static analysis can recursively process nested graphs (implementation in progress).
+
 ## UI Concept
 
-The design pillars are clean and solid behaviours. As little menu digging as possible. "Playability" like an instrument, yet uncluttered. As little "config" as possible. The editor should feel like a canvas you paint on, in broad strokes.
+The design pillars are clean and solid behaviours. As little menu digging as possible. "Playability" like an instrument, yet uncluttered. The editor should feel like a canvas you paint on, in broad strokes.
 
-With that, our main editor area will consist of a grid. Grid columns are of a standard length (this will allow node types to provide custom UI, right in the editor area). Nodes are placed in the center of grid cells. The grid is sparse, so some cells may be empty, allowing the user to layout nodes in a semantically meaningful way.
+### The Grid Layout
 
-Double clicking on an empty cell creates a new node there.
+The editor features a **3-column layout**:
 
-The borders between cells are also highly relevant. When mousing over them, they will given an indication they are interatible. Double clicking on one inserts space there.
+1.  **Input Column (Left):** Pinned to the left side. Contains `input` nodes that define the graph's arguments.
+2.  **Main Grid (Center):** A scrollable, infinite grid for the main logic.
+3.  **Output Column (Right):** Pinned to the right side. Contains `output` nodes that define the graph's return values.
 
-When dragging a node, dragging into an empty cell moves it there. When dragging onto a cell border, space is inserted before moving. When multi-dragging cells, the cells move as a whole, retaining their shape. A rectangular area the size of the shape is made available, unless an area the entire size of the shape is available.
+### Interaction
 
-Cells and cell borders are also selectable, allowing multi-select and deletion.
+*   **Node Creation:**
+    *   Double-click in the **Input Column** to create an `input` node.
+    *   Double-click in the **Output Column** to create an `output` node.
+    *   Double-click in the **Main Grid** to create a standard node (defaulting to a "hub" or generic node).
+*   **Drag & Drop:** Nodes can be dragged freely within their allowed areas. Input and Output nodes are vertically scrollable but horizontally locked to their respective columns.
+*   **Space Insertion:** Double-clicking on cell borders inserts space, shifting downstream nodes to maintain relative layout.
 
 Nodes themselves will be highly rounded. In the case of the simplest node, a "hub", which simply passes on inputs, it will reduce gracefully to being a circle.
 
-For nodes with editable values, they will be rounded rectangles with the same rounding as that circle (they appear to be "grown" versions of the circle). For inputs with the default data type (a scalar number), a horizontal slider like element will be displayed, stacked into a column, one per input, allowing immediate access to that parameter, and "playability". We have not decided on the styling of these slider elements, but we want to maintain playability, but have the editability of "Ableton Live" controls, where they can be easily selected, edited exactly with text inputs, and reset to a "default value".
+For nodes with editable values, they will be rounded rectangles. For inputs with the default data type (a scalar number), a horizontal slider like element will be displayed.
 
-Connections between nodes will be rendered as nicely styled lines that will be algorithmically laid out (instead of just doing a bee-line or crow's flight, or another un-coordinated rendering method). Specifically, they will tend to flow along the borders of grid cells, instead of through the cells themselves, so that things do not overlap. When multiple connections are flowing through the same "channel", they will space out, which will end up looking like traces on a PCB. (this algorithm is nice-to-have, and will implement things such that this will be fairly easy to add in the future, but initially, it can just do simple, un-coordinated placement).
+Connections between nodes will be rendered as nicely styled lines that will be algorithmically laid out.
 
 Finally, there will be a small inspector popup in the bottom right, that allows for tweaking values that do not fit cleanly into sliders, such as the node's "type".
 
