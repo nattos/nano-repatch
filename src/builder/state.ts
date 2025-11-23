@@ -29,6 +29,9 @@ export interface GridNode {
   config: {
     typeId: string;
     name?: string;
+    values: {
+      [portName: string]: number;
+    };
     [key: string]: any;
   };
 }

@@ -5,6 +5,7 @@ import { GridNode } from '../builder/state';
 import { appController, localController } from '../builder/controllers';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository } from '../structor/repository'; // Import repository
+import { parseFloatOr } from '../utils/utils';
 
 @customElement('graph-node')
 export class GraphNode extends MobxLitElement {
@@ -255,9 +256,15 @@ export class GraphNode extends MobxLitElement {
 
   private handleVirtualInputChange(e: Event, portName: string) {
     const target = e.target as HTMLInputElement;
-    const value = target.value;
+    const value = parseFloatOr(target.value) ?? 0;
     // Store virtual input values in a dedicated 'values' config object
     appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+  }
+
+  private handleLiteralInputChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const value = parseFloatOr(target.value) ?? 0;
+    appController.setNodeConfig(this.node.id, { literal: { value: value } });
   }
 
   renderInspectorContent() {
@@ -285,8 +292,8 @@ export class GraphNode extends MobxLitElement {
           <label>Value:</label>
           <input
             type="text"
-            .value=${this.node.config.value || ''}
-            @input=${(e: Event) => this.handleVirtualInputChange(e, '0')}
+            .value=${this.node.config?.literal?.value || 0}
+            @input=${(e: Event) => this.handleLiteralInputChange(e)}
           />
         </div>
       ` : ''}

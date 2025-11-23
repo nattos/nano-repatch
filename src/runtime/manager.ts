@@ -8,8 +8,8 @@ import {
 import { AppController, AppState, LocalController } from '../builder/state';
 import { compileGraph } from '../builder/compiler';
 import { GraphExecutor } from '../structor/executor';
-import { NodeRepository } from '../structor/repository';
-import { ALL_PRIMITIVES } from '../structor/primitives';
+import { defaultNodeRepository } from '../structor/repository';
+import { parseFloatOr } from '../utils/utils';
 
 export class RuntimeManager {
   @observable executor: GraphExecutor | null = null;
@@ -19,7 +19,7 @@ export class RuntimeManager {
     executionTime: 0,
   };
 
-  private nodeRepository = new NodeRepository(ALL_PRIMITIVES);
+  private nodeRepository = defaultNodeRepository;
 
   constructor(
     private appController: AppController,
@@ -29,7 +29,7 @@ export class RuntimeManager {
 
     // This reaction will trigger a full recompile when the graph structure changes.
     reaction(
-      () => this.getStructuralSignature(this.appController.getState()),
+      () => this.getStructuralSignature(this.appController.observableState),
       () => {
         this.recompileAndRun();
       },
@@ -38,16 +38,22 @@ export class RuntimeManager {
 
     // This reaction handles configuration changes for existing nodes.
     reaction(
-      () => this.getConfigSignature(this.appController.getState()),
+      () => this.getConfigSignature(this.appController.observableState),
       () => {
         if (this.executor) {
-          const state = this.appController.getState();
+          const state = this.appController.observableState;
           for (const node of Object.values(state.graph.inner.nodes)) {
             // This is a simplification. We would need to know which node changed.
             // A more robust implementation would get this from the mutation stream.
             // For now, we just update all configs.
             const { typeId, ...config } = node.config;
-            this.executor.setNodeConfig(node.id, config);
+            // TODO: This needs to be part of the node definition, not hard-coded here. Each node
+            // needs to be able to translate its own config.
+            let instanceConfig = 0.0;
+            if (node.config.typeId === 'literal') {
+              instanceConfig = parseFloatOr(node.config?.['literal']?.value) ?? 0.0;
+            }
+            this.executor.setNodeConfig(node.id, instanceConfig);
           }
           this.runExecution();
         }
@@ -78,7 +84,7 @@ export class RuntimeManager {
 
   private recompileAndRun() {
     console.log('Recompiling graph...');
-    const state = this.appController.getState();
+    const state = this.appController.observableState;
     const graphDef = compileGraph(
       state,
       this.localController.observableState.loadedSubgraphs
@@ -103,7 +109,7 @@ export class RuntimeManager {
 
     const newOutputs = this.executor.getOutputs();
     const newStats = {
-      nodeCount: Object.keys(this.executor.graph.nodes).length,
+      nodeCount: this.executor.graphNodeCount,
       executionTime: endTime - startTime,
     };
 

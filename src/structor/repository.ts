@@ -103,7 +103,7 @@ defaultNodeRepository.register({
   displayName: 'Literal',
   definition: primitive_literal,
   outputs: [
-    { name: '0', type: AnyType, description: 'The literal value.' }
+    { name: '', type: AnyType, description: 'The literal value.' }
   ]
 });
 

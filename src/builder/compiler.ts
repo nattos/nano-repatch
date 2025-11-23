@@ -1,5 +1,6 @@
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance } from '../structor/structor';
+import { parseFloatOr } from '../utils/utils';
 
 /**
  * Compiles the current AppState into a flat GraphDefinition ready for execution.
@@ -48,9 +49,15 @@ export function compileGraph(
 
         // Construct NodeInstance
         const { typeId, ...config } = node.config;
+        // TODO: This needs to be part of the node definition, not hard-coded here. Each node
+        // needs to be able to translate its own config.
+        let instanceConfig = 0.0;
+        if (node.config.typeId === 'literal') {
+          instanceConfig = node.config?.['literal']?.value ?? 0.0;
+        }
         const instance: NodeInstance = {
           definitionId: typeId,
-          defaultConfig: config
+          defaultConfig: instanceConfig
         };
 
         flatNodes[nodeId] = instance;
@@ -149,6 +156,8 @@ export function compileGraph(
   }
 
   processGraph(appState.graph, '', true);
+
+  console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${flatConnections.length} connections.`);
 
   return {
     id: 'compiled-graph',

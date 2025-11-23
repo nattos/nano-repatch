@@ -60,7 +60,7 @@ export class DebugOverlay extends MobxLitElement {
       <div class="outputs">
         ${outputs.map(
           ([id, value]) =>
-            html`<div class="output-item">[${id}] ${String(value)}</div>`
+            html`<div class="output-item">[${id}] ${JSON.stringify(value)}</div>`
         )}
       </div>
     `;
