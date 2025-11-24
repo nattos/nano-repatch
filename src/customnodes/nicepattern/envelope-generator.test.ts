@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  EnvelopeSequencer,
-  ManualGenerator,
-  CompositeGenerator,
-  AbstractLayer,
-  LayerConfig,
-  Step,
-  GateLayer,
-  ExponentialLayer
-} from './envelope-generator'; // Assuming your file is named this
+import { EnvelopeSequencer, Step } from './envelope-generator';
+import { AbstractLayer } from './abstract-layer';
+import { ManualGenerator, CompositeGenerator } from './generators';
+import { ExponentialLayer } from './layers';
 
 /**
  * Mocks & Helpers

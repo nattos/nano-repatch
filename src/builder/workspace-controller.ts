@@ -142,7 +142,6 @@ export class WorkspaceController {
       const handle = await window.showDirectoryPicker({
         mode: 'readwrite',
       });
-      // console.log('Got handle:', handle);
 
       runInAction(() => {
         this.currentDirHandle = handle;
