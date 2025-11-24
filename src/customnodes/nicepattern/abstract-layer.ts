@@ -1,4 +1,4 @@
-import { Step } from "./envelope-generator";
+import { Step, Sequence } from "./envelope-generator";
 
 export interface LayerConfig {
   targetNoteIndex: number;
@@ -32,6 +32,8 @@ export abstract class AbstractLayer {
   }
 
   public getValue(): number { return this.output; }
+
+  public abstract previewSequence(sequence: Sequence, prevLayerOutput: number[]): number[];
 
   protected abstract onTrigger(velocity: number): void;
   protected abstract onRelease(): void;
