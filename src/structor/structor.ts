@@ -84,6 +84,12 @@ export interface ExecutionContext {
     beat: number;
     dt: number;
   };
+  audio?: {
+    context: AudioContext;
+  };
+  // Access to the global node state cache
+  // In a real implementation, this would be scoped to the graph instance
+  nodeState: Map<string, any>;
 };
 
 

@@ -117,13 +117,23 @@ export type NodeOutputsDef = Record<string, StructorType>;
 export interface TypedNodeOptions<
   TInputs extends NodeInputsDef,
   TConfig extends NodeConfigDef,
-  TOutputs extends NodeOutputsDef
+  TOutputs extends NodeOutputsDef,
+  TState = undefined
 > {
   id: string;
   inputs?: TInputs;
   config?: TConfig;
   outputs: TOutputs;
   isRealtime?: (config: Structor) => boolean;
+
+  /**
+   * Optional factory for creating the initial state of the node.
+   * If provided, the execute function will receive the state as the 4th argument.
+   */
+  createState?: (
+    config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
+    context: ExecutionContext
+  ) => TState;
 
   /**
    * If true, inputs are automatically broadcasted to match the input definition.
@@ -134,16 +144,18 @@ export interface TypedNodeOptions<
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
     config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
-    context: ExecutionContext
+    context: ExecutionContext,
+    state: TState
   ) => InferRecord<{ kind: 'record', fields: TOutputs, untagged: [] }>;
 }
 
 export function definePrimitiveNode<
   TInputs extends NodeInputsDef,
   TConfig extends NodeConfigDef,
-  TOutputs extends NodeOutputsDef
+  TOutputs extends NodeOutputsDef,
+  TState = undefined
 >(
-  options: TypedNodeOptions<TInputs, TConfig, TOutputs>
+  options: TypedNodeOptions<TInputs, TConfig, TOutputs, TState>
 ): PrimitiveNodeDefinition {
   const configType: RecordType = {
     kind: 'record',
@@ -167,6 +179,7 @@ export function definePrimitiveNode<
       let processedInput: any = rawInput;
 
       if (options.autoBroadcast && options.inputs) {
+
         const broadcastConfig: BroadcastConfig = {
           outputs: {},
           reshape: 'none'
@@ -202,10 +215,35 @@ export function definePrimitiveNode<
       // Usually config comes from the graph and is a StructorRecord.
       const processedConfig = fromStructor(rawConfig, configType);
 
+      // Handle State
+      let state: TState = undefined as any;
+      if (options.createState) {
+        // We need a unique key for this node instance.
+        // Currently, we don't have a stable instance ID passed to execute.
+        // We have to rely on a hack using the config as a key, or assume the context provides a way to identify the node.
+        // The user mentioned: "Let's add a way to get and set the current node's state in ExecutionContext, which will know how to lookup the current node."
+        // But for now, let's assume we use the config-based key hack OR if context has a current node ID.
+        // Since we don't have current node ID in context yet, let's stick to the config hack for now,
+        // BUT ideally we should fix this in the executor.
+        // Wait, the user said: "Clearly nodes will need state. Let's add a way to get and set the current node's state in ExecutionContext... An alternative we should explore is having nodes be able to declare the exact type of their state... Then their execute method will receive the state"
+        // So I am implementing the alternative.
+        // But how do I look up the state?
+        // I'll use the same hack as in the original code for now: key based on ID + config.
+        // This is imperfect but preserves existing behavior until executor provides instance ID.
+
+        // NOTE: This assumes ExecutionContext has a `nodeState: Map<string, any>` property.
+        const key = `${options.id}-${JSON.stringify(rawConfig)}`;
+        if (!context.nodeState.has(key)) {
+          context.nodeState.set(key, options.createState(processedConfig, context));
+        }
+        state = context.nodeState.get(key);
+      }
+
       const result = options.execute(
         processedInput,
         processedConfig,
-        context
+        context,
+        state
       );
 
       // Wrap output

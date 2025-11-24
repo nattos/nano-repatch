@@ -46,21 +46,21 @@ export class ExponentialLayer extends AbstractLayer {
     let lastActive = false;
 
     for (const step of sequence) {
-        const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex === this.config.targetNoteIndex);
 
-        if (isActive && !lastActive) { // onTrigger
-            output = step.velocity;
-        } else if (!isActive && lastActive) { // onRelease
-            output = 0;
-        }
+      if (isActive && !lastActive) { // onTrigger
+        output = step.velocity;
+      } else if (!isActive && lastActive) { // onRelease
+        output = 0;
+      }
 
-        // process
-        if (isActive) {
-            output *= this.decayRate;
-        }
+      // process
+      if (isActive) {
+        output *= this.decayRate;
+      }
 
-        results.push(output);
-        lastActive = isActive;
+      results.push(output);
+      lastActive = isActive;
     }
     return results;
   }
@@ -80,8 +80,8 @@ export class PWMLayer extends AbstractLayer {
   protected process(isActive: boolean, step: Step, dt: number) {
     // Always decay value for this specific layer type
     if (!isActive) {
-       this.output *= 0.85;
-       return;
+      this.output *= 0.85;
+      return;
     }
 
     // Logic
@@ -100,33 +100,33 @@ export class PWMLayer extends AbstractLayer {
     let lastActive = false;
 
     for (const step of sequence) {
-        const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex === this.config.targetNoteIndex);
 
-        // onTrigger
-        if (isActive && !lastActive) {
-            duty = 0.5;
-        }
-        // onRelease is empty
+      // onTrigger
+      if (isActive && !lastActive) {
+        duty = 0.5;
+      }
+      // onRelease is empty
 
-        // process
-        if (!isActive) {
-           output *= 0.85;
-        } else {
-            duty *= 0.98;
-            phase += this.freq;
-            if (phase > 1.0) phase -= 1.0;
-            output = (phase < duty) ? 1.0 : 0.0;
-        }
+      // process
+      if (!isActive) {
+        output *= 0.85;
+      } else {
+        duty *= 0.98;
+        phase += this.freq;
+        if (phase > 1.0) phase -= 1.0;
+        output = (phase < duty) ? 1.0 : 0.0;
+      }
 
-        results.push(output);
-        lastActive = isActive;
+      results.push(output);
+      lastActive = isActive;
     }
     return results;
   }
 }
 
 export class NoiseLayer extends AbstractLayer {
-  protected onTrigger() {}
+  protected onTrigger() { }
   protected onRelease() { this.output *= 0.85; }
   protected process(isActive: boolean) {
     if (isActive) {
@@ -142,32 +142,32 @@ export class NoiseLayer extends AbstractLayer {
     let lastActive = false;
 
     const mulberry32 = (a: number) => {
-        return () => {
-          a |= 0; a = (a + 0x6D2B79F5) | 0;
-          var t = Math.imul(a ^ a >>> 15, 1 | a);
-          t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t;
-          return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        }
+      return () => {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        var t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      }
     }
     const random = mulberry32(12345); // Fixed seed for reproducibility
 
     for (const step of sequence) {
-        const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex === this.config.targetNoteIndex);
 
-        // onRelease
-        if (!isActive && lastActive) {
-            output *= 0.85;
-        }
+      // onRelease
+      if (!isActive && lastActive) {
+        output *= 0.85;
+      }
 
-        // process
-        if (isActive) {
-            output = random();
-        } else {
-            output *= 0.85;
-        }
+      // process
+      if (isActive) {
+        output = random();
+      } else {
+        output *= 0.85;
+      }
 
-        results.push(output);
-        lastActive = isActive;
+      results.push(output);
+      lastActive = isActive;
     }
     return results;
   }
@@ -176,23 +176,26 @@ export class NoiseLayer extends AbstractLayer {
 // --- Audio Layer ---
 
 export class ToneSynthLayer extends AbstractLayer {
-  private ctx: AudioContext;
+  private ctx?: AudioContext;
   private osc: OscillatorNode | null = null;
   private gain: GainNode | null = null;
   private filter: BiquadFilterNode | null = null;
   private frequency: number;
 
-  constructor(config: LayerConfig, audioContext: AudioContext, frequency: number) {
+  constructor(config: LayerConfig, audioContext?: AudioContext, frequency?: number) {
     super(config);
     this.ctx = audioContext;
-    this.frequency = frequency;
+    this.frequency = frequency ?? 440.0;
   }
+
+  get audioContext() { return this.ctx; }
+  set audioContext(context: AudioContext | undefined) { this.ctx = context; }
 
   // Audio layers handle output differently (audio graph),
   // but we can use 'output' for monitoring amplitude if we want.
 
   private initVoice(time: number, velocity: number) {
-    if(this.ctx.state === 'suspended') return;
+    if (!this.ctx || this.ctx.state === 'suspended') return;
 
     // Disconnect old if exists (simple monophonic cleanup)
     this.cleanup();
@@ -227,21 +230,22 @@ export class ToneSynthLayer extends AbstractLayer {
       if (this.osc) { this.osc.stop(); this.osc.disconnect(); }
       if (this.gain) this.gain.disconnect();
       if (this.filter) this.filter.disconnect();
-    } catch(e) { /* ignore already stopped */ }
+    } catch (e) { /* ignore already stopped */ }
   }
 
   protected onTrigger(velocity: number) {
     // Monophonic synth logic
     // If holding, we might just pitch slide, but for this specific "Clicky" requirement:
     // We do trigger a new pluck on new note, but handle holds in process
-    this.initVoice(this.ctx.currentTime, velocity);
+    this.initVoice(this.ctx?.currentTime ?? 0.0, velocity);
   }
 
   protected onRelease() {
     if (this.gain) {
       // Fast release
-      this.gain.gain.cancelScheduledValues(this.ctx.currentTime);
-      this.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+      const currentTime = this.ctx?.currentTime ?? 0.0;
+      this.gain.gain.cancelScheduledValues(currentTime);
+      this.gain.gain.setTargetAtTime(0, currentTime, 0.05);
     }
   }
 
@@ -257,13 +261,13 @@ export class ToneSynthLayer extends AbstractLayer {
     const results: number[] = [];
     let lastActive = false;
     for (const step of sequence) {
-        const isActive = (step.noteIndex === this.config.targetNoteIndex);
-        if (isActive && !lastActive) {
-            results.push(step.velocity);
-        } else {
-            results.push(0);
-        }
-        lastActive = isActive;
+      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      if (isActive && !lastActive) {
+        results.push(step.velocity);
+      } else {
+        results.push(0);
+      }
+      lastActive = isActive;
     }
     return results;
   }

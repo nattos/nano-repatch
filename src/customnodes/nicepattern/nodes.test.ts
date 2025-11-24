@@ -1,0 +1,95 @@
+import { describe, it, expect, vi } from 'vitest';
+import {
+  rhythmicGeneratorPrimitive,
+  chaosGeneratorPrimitive,
+  patternPrimitive,
+  sequenceStructorType
+} from './nodes';
+import { ExecutionContext, StructorRecord } from '../../structor/structor';
+import { defaultNodeRepository } from '../../structor/repository';
+
+// Mock ExecutionContext
+const createMockContext = (): ExecutionContext => ({
+  broadcast: vi.fn((config, inputs) => {
+    // Simple mock for broadcast
+    // For pattern node, it expects 'seqs'
+    if (config.outputs['seqs']) {
+      // Collect all untagged inputs
+      const seqs = inputs.untagged || [];
+      return { seqs };
+    }
+    return {};
+  }),
+  repository: defaultNodeRepository,
+  clock: { beat: 0, dt: 0.1 },
+  nodeState: new Map(),
+  audio: { context: {} as AudioContext } // Mock audio context
+});
+
+describe('NicePattern Nodes', () => {
+  describe('RhythmicGenerator', () => {
+    it('should generate a sequence based on density', () => {
+      const context = createMockContext();
+      const config = { fields: { targetNote: 60, density: 0.5 }, untagged: [] };
+      const input = { fields: {}, untagged: [] };
+
+      const result = rhythmicGeneratorPrimitive.execute(input, config, context);
+      const seq = result.fields.seq_out as any[];
+
+      expect(seq).toHaveLength(16);
+      // Check if we have some notes
+      // seq elements are StructorRecords, so we need to access fields
+      const notes = seq.filter(s => s.fields.noteIndex !== null);
+      expect(notes.length).toBeGreaterThan(0);
+      expect(notes[0].fields.noteIndex).toBe(60);
+    });
+  });
+
+  describe('ChaosGenerator', () => {
+    it('should generate random notes within range', () => {
+      const context = createMockContext();
+      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0 }, untagged: [] };
+      const input = { fields: {}, untagged: [] };
+
+      const result = chaosGeneratorPrimitive.execute(input, config, context);
+      const seq = result.fields.seq_out as any[];
+
+      expect(seq).toHaveLength(16);
+      seq.forEach(step => {
+        if (step.fields.noteIndex !== null) {
+          expect(step.fields.noteIndex).toBeGreaterThanOrEqual(60);
+          expect(step.fields.noteIndex).toBeLessThanOrEqual(72);
+        }
+      });
+    });
+  });
+
+  describe('Pattern Node', () => {
+    it('should combine sequences and generate events', () => {
+      const context = createMockContext();
+      // Mock broadcast to return a sequence
+      const mockSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
+      mockSeq[0] = { noteIndex: 60, velocity: 1, hold: false };
+
+      // We need to mock the typedBroadcast behavior which calls context.broadcast
+      // The pattern node calls typedBroadcast which calls context.broadcast
+      // Our mock context.broadcast needs to return what typedBroadcast expects
+      // typedBroadcast expects { seqs: Structor[] } which it then unwraps.
+      // But wait, typedBroadcast unwraps!
+      // So context.broadcast should return { seqs: [mockSeq] } (as Structor)
+
+      context.broadcast = vi.fn().mockReturnValue({ seqs: [mockSeq] });
+
+      const config = { fields: {}, untagged: [] };
+      const input = { fields: {}, untagged: [mockSeq] }; // Raw input
+
+      // First call: initialize state and process step 0
+      context.clock.beat = 0;
+      const result = patternPrimitive.execute(input, config, context);
+
+      const event = result.fields.event_out as StructorRecord;
+      expect(event.fields.onNote).toBeDefined();
+      expect((event.fields.onNote as StructorRecord).fields.note).toBe(60);
+    });
+  });
+});

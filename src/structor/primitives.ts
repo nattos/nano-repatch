@@ -11,8 +11,8 @@ import {
   FunctorType,
   StructorRecord
 } from "./structor";
-
-const numberType: AtomicType = { kind: 'atomic', type: 'number' };
+import { definePrimitiveNode } from "./type-helpers";
+import { numberType, anyType } from "./std-types";
 
 export const primitive_add: PrimitiveNodeDefinition = {
   id: 'primitive:add',
@@ -82,35 +82,18 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
   }
 };
 
-export const primitive_fmod: PrimitiveNodeDefinition = {
+export const primitive_fmod = definePrimitiveNode({
   id: 'primitive:fmod',
-  kind: 'primitive',
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
-    const broadcastConfig: BroadcastConfig = {
-      outputs: {
-        'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: { reduce: 'first' } },
-        'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: { reduce: 'first' } },
-      },
-      reshape: 'none',
-    };
-    context.broadcast(broadcastConfig, inputType);
-    return { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, untagged: [] };
-  },
-  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    const broadcastConfig: BroadcastConfig = {
-      outputs: {
-        'dividend': { fromFields: ['dividend'], fromUntagged: false, combine: { reduce: 'first' } },
-        'divisor': { fromFields: ['divisor'], fromUntagged: false, combine: { reduce: 'first' } },
-      },
-      reshape: 'none',
-    };
-    const broadcastResult = context.broadcast(broadcastConfig, input) as { fields: { dividend: number, divisor: number } };
-    const { dividend, divisor } = broadcastResult.fields;
+  inputs: { dividend: numberType, divisor: numberType },
+  outputs: { div: numberType, mod: numberType },
+  autoBroadcast: true,
+  execute: (inputs, config, context) => {
+    const { dividend, divisor } = inputs;
     const div = Math.floor(dividend / divisor);
     const mod = dividend % divisor;
-    return { fields: { div, mod }, untagged: [] };
+    return { div, mod };
   }
-};
+});
 
 export const primitive_literal: PrimitiveNodeDefinition = {
   id: 'primitive:literal',

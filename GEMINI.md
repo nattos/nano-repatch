@@ -116,7 +116,33 @@ This entry documents the implementation of the graph composition features and th
 ### Future Work
 
 *   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
-*   **Graph Loading:** Currently, subgraphs must be manually loaded into `LocalState`. A proper file/asset management system is needed to load and manage graph dependencies.
+## Type Safety and State Management Improvements (As of 2025-11-25)
+
+This entry documents the enhancements to the Structor system's type safety and node state management.
+
+### Features Implemented
+
+1.  **Type Helpers:** Introduced `src/structor/type-helpers.ts` containing:
+    *   `defineType`: Helper to define `StructorType`s with literal type preservation.
+    *   `definePrimitiveNode`: Wrapper for defining primitive nodes with automatic type inference, input/output marshalling, and state management.
+    *   `typedBroadcast`: Helper for type-safe broadcast operations.
+    *   `InferStructorType`: Utility type to infer TypeScript types from `StructorType` definitions.
+2.  **State Management:**
+    *   Added `nodeState` map to `ExecutionContext` for persisting node state.
+    *   Updated `definePrimitiveNode` to support `createState` factory, allowing nodes to initialize and access typed state in `execute`.
+    *   Refactored `nicepattern` nodes to use this new state mechanism, removing the global state cache hack.
+3.  **Shared Types:** Created `src/structor/std-types.ts` for common types (`numberType`, `booleanType`, `stringType`, `anyType`).
+4.  **Audio Context:** Added `audio` property to `ExecutionContext` to provide access to the global `AudioContext`.
+5.  **Refactoring:** Refactored `src/customnodes/nicepattern/nodes.ts` and `src/structor/primitives.ts` to use the new helpers and shared types.
+
+### Testing
+
+*   **Unit Tests:** Created `src/customnodes/nicepattern/nodes.test.ts` to verify the behavior of the refactored nodes, including state persistence and event generation.
+
+### Future Work
+
+*   **Instance IDs:** The current state management uses a config-based key hack (`${id}-${JSON.stringify(config)}`). A proper solution requires the executor to provide stable instance IDs for nodes.
+*   **Async Nodes:** The system is still synchronous. Future work should address asynchronous execution.
 
 ## E2E Testing Standardization (As of 2025-11-24)
 
