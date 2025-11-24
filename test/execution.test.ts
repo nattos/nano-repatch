@@ -1,6 +1,6 @@
 import { Page } from 'puppeteer';
 
-const PORT = 5173;
+const PORT = 4173;
 const URL = `http://localhost:${PORT}`;
 
 describe('Graph Execution E2E', () => {

@@ -118,6 +118,39 @@ This entry documents the implementation of the graph composition features and th
 *   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
 *   **Graph Loading:** Currently, subgraphs must be manually loaded into `LocalState`. A proper file/asset management system is needed to load and manage graph dependencies.
 
+## E2E Testing Standardization (As of 2025-11-24)
+
+This entry documents the standardization of the End-to-End (E2E) test setup and critical lessons learned during the process.
+
+### Critical Rules (DO NOT BREAK)
+
+1.  **NO Timeout Changes:** Do NOT mess with `jest.setTimeout`. The default (or 5000ms) is sufficient for our tests. Increasing timeouts is a red herring; if a test times out, it's because the selector failed or the app is broken, not because it needs more time.
+2.  **NO Port Changes:** Always use port `4173`. Do not attempt to randomize ports or change them per test.
+3.  **NO Manual Server Management:** Do NOT use `child_process` to spawn the server in individual test files. The server is managed globally by `jest-puppeteer.config.js`.
+4.  **Programmatic State Management:** Use `window.testing.appController.loadGraph(...)` to reset state between tests. Do NOT rely on page reloads, which are slow and flaky.
+
+### Solutions & Best Practices
+
+1.  **Shadow DOM Traversal:**
+    *   The application is heavily nested in Shadow DOMs (`nano-repatch` -> `workspace-layout` -> `graph-editor` -> `graph-grid`).
+    *   **Avoid `>>>`:** The deep selector combinator `>>>` can be flaky in some Puppeteer versions or complex structures.
+    *   **Use Explicit Traversal:** The most robust way to select elements is to use `page.evaluate()` or `page.evaluateHandle()` and manually traverse the `shadowRoot` chain.
+    *   **Example:**
+        ```javascript
+        const grid = document.querySelector('nano-repatch')
+          .shadowRoot.querySelector('workspace-layout')
+          .shadowRoot.querySelector('graph-editor')
+          .shadowRoot.querySelector('graph-grid');
+        ```
+
+2.  **Programmatic Node Creation:**
+    *   For tests that don't specifically verify the *creation UI*, use `window.testing.appController.createNode()` to set up the graph state. This is faster and less prone to UI flakiness.
+    *   Ensure you create nodes with the correct type (e.g., `add` for inputs/outputs, `literal` for values) to satisfy test requirements (like connecting ports).
+
+3.  **Debugging:**
+    *   If a selector fails, use `page.evaluate()` to log the `innerHTML` or existence of intermediate elements to the console.
+    *   Check for "zombie" processes on port 4173 if the server fails to start (`lsof -t -i:4173`).
+
 ## Compiler & Configuration State (As of 2025-11-23)
 
 This entry clarifies the current state of the graph compiler and the important distinction between UI-facing configuration and execution-facing configuration.

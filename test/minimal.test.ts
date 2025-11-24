@@ -1,6 +1,6 @@
 import 'puppeteer';
 
-const URL = 'http://localhost:5173';
+const URL = 'http://localhost:4173';
 
 jest.setTimeout(5000);
 

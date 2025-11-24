@@ -1,7 +1,7 @@
 // @ts-nocheck
 import 'puppeteer';
 
-const PORT = 5173;
+const PORT = 4173;
 const URL = `http://localhost:${PORT}`;
 
 jest.setTimeout(5000);
@@ -81,20 +81,6 @@ describe('Multi-select E2E', () => {
 
   it('should select a single node', async () => {
     await createNode('literal', 0, 0);
-
-    // Debug DOM
-    await page.evaluate(() => {
-      const app = document.querySelector('nano-repatch');
-      const layout = app.shadowRoot.querySelector('workspace-layout');
-      const editor = layout.shadowRoot.querySelector('graph-editor');
-      const grid = editor.shadowRoot.querySelector('graph-grid');
-      console.log('Debug DOM: grid exists?', !!grid);
-      if (grid) {
-        console.log('Debug DOM: grid shadowRoot exists?', !!grid.shadowRoot);
-        console.log('Debug DOM: graph-node count:', grid.shadowRoot.querySelectorAll('graph-node').length);
-        console.log('Debug DOM: grid innerHTML:', grid.shadowRoot.innerHTML);
-      }
-    });
 
     await clickNode(0);
     await waitForSelectionSize(1);

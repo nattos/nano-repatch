@@ -1,7 +1,7 @@
 module.exports = {
   server: {
-    command: 'npm run dev -- --port 5173 --strictPort',
-    port: 5173,
+    command: 'npm run dev -- --port 4173 --strictPort',
+    port: 4173,
     launchTimeout: 5000,
     debug: true,
   },
