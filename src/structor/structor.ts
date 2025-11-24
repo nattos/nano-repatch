@@ -4,34 +4,38 @@
  * 1. Core Static Types (The "Shape")
  * =================================================================== */
 
-export type AtomicType =
-  | { kind: 'atomic'; type: 'number' }
-  | { kind: 'atomic'; type: 'string' }
-  | { kind: 'atomic'; type: 'boolean' }
-  | { kind: 'atomic'; type: 'any' };
+export interface AtomicType {
+  kind: 'atomic';
+  type: 'number' | 'string' | 'boolean' | 'any';
+  optional?: boolean;
+}
 
 export interface FunctorType {
   kind: 'functor';
   input: StructorType;
   output: StructorType;
+  optional?: boolean;
 }
 
 export interface ArrayType {
   kind: 'array';
   size: number | 'dynamic'; // 'dynamic' for runtime-sized/ragged arrays
   element: StructorType;
+  optional?: boolean;
 }
 
 export interface RecordType {
   kind: 'record';
   fields: Record<string, StructorType>; // Named/tagged inputs
   untagged: StructorType[];             // Ordered/untagged inputs
+  optional?: boolean;
 }
 
 export interface GraphType {
   kind: 'graph';
   inputs: RecordType;
   outputs: RecordType;
+  optional?: boolean;
 }
 
 export type StructorType =
@@ -46,7 +50,7 @@ export type StructorType =
  * =================================================================== */
 
 export type Functor = (input: Structor) => Structor;
-export interface StructorArray extends Array<Structor> {}
+export interface StructorArray extends Array<Structor> { }
 export interface StructorRecord {
   fields: Record<string, Structor>;
   untagged: Structor[];
@@ -70,16 +74,16 @@ export type NodeDefinition = PrimitiveNodeDefinition | GraphDefinition;
 
 // Faking the contexts for now
 export interface AnalysisContext {
-    broadcast: (config: BroadcastConfig, inputs: RecordType) => any;
-    repository: NodeRepository;
+  broadcast: (config: BroadcastConfig, inputs: RecordType) => any;
+  repository: NodeRepository;
 };
 export interface ExecutionContext {
-    broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
-    repository: NodeRepository;
-    clock: {
-      beat: number;
-      dt: number;
-    };
+  broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
+  repository: NodeRepository;
+  clock: {
+    beat: number;
+    dt: number;
+  };
 };
 
 
