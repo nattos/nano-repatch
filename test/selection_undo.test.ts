@@ -4,7 +4,7 @@ import 'puppeteer';
 const PORT = 5173;
 const URL = `http://localhost:${PORT}`;
 
-jest.setTimeout(30000);
+jest.setTimeout(5000);
 
 describe('Selection Undo E2E', () => {
   beforeAll(async () => {

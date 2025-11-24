@@ -7,7 +7,7 @@ import { ChildProcess } from 'child_process';
 const PORT = 5173;
 const URL = `http://localhost:${PORT}`;
 
-jest.setTimeout(30000);
+jest.setTimeout(5000);
 
 describe('Graph Editor E2E', () => {
   beforeAll(async () => {

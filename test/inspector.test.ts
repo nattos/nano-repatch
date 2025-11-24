@@ -3,7 +3,7 @@ import 'puppeteer';
 
 const URL = 'http://localhost:5173';
 
-jest.setTimeout(30000);
+jest.setTimeout(5000);
 
 describe('Inspector E2E', () => {
   beforeAll(async () => {

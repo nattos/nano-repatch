@@ -2,7 +2,7 @@ import 'puppeteer';
 
 const URL = 'http://localhost:5173';
 
-jest.setTimeout(30000);
+jest.setTimeout(5000);
 
 describe('Minimal E2E', () => {
   beforeAll(async () => {
