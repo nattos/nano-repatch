@@ -76,6 +76,10 @@ export interface AnalysisContext {
 export interface ExecutionContext {
     broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
     repository: NodeRepository;
+    clock: {
+      beat: number;
+      dt: number;
+    };
 };
 
 
@@ -100,6 +104,8 @@ export interface PrimitiveNodeDefinition {
     config: Structor,
     context: ExecutionContext,
   ) => StructorRecord;
+
+  isRealtime?: (config: Structor) => boolean;
 }
 
 /**

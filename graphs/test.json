@@ -5,19 +5,46 @@
       "x": 2,
       "y": 2,
       "config": {
-        "typeId": "literal",
-        "values": {}
+        "typeId": "nicepattern:chaos_generator",
+        "values": {},
+        "density": 0.6,
+        "targetNote": 0,
+        "minNote": 0
       }
     },
     "node-1": {
       "id": "node-1",
-      "x": 4,
+      "x": 5,
       "y": 2,
       "config": {
-        "typeId": "literal",
+        "typeId": "nicepattern:pattern",
+        "values": {}
+      }
+    },
+    "node-2": {
+      "id": "node-2",
+      "x": 7,
+      "y": 2,
+      "config": {
+        "typeId": "nicepattern:tone_synth_layer",
         "values": {}
       }
     }
   },
-  "connections": {}
+  "connections": {
+    "conn-1": {
+      "id": "conn-1",
+      "fromNodeId": "node-1",
+      "fromPort": "event_out",
+      "toNodeId": "node-2",
+      "toPort": "event_in"
+    },
+    "conn-0": {
+      "id": "conn-0",
+      "fromNodeId": "node-0",
+      "fromPort": "seq_out",
+      "toNodeId": "node-1",
+      "toPort": "seq_in"
+    }
+  }
 }

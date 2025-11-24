@@ -1,7 +1,7 @@
 import { Step, Sequence } from "./envelope-generator";
 
 export interface LayerConfig {
-  targetNoteIndex: number;
+  targetNoteIndex?: number;
 }
 
 export abstract class AbstractLayer {
@@ -11,12 +11,29 @@ export abstract class AbstractLayer {
   constructor(protected config: LayerConfig) {}
 
   public update(step: Step, dt: number): void {
-    const isActive = (step.noteIndex === this.config.targetNoteIndex);
+    let isActive = this.lastActive;
+    const isEvent = step.noteIndex !== null;
+    const isAnyNote = this.config.targetNoteIndex === undefined;
 
-    if (isActive && !this.lastActive) {
-      this.onTrigger(step.velocity);
-    } else if (!isActive && this.lastActive) {
-      this.onRelease();
+    if (isEvent) {
+      const isActiveFromEvent = isAnyNote || (step.noteIndex === this.config.targetNoteIndex);
+      if (isActiveFromEvent) {
+        let isReleased = false;
+        if (this.lastActive) {
+          if (!step.hold) {
+            this.onRelease();
+            isReleased = true;
+          }
+        } else {
+          isReleased = true;
+        }
+        if (isReleased) {
+          this.onTrigger(step.velocity);
+        }
+      } else if (!isActiveFromEvent && this.lastActive) {
+        this.onRelease();
+      }
+      isActive = isActiveFromEvent;
     }
 
     this.process(isActive, step, dt);

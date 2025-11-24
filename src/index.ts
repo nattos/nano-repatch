@@ -3,6 +3,7 @@ import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
 import './views/workspace-layout';
+import './customnodes/nicepattern/nodes';
 
 @customElement('nano-repatch')
 export class App extends MobxLitElement {

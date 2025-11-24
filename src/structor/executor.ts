@@ -100,7 +100,7 @@ export class GraphExecutor {
     }
   }
 
-  public update(): void {
+  public update(userContext: Partial<ExecutionContext>): void {
     for (const nodeId of this.executionOrder) {
       const state = this.nodeStates.get(nodeId);
       if (!state || !state.isDirty) {
@@ -156,6 +156,8 @@ export class GraphExecutor {
       }
 
       const context: ExecutionContext = {
+        clock: { beat: 0, dt: 0, },
+        ...userContext,
         broadcast: (config, inputs) => {
           if (config.reshape === 'vector') {
             const values = [...Object.values(inputs.fields), ...inputs.untagged];
