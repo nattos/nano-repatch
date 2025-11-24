@@ -1,6 +1,7 @@
 // src/io/resolume/fake-resolume-client.ts
 
-import { ResolumeApiClient, ProductInfo, ResolumeVersion } from './resolume';
+import { ResolumeClient, ResolumeWebSocket } from './resolume-client';
+import { ProductInfo } from './resolume';
 
 // Load the initial state fixture
 import initialCompositionState from '../../io/resolume/probe/resolume-ws-initial-state.json';
@@ -19,16 +20,13 @@ interface ParameterSubscription {
   callback: (update: any) => void; // A callback to send updates to the client
 }
 
-export class FakeResolumeApiClient extends ResolumeApiClient {
+export class FakeResolumeApiClient implements ResolumeClient {
   private currentCompositionState: any;
   private subscribedParameters: Map<number, ParameterSubscription[]>;
+  private mockWs: ResolumeWebSocket | null = null;
+  private _wsReadyState: number = 0; // 0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED
 
-  constructor(
-    baseUrl: string = 'http://localhost:8080',
-    customFetch: typeof fetch | null = null,
-    customWebSocket: typeof WebSocket | null = null
-  ) {
-    super(baseUrl, customFetch, customWebSocket);
+  constructor() {
     this.currentCompositionState = JSON.parse(JSON.stringify(initialCompositionState)); // Deep copy
     this.subscribedParameters = new Map();
   }
@@ -48,53 +46,37 @@ export class FakeResolumeApiClient extends ResolumeApiClient {
   // Override connectWebSocket to simulate WebSocket behavior
   connectWebSocket(
     onMessage: (data: any) => void,
-    onError?: (error: Event) => void,
-    onClose?: (event: CloseEvent) => void
-  ): WebSocket {
+    onError?: (error: any) => void,
+    onClose?: (event: any) => void
+  ): ResolumeWebSocket {
     console.log('[FakeResolumeApiClient] Simulating WebSocket connection.');
+    this._wsReadyState = 1; // OPEN
 
     // Simulate WebSocket instance
-    const mockWs = {
-      readyState: WebSocket.OPEN,
-      onmessage: null as any,
-      onopen: null as any,
-      onerror: null as any,
-      onclose: null as any,
-      send: (message: string) => {
-        console.log('[FakeResolumeApiClient] WS Received:', message);
-        const parsedMessage: WebSocketMessage = JSON.parse(message);
-        this.handleIncomingWebSocketMessage(parsedMessage, onMessage);
+    this.mockWs = {
+      send: (message: object) => {
+        console.log('[FakeResolumeApiClient] WS Received:', JSON.stringify(message));
+        this.handleIncomingWebSocketMessage(message as WebSocketMessage, onMessage);
       },
       close: () => {
         console.log('[FakeResolumeApiClient] Simulating WS close.');
-        mockWs.readyState = WebSocket.CLOSED;
+        this._wsReadyState = 3; // CLOSED
         if (onClose) {
-          onClose(new CloseEvent('close', { code: 1000, reason: 'Simulated close' }));
+          onClose({ code: 1000, reason: 'Simulated close' });
         }
       },
-      addEventListener: () => {}, // Mock out other WebSocket methods
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-      url: 'ws://localhost:8080/api/v1',
-      binaryType: 'blob',
-      bufferedAmount: 0,
-      extensions: '',
-      protocol: '',
-      OPEN: WebSocket.OPEN,
-      CLOSED: WebSocket.CLOSED,
-      CONNECTING: WebSocket.CONNECTING,
-      CLOSING: WebSocket.CLOSING,
-      CONNECT: 0,
-    } as any as WebSocket; // Cast to WebSocket
+      get readyState() {
+        return this._wsReadyState;
+      }
+    };
 
     // Simulate connection opening and sending initial state
     setTimeout(() => {
-      if (mockWs.onopen) mockWs.onopen(new Event('open'));
       console.log('[FakeResolumeApiClient] Sending initial state on WS open...');
       onMessage(this.currentCompositionState);
     }, 100); // Small delay to simulate async behavior
 
-    return mockWs;
+    return this.mockWs;
   }
 
   // Helper to find a parameter by its path in the nested composition state

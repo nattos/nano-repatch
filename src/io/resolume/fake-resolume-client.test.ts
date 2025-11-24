@@ -1,42 +1,29 @@
 // src/io/resolume/fake-resolume-client.test.ts
 
 import { FakeResolumeApiClient } from './fake-resolume-client';
-import { ResolumeApiClient } from './resolume'; // For WebSocket.OPEN etc.
-import { vi } from 'vitest'; // Import vi from vitest
+import { ResolumeWebSocket } from './resolume-client';
+import { vi } from 'vitest';
 
 describe('FakeResolumeApiClient', () => {
   let fakeClient: FakeResolumeApiClient;
   let mockOnMessage: vi.Mock;
   let mockOnError: vi.Mock;
   let mockOnClose: vi.Mock;
-  let mockWs: WebSocket;
+  let mockWs: ResolumeWebSocket;
 
   beforeEach(() => {
-    // We need to mock the global WebSocket and fetch for the base client's constructor
-    // Although the fake client overrides connectWebSocket, the base constructor still references it
+    // We mock the global WebSocket and fetch only to allow the base ResolumeApiClient (which FakeResolumeApiClient extends)
+    // to instantiate without errors. The actual WebSocket logic is overridden by FakeResolumeApiClient.
     global.fetch = vi.fn() as any;
-    global.WebSocket = vi.fn(() => ({
-      readyState: WebSocket.OPEN,
+    (global as any).WebSocket = vi.fn(() => ({
+      readyState: 1, // OPEN
       send: vi.fn(),
       close: vi.fn(),
-      onopen: vi.fn(),
-      onmessage: vi.fn(),
-      onerror: vi.fn(),
-      onclose: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-      url: 'ws://localhost:8080/api/v1',
-      binaryType: 'blob',
-      bufferedAmount: 0,
-      extensions: '',
-      protocol: '',
-      OPEN: WebSocket.OPEN,
-      CLOSED: WebSocket.CLOSED,
-      CONNECTING: WebSocket.CONNECTING,
-      CLOSING: WebSocket.CLOSING,
-      CONNECT: 0,
-    })) as any;
+      onopen: null,
+      onmessage: null,
+      onerror: null,
+      onclose: null,
+    }));
 
     fakeClient = new FakeResolumeApiClient();
     mockOnMessage = vi.fn();
@@ -82,7 +69,7 @@ describe('FakeResolumeApiClient', () => {
     setTimeout(() => {
       mockOnMessage.mockClear(); // Clear initial state message
 
-      fakeClient.sendWebSocketMessage(mockWs, {
+      mockWs.send({
         action: 'subscribe',
         parameter: `/parameter/by-id/${targetParamId}`,
       });
@@ -112,7 +99,7 @@ describe('FakeResolumeApiClient', () => {
       mockOnMessage.mockClear(); // Clear initial state message
 
       // Simulate subscribe
-      fakeClient.sendWebSocketMessage(mockWs, {
+      mockWs.send({
         action: 'subscribe',
         parameter: `/parameter/by-id/${targetParamId}`,
       });
@@ -121,7 +108,7 @@ describe('FakeResolumeApiClient', () => {
         mockOnMessage.mockClear(); // Clear subscribe response
 
         // Send set message
-        fakeClient.sendWebSocketMessage(mockWs, {
+        mockWs.send({
           action: 'set',
           parameter: expectedPath,
           id: parseInt(targetParamId, 10),
@@ -157,7 +144,7 @@ describe('FakeResolumeApiClient', () => {
       mockOnMessage.mockClear(); // Clear initial state message
 
       // Simulate subscribe
-      fakeClient.sendWebSocketMessage(mockWs, {
+      mockWs.send({
         action: 'subscribe',
         parameter: `/parameter/by-id/${targetParamId}`,
       });
@@ -166,7 +153,7 @@ describe('FakeResolumeApiClient', () => {
         mockOnMessage.mockClear(); // Clear subscribe response
 
         // Send trigger message
-        fakeClient.sendWebSocketMessage(mockWs, {
+        mockWs.send({
           action: 'trigger',
           parameter: expectedPath,
           value: triggerValue,
@@ -194,7 +181,7 @@ describe('FakeResolumeApiClient', () => {
   it('should return error for unknown action', (done) => {
     setTimeout(() => {
       mockOnMessage.mockClear();
-      fakeClient.sendWebSocketMessage(mockWs, {
+      mockWs.send({
         action: 'unknown_action',
         parameter: '/some/path',
         value: 'test',
