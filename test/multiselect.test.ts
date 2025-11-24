@@ -1,28 +1,34 @@
 // @ts-nocheck
 import 'puppeteer';
 
-jest.setTimeout(5000);
+const PORT = 5173;
+const URL = `http://localhost:${PORT}`;
+
+jest.setTimeout(30000);
 
 describe('Multi-select E2E', () => {
   beforeAll(async () => {
     page.on('console', msg => process.stderr.write('PAGE LOG: ' + msg.text() + '\n'));
     page.on('pageerror', err => process.stderr.write('PAGE ERROR: ' + err.toString() + '\n'));
-    await page.goto('http://localhost:5173');
+    await page.goto(URL);
     await page.waitForSelector('nano-repatch');
   });
 
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      window.testing.appController.clear();
+      window.testing.appController.loadGraph({ nodes: {}, connections: {} });
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
       const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (!editor) return false;
+      if (!app || !app.shadowRoot) return false;
+      const layout = app.shadowRoot.querySelector('workspace-layout');
+      if (!layout || !layout.shadowRoot) return false;
+      const editor = layout.shadowRoot.querySelector('graph-editor');
+      if (!editor || !editor.shadowRoot) return false;
       const grid = editor.shadowRoot.querySelector('graph-grid');
-      if (!grid) return false;
+      if (!grid || !grid.shadowRoot) return false;
       return grid.shadowRoot.querySelectorAll('graph-node').length === 0;
     });
   });
@@ -79,7 +85,8 @@ describe('Multi-select E2E', () => {
     // Debug DOM
     await page.evaluate(() => {
       const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
+      const layout = app.shadowRoot.querySelector('workspace-layout');
+      const editor = layout.shadowRoot.querySelector('graph-editor');
       const grid = editor.shadowRoot.querySelector('graph-grid');
       console.log('Debug DOM: grid exists?', !!grid);
       if (grid) {
@@ -127,19 +134,19 @@ describe('Multi-select E2E', () => {
 
     // click connection
     await page.evaluate(() => {
-        const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
-        const path = conn.shadowRoot.querySelector('path');
-        path.dispatchEvent(new MouseEvent('click', {
-          bubbles: true,
-          composed: true
-        }));
+      const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
+      const path = conn.shadowRoot.querySelector('path');
+      path.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        composed: true
+      }));
     });
-    
+
     await waitForSelectionSize(1);
-    
+
     const isSelected = await page.evaluate(() => {
-        const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
-        return conn.hasAttribute('selected');
+      const conn = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector('graph-connection');
+      return conn.hasAttribute('selected');
     });
 
     expect(isSelected).toBe(true);

@@ -283,6 +283,12 @@ export class GraphNode extends MobxLitElement {
     `;
   }
 
+  updated() {
+    if (this.node) {
+      this.dataset.id = this.node.id;
+    }
+  }
+
   render() {
     const { selection, inflightPortConnectionOperation } = localController.observableState;
     const isSelected = selection.has(this.node.id);

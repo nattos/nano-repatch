@@ -153,9 +153,9 @@ defaultNodeRepository.register({
         type="text"
         .value=${node.config?.literal?.value || 0}
         @input=${(e: Event) => {
-          const value = parseFloatOr((e.target as HTMLInputElement).value) ?? 0;
-          onchange({ literal: { value } });
-        }}
+      const value = parseFloatOr((e.target as HTMLInputElement).value) ?? 0;
+      onchange({ literal: { value } });
+    }}
       />
     </div>
   `
@@ -182,6 +182,7 @@ defaultNodeRepository.register({
   outputs: [
     { name: '0', type: AnyType, description: 'The input value.' }
   ],
+  compileConfig: (uiConfig) => uiConfig?.values?.['0'],
   renderBody: ioNodeBodyRenderer,
 });
 

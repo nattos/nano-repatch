@@ -142,13 +142,13 @@ export const primitive_input: PrimitiveNodeDefinition = {
   id: 'primitive:input',
   kind: 'primitive',
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-    // Identity: Output type is same as input type of 'val' (injected by executor)
-    const valType = inputType.fields['val'] || { kind: 'atomic', type: 'any' };
+    // Identity: Output type is same as input type of 'val' (injected by executor) or config type
+    const valType = inputType.fields['val'] || config || { kind: 'atomic', type: 'any' };
     return { kind: 'record', fields: { 'val': valType }, untagged: [valType] };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    // Identity: Output value is input 'val'
-    const val = input.fields['val'];
+    // Identity: Output value is input 'val' OR config value (from slider)
+    const val = input.fields['val'] !== undefined ? input.fields['val'] : config;
     return { fields: { 'val': val }, untagged: [val] };
   }
 };

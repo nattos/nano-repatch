@@ -1,40 +1,54 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import { Page } from 'puppeteer';
+
+const PORT = 5173;
+const URL = `http://localhost:${PORT}`;
 
 describe('Graph Execution E2E', () => {
-  jest.setTimeout(30000);
-  let browser: Browser;
-  let page: Page;
-
-  beforeAll(async () => {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    page = await browser.newPage();
-    await page.setViewport({ width: 1200, height: 800 });
-  });
-
-  afterAll(async () => {
-    await browser.close();
-  });
+  // page is global from jest-puppeteer
 
   beforeEach(async () => {
-    console.log('Navigating to page...');
-    await page.goto('http://localhost:5173');
-    console.log('Waiting for selector...');
-    await page.waitForSelector('graph-editor');
-    console.log('Clearing graph...');
-    // Clear graph
-    await page.evaluate(() => {
-      (window as any).testing.appController.clear();
+    // Enable console log forwarding
+    page.on('console', msg => {
+      const type = msg.type();
+      const text = msg.text();
+      // Filter out HMR logs
+      if (!text.includes('[vite]')) {
+        // console.log(`PAGE LOG: ${text}`);
+      }
     });
-    console.log('Graph cleared.');
+
+    await page.goto(URL);
+    await page.setViewport({ width: 1280, height: 800 });
+
+    // Wait for graph-editor to be available
+    await page.waitForFunction(() => {
+      const app = document.querySelector('nano-repatch');
+      return app && app.shadowRoot && app.shadowRoot.querySelector('workspace-layout');
+    });
+
+    // Inject helper to get graph-editor
+    await page.evaluate(() => {
+      (window as any).getGraphEditor = () => {
+        const app = document.querySelector('nano-repatch');
+        if (!app || !app.shadowRoot) return null;
+        const layout = app.shadowRoot.querySelector('workspace-layout');
+        if (!layout || !layout.shadowRoot) return null;
+        return layout.shadowRoot.querySelector('graph-editor');
+      };
+    });
+
+    // Clear existing graph
+    await page.evaluate(() => {
+      const controller = (window as any).testing.appController;
+      controller.loadGraph({ nodes: {}, connections: {} });
+    });
   });
 
   it('should execute graph and update debug overlay', async () => {
     // 1. Create Input Node (Double click left column)
     await page.evaluate(() => {
-      const grid = document.querySelector('graph-editor')!.shadowRoot!.querySelector('graph-grid')!;
+      const editor = (window as any).getGraphEditor();
+      const grid = editor.shadowRoot!.querySelector('graph-grid')!;
       grid.dispatchEvent(new MouseEvent('dblclick', {
         bubbles: true,
         composed: true,
@@ -45,12 +59,19 @@ describe('Graph Execution E2E', () => {
 
     // 2. Create Output Node (Double click right column)
     await page.evaluate(() => {
-      const grid = document.querySelector('graph-editor')!.shadowRoot!.querySelector('graph-grid')!;
-      const { width } = grid.getBoundingClientRect();
+      const editor = (window as any).getGraphEditor();
+      const grid = editor.shadowRoot!.querySelector('graph-grid')!;
+      const rect = grid.getBoundingClientRect();
+
+      // Calculate viewport-relative X coordinate
+      // We want to click inside the right column (width - 130 to width)
+      // Let's target 50px from the right edge
+      const clickX = rect.left + rect.width - 50;
+
       grid.dispatchEvent(new MouseEvent('dblclick', {
         bubbles: true,
         composed: true,
-        clientX: width - 50, // Right column
+        clientX: clickX,
         clientY: 100
       }));
     });
@@ -58,17 +79,22 @@ describe('Graph Execution E2E', () => {
     // Wait for nodes
     await page.waitForFunction(() => {
       const nodes = (window as any).testing.appController.getState().graph.inner.nodes;
-      return Object.keys(nodes).length === 2;
+      const count = Object.keys(nodes).length;
+      return count === 2;
     });
 
     // Get Node IDs
     const nodeIds = await page.evaluate(() => {
       const nodes = (window as any).testing.appController.getState().graph.inner.nodes;
-      const ids = Object.keys(nodes);
-      const inputId = ids.find(id => nodes[id].config.typeId === 'input');
-      const outputId = ids.find(id => nodes[id].config.typeId === 'output');
+      let inputId, outputId;
+      for (const [id, node] of Object.entries(nodes) as any) {
+        if (node.config.typeId === 'input') inputId = id;
+        if (node.config.typeId === 'output') outputId = id;
+      }
       return { inputId, outputId };
     });
+
+    if (!nodeIds.inputId || !nodeIds.outputId) throw new Error('Nodes not created correctly');
 
     // 3. Connect Input -> Output
     await page.evaluate(({ inputId, outputId }) => {
@@ -77,22 +103,21 @@ describe('Graph Execution E2E', () => {
 
     // 4. Verify Debug Overlay
     // Wait for overlay to appear and show nodes
-    await page.waitForSelector('graph-editor >>> debug-overlay');
+    await page.waitForFunction(() => {
+      const editor = (window as any).getGraphEditor();
+      return !!editor?.shadowRoot?.querySelector('debug-overlay');
+    });
 
-    // Check if output node has value (initially undefined or default?)
     // Input node has no value initially unless we set it.
     // Let's set input value via virtual slider.
 
     // Find input slider in Input Node
-    // We need to access shadow DOM of graph-node
-    // This is tricky with puppeteer selectors.
-    // Let's use evaluate to find the input element.
-
     await page.evaluate((inputId) => {
-      const editor = document.querySelector('graph-editor');
+      const editor = (window as any).getGraphEditor();
       const grid = editor!.shadowRoot!.querySelector('graph-grid');
       const node = grid!.shadowRoot!.querySelector(`graph-node[data-id="${inputId}"]`);
-      const input = node!.shadowRoot!.querySelector('input[type="number"]') as HTMLInputElement;
+      const input = node!.shadowRoot!.querySelector('.virtual-input-field') as HTMLInputElement;
+      if (!input) throw new Error('Input field not found');
       input.value = '42';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
@@ -103,16 +128,19 @@ describe('Graph Execution E2E', () => {
     // Overlay format: ID Value
     if (!nodeIds.outputId) throw new Error('Output node not found');
     await page.waitForFunction((outputId) => {
-      const overlay = document.querySelector('graph-editor')!.shadowRoot!.querySelector('debug-overlay');
-      const text = overlay!.shadowRoot!.textContent;
+      const editor = (window as any).getGraphEditor();
+      const overlay = editor.shadowRoot!.querySelector('debug-overlay');
+      if (!overlay) return false;
+      const text = overlay.shadowRoot!.textContent;
       return text && text.includes(outputId) && text.includes('42');
     }, {}, nodeIds.outputId);
 
     // Also verify stats
     const statsText = await page.evaluate(() => {
-      const overlay = document.querySelector('graph-editor')!.shadowRoot!.querySelector('debug-overlay');
+      const editor = (window as any).getGraphEditor();
+      const overlay = editor.shadowRoot!.querySelector('debug-overlay');
       return overlay!.shadowRoot!.querySelector('.stats')!.textContent;
     });
-    expect(statsText).toContain('Nodes Executed');
+    expect(statsText).toContain('nodes executed');
   });
 });

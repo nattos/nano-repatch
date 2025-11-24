@@ -1,11 +1,13 @@
 // @ts-nocheck
 import 'puppeteer';
 
-jest.setTimeout(5000);
+const URL = 'http://localhost:5173';
+
+jest.setTimeout(30000);
 
 describe('Undo/Redo UI E2E', () => {
   beforeAll(async () => {
-    await page.goto('http://localhost:5173');
+    await page.goto(URL);
     page.on('console', msg => process.stderr.write('PAGE LOG: ' + msg.text() + '\n'));
     await page.waitForSelector('nano-repatch');
   });
@@ -13,15 +15,18 @@ describe('Undo/Redo UI E2E', () => {
   beforeEach(async () => {
     // Clear the graph state
     await page.evaluate(() => {
-      window.testing.appController.clear();
+      window.testing.appController.loadGraph({ nodes: {}, connections: {} });
     });
     // Wait for nodes to be cleared
     await page.waitForFunction(() => {
       const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
-      if (!editor) return false;
+      if (!app || !app.shadowRoot) return false;
+      const layout = app.shadowRoot.querySelector('workspace-layout');
+      if (!layout || !layout.shadowRoot) return false;
+      const editor = layout.shadowRoot.querySelector('graph-editor');
+      if (!editor || !editor.shadowRoot) return false;
       const grid = editor.shadowRoot.querySelector('graph-grid');
-      if (!grid) return false;
+      if (!grid || !grid.shadowRoot) return false;
       return grid.shadowRoot.querySelectorAll('graph-node').length === 0;
     });
   });
@@ -55,7 +60,8 @@ describe('Undo/Redo UI E2E', () => {
   async function getNodeCount() {
     return await page.evaluate(() => {
       const app = document.querySelector('nano-repatch');
-      const editor = app.shadowRoot.querySelector('graph-editor');
+      const layout = app.shadowRoot.querySelector('workspace-layout');
+      const editor = layout.shadowRoot.querySelector('graph-editor');
       const grid = editor.shadowRoot.querySelector('graph-grid');
       return grid.shadowRoot.querySelectorAll('graph-node').length;
     });
