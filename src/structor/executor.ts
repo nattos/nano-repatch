@@ -199,7 +199,9 @@ export class GraphExecutor {
           }
           return { fields: {} };
         },
-        repository: this.repository
+        repository: this.repository,
+        nodeState: this.nodeStates.get(nodeId) as any || new Map(), // Should ideally be the global map or scoped map
+        nodeId: nodeId
       };
 
       state.output = definition.execute(inputRecord, state.config as any, context);

@@ -228,13 +228,8 @@ export function definePrimitiveNode<
         // Since we don't have current node ID in context yet, let's stick to the config hack for now,
         // BUT ideally we should fix this in the executor.
         // Wait, the user said: "Clearly nodes will need state. Let's add a way to get and set the current node's state in ExecutionContext... An alternative we should explore is having nodes be able to declare the exact type of their state... Then their execute method will receive the state"
-        // So I am implementing the alternative.
-        // But how do I look up the state?
-        // I'll use the same hack as in the original code for now: key based on ID + config.
-        // This is imperfect but preserves existing behavior until executor provides instance ID.
-
-        // NOTE: This assumes ExecutionContext has a `nodeState: Map<string, any>` property.
-        const key = `${options.id}-${JSON.stringify(rawConfig)}`;
+        // Use nodeId if available (stable), otherwise fallback to config hash (unstable but works for stateless/tests)
+        const key = context.nodeId || `${options.id}-${JSON.stringify(rawConfig)}`;
         if (!context.nodeState.has(key)) {
           context.nodeState.set(key, options.createState(processedConfig, context));
         }

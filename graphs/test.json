@@ -3,30 +3,63 @@
     "node-0": {
       "id": "node-0",
       "x": 2,
-      "y": 2,
+      "y": 3,
       "config": {
-        "typeId": "nicepattern:chaos_generator",
-        "values": {},
-        "density": 0.3,
-        "targetNote": 0,
-        "minNote": 0
+        "typeId": "literal",
+        "values": {}
       }
     },
     "node-1": {
       "id": "node-1",
       "x": 5,
-      "y": 2,
+      "y": 3,
       "config": {
-        "typeId": "nicepattern:pattern",
+        "typeId": "literal",
         "values": {}
       }
     },
     "node-2": {
       "id": "node-2",
       "x": 7,
+      "y": 4,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    },
+    "node-3": {
+      "id": "node-3",
+      "x": 3,
       "y": 2,
       "config": {
-        "typeId": "nicepattern:tone_synth_layer",
+        "typeId": "nicepattern:gate_layer",
+        "values": {}
+      }
+    },
+    "node-4": {
+      "id": "node-4",
+      "x": 6,
+      "y": 2,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    },
+    "node-5": {
+      "id": "node-5",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    },
+    "node-6": {
+      "id": "node-6",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "fmod",
         "values": {}
       }
     }
