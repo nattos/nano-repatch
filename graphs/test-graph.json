@@ -1,0 +1,14 @@
+{
+  "nodes": {
+    "node-dde307ca-5530-4a5b-aded-929cb0b600c2": {
+      "id": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
+      "x": 1,
+      "y": 2,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    }
+  },
+  "connections": {}
+}

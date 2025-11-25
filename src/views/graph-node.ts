@@ -1,6 +1,6 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
 import { appController, localController } from '../builder/controllers';
@@ -26,6 +26,12 @@ export class GraphNode extends MobxLitElement {
 
   @property({ attribute: false })
   node!: GridNode;
+
+  @property({ type: Boolean })
+  isQueued = false;
+
+  @state()
+  private isHoveringPort: string | null = null;
 
   static readonly styles = css`
     :host {
@@ -174,8 +180,12 @@ export class GraphNode extends MobxLitElement {
       localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
     }
 
+    // Track if a drag actually occurred
+    let dragOccurred = false;
+
     new PointerDragOp(e, this, {
       move: (e, delta) => {
+        dragOccurred = true;
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
       },
       accept: (e, delta) => {
@@ -210,6 +220,17 @@ export class GraphNode extends MobxLitElement {
       cancel: () => {
         this.style.transform = '';
       },
+      complete: () => {
+        // If drag occurred, we set a flag on the element to prevent the click handler
+        // from changing selection.
+        if (dragOccurred) {
+          this.dataset.dragged = 'true';
+          // Clear the flag after a short timeout to allow the click event to process (and ignore)
+          setTimeout(() => {
+            delete this.dataset.dragged;
+          }, 0);
+        }
+      }
     });
   }
 
@@ -262,6 +283,9 @@ export class GraphNode extends MobxLitElement {
   }
 
   private handleClick(e: MouseEvent) {
+    if (this.dataset.dragged) {
+      return;
+    }
     localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
   }
 
@@ -323,8 +347,15 @@ export class GraphNode extends MobxLitElement {
   }
 
   render() {
-    const { selection, inflightPortConnectionOperation } = localController.observableState;
+    const { selection, inflightPortConnectionOperation, queuedSelection } = localController.observableState;
     const isSelected = selection.has(this.node.id);
+
+    // We need to observe queuedSelection so that if we are queued, we re-render and call defineSelectable to promote ourselves
+    // This is now handled by the isQueued prop passed from GraphGrid, but we keep the check here logic-wise
+    if (this.isQueued) {
+      // It will be promoted in defineSelectable called below
+    }
+
     const connectingPort = inflightPortConnectionOperation && inflightPortConnectionOperation.nodeId === this.node.id ? inflightPortConnectionOperation : null;
 
     this.toggleAttribute('selected', isSelected);

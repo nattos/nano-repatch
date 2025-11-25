@@ -4,6 +4,9 @@ import { customElement, property } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
 import './graph-connection';
 import './graph-node';
+import { PointerDragOp } from '../utils/pointer-drag-op';
+import { Point } from '../utils/layout-utils';
+import { styleMap } from 'lit/directives/style-map.js';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -19,10 +22,80 @@ export class GraphGrid extends MobxLitElement {
       user-select: none;
     }
 
-    .cell {
-      border: 1px dashed #555;
+    .selection-box {
+      position: absolute;
+      background-color: rgba(0, 170, 255, 0.2);
+      border: 1px solid rgba(0, 170, 255, 0.5);
+      pointer-events: none;
+      z-index: 100;
     }
   `;
+
+  @property({ attribute: false })
+  selectionBox: { x: number, y: number, w: number, h: number } | null = null;
+
+  private handlePointerDown(e: PointerEvent) {
+    // Ignore if clicking on a node or connection (handled by their own listeners)
+    // But we are on the grid host, so we need to check composed path
+    const path = e.composedPath();
+    const isNode = path.some(el => (el as Element).tagName === 'GRAPH-NODE');
+    const isConnection = path.some(el => (el as Element).tagName === 'GRAPH-CONNECTION');
+
+    if (isNode || isConnection) return;
+
+    // Start rubberband selection
+    const rect = this.getBoundingClientRect();
+    const startX = e.clientX - rect.left + this.scrollLeft;
+    const startY = e.clientY - rect.top + this.scrollTop;
+
+    let lastSelectedIdsStr = '';
+
+    new PointerDragOp(e, this, {
+      move: (e, delta) => {
+        const currentX = e.clientX - rect.left + this.scrollLeft;
+        const currentY = e.clientY - rect.top + this.scrollTop;
+
+        const x = Math.min(startX, currentX);
+        const y = Math.min(startY, currentY);
+        const w = Math.abs(currentX - startX);
+        const h = Math.abs(currentY - startY);
+
+        this.selectionBox = { x, y, w, h };
+
+        // Calculate selection
+        const selectedIds: string[] = [];
+        const { nodes } = appController.observableState.graph.inner;
+
+        for (const node of Object.values(nodes)) {
+          // Node position in pixels (relative to grid origin)
+          const nodeX = node.x * 110;
+          const nodeY = node.y * 110;
+          const nodeW = 100;
+          const nodeH = 100;
+
+          // Check intersection
+          if (x < nodeX + nodeW && x + w > nodeX &&
+            y < nodeY + nodeH && y + h > nodeY) {
+            selectedIds.push(node.id);
+          }
+        }
+
+        selectedIds.sort();
+        const currentSelectedIdsStr = selectedIds.join(',');
+        if (currentSelectedIdsStr !== lastSelectedIdsStr) {
+          localController.queueSelectPaths(selectedIds);
+          lastSelectedIdsStr = currentSelectedIdsStr;
+        }
+      },
+      accept: () => {
+        this.selectionBox = null;
+      },
+      cancel: () => {
+        this.selectionBox = null;
+        localController.queueSelectPaths([]);
+      }
+    });
+  }
 
   private handleDblClick(e: MouseEvent) {
     const path = e.composedPath();
@@ -32,7 +105,8 @@ export class GraphGrid extends MobxLitElement {
     if (target.classList.contains('cell')) {
       const x = parseInt(target.dataset.x || '0');
       const y = parseInt(target.dataset.y || '0');
-      appController.createNode('literal', x, y);
+      const newNode = appController.createNode('literal', x, y);
+      localController.queueSelectPaths([newNode.id]);
       return;
     }
     // Check if we clicked on a node
@@ -67,13 +141,15 @@ export class GraphGrid extends MobxLitElement {
 
     // Input Column (Left)
     if (clickX < 130) {
-      appController.createNode('input', 0, gridY);
+      const newNode = appController.createNode('input', 0, gridY);
+      localController.queueSelectPaths([newNode.id]);
       return;
     }
 
     // Output Column (Right)
     if (clickX > this.clientWidth - 130) {
-      appController.createNode('output', 0, gridY);
+      const newNode = appController.createNode('output', 0, gridY);
+      localController.queueSelectPaths([newNode.id]);
       return;
     }
 
@@ -126,6 +202,7 @@ export class GraphGrid extends MobxLitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('dblclick', this.handleDblClick);
     this.addEventListener('connection-delete', this.handleConnectionDelete as EventListener);
     this.addEventListener('scroll', this.handleScroll);
@@ -136,6 +213,7 @@ export class GraphGrid extends MobxLitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('dblclick', this.handleDblClick);
     this.removeEventListener('connection-delete', this.handleConnectionDelete as EventListener);
     this.removeEventListener('scroll', this.handleScroll);
@@ -187,25 +265,31 @@ export class GraphGrid extends MobxLitElement {
     };
 
     return html`
+      ${this.selectionBox ? html`
+        <div class="selection-box" style=${styleMap({
+      left: `${this.selectionBox.x}px`,
+      top: `${this.selectionBox.y}px`,
+      width: `${this.selectionBox.w}px`,
+      height: `${this.selectionBox.h}px`,
+    })}></div>
+      ` : ''}
       ${cells}
       ${Object.values(nodes).map(node => {
       let style = `grid-row: ${node.y + 1};`;
       if (node.config.typeId === 'input') {
-        style += ` grid-column: 1; position: sticky; left: 10px; z-index: 10;`;
+        style = `grid-column: 1; grid-row: ${node.y + 1};`;
       } else if (node.config.typeId === 'output') {
-        // For output, we want it pinned to right.
-        // Since it's a grid item, 'right: 10px' sticks to the right edge of the scrollport.
-        // But we need to place it in a column that is guaranteed to be on the right?
-        // Or just use position: sticky and a high column index?
-        // If we use grid-column: 1000, it will be far right.
-        style += ` grid-column: 1000; position: sticky; right: 10px; z-index: 10;`;
+        style = `grid-column: 3; grid-row: ${node.y + 1};`;
       } else {
-        style += ` grid-column: ${node.x + 1};`;
+        style = `grid-column: 2; grid-row: ${node.y + 1}; grid-column-start: ${node.x + 1};`;
       }
+
+      const isQueued = localController.observableState.queuedSelection.has(node.id);
 
       return html`
           <graph-node
             .node=${node}
+            .isQueued=${isQueued}
             style="${style}"
           ></graph-node>
         `;

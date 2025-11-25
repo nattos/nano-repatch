@@ -81,7 +81,10 @@ export class InspectorPopup extends MobxLitElement {
       </div>
       <div class="content">
         ${hasSelection ?
-        Array.from(selection.values()).map(selectable => selectable.renderInspectorContent ? selectable.renderInspectorContent() : '')
+        (selection.size > 1 ?
+          html`<div style="color: #ccc; text-align: center; margin-top: 20px;">${selection.size} nodes selected</div>` :
+          Array.from(selection.values()).map(selectable => selectable.renderInspectorContent ? selectable.renderInspectorContent() : '')
+        )
         : html`
           <div style="color: #666; text-align: center; margin-top: 50px;">
             Select a node to inspect
