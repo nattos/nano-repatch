@@ -194,3 +194,40 @@ There is a fundamental architectural separation between the state used by the vi
 2.  **`NodeInstance.defaultConfig` (Execution State):** This is a `Structor`-formatted value that is passed directly to a node's `execute` function. It must conform to the `configType` specified in the node's `PrimitiveNodeDefinition`. For a literal node, this would be a simple `Structor` like the number `1.23`, not the complex object used by the UI.
 
 The `compiler.ts` file's responsibility is to perform this translation. It must read the UI-friendly `GridNode.config` and produce the correct, `Structor`-formatted `defaultConfig` for the `NodeInstance`. The current implementation only performs a trivial, incorrect mapping for literal nodes and needs to be redesigned.
+
+## Wire Layout, UI Polish, and Runtime Fixes (As of 2025-11-26)
+
+This entry documents a series of improvements to the wire layout engine, visual polish, and critical bug fixes in the runtime.
+
+### Wire Layout Engine (2x Grid)
+
+*   **Problem:** Wires were routing through the center of grid cells, often overlapping with nodes or looking cluttered.
+*   **Solution:** Implemented a "2x resolution" grid for the A* pathfinding algorithm.
+    *   The logical grid (nodes) is 1x. The routing grid is 2x.
+    *   Nodes occupy even coordinates (e.g., 2,2).
+    *   Wires can route through odd coordinates (e.g., 3,2), effectively passing through the "gaps" between nodes.
+    *   This results in cleaner routes that avoid node bodies.
+
+### Visual Polish
+
+*   **Color Coding:**
+    *   **Wires:** Wires are now color-coded based on a hash of their port names. This helps distinguish different signal paths visually.
+    *   **Nodes:** Nodes now feature a colored left border (accent) based on their `typeId`. This provides a subtle visual cue for node types.
+*   **Grid Rendering:** Restored the background grid cell rendering to provide better spatial context.
+
+### Critical Bug Fixes
+
+1.  **"Double Drag" Issue:**
+    *   **Symptoms:** Dragging a node moved it twice as far as the mouse cursor.
+    *   **Cause:** A duplicate `@pointerdown` event handler was attached to the `GraphNode` component. One handler was applying the drag delta, and the second (duplicate) was likely interfering or applying it again in a way that compounded the movement.
+    *   **Fix:** Removed the duplicate handler.
+
+2.  **Missing Port Handles:**
+    *   **Symptoms:** Port handles were not visible or clickable.
+    *   **Cause:** The `.node` container had `overflow: hidden` set. Since ports are positioned using negative margins to sit on the edge of the node, they were being clipped.
+    *   **Fix:** Removed `overflow: hidden` from the node styles.
+
+3.  **Executor Runtime Error (`TypeError: context.nodeState.has is not a function`):**
+    *   **Symptoms:** The graph stopped updating. Console showed a TypeError.
+    *   **Cause:** The `GraphExecutor` was passing its internal `nodeStates` map (which stores `NodeState` objects) to the `ExecutionContext`'s `nodeState` property. However, the type helpers and primitives expected `nodeState` to be a `Map` interface for storing user-defined state.
+    *   **Fix:** Added a dedicated `userNodeStates: Map<string, any>` to `GraphExecutor` and passed this map to the `ExecutionContext`. This ensures the runtime interface matches the expectation of the node implementations.
