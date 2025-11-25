@@ -7,6 +7,8 @@ export class UiButton extends LitElement {
   @property({ type: Boolean }) disabled = false;
 
   static readonly styles = css`
+    @import url("https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css");
+
     :host {
       display: inline-block;
     }

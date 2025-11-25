@@ -1,6 +1,7 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
 import { appController, localController } from '../builder/controllers';
 import { PointerDragOp } from '../utils/pointer-drag-op';
@@ -84,12 +85,12 @@ export class GraphNode extends MobxLitElement {
 
     .inputs {
       align-items: flex-start;
-      margin-left: -7.5px; /* Half port width to align with edge */
+      margin-left: -15px; /* Move outside */
     }
 
     .outputs {
       align-items: flex-end;
-      margin-right: -7.5px; /* Half port width to align with edge */
+      margin-right: -15px; /* Move outside */
     }
 
     .port-wrapper {
@@ -159,7 +160,12 @@ export class GraphNode extends MobxLitElement {
 
   private handlePointerDown(e: PointerEvent) {
     // Ignore if clicking on a port or virtual input field
-    if ((e.target as HTMLElement).closest('.port-wrapper') || (e.target as HTMLElement).classList.contains('virtual-input-field')) {
+    // We need to check composed path because the target might be inside the shadow DOM of the input
+    const path = e.composedPath();
+    const isInput = path.some(el => (el as HTMLElement).classList?.contains('virtual-input-field'));
+    const isPort = path.some(el => (el as HTMLElement).classList?.contains('port'));
+
+    if (isInput || isPort) {
       return;
     }
 
@@ -216,8 +222,33 @@ export class GraphNode extends MobxLitElement {
     const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
 
     if (!currentInflightOp) {
+      // Start connection
       localController.setInflightPortConnectionOperation({ nodeId: this.node.id, port, type });
+
+      // Select the port to allow cancellation
+      const portPath = `port://${this.node.id}/${type}/${port}`;
+      const handle = localController.defineSelectable({
+        path: portPath,
+      });
+      handle.select();
+
+      // Watch for deselection to cancel
+      const disposer = reaction(
+        () => localController.observableState.selection.has(portPath),
+        (isSelected) => {
+          if (!isSelected) {
+            // If we are no longer selected, and the operation is still inflight matching this port, cancel it.
+            const current = localController.observableState.inflightPortConnectionOperation;
+            if (current && current.nodeId === this.node.id && current.port === port && current.type === type) {
+              localController.setInflightPortConnectionOperation(null);
+            }
+            disposer();
+          }
+        }
+      );
+
     } else {
+      // Complete connection
       if (currentInflightOp.nodeId !== this.node.id && currentInflightOp.type !== type) {
         const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.node.id, port, type };
         const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.node.id, port, type };
@@ -225,6 +256,8 @@ export class GraphNode extends MobxLitElement {
         appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
       }
       localController.setInflightPortConnectionOperation(null);
+      // Clear selection to trigger disposer
+      localController.queueSelectPaths([]);
     }
   }
 

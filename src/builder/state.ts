@@ -18,8 +18,7 @@ configure({
 });
 
 // Simple ID generator
-let nextId = 0;
-const generateId = (prefix: string) => `${prefix}-${nextId++}`;
+const generateId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 // Part 1: Core Data Structures
 export interface GridNode {

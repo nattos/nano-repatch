@@ -51,7 +51,8 @@
       "y": 4,
       "config": {
         "typeId": "literal",
-        "values": {}
+        "values": {},
+        "name": "test"
       }
     },
     "node-6": {
@@ -60,6 +61,17 @@
       "y": 5,
       "config": {
         "typeId": "fmod",
+        "values": {
+          "divisor": 6.6
+        }
+      }
+    },
+    "node-b63f297b-2ec1-40ed-bf2f-4ab60e13d825": {
+      "id": "node-b63f297b-2ec1-40ed-bf2f-4ab60e13d825",
+      "x": 4,
+      "y": 5,
+      "config": {
+        "typeId": "literal",
         "values": {}
       }
     }

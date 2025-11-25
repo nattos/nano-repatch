@@ -49,7 +49,7 @@ export class RuntimeManager {
         // If not in realtime mode, run execution once.
         // In realtime mode, the loop is responsible for execution.
         if (!this.isRealtimeGraph) {
-            this.runExecution();
+          this.runExecution();
         }
       },
       { delay: 50 } // Debounce config changes
@@ -57,16 +57,16 @@ export class RuntimeManager {
 
     // This reaction starts/stops the realtime loop based on the isRealtimeGraph flag.
     reaction(
-        () => this.isRealtimeGraph,
-        (isRealtime) => {
-            if (isRealtime) {
-                this.startRealtimeLoop();
-            } else {
-                this.stopRealtimeLoop();
-                // After stopping, run once to ensure a final state.
-                this.runExecution();
-            }
+      () => this.isRealtimeGraph,
+      (isRealtime) => {
+        if (isRealtime) {
+          this.startRealtimeLoop();
+        } else {
+          this.stopRealtimeLoop();
+          // After stopping, run once to ensure a final state.
+          this.runExecution();
         }
+      }
     );
   }
 
@@ -77,34 +77,38 @@ export class RuntimeManager {
     let anyRealtime = false;
 
     for (const node of Object.values(state.graph.inner.nodes)) {
-        const { typeId } = node.config;
-        const nodeType = this.nodeRepository.getNodeType(typeId);
-        if (!nodeType) continue;
+      const { typeId } = node.config;
+      const nodeType = this.nodeRepository.getNodeType(typeId);
+      if (!nodeType) continue;
 
-        const instanceConfig = nodeType.compileConfig
-          ? nodeType.compileConfig(node.config)
-          : undefined;
+      const instanceConfig = nodeType.compileConfig
+        ? nodeType.compileConfig(node.config)
+        : undefined;
 
-        this.executor.setNodeConfig(node.id, instanceConfig);
+      const emptyConfig = { fields: {}, untagged: [] };
+      this.executor.setNodeConfig(node.id, instanceConfig ?? emptyConfig);
 
-        // Check if node is realtime. We cast to any to access the new optional method.
-        const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(instanceConfig) ?? false;
-        this.realtimeNodeCache.set(node.id, isRealtime);
-        if (isRealtime) {
-            anyRealtime = true;
-        }
+      // Check if node is realtime. We cast to any to access the new optional method.
+      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(instanceConfig ?? emptyConfig) ?? false;
+      this.realtimeNodeCache.set(node.id, isRealtime);
+      if (isRealtime) {
+        anyRealtime = true;
+      }
     }
 
     // Update the observable that controls the loop, if it has changed.
     if (this.isRealtimeGraph !== anyRealtime) {
-        runInAction(() => {
-            this.isRealtimeGraph = anyRealtime;
-        });
+      runInAction(() => {
+        this.isRealtimeGraph = anyRealtime;
+      });
     }
   }
 
   private getStructuralSignature(state: AppState): string {
-    const nodeIds = Object.keys(state.graph.inner.nodes).sort().join(',');
+    const nodeIds = Object.values(state.graph.inner.nodes)
+      .map(n => `${n.id}:${n.config.typeId}`)
+      .sort()
+      .join(',');
     const connIds = Object.keys(state.graph.inner.connections)
       .map(
         (id) =>
@@ -140,7 +144,7 @@ export class RuntimeManager {
       // If we are not in realtime mode after recompiling, run once.
       // If we are, the loop will be started by the isRealtimeGraph reaction.
       if (!this.isRealtimeGraph) {
-          this.runExecution();
+        this.runExecution();
       }
     });
   }
@@ -148,39 +152,39 @@ export class RuntimeManager {
   private startRealtimeLoop() {
     if (this.animationFrameId !== null) return;
     console.log(`Starting real-time execution loop at ${FRAME_RATE} FPS.`);
-    
+
     const loop = () => {
-        if (!this.executor) {
-            this.stopRealtimeLoop();
-            return;
+      if (!this.executor) {
+        this.stopRealtimeLoop();
+        return;
+      }
+
+      // Mark all real-time nodes as dirty for this frame.
+      for (const [nodeId, isRealtime] of this.realtimeNodeCache.entries()) {
+        if (isRealtime) {
+          this.executor.markDirty(nodeId);
         }
+      }
 
-        // Mark all real-time nodes as dirty for this frame.
-        for (const [nodeId, isRealtime] of this.realtimeNodeCache.entries()) {
-            if (isRealtime) {
-                this.executor.markDirty(nodeId);
-            }
-        }
+      // Assuming 120 BPM for beat calculation
+      const BPM = 120;
+      const beatsPerSecond = BPM / 60;
+      const dt = 1 / FRAME_RATE;
+      this.clock.beat += dt * beatsPerSecond;
 
-        // Assuming 120 BPM for beat calculation
-        const BPM = 120;
-        const beatsPerSecond = BPM / 60;
-        const dt = 1 / FRAME_RATE;
-        this.clock.beat += dt * beatsPerSecond;
-
-        // Pass clock state to execution, which will now only process dirty nodes.
-        this.runExecution({ clock: { beat: this.clock.beat, dt } });
-        this.animationFrameId = requestAnimationFrame(loop);
+      // Pass clock state to execution, which will now only process dirty nodes.
+      this.runExecution({ clock: { beat: this.clock.beat, dt } });
+      this.animationFrameId = requestAnimationFrame(loop);
     };
     this.animationFrameId = requestAnimationFrame(loop);
   }
 
   private stopRealtimeLoop() {
-      if (this.animationFrameId !== null) {
-          console.log('Stopping real-time execution loop.');
-          cancelAnimationFrame(this.animationFrameId);
-          this.animationFrameId = null;
-      }
+    if (this.animationFrameId !== null) {
+      console.log('Stopping real-time execution loop.');
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
   }
 
   private runExecution(contextUpdate?: { clock: { beat: number; dt: number } }) {
@@ -207,8 +211,8 @@ export class RuntimeManager {
       this.stats = newStats;
     });
 
-    if(!this.isRealtimeGraph) {
-        console.log(`Execution finished in ${newStats.executionTime.toFixed(2)}ms`);
+    if (!this.isRealtimeGraph) {
+      console.log(`Execution finished in ${newStats.executionTime.toFixed(2)}ms`);
     }
   }
 }

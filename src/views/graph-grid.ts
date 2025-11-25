@@ -35,6 +35,26 @@ export class GraphGrid extends MobxLitElement {
       appController.createNode('literal', x, y);
       return;
     }
+    // Check if we clicked on a node
+    // When clicking on a custom element in Shadow DOM, the event target is retargeted to the custom element itself
+    const targetNode = target as HTMLElement;
+    if (targetNode.tagName === 'GRAPH-NODE' && targetNode.dataset.id) {
+      appController.deleteNode(targetNode.dataset.id);
+      return;
+    }
+
+    // Also check composed path in case we clicked on something inside the node that didn't retarget (unlikely but safe)
+    const nodeElement = path.find(el =>
+      (el as Element).nodeName === 'GRAPH-NODE'
+    ) as HTMLElement;
+
+    if (nodeElement) {
+      const id = nodeElement.getAttribute('data-id') || nodeElement.dataset?.id;
+      if (id) {
+        appController.deleteNode(id);
+        return;
+      }
+    }
 
     // Check if we clicked on the grid background (gaps) or pinned columns
     const rect = this.getBoundingClientRect();

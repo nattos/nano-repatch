@@ -18,15 +18,14 @@ export class PointerDragOp {
   private readonly startY;
 
   constructor(e: PointerEvent, private readonly element: HTMLElement, readonly callbacks: {
-      move?: (e: PointerEvent, delta: Point) => void,
-      accept?: (e: PointerEvent, delta: Point) => void,
-      cancel?: (reason: CancelReason) => void,
-      complete?: () => void,
-      callMoveImmediately?: boolean,
-      callMoveBeforeDone?: boolean,
-    }) {
+    move?: (e: PointerEvent, delta: Point) => void,
+    accept?: (e: PointerEvent, delta: Point) => void,
+    cancel?: (reason: CancelReason) => void,
+    complete?: () => void,
+    callMoveImmediately?: boolean,
+    callMoveBeforeDone?: boolean,
+  }) {
     this.pointerId = e.pointerId;
-    e.preventDefault()
 
     this.moveFunc = this.onPointerMove.bind(this);
     this.upFunc = this.onPointerUp.bind(this);

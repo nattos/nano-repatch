@@ -48,6 +48,7 @@ export class WorkspaceController {
   @observable currentDirHandle: FileSystemDirectoryHandle | null = null;
   @observable files: FileEntry[] = [];
   @observable currentGraphId: string | null = null;
+  @observable isWaitingForPermission: boolean = false;
 
   constructor(private appController: AppController) {
     makeObservable(this);
@@ -86,9 +87,30 @@ export class WorkspaceController {
     const params = new URLSearchParams(window.location.search);
     const graphId = params.get('graph');
     if (graphId) {
-      this.currentGraphId = graphId;
+      runInAction(() => {
+        this.currentGraphId = graphId;
+      });
       // If we couldn't list files (no permission), we might still want to try loading this specific file
       // if the user grants permission later.
+      if (handle) {
+        try {
+          const permission = await handle.queryPermission({ mode: 'readwrite' });
+          if (permission !== 'granted') {
+            runInAction(() => {
+              this.isWaitingForPermission = true;
+            });
+          } else {
+            await this.openFile(graphId);
+          }
+        } catch (e) {
+          console.warn('Failed to query permission for graph load', e);
+        }
+      } else {
+        // No handle at all, so we are definitely waiting for user to open a folder
+        runInAction(() => {
+          this.isWaitingForPermission = true;
+        });
+      }
     }
   }
 
@@ -149,6 +171,10 @@ export class WorkspaceController {
 
       await this.saveHandle(handle);
       await this.refreshFiles();
+
+      runInAction(() => {
+        this.isWaitingForPermission = false;
+      });
     } catch (e) {
       console.error('Error opening folder:', e);
     }

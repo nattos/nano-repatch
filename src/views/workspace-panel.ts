@@ -108,7 +108,7 @@ export class WorkspacePanel extends MobxLitElement {
   `;
 
   render() {
-    const { currentDirHandle, files, currentGraphId } = workspaceController;
+    const { currentDirHandle, files, currentGraphId, isWaitingForPermission } = workspaceController;
 
     return html`
       <div class="header">
@@ -124,6 +124,17 @@ export class WorkspacePanel extends MobxLitElement {
           <div class="actions">
             <button class="action-btn" @click=${this.createNew} title="New Graph">+</button>
           </div>
+      ` : ''}
+
+      ${isWaitingForPermission && currentGraphId ? html`
+        <div style="padding: 10px; background: #333; border-bottom: 1px solid #444;">
+            <div style="margin-bottom: 5px; font-size: 12px; color: #ccc;">
+                Graph <b>${currentGraphId}</b> requested.
+            </div>
+            <button @click=${() => workspaceController.openFile(currentGraphId)} style="width: 100%">
+                Load Graph
+            </button>
+        </div>
       ` : ''}
 
       <div class="content">
