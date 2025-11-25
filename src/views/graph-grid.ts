@@ -29,6 +29,12 @@ export class GraphGrid extends MobxLitElement {
       pointer-events: none;
       z-index: 100;
     }
+
+    .cell {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      pointer-events: auto; /* Ensure clicks are captured */
+    }
   `;
 
   @property({ attribute: false })
@@ -266,12 +272,7 @@ export class GraphGrid extends MobxLitElement {
 
     return html`
       ${this.selectionBox ? html`
-        <div class="selection-box" style=${styleMap({
-      left: `${this.selectionBox.x}px`,
-      top: `${this.selectionBox.y}px`,
-      width: `${this.selectionBox.w}px`,
-      height: `${this.selectionBox.h}px`,
-    })}></div>
+        <div class="selection-box" style="left: ${this.selectionBox.x}px; top: ${this.selectionBox.y}px; width: ${this.selectionBox.w}px; height: ${this.selectionBox.h}px;"></div>
       ` : ''}
       ${cells}
       ${Object.values(nodes).map(node => {

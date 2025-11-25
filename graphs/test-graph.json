@@ -2,8 +2,26 @@
   "nodes": {
     "node-dde307ca-5530-4a5b-aded-929cb0b600c2": {
       "id": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
-      "x": 1,
-      "y": 2,
+      "x": 2,
+      "y": 1,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    },
+    "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
+      "id": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "literal",
+        "values": {}
+      }
+    },
+    "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
+      "id": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
+      "x": 3,
+      "y": 3,
       "config": {
         "typeId": "literal",
         "values": {}

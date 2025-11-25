@@ -459,12 +459,15 @@ export class AppController {
   }
 }
 
+import { LayoutResult, computeWireLayout, WireDef } from '../layout/wire-layout';
+
 // Part 4: Local Controller (UI State)
 export interface LocalState {
   selection: Map<string, Selectable>;
   queuedSelection: Set<string>;
   inflightPortConnectionOperation: { nodeId: string, port: string, type: 'in' | 'out' } | null;
   loadedSubgraphs: Map<string, GraphState>;
+  wireLayout: LayoutResult;
 }
 
 export interface Selectable {
@@ -485,8 +488,61 @@ export class LocalController {
       queuedSelection: new Set<string>(),
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
+      wireLayout: { wires: {} },
     });
     makeObservable(this);
+  }
+
+  @action
+  public updateWireLayout(graph: GraphState): void {
+    const wires: WireDef[] = [];
+    const nodes = graph.inner.nodes;
+
+    for (const conn of Object.values(graph.inner.connections)) {
+      const fromNode = nodes[conn.fromNodeId];
+      const toNode = nodes[conn.toNodeId];
+
+      if (fromNode && toNode) {
+        // Simple port position estimation (center of node for now, or we can refine later)
+        // Actually, we should use the grid coordinates.
+        // Input/Output nodes have fixed positions in the grid logic (column 0 or last).
+        // But for routing, we just need start/end points.
+
+        // We need to know the actual grid coordinates.
+        // For pinned nodes (input/output), we need to handle them carefully.
+        // But the layout engine works on integer grid points.
+        // Let's assume standard nodes are at x,y.
+
+        // TODO: Refine start/end points based on ports?
+        // For now, let's just route from node center to node center (or close to it).
+        // Actually, the wire layout engine expects integer grid points.
+        // Nodes occupy x,y.
+        // Let's route from (fromNode.x + 1, fromNode.y) to (toNode.x, toNode.y).
+        // This assumes left-to-right flow.
+
+        wires.push({
+          id: conn.id,
+          start: { x: fromNode.x + 1, y: fromNode.y }, // Output is on the right
+          end: { x: toNode.x, y: toNode.y },     // Input is on the left
+          fromNodeId: conn.fromNodeId,
+          fromPort: conn.fromPort.toString(),
+          toNodeId: conn.toNodeId,
+          toPort: conn.toPort.toString(),
+        });
+      }
+    }
+
+    const obstacles = Object.values(nodes).map(n => ({ x: n.x, y: n.y }));
+
+    console.log('Computing wire layout for', wires.length, 'wires');
+    // For now, we don't track granular changes, so we don't pass changedWireIds.
+    // But we pass previousResult to allow for potential future optimizations or stability.
+    const result = computeWireLayout(wires, {
+      obstacles,
+      previousResult: this.observableState.wireLayout
+    });
+    console.log('Computed layout:', result);
+    this.observableState.wireLayout = result;
   }
 
   public defineSelectable(selectable: Selectable): SelectableHandle {

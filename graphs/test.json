@@ -1,94 +1,49 @@
 {
   "nodes": {
-    "node-0": {
-      "id": "node-0",
+    "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092": {
+      "id": "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092",
       "x": 2,
       "y": 3,
       "config": {
-        "typeId": "literal",
-        "values": {}
-      }
-    },
-    "node-1": {
-      "id": "node-1",
-      "x": 6,
-      "y": 5,
-      "config": {
-        "typeId": "literal",
-        "values": {}
-      }
-    },
-    "node-2": {
-      "id": "node-2",
-      "x": 7,
-      "y": 4,
-      "config": {
-        "typeId": "literal",
-        "values": {}
-      }
-    },
-    "node-3": {
-      "id": "node-3",
-      "x": 4,
-      "y": 2,
-      "config": {
-        "typeId": "nicepattern:gate_layer",
-        "values": {}
-      }
-    },
-    "node-4": {
-      "id": "node-4",
-      "x": 6,
-      "y": 2,
-      "config": {
-        "typeId": "literal",
-        "values": {}
-      }
-    },
-    "node-5": {
-      "id": "node-5",
-      "x": 5,
-      "y": 6,
-      "config": {
-        "typeId": "literal",
+        "typeId": "nicepattern:chaos_generator",
         "values": {},
-        "name": "test"
+        "density": 0,
+        "targetNote": 0
       }
     },
-    "node-6": {
-      "id": "node-6",
-      "x": 2,
-      "y": 5,
+    "node-3f7933dc-b400-4219-823e-66eb4fdae17d": {
+      "id": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
+      "x": 5,
+      "y": 3,
       "config": {
-        "typeId": "fmod",
-        "values": {
-          "divisor": 6.6
-        }
-      }
-    },
-    "node-b63f297b-2ec1-40ed-bf2f-4ab60e13d825": {
-      "id": "node-b63f297b-2ec1-40ed-bf2f-4ab60e13d825",
-      "x": 4,
-      "y": 5,
-      "config": {
-        "typeId": "literal",
+        "typeId": "nicepattern:pattern",
         "values": {}
+      }
+    },
+    "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607": {
+      "id": "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607",
+      "x": 8,
+      "y": 3,
+      "config": {
+        "typeId": "nicepattern:tone_synth_layer",
+        "values": {},
+        "targetNote": 0
       }
     }
   },
   "connections": {
-    "conn-1": {
-      "id": "conn-1",
-      "fromNodeId": "node-1",
+    "conn-a1c440e5-d82a-4dbc-8132-ca325974192d": {
+      "id": "conn-a1c440e5-d82a-4dbc-8132-ca325974192d",
+      "fromNodeId": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
       "fromPort": "event_out",
-      "toNodeId": "node-2",
+      "toNodeId": "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607",
       "toPort": "event_in"
     },
-    "conn-0": {
-      "id": "conn-0",
-      "fromNodeId": "node-0",
+    "conn-1637755b-ea9e-41f6-8d8e-1f8414f8ef49": {
+      "id": "conn-1637755b-ea9e-41f6-8d8e-1f8414f8ef49",
+      "fromNodeId": "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092",
       "fromPort": "seq_out",
-      "toNodeId": "node-1",
+      "toNodeId": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
       "toPort": "seq_in"
     }
   }

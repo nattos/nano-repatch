@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
 import { appController, localController } from '../builder/controllers';
+import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
@@ -48,6 +49,20 @@ export class GraphNode extends MobxLitElement {
       transition: border-color 0.2s;
       box-sizing: border-box;
       padding: 10px; /* Added padding for internal content */
+    }
+
+    .node {
+      position: absolute;
+      background: #222;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      /* overflow: hidden; */
+      user-select: none;
+      border: 1px solid #444;
+      border-left: 4px solid var(--node-accent-color, #444);
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
 
     :host([selected]) {
@@ -213,6 +228,7 @@ export class GraphNode extends MobxLitElement {
           dx = 1 - this.node.x;
         }
 
+        console.log('moveNodes', dx, dy);
         appController.moveNodes(selectedNodeIds, dx, dy);
 
         this.style.transform = '';
@@ -390,14 +406,22 @@ export class GraphNode extends MobxLitElement {
       return conn ? conn.toPort : null;
     }).filter(port => port !== null));
 
+    const isQueued = this.isQueued;
+    const typeColor = cssColorFromHash(this.node.config.typeId);
+
+    const style = `transform: translate(-10px, -10px); width: 100px; height: 100px; --node-accent-color: ${typeColor};`;
+
     return html`
+      <div
+        class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''}"
+        style="${style}"
+      >
       <div class="ports-wrapper">
         <div class="inputs">
           ${inputs.map(input => {
       const isConnecting = connectingPort?.type === 'in' && connectingPort?.port === input.name;
       return html`
               <div class="port-wrapper">
-                ${input.name ? html`<span class="port-label">${input.name}</span>` : ''}
                 <div
                   class="port in-port ${isConnecting ? 'connecting' : ''}"
                   data-port="${input.name}"
@@ -405,6 +429,7 @@ export class GraphNode extends MobxLitElement {
                   @click=${this.handlePortClick}
                   title="${input.description}"
                 ></div>
+                ${input.name ? html`<span class="port-label">${input.name}</span>` : ''}
               </div>
             `;
     })}
@@ -414,6 +439,7 @@ export class GraphNode extends MobxLitElement {
       const isConnecting = connectingPort?.type === 'out' && connectingPort?.port === output.name;
       return html`
               <div class="port-wrapper">
+                ${output.name !== '0' ? html`<span class="port-label">${output.name}</span>` : ''}
                 <div
                   class="port out-port ${isConnecting ? 'connecting' : ''}"
                   data-port="${output.name}"
@@ -421,7 +447,6 @@ export class GraphNode extends MobxLitElement {
                   @click=${this.handlePortClick}
                   title="${output.description}"
                 ></div>
-                ${output.name !== '0' ? html`<span class="port-label">${output.name}</span>` : ''}
               </div>
             `;
     })}

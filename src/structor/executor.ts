@@ -13,6 +13,7 @@ export class GraphExecutor {
   private executionOrder: string[] = [];
   private downstreamMap: Map<string, string[]> = new Map();
   private graphInputs: Map<string, Structor> = new Map();
+  private userNodeStates: Map<string, any> = new Map();
 
   get graphNodeCount() {
     return this.executionOrder.length;
@@ -200,7 +201,7 @@ export class GraphExecutor {
           return { fields: {} };
         },
         repository: this.repository,
-        nodeState: this.nodeStates.get(nodeId) as any || new Map(), // Should ideally be the global map or scoped map
+        nodeState: this.userNodeStates,
         nodeId: nodeId
       };
 
