@@ -76,9 +76,9 @@ describe('NicePattern Nodes', () => {
       // Our mock context.broadcast needs to return what typedBroadcast expects
       // typedBroadcast expects { seqs: Structor[] } which it then unwraps.
       // But wait, typedBroadcast unwraps!
-      // So context.broadcast should return { seqs: [mockSeq] } (as Structor)
+      // So context.broadcast should return { fields: { seqs: [mockSeq] } } (as Structor)
 
-      context.broadcast = vi.fn().mockReturnValue({ seqs: [mockSeq] });
+      context.broadcast = vi.fn().mockReturnValue({ fields: { seqs: [mockSeq] } });
 
       const config = { fields: {}, untagged: [] };
       const input = { fields: {}, untagged: [mockSeq] }; // Raw input

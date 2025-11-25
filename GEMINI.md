@@ -151,7 +151,7 @@ This entry documents the standardization of the End-to-End (E2E) test setup and 
 ### Critical Rules (DO NOT BREAK)
 
 1.  **NO Timeout Changes:** Do NOT mess with `jest.setTimeout`. The default (or 5000ms) is sufficient for our tests. Increasing timeouts is a red herring; if a test times out, it's because the selector failed or the app is broken, not because it needs more time.
-2.  **NO Port Changes:** Always use port `4173`. Do not attempt to randomize ports or change them per test.
+2.  **NO Port Changes:** Always use port `5173`. Do not attempt to randomize ports or change them per test.
 3.  **NO Manual Server Management:** Do NOT use `child_process` to spawn the server in individual test files. The server is managed globally by `jest-puppeteer.config.js`.
 4.  **Programmatic State Management:** Use `window.testing.appController.loadGraph(...)` to reset state between tests. Do NOT rely on page reloads, which are slow and flaky.
 
@@ -175,7 +175,7 @@ This entry documents the standardization of the End-to-End (E2E) test setup and 
 
 3.  **Debugging:**
     *   If a selector fails, use `page.evaluate()` to log the `innerHTML` or existence of intermediate elements to the console.
-    *   Check for "zombie" processes on port 4173 if the server fails to start (`lsof -t -i:4173`).
+    *   Check for "zombie" processes on port 5173 if the server fails to start (`lsof -t -i:5173`).
 
 ## Compiler & Configuration State (As of 2025-11-23)
 

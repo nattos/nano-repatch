@@ -1,7 +1,7 @@
 // @ts-nocheck
 import 'puppeteer';
 
-const PORT = 4173;
+const PORT = 5173;
 const URL = `http://localhost:${PORT}`;
 
 jest.setTimeout(5000);

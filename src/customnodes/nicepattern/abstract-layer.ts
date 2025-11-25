@@ -8,7 +8,7 @@ export abstract class AbstractLayer {
   protected output: number = 0;
   protected lastActive: boolean = false;
 
-  constructor(protected config: LayerConfig) {}
+  constructor(protected config: LayerConfig) { }
 
   public update(step: Step, dt: number): void {
     let isActive = this.lastActive;
@@ -34,6 +34,12 @@ export abstract class AbstractLayer {
         this.onRelease();
       }
       isActive = isActiveFromEvent;
+    } else {
+      // Empty step - release if active
+      if (this.lastActive) {
+        this.onRelease();
+      }
+      isActive = false;
     }
 
     this.process(isActive, step, dt);

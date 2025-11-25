@@ -198,8 +198,10 @@ export function definePrimitiveNode<
 
         // Unwrap broadcast results
         const unwrapped: any = {};
+        // context.broadcast returns { fields: ... }
+        const broadcastFields = (broadcasted as any).fields || {};
         for (const [key, type] of Object.entries(options.inputs)) {
-          unwrapped[key] = fromStructor(broadcasted[key], type);
+          unwrapped[key] = fromStructor(broadcastFields[key], type);
         }
         processedInput = unwrapped;
       } else if (options.inputs) {
@@ -300,18 +302,19 @@ export function typedBroadcast<TSchema extends TypedBroadcastSchema>(
 
   const rawResult = context.broadcast(config, inputs);
   const processedResult: any = {};
+  const rawFields = (rawResult as any).fields || {};
 
   for (const [key, def] of Object.entries(schema)) {
     if (def.type) {
       // If combine is collect, the result is an array of Structors
       if (def.combine === 'collect') {
-        const arr = rawResult[key] as Structor[];
+        const arr = rawFields[key] as Structor[];
         processedResult[key] = arr.map(v => fromStructor(v, def.type!));
       } else {
-        processedResult[key] = fromStructor(rawResult[key], def.type!);
+        processedResult[key] = fromStructor(rawFields[key], def.type!);
       }
     } else {
-      processedResult[key] = rawResult[key];
+      processedResult[key] = rawFields[key];
     }
   }
 
