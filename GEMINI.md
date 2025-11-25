@@ -195,6 +195,38 @@ There is a fundamental architectural separation between the state used by the vi
 
 The `compiler.ts` file's responsibility is to perform this translation. It must read the UI-friendly `GridNode.config` and produce the correct, `Structor`-formatted `defaultConfig` for the `NodeInstance`. The current implementation only performs a trivial, incorrect mapping for literal nodes and needs to be redesigned.
 
+
+## Resolume Arena Integration (As of 2025-11-26)
+
+This entry documents the integration of Resolume Arena as a first-class I/O source.
+
+### Features Implemented
+
+1.  **Resolume Manager & State:**
+    *   `ResolumeManager`: A singleton that manages the WebSocket connection to Resolume (or a fake client). It handles subscriptions and parameter updates.
+    *   `ResolumeState`: A MobX observable tree mirroring the Resolume composition (Composition -> Layers -> Clips -> Effects -> Parameters). It uses a recursive parser to handle the complex JSON structure.
+
+2.  **I/O Nodes:**
+    *   `resolume:input`: A node that subscribes to a Resolume parameter path (e.g., `/composition/video/opacity`) and outputs its value.
+    *   `resolume:output`: A node that takes a value and sends it to a Resolume parameter path.
+
+3.  **UI Integration:**
+    *   **I/O Tab:** A new sidebar tab that displays the Resolume composition hierarchy. It supports expanding/collapsing sections and shows thumbnails for clips.
+    *   **Drag-and-Drop:** Parameters can be dragged from the I/O tab onto the graph grid.
+        *   Dropping on the **Input Column** (left) creates a `resolume:input` node.
+        *   Dropping on the **Output Column** (right) creates a `resolume:output` node.
+        *   Dropping on the **Main Grid** creates a `resolume:input` node by default.
+
+### Architectural Notes
+
+*   **Path-Based Addressing:** Parameters are addressed using hierarchical paths. The `ResolumeManager` maps these paths to the underlying IDs required by the Resolume API (currently mocked).
+*   **Recursive Parsing:** The `ResolumeState` parser is designed to be robust, handling various nested structures (effects within clips, parameters within effects, etc.) genericly where possible.
+*   **MobX Integration:** The entire Resolume state tree is observable, allowing the UI to react instantly to changes from the WebSocket.
+
+### Visual Polish
+
+*   **Color Coding:**
+    *   **Wires:** Wires are now color-coded based on a hash of their port names. This helps distinguish different signal paths visually.
 ## Wire Layout, UI Polish, and Runtime Fixes (As of 2025-11-26)
 
 This entry documents a series of improvements to the wire layout engine, visual polish, and critical bug fixes in the runtime.

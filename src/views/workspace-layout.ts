@@ -3,6 +3,7 @@ import { html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import './app-sidebar';
 import './workspace-panel';
+import './io-tab';
 import './graph-editor';
 
 @customElement('workspace-layout')
@@ -28,13 +29,13 @@ export class WorkspaceLayout extends MobxLitElement {
       overflow: hidden;
     }
 
-    workspace-panel {
+    .sidebar-panel {
       flex: 0 0 auto;
-      transition: width 0.2s ease;
-    }
-
-    workspace-panel[hidden] {
-      display: none;
+      width: 300px;
+      border-right: 1px solid #333;
+      background: #252526;
+      display: flex;
+      flex-direction: column;
     }
 
     .editor-container {
@@ -50,17 +51,21 @@ export class WorkspaceLayout extends MobxLitElement {
   `;
 
   @state()
-  workspaceOpen = true;
+  activeTab: string | null = 'workspace';
 
   render() {
     return html`
       <app-sidebar
-        .active=${this.workspaceOpen}
-        @toggle-workspace=${this.toggleWorkspace}
+        .activeTab=${this.activeTab}
+        @switch-tab=${this.handleSwitchTab}
       ></app-sidebar>
 
       <div class="panels">
-        ${this.workspaceOpen ? html`<workspace-panel></workspace-panel>` : ''}
+        ${this.activeTab ? html`
+          <div class="sidebar-panel">
+            ${this.renderActivePanel()}
+          </div>
+        ` : ''}
 
         <div class="editor-container">
           <graph-editor></graph-editor>
@@ -69,7 +74,23 @@ export class WorkspaceLayout extends MobxLitElement {
     `;
   }
 
-  private toggleWorkspace() {
-    this.workspaceOpen = !this.workspaceOpen;
+  private renderActivePanel() {
+    switch (this.activeTab) {
+      case 'workspace':
+        return html`<workspace-panel></workspace-panel>`;
+      case 'io':
+        return html`<io-tab></io-tab>`;
+      default:
+        return null;
+    }
+  }
+
+  private handleSwitchTab(e: CustomEvent) {
+    const tab = e.detail.tab;
+    if (this.activeTab === tab) {
+      this.activeTab = null; // Toggle off
+    } else {
+      this.activeTab = tab;
+    }
   }
 }

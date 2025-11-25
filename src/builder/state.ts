@@ -181,12 +181,12 @@ export class AppController {
     }
   }
 
-  public createNode(typeId: string, x: number, y: number): GridNode {
+  public createNode(typeId: string, x: number, y: number, initialConfig?: Partial<GridNode['config']>): GridNode {
     const newNode: GridNode = {
       id: generateId('node'),
       x,
       y,
-      config: { typeId, values: {} },
+      config: { typeId, values: {}, ...initialConfig },
     };
     this.dispatch([{ type: 'node.create', node: newNode }]);
     return newNode;

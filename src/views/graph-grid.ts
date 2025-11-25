@@ -215,6 +215,8 @@ export class GraphGrid extends MobxLitElement {
     this.resizeObserver.observe(this);
     // Initial size
     this.clientWidth = this.offsetWidth;
+    this.addEventListener('dragover', this.handleDragOver);
+    this.addEventListener('drop', this.handleDrop);
   }
 
   disconnectedCallback() {
@@ -223,7 +225,53 @@ export class GraphGrid extends MobxLitElement {
     this.removeEventListener('dblclick', this.handleDblClick);
     this.removeEventListener('connection-delete', this.handleConnectionDelete as EventListener);
     this.removeEventListener('scroll', this.handleScroll);
+    this.removeEventListener('dragover', this.handleDragOver);
+    this.removeEventListener('drop', this.handleDrop);
     this.resizeObserver.disconnect();
+  }
+
+  private handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+  }
+
+  private handleDrop(e: DragEvent) {
+    e.preventDefault();
+    const data = e.dataTransfer?.getData('application/json');
+    if (!data) return;
+
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.type === 'resolume:parameter') {
+        const rect = this.getBoundingClientRect();
+        const dropX = e.clientX - rect.left;
+        const dropY = e.clientY - rect.top;
+        const gridY = Math.floor((dropY + this.scrollTop) / 110);
+
+        let nodeType = 'resolume:input';
+        let x = 0;
+
+        // Determine type based on column
+        if (dropX < 130) {
+          // Input Column
+          nodeType = 'resolume:input';
+          x = 0;
+        } else if (dropX > this.clientWidth - 130) {
+          // Output Column
+          nodeType = 'resolume:output';
+          x = 0;
+        } else {
+          // Main Grid
+          nodeType = 'resolume:input';
+          x = Math.floor((dropX + this.scrollLeft) / 110);
+        }
+
+        const newNode = appController.createNode(nodeType, x, gridY, { path: parsed.path });
+        localController.queueSelectPaths([newNode.id]);
+      }
+    } catch (err) {
+      console.error('Failed to parse drop data', err);
+    }
   }
 
   render() {

@@ -47,21 +47,36 @@ export class AppSidebar extends MobxLitElement {
     }
   `;
 
-  @property({ type: Boolean })
-  active = false;
+  @property({ type: String })
+  activeTab: string | null = null;
 
   render() {
     return html`
-      <div class="icon ${this.active ? 'active' : ''}" @click=${this.toggle} title="Workspace">
+      <div
+        class="icon ${this.activeTab === 'workspace' ? 'active' : ''}"
+        @click=${() => this.switchTab('workspace')}
+        title="Workspace"
+      >
         <svg viewBox="0 0 24 24">
           <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        </svg>
+      </div>
+
+      <div
+        class="icon ${this.activeTab === 'io' ? 'active' : ''}"
+        @click=${() => this.switchTab('io')}
+        title="I/O"
+      >
+        <svg viewBox="0 0 24 24">
+          <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
         </svg>
       </div>
     `;
   }
 
-  private toggle() {
-    this.dispatchEvent(new CustomEvent('toggle-workspace', {
+  private switchTab(tab: string) {
+    this.dispatchEvent(new CustomEvent('switch-tab', {
+      detail: { tab },
       bubbles: true,
       composed: true
     }));

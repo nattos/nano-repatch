@@ -161,6 +161,52 @@ defaultNodeRepository.register({
   `
 });
 
+import { resolumeInputNode, resolumeOutputNode } from '../customnodes/resolume/nodes';
+
+defaultNodeRepository.register({
+  id: 'resolume:input',
+  version: '1.0.0',
+  displayName: 'Resolume Input',
+  definition: resolumeInputNode,
+  inputs: [],
+  outputs: [
+    { name: 'value', type: AnyType, description: 'Value from Resolume parameter' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
+  renderInspector: (node, onchange) => html`
+    <div class="field">
+      <label>Path:</label>
+      <input
+        type="text"
+        .value=${node.config.path || ''}
+        @change=${(e: Event) => onchange({ path: (e.target as HTMLInputElement).value })}
+      />
+    </div>
+  `
+});
+
+defaultNodeRepository.register({
+  id: 'resolume:output',
+  version: '1.0.0',
+  displayName: 'Resolume Output',
+  definition: resolumeOutputNode,
+  inputs: [
+    { name: 'value', type: AnyType, description: 'Value to send to Resolume' }
+  ],
+  outputs: [],
+  compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
+  renderInspector: (node, onchange) => html`
+    <div class="field">
+      <label>Path:</label>
+      <input
+        type="text"
+        .value=${node.config.path || ''}
+        @change=${(e: Event) => onchange({ path: (e.target as HTMLInputElement).value })}
+      />
+    </div>
+  `
+});
+
 const ioNodeBodyRenderer = (node: GridNode, { handleVirtualInputChange }: GraphNodeRenderHandlers) => html`
   <div class="virtual-input-field-wrapper">
     <label>Value:</label>
