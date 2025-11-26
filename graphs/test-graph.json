@@ -7,7 +7,7 @@
       "config": {
         "typeId": "nicepattern:chaos_generator",
         "values": {},
-        "density": 0.4
+        "density": 0.45
       }
     },
     "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
@@ -26,7 +26,7 @@
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
         "values": {},
-        "density": 0.6
+        "density": 0.45
       }
     },
     "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
@@ -55,8 +55,8 @@
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"
     },
-    "conn-88c43010-1cb7-433a-b8ae-2282a6a10a87": {
-      "id": "conn-88c43010-1cb7-433a-b8ae-2282a6a10a87",
+    "conn-25ffc1b6-235a-43fc-b013-b3ba13463398": {
+      "id": "conn-25ffc1b6-235a-43fc-b013-b3ba13463398",
       "fromNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "fromPort": "event_out",
       "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",

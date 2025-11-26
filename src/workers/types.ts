@@ -53,14 +53,17 @@ export type ExecutorWorkerMessage =
   | UpdateInputMessage
   | ControlMessage;
 
-export type ExecutionUpdateMessage = {
+import { AudioCommand } from '../audio/virtual-audio';
+
+export interface ExecutionUpdateMessage {
   type: 'EXECUTION_UPDATE';
   outputs: Map<string, StructorRecord>; // Note: Map might need serialization if not supported directly
   stats: {
     nodeCount: number;
     executionTime: number;
   };
-};
+  audioCommands?: AudioCommand[];
+}
 
 // Maps are supported in structured clone (postMessage) in modern browsers.
 export type ExecutorMainMessage = ExecutionUpdateMessage;

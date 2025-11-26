@@ -4,10 +4,13 @@ import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';
 import { Structor, StructorRecord } from '../structor/structor';
 import '../customnodes/nicepattern/nodes';
 
+import { VirtualAudioContext } from '../audio/virtual-audio';
+
 let executor: GraphExecutor | null = null;
 let intervalId: any = null;
 let frameRate = 60;
 let isRunning = false;
+let virtualAudioContext = new VirtualAudioContext();
 
 // Clock state
 let clock = { beat: 0 };
@@ -19,7 +22,9 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
     case 'INIT_GRAPH':
       // console.log('Executor Worker: Initializing graph...');
       executor = new GraphExecutor(msg.graph, defaultNodeRepository);
-      // If we were running, we keep running with the new executor
+      // Reset audio context on new graph?
+      // virtualAudioContext = new VirtualAudioContext(); // Maybe?
+      // For now, keep it persistent or reset if needed.
       break;
 
     case 'UPDATE_CONFIG':
@@ -79,8 +84,30 @@ function runTick() {
   const dt = 1 / frameRate;
   clock.beat += dt * beatsPerSecond;
 
+  // Sync virtual audio time
+  virtualAudioContext.currentTime = clock.beat; // Or use a separate time accumulator?
+  // ToneSynthLayer uses ctx.currentTime which is usually seconds.
+  // clock.beat is beats.
+  // We should probably track seconds.
+  // Let's add a seconds counter.
+  // But for now, let's just use clock.beat as a proxy or add a seconds field.
+  // Actually, let's just use a local seconds accumulator.
+  // Or just rely on dt.
+
+  // Let's assume clock.beat is fine for now, or use a separate time.
+  // Better:
+  // virtualAudioContext.currentTime += dt;
+
+  // But wait, virtualAudioContext is global.
+  // We should initialize it properly.
+  // Let's just increment it here.
+  virtualAudioContext.currentTime += dt;
+
   try {
-    executor.update({ clock: { beat: clock.beat, dt } });
+    executor.update({
+      clock: { beat: clock.beat, dt },
+      audio: { context: virtualAudioContext }
+    });
   } catch (e) {
     console.error('Executor Worker: Error during update', e);
     return;
@@ -96,13 +123,16 @@ function runTick() {
     sanitizedOutputs.set(nodeId, sanitizeStructorRecord(output));
   }
 
+  const audioCommands = virtualAudioContext.flushCommands();
+
   const updateMsg: ExecutionUpdateMessage = {
     type: 'EXECUTION_UPDATE',
     outputs: sanitizedOutputs,
     stats: {
       nodeCount: executor.graphNodeCount,
       executionTime: endTime - startTime
-    }
+    },
+    audioCommands: audioCommands.length > 0 ? audioCommands : undefined
   };
 
   self.postMessage(updateMsg);

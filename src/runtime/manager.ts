@@ -19,6 +19,8 @@ import {
 
 const FRAME_RATE = 60;
 
+import { AudioRenderer } from '../audio/audio-renderer';
+
 export class RuntimeManager {
   // We no longer expose the executor directly.
   // @observable executor: GraphExecutor | null = null;
@@ -35,6 +37,7 @@ export class RuntimeManager {
 
   private compilerWorker: Worker;
   private executorWorker: Worker;
+  private audioRenderer = new AudioRenderer();
 
   constructor(
     private appController: AppController,
@@ -76,6 +79,10 @@ export class RuntimeManager {
           frameRate: FRAME_RATE
         };
         this.executorWorker.postMessage(msg);
+
+        if (isRealtime) {
+          this.audioRenderer.resume();
+        }
       }
     );
   }
@@ -140,6 +147,10 @@ export class RuntimeManager {
       }
       this.stats = msg.stats;
     });
+
+    if (msg.audioCommands) {
+      this.audioRenderer.execute(msg.audioCommands);
+    }
   }
 
   private updateNodeConfigsAndRealtimeStatus() {
@@ -204,7 +215,7 @@ export class RuntimeManager {
       // I'll add a 'STEP' action to the worker in a moment.
       const stepMsg: ExecutorWorkerMessage = {
         type: 'CONTROL',
-        action: 'STEP' as any // We need to update types.ts
+        action: 'STEP'
       };
       this.executorWorker.postMessage(stepMsg);
     }

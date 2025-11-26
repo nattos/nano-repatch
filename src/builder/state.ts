@@ -534,14 +534,12 @@ export class LocalController {
 
     const obstacles = Object.values(nodes).map(n => ({ x: n.x, y: n.y }));
 
-    console.log('Computing wire layout for', wires.length, 'wires');
     // For now, we don't track granular changes, so we don't pass changedWireIds.
     // But we pass previousResult to allow for potential future optimizations or stability.
     const result = computeWireLayout(wires, {
       obstacles,
       previousResult: this.observableState.wireLayout
     });
-    console.log('Computed layout:', result);
     this.observableState.wireLayout = result;
   }
 

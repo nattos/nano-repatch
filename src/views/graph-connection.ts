@@ -54,7 +54,6 @@ export class GraphConnection extends MobxLitElement {
 
   render() {
     const wireLayout = localController.observableState.wireLayout.wires[this.connection.id];
-    console.log('GraphConnection render', this.connection.id, 'layout:', wireLayout);
     let d = '';
 
     if (wireLayout && wireLayout.path.length > 0) {
