@@ -3,17 +3,26 @@ import {
   observable,
   reaction,
   runInAction,
+  toJS,
 } from 'mobx';
 import { AppController, AppState, LocalController } from '../builder/state';
-import { compileGraph } from '../builder/compiler';
-import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
 import { PrimitiveNodeDefinition } from '../structor/structor';
+import {
+  CompilerWorkerMessage,
+  CompilerMainMessage,
+  ExecutorWorkerMessage,
+  ExecutorMainMessage,
+  GraphCompiledMessage,
+  ExecutionUpdateMessage
+} from '../workers/types';
 
 const FRAME_RATE = 60;
 
 export class RuntimeManager {
-  @observable executor: GraphExecutor | null = null;
+  // We no longer expose the executor directly.
+  // @observable executor: GraphExecutor | null = null;
+
   @observable outputs = new Map<string, any>();
   @observable stats = {
     nodeCount: 0,
@@ -23,14 +32,21 @@ export class RuntimeManager {
 
   private nodeRepository = defaultNodeRepository;
   private realtimeNodeCache = new Map<string, boolean>();
-  private animationFrameId: number | null = null;
-  private clock = { beat: 0 };
+
+  private compilerWorker: Worker;
+  private executorWorker: Worker;
 
   constructor(
     private appController: AppController,
     private localController: LocalController
   ) {
     makeObservable(this);
+
+    // Initialize Workers
+    this.compilerWorker = new Worker(new URL('../workers/compiler.worker.ts', import.meta.url), { type: 'module' });
+    this.executorWorker = new Worker(new URL('../workers/executor.worker.ts', import.meta.url), { type: 'module' });
+
+    this.setupWorkerListeners();
 
     // This reaction will trigger a full recompile when the graph structure changes.
     reaction(
@@ -46,11 +62,6 @@ export class RuntimeManager {
       () => this.getConfigSignature(this.appController.observableState),
       () => {
         this.updateNodeConfigsAndRealtimeStatus();
-        // If not in realtime mode, run execution once.
-        // In realtime mode, the loop is responsible for execution.
-        if (!this.isRealtimeGraph) {
-          this.runExecution();
-        }
       },
       { delay: 50 } // Debounce config changes
     );
@@ -59,20 +70,79 @@ export class RuntimeManager {
     reaction(
       () => this.isRealtimeGraph,
       (isRealtime) => {
-        if (isRealtime) {
-          this.startRealtimeLoop();
-        } else {
-          this.stopRealtimeLoop();
-          // After stopping, run once to ensure a final state.
-          this.runExecution();
-        }
+        const msg: ExecutorWorkerMessage = {
+          type: 'CONTROL',
+          action: isRealtime ? 'START' : 'STOP',
+          frameRate: FRAME_RATE
+        };
+        this.executorWorker.postMessage(msg);
       }
     );
   }
 
-  private updateNodeConfigsAndRealtimeStatus() {
-    if (!this.executor) return;
+  private setupWorkerListeners() {
+    this.compilerWorker.onmessage = (event: MessageEvent<CompilerMainMessage>) => {
+      const msg = event.data;
+      if (msg.type === 'GRAPH_COMPILED') {
+        this.handleGraphCompiled(msg);
+      }
+    };
 
+    this.executorWorker.onmessage = (event: MessageEvent<ExecutorMainMessage>) => {
+      const msg = event.data;
+      if (msg.type === 'EXECUTION_UPDATE') {
+        this.handleExecutionUpdate(msg);
+      }
+    };
+  }
+
+  private handleGraphCompiled(msg: GraphCompiledMessage) {
+    // console.log('RuntimeManager: Graph compiled, initializing executor worker');
+    const initMsg: ExecutorWorkerMessage = {
+      type: 'INIT_GRAPH',
+      graph: msg.graph
+    };
+    this.executorWorker.postMessage(initMsg);
+
+    // After init, we need to send current configs
+    this.updateNodeConfigsAndRealtimeStatus();
+
+    // If not realtime, we might want to trigger a single frame?
+    // The executor worker doesn't have a "step" command yet, but we can START/STOP or just rely on updates triggering it?
+    // Actually, our executor worker only runs on loop or explicit update?
+    // In the worker implementation, it only runs in `runTick` called by `setInterval`.
+    // We might want a "STEP" action for non-realtime updates.
+    // For now, let's assume we only run if realtime OR if we want to force an update.
+    // But wait, if it's NOT realtime, we still want to see the output when we change a slider.
+    // So we should probably have a way to request a single frame.
+    // Let's add 'STEP' to ControlMessage later if needed.
+    // For now, if not realtime, we can just START and STOP immediately? No that's hacky.
+    // Let's modify the worker to run a tick on config update?
+    // Or add a STEP action.
+    // Let's add STEP to the worker logic in a follow-up if needed.
+    // For now, let's just ensure we send configs.
+  }
+
+  private handleExecutionUpdate(msg: ExecutionUpdateMessage) {
+    runInAction(() => {
+      this.outputs.clear();
+      // msg.outputs is a Map if transferred, or object if JSON?
+      // postMessage with structured clone preserves Map.
+      if (msg.outputs instanceof Map) {
+        for (const [key, value] of msg.outputs.entries()) {
+          this.outputs.set(key, value);
+        }
+      } else {
+        // Fallback if it comes as object
+        for (const [key, value] of Object.entries(msg.outputs)) {
+          this.outputs.set(key, value);
+        }
+      }
+      this.stats = msg.stats;
+    });
+  }
+
+  private updateNodeConfigsAndRealtimeStatus() {
     const state = this.appController.observableState;
     let anyRealtime = false;
 
@@ -86,30 +156,57 @@ export class RuntimeManager {
         : node.config;
 
       const emptyConfig = { fields: {}, untagged: [] };
-      this.executor.setNodeConfig(node.id, (instanceConfig ?? emptyConfig) as any);
+      const finalConfig = (instanceConfig ?? emptyConfig) as any;
+
+      // Send config update to worker
+      const updateMsg: ExecutorWorkerMessage = {
+        type: 'UPDATE_CONFIG',
+        nodeId: node.id,
+        config: toJS(finalConfig),
+        isRealtime: false // Placeholder, logic below
+      };
+      this.executorWorker.postMessage(updateMsg);
 
       // Update virtual literal nodes if they exist
       if (node.config.values) {
         for (const [portName, value] of Object.entries(node.config.values)) {
           const virtualNodeId = `${node.id}-virtual-${portName}`;
-          // We can safely call setNodeConfig; if the node doesn't exist (because it was connected), it does nothing.
-          this.executor.setNodeConfig(virtualNodeId, value as any);
+          const virtualMsg: ExecutorWorkerMessage = {
+            type: 'UPDATE_CONFIG',
+            nodeId: virtualNodeId,
+            config: toJS(value) as any,
+            isRealtime: false
+          };
+          this.executorWorker.postMessage(virtualMsg);
         }
       }
 
-      // Check if node is realtime. We cast to any to access the new optional method.
-      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.((instanceConfig ?? emptyConfig) as any) ?? false;
+      // Check if node is realtime
+      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(finalConfig) ?? false;
       this.realtimeNodeCache.set(node.id, isRealtime);
       if (isRealtime) {
         anyRealtime = true;
       }
     }
 
-    // Update the observable that controls the loop, if it has changed.
+    // Update the observable that controls the loop
     if (this.isRealtimeGraph !== anyRealtime) {
       runInAction(() => {
         this.isRealtimeGraph = anyRealtime;
       });
+    }
+
+    // If not realtime, we should trigger a single execution step to update outputs
+    if (!this.isRealtimeGraph) {
+      // We need a way to trigger one frame.
+      // Let's send a special control message or just rely on the worker running one tick?
+      // The worker currently only runs on loop.
+      // I'll add a 'STEP' action to the worker in a moment.
+      const stepMsg: ExecutorWorkerMessage = {
+        type: 'CONTROL',
+        action: 'STEP' as any // We need to update types.ts
+      };
+      this.executorWorker.postMessage(stepMsg);
     }
   }
 
@@ -135,93 +232,27 @@ export class RuntimeManager {
   }
 
   private recompileAndRun() {
-    console.log('Recompiling graph...');
+    // console.log('RuntimeManager: Sending compile request...');
     const state = this.appController.observableState;
-    const graphDef = compileGraph(
-      state,
-      this.localController.observableState.loadedSubgraphs,
-      this.nodeRepository
-    );
+    // We need to snapshot the state to avoid passing observables directly if that's an issue?
+    // postMessage uses structured clone. Observables might have extra properties.
+    // But usually MobX proxies are transparent enough or we should use `toJS`.
+    // Let's use a simplified snapshot or rely on structured clone.
+    // `state` is a complex object. `toJS` from MobX is safer.
+    // But `state` is `AppState`.
+    // Let's try passing it directly first. If it fails, we use `toJS`.
+    // Actually, `state` contains `GraphState` which contains `GridNode`s.
+    // It should be fine.
 
-    const newExecutor = new GraphExecutor(graphDef, this.nodeRepository);
+    // Wait, `subgraphs` from localController.
+    const subgraphs = this.localController.observableState.loadedSubgraphs;
 
-    runInAction(() => {
-      this.executor = newExecutor;
-      this.realtimeNodeCache.clear();
-      this.updateNodeConfigsAndRealtimeStatus();
-
-      // If we are not in realtime mode after recompiling, run once.
-      // If we are, the loop will be started by the isRealtimeGraph reaction.
-      if (!this.isRealtimeGraph) {
-        this.runExecution();
-      }
-    });
-  }
-
-  private startRealtimeLoop() {
-    if (this.animationFrameId !== null) return;
-    console.log(`Starting real-time execution loop at ${FRAME_RATE} FPS.`);
-
-    const loop = () => {
-      if (!this.executor) {
-        this.stopRealtimeLoop();
-        return;
-      }
-
-      // Mark all real-time nodes as dirty for this frame.
-      for (const [nodeId, isRealtime] of this.realtimeNodeCache.entries()) {
-        if (isRealtime) {
-          this.executor.markDirty(nodeId);
-        }
-      }
-
-      // Assuming 120 BPM for beat calculation
-      const BPM = 120;
-      const beatsPerSecond = BPM / 60;
-      const dt = 1 / FRAME_RATE;
-      this.clock.beat += dt * beatsPerSecond;
-
-      // Pass clock state to execution, which will now only process dirty nodes.
-      this.runExecution({ clock: { beat: this.clock.beat, dt } });
-      this.animationFrameId = requestAnimationFrame(loop);
+    const msg: CompilerWorkerMessage = {
+      type: 'COMPILE_GRAPH',
+      state: toJS(state),
+      subgraphs: Object.fromEntries(toJS(subgraphs))
     };
-    this.animationFrameId = requestAnimationFrame(loop);
-  }
-
-  private stopRealtimeLoop() {
-    if (this.animationFrameId !== null) {
-      console.log('Stopping real-time execution loop.');
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-  }
-
-  private runExecution(contextUpdate?: { clock: { beat: number; dt: number } }) {
-    if (!this.executor) {
-      return;
-    }
-
-    const startTime = performance.now();
-    // Pass clock context to executor. Assuming executor.update is modified.
-    this.executor.update(contextUpdate ?? {});
-    const endTime = performance.now();
-
-    const newOutputs = this.executor.getOutputs();
-    const newStats = {
-      nodeCount: this.executor.graphNodeCount,
-      executionTime: endTime - startTime,
-    };
-
-    runInAction(() => {
-      this.outputs.clear();
-      for (const [key, value] of newOutputs.entries()) {
-        this.outputs.set(key, structuredClone(value));
-      }
-      this.stats = newStats;
-    });
-
-    if (!this.isRealtimeGraph) {
-      console.log(`Execution finished in ${newStats.executionTime.toFixed(2)}ms`);
-    }
+    this.compilerWorker.postMessage(msg);
   }
 }
+

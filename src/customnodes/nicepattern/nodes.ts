@@ -29,7 +29,6 @@ import {
   ToneSynthLayer,
 } from "./layers";
 import { AbstractLayer, LayerConfig } from "./abstract-layer";
-import { html } from "lit";
 
 // --- Real-time State Management ---
 // State is now handled by the ExecutionContext and definePrimitiveNode helper.
@@ -112,29 +111,6 @@ defaultNodeRepository.register({
     },
     untagged: [],
   }),
-  renderInspector: (node, onchange) => html`
-    <div class="field">
-      <label>Target Note:</label>
-      <input
-        type="number"
-        .value=${node.config?.targetNote ?? 0}
-        @input=${(e: Event) =>
-      onchange({ targetNote: parseInt((e.target as HTMLInputElement).value) })}
-      />
-    </div>
-    <div class="field">
-      <label>Density:</label>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        .value=${node.config?.density ?? 0.5}
-        @input=${(e: Event) =>
-      onchange({ density: parseFloat((e.target as HTMLInputElement).value) })}
-      />
-    </div>
-  `,
 });
 
 // ChaosGenerator
@@ -173,38 +149,6 @@ defaultNodeRepository.register({
     },
     untagged: [],
   }),
-  renderInspector: (node, onchange) => html`
-      <div class="field">
-        <label>Min Note:</label>
-        <input
-          type="number"
-          .value=${node.config?.minNote ?? 0}
-          @input=${(e: Event) =>
-      onchange({ minNote: parseInt((e.target as HTMLInputElement).value) })}
-        />
-      </div>
-      <div class="field">
-        <label>Max Note:</label>
-        <input
-        type="number"
-        .value=${node.config?.maxNote ?? 12}
-        @input=${(e: Event) =>
-      onchange({ maxNote: parseInt((e.target as HTMLInputElement).value) })}
-        />
-      </div>
-      <div class="field">
-        <label>Density:</label>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          .value=${node.config?.density ?? 0.5}
-          @input=${(e: Event) =>
-      onchange({ density: parseFloat((e.target as HTMLInputElement).value) })}
-        />
-      </div>
-    `,
 });
 
 // Pattern Node
@@ -305,77 +249,6 @@ function createLayerNode(
     }),
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
-
-      // Update layer config if needed (though layer usually takes config in constructor)
-      // The original code re-created the layer if config changed because key included config.
-      // With our new state mechanism, state is persisted per config key (hack in type-helpers).
-      // So if config changes, we get new state, so new layer. Correct.
-      // But we should probably update the layer's target note if it supports it, or rely on the re-creation.
-      // Since the hack in type-helpers uses config in key, a config change = new state = new layer.
-      // So we just need to ensure the initial layer has the right config.
-      // But createState doesn't receive config!
-      // Ah, this is a limitation of the current createState design if we want to rely on config-based keys.
-      // If we rely on config-based keys, then createState is called when config changes.
-      // But we can't pass config to createState in the current signature.
-      // However, we can update the layer in execute.
-
-      // Assuming AbstractLayer has a way to set targetNoteIndex or we just rely on it being correct?
-      // The original code passed targetNote to constructor.
-      // Let's check AbstractLayer.
-      // It seems we might need to update the layer properties.
-      // Or we can just assume the layer is fresh if config changed (due to the key hack).
-      // But wait, if we use the key hack, we are creating a NEW state for every config change.
-      // So we need to initialize it correctly.
-      // But createState doesn't take arguments.
-      // So we initialize with default, then update in execute?
-      // Or we change createState to take config?
-      // Let's update the layer in execute to be safe.
-
-      // Actually, looking at the original code:
-      // const targetNote = (config as StructorRecord).fields.targetNote as number;
-      // nodeStateCache.set(key, { layer: new LayerClass({ targetNoteIndex: targetNote }), ... });
-
-      // So we need to handle this.
-      // Since we can't pass config to createState, we'll initialize with 0, and then...
-      // wait, LayerClass constructor takes config.
-      // If we can't pass config to createState, we can't fully emulate the original behavior if the layer is immutable.
-      // But AbstractLayer likely allows updates.
-      // Let's assume we can update it or that we can access config in execute and re-initialize if needed?
-      // No, state is persistent.
-
-      // Let's just update the layer's target note in execute if possible.
-      // If not, we might need to extend createState to take config.
-      // But for now, let's assume we can set it.
-      // Actually, AbstractLayer usually has an update method.
-
-      // Let's stick to the current plan: initialize with 0, and if the layer needs the config, we rely on the fact that
-      // we are using the config-based key, so we are getting a fresh state for this config.
-      // But wait, if we get a fresh state, createState is called.
-      // And createState doesn't know the config.
-      // So we create a layer with targetNoteIndex: 0.
-      // Then in execute, we have the real config.
-      // We should probably check if the layer's target note matches the config and update it?
-      // Or just assume the layer handles it?
-      // The original code passed it to constructor.
-
-      // Let's try to update the layer in execute.
-      // But wait, AbstractLayer definition is not visible here.
-      // Let's assume we can't easily change the layer's target note after construction if it's not exposed.
-      // However, looking at `createLayerNode` implementation, it passes `targetNoteIndex` to constructor.
-
-      // Ideally, `createState` should receive `config`.
-      // Let's modify `type-helpers.ts` to pass `config` to `createState`.
-      // But I already wrote `type-helpers.ts`.
-      // I can update it again.
-      // Or I can just initialize with 0 and hope for the best? No, that's risky.
-
-      // Let's update `type-helpers.ts` to pass `config` to `createState`.
-      // It's a small change and makes it much more robust.
-
-      // Wait, I can't do that in this tool call.
-      // I will proceed with this refactor assuming I will fix `type-helpers.ts` in the next step.
-      // So I will write the code as if `createState` receives `config`.
-
       const layer = state.layer as AbstractLayer;
 
       const noteEvent = inputs.event_in;
@@ -424,17 +297,6 @@ function createLayerNode(
       },
       untagged: [],
     }),
-    renderInspector: (node, onchange) => html`
-      <div class="field">
-        <label>Target Note:</label>
-        <input
-          type="number"
-          .value=${node.config?.targetNote ?? 0}
-          @input=${(e: Event) =>
-        onchange({ targetNote: parseInt((e.target as HTMLInputElement).value) })}
-        />
-      </div>
-    `,
   };
 }
 
@@ -490,7 +352,17 @@ const toneSynthPrimitive = definePrimitiveNode({
 
     // Use the provided audio context from execution context
     // We fallback to creating one only if not provided (e.g. in tests without mock audio)
-    activeLayer.audioContext ??= context.audio?.context || new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Safe for workers: check if window exists
+    if (!activeLayer.audioContext) {
+      if (context.audio?.context) {
+        activeLayer.audioContext = context.audio.context;
+      } else if (typeof window !== 'undefined') {
+        activeLayer.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      // If in worker and no context provided, audioContext remains undefined/null.
+      // ToneSynthLayer should handle this or it won't produce sound.
+    }
+
     activeLayer.update(syntheticStep, context.clock.dt);
     const result = activeLayer.getValue();
 
@@ -514,15 +386,4 @@ defaultNodeRepository.register({
     },
     untagged: [],
   }),
-  renderInspector: (node, onchange) => html`
-      <div class="field">
-        <label>Target Note:</label>
-        <input
-          type="number"
-          .value=${node.config?.targetNote ?? 0}
-          @input=${(e: Event) =>
-      onchange({ targetNote: parseInt((e.target as HTMLInputElement).value) })}
-        />
-      </div>
-    `,
 });

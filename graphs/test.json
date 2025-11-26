@@ -7,7 +7,7 @@
       "config": {
         "typeId": "clamp",
         "values": {
-          "min": 0.3,
+          "min": 0.24,
           "max": 0.81
         },
         "name": "clamp"
@@ -15,8 +15,8 @@
     },
     "node-40581207-edd9-48be-ad8c-04d49501bb6b": {
       "id": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
-      "x": 3,
-      "y": 0,
+      "x": 2,
+      "y": 2,
       "config": {
         "typeId": "literal",
         "values": {},

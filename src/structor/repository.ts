@@ -1,8 +1,6 @@
-import { html, nothing } from 'lit';
 import { NodeDefinition, Structor, StructorType } from './structor';
 import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
-import { parseFloatOr } from '../utils/utils';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
@@ -146,19 +144,6 @@ defaultNodeRepository.register({
     { name: '', type: AnyType, description: 'The literal value.' }
   ],
   compileConfig: (uiConfig) => uiConfig?.literal?.value ?? 0.0,
-  renderInspector: (node, onchange) => html`
-    <div class="field">
-      <label>Value:</label>
-      <input
-        type="text"
-        .value=${node.config?.literal?.value || 0}
-        @input=${(e: Event) => {
-      const value = parseFloatOr((e.target as HTMLInputElement).value) ?? 0;
-      onchange({ literal: { value } });
-    }}
-      />
-    </div>
-  `
 });
 
 import { resolumeInputNode, resolumeOutputNode } from '../customnodes/resolume/nodes';
@@ -173,16 +158,6 @@ defaultNodeRepository.register({
     { name: 'value', type: AnyType, description: 'Value from Resolume parameter' }
   ],
   compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
-  renderInspector: (node, onchange) => html`
-    <div class="field">
-      <label>Path:</label>
-      <input
-        type="text"
-        .value=${node.config.path || ''}
-        @change=${(e: Event) => onchange({ path: (e.target as HTMLInputElement).value })}
-      />
-    </div>
-  `
 });
 
 defaultNodeRepository.register({
@@ -195,29 +170,7 @@ defaultNodeRepository.register({
   ],
   outputs: [],
   compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
-  renderInspector: (node, onchange) => html`
-    <div class="field">
-      <label>Path:</label>
-      <input
-        type="text"
-        .value=${node.config.path || ''}
-        @change=${(e: Event) => onchange({ path: (e.target as HTMLInputElement).value })}
-      />
-    </div>
-  `
 });
-
-const ioNodeBodyRenderer = (node: GridNode, { handleVirtualInputChange }: GraphNodeRenderHandlers) => html`
-  <div class="virtual-input-field-wrapper">
-    <label>Value:</label>
-    <input
-      type="text"
-      .value=${(node.config.values && node.config.values['0']) || ''}
-      @input=${(e: Event) => handleVirtualInputChange(e, '0')}
-      class="virtual-input-field"
-    />
-  </div>
-`;
 
 defaultNodeRepository.register({
   id: 'input',
@@ -229,7 +182,6 @@ defaultNodeRepository.register({
     { name: '0', type: AnyType, description: 'The input value.' }
   ],
   compileConfig: (uiConfig) => uiConfig?.values?.['0'],
-  renderBody: ioNodeBodyRenderer,
 });
 
 defaultNodeRepository.register({
@@ -241,7 +193,6 @@ defaultNodeRepository.register({
     { name: '0', type: AnyType, description: 'The output value.' }
   ],
   outputs: [],
-  renderBody: ioNodeBodyRenderer,
 });
 
 defaultNodeRepository.register({
@@ -278,14 +229,4 @@ defaultNodeRepository.register({
       displayName: `Subgraph (Not Found)`
     };
   },
-  renderInspector: (node, onchange) => html`
-    <div class="field">
-      <label>Subgraph ID:</label>
-      <input
-        type="text"
-        .value=${node.config.subgraphId || ''}
-        @change=${(e: Event) => onchange({ subgraphId: (e.target as HTMLInputElement).value })}
-      />
-    </div>
-  `
 });
