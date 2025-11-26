@@ -12,6 +12,7 @@ export interface PortHint {
   // For "virtual inputs"
   defaultValue?: any;
   range?: [number, number];
+  redirect?: 'untagged';
 }
 
 export type InspectorChangeHandler = (config: Partial<GridNode['config']>) => void;

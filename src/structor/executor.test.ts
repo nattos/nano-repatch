@@ -189,4 +189,45 @@ describe('GraphExecutor', () => {
         // primitive_clamp returns an array for untagged output
         expect(output?.untagged[0]).toEqual([0.5]);
     });
+
+    it('should redirect named inputs to untagged when redirect: "untagged" is set', () => {
+        // Define a node with redirect
+        const redirectNodeDef: PrimitiveNodeDefinition = {
+            id: 'redirectNode', kind: 'primitive',
+            computeOutputTypes: () => ({ kind: 'record', fields: { 'out': numberType }, untagged: [] }),
+            execute: (inputs) => {
+                // Return the number of untagged inputs received
+                return { fields: { 'out': inputs.untagged.length }, untagged: [] };
+            }
+        };
+
+        const repo = new NodeRepository();
+        repo.register({
+            id: 'redirectNode', version: '1.0.0', displayName: 'Redirect Node', definition: redirectNodeDef,
+            inputs: [{ name: 'multi_in', type: numberType, redirect: 'untagged' }],
+            outputs: [{ name: 'out', type: numberType }]
+        });
+        repo.register({ id: 'literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
+
+        const graph: GraphDefinition = {
+            id: 'redirectGraph', kind: 'graph',
+            type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: { 'count': numberType }, untagged: [] } },
+            nodes: {
+                'l1': { definitionId: 'literal', defaultConfig: 1 },
+                'l2': { definitionId: 'literal', defaultConfig: 2 },
+                'r1': { definitionId: 'redirectNode' }
+            },
+            connections: [
+                { fromNode: 'l1', fromPort: 0, toNode: 'r1', toPort: 'multi_in' },
+                { fromNode: 'l2', fromPort: 0, toNode: 'r1', toPort: 'multi_in' }
+            ],
+            inputs: {},
+            outputs: { 'count': { nodeId: 'r1', port: 'out' } }
+        };
+
+        const executor = new GraphExecutor(graph, repo);
+        executor.update({});
+
+        expect(executor.getGraphOutput('count')).toBe(2);
+    });
 });

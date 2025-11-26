@@ -139,6 +139,12 @@ export class GraphExecutor {
           if (upstreamOutput) {
             const fromPort = conn.fromPort;
             const toPort = conn.toPort;
+
+            // Check for port redirection (e.g. named port -> untagged)
+            const nodeType = this.repository.getNodeType(instance.definitionId);
+            const portHint = nodeType?.inputs?.find(p => p.name === toPort);
+            const redirect = portHint?.redirect;
+
             let value: Structor;
             if (typeof fromPort === 'string' && fromPort) {
               value = upstreamOutput.fields[fromPort]
@@ -148,7 +154,9 @@ export class GraphExecutor {
               value = upstreamOutput.untagged[0];
             }
 
-            if (typeof toPort === 'string' && toPort) {
+            if (redirect === 'untagged') {
+              inputRecord.untagged.push(value);
+            } else if (typeof toPort === 'string' && toPort) {
               inputRecord.fields[toPort] = value;
             } else if (typeof toPort === 'number') {
               inputRecord.untagged[toPort] = value;

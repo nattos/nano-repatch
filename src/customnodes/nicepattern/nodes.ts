@@ -233,7 +233,7 @@ defaultNodeRepository.register({
   version: "1.0.0",
   displayName: "Pattern",
   definition: patternPrimitive,
-  inputs: [{ name: "seq_in", type: sequenceStructorType, description: "Input sequence(s)" }],
+  inputs: [{ name: "seq_in", type: sequenceStructorType, description: "Input sequence(s)", redirect: 'untagged' }],
   outputs: [{ name: "event_out", type: noteEventStructorType, description: "Real-time note events" }],
 });
 
