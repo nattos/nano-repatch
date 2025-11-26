@@ -146,31 +146,9 @@ defaultNodeRepository.register({
   compileConfig: (uiConfig) => uiConfig?.literal?.value ?? 0.0,
 });
 
-import { resolumeInputNode, resolumeOutputNode } from '../customnodes/resolume/nodes';
 
-defaultNodeRepository.register({
-  id: 'resolume:input',
-  version: '1.0.0',
-  displayName: 'Resolume Input',
-  definition: resolumeInputNode,
-  inputs: [],
-  outputs: [
-    { name: 'value', type: AnyType, description: 'Value from Resolume parameter' }
-  ],
-  compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
-});
 
-defaultNodeRepository.register({
-  id: 'resolume:output',
-  version: '1.0.0',
-  displayName: 'Resolume Output',
-  definition: resolumeOutputNode,
-  inputs: [
-    { name: 'value', type: AnyType, description: 'Value to send to Resolume' }
-  ],
-  outputs: [],
-  compileConfig: (uiConfig) => ({ fields: { path: uiConfig.path }, untagged: [] }),
-});
+
 
 defaultNodeRepository.register({
   id: 'input',

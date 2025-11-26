@@ -21,9 +21,9 @@ describe('GraphNode Subgraph Integration', () => {
     const subgraphState: GraphState = {
       inner: {
         nodes: {
-          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'input', name: 'MyInput' } },
-          'out1': { id: 'out1', x: 10, y: 0, config: { typeId: 'output', name: 'MyOutput' } },
-          'other': { id: 'other', x: 5, y: 0, config: { typeId: 'add' } } // Should be ignored
+          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'input', name: 'MyInput', values: {} } },
+          'out1': { id: 'out1', x: 10, y: 0, config: { typeId: 'output', name: 'MyOutput', values: {} } },
+          'other': { id: 'other', x: 5, y: 0, config: { typeId: 'add', values: {} } } // Should be ignored
         },
         connections: {}
       },
@@ -41,7 +41,7 @@ describe('GraphNode Subgraph Integration', () => {
       id: 'node-subgraph',
       x: 0,
       y: 0,
-      config: { typeId: 'subgraph', subgraphId: subgraphId }
+      config: { typeId: 'subgraph', subgraphId: subgraphId, values: {} }
     };
 
     const el = await fixture(html`<graph-node .node=${node}></graph-node>`);
@@ -63,18 +63,23 @@ describe('GraphNode Subgraph Integration', () => {
   });
 
   it('renders input/output nodes with virtual inputs', async () => {
-    const inputNode: GridNode = {
-      id: 'node-input',
+    const clampNode: GridNode = {
+      id: 'node-clamp',
       x: 0,
       y: 0,
-      config: { typeId: 'input', name: 'TestInput', values: { '0': '123' } }
+      config: { typeId: 'clamp', values: { 'min': 0.5 } }
     };
 
-    const el = await fixture(html`<graph-node .node=${inputNode}></graph-node>`);
+    const el = await fixture(html`<graph-node .node=${clampNode}></graph-node>`);
     await (el as LitElement).updateComplete;
 
     const virtualInputs = el.shadowRoot!.querySelectorAll('.virtual-input-field');
-    expect(virtualInputs.length).to.equal(1);
-    expect((virtualInputs[0] as HTMLInputElement).value).to.equal('123');
+    // Clamp has 2 inputs with defaults: min, max
+    expect(virtualInputs.length).to.equal(2);
+
+    // Find the min input
+    const minInput = Array.from(virtualInputs).find(i => i.id.includes('min'));
+    expect(minInput).to.exist;
+    expect((minInput as HTMLInputElement).value).to.equal('0.5');
   });
 });

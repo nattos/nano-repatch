@@ -1,6 +1,7 @@
 import { definePrimitiveNode, defineType } from '../../structor/type-helpers';
 import { resolumeManager } from '../../io/resolume/manager';
 import { Structor } from '../../structor/structor';
+import { defaultNodeRepository } from '../../structor/repository';
 
 const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
@@ -73,4 +74,34 @@ export const resolumeOutputNode = definePrimitiveNode({
     }
     return {};
   }
+});
+
+defaultNodeRepository.register({
+  id: 'resolume:input',
+  version: '1.0.0',
+  displayName: 'Resolume Input',
+  definition: resolumeInputNode,
+  inputs: [],
+  outputs: [{ name: 'value', type: anyType, description: 'Parameter value' }],
+  compileConfig: (uiConfig) => ({
+    fields: {
+      path: uiConfig?.path ?? '',
+    },
+    untagged: [],
+  }),
+});
+
+defaultNodeRepository.register({
+  id: 'resolume:output',
+  version: '1.0.0',
+  displayName: 'Resolume Output',
+  definition: resolumeOutputNode,
+  inputs: [{ name: 'value', type: anyType, description: 'Value to send' }],
+  outputs: [],
+  compileConfig: (uiConfig) => ({
+    fields: {
+      path: uiConfig?.path ?? '',
+    },
+    untagged: [],
+  }),
 });

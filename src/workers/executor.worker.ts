@@ -3,6 +3,8 @@ import { defaultNodeRepository } from '../structor/repository';
 import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';
 import { Structor, StructorRecord } from '../structor/structor';
 import '../customnodes/nicepattern/nodes';
+import '../customnodes/resolume/nodes';
+import { resolumeManager } from '../io/resolume/manager';
 
 import { VirtualAudioContext } from '../audio/virtual-audio';
 
@@ -11,6 +13,9 @@ let intervalId: any = null;
 let frameRate = 60;
 let isRunning = false;
 let virtualAudioContext = new VirtualAudioContext();
+
+// Connect Resolume Manager (Worker instance)
+resolumeManager.connect();
 
 // Clock state
 let clock = { beat: 0 };

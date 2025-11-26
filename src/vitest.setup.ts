@@ -1,5 +1,33 @@
 import { vi } from 'vitest';
 
+
+// Mock Web Audio API
+class MockAudioContext {
+  state = 'suspended';
+  destination = {};
+  createOscillator() { return { connect: () => { }, start: () => { }, stop: () => { }, disconnect: () => { }, frequency: { setValueAtTime: () => { } }, type: 'sine' }; }
+  createGain() { return { connect: () => { }, disconnect: () => { }, gain: { setValueAtTime: () => { }, linearRampToValueAtTime: () => { }, exponentialRampToValueAtTime: () => { }, cancelScheduledValues: () => { }, setTargetAtTime: () => { } } }; }
+  createBiquadFilter() { return { connect: () => { }, disconnect: () => { }, frequency: { setValueAtTime: () => { } }, type: 'lowpass' }; }
+  resume() { return Promise.resolve(); }
+  suspend() { return Promise.resolve(); }
+}
+
+(global as any).AudioContext = MockAudioContext;
+(global as any).webkitAudioContext = MockAudioContext;
+
+// Mock Worker
+class MockWorker {
+  onmessage: ((this: Worker, ev: MessageEvent) => any) | null = null;
+  postMessage(message: any) {
+    // Echo back if needed or just no-op
+  }
+  terminate() { }
+  addEventListener() { }
+  removeEventListener() { }
+  dispatchEvent() { return true; }
+}
+(global as any).Worker = MockWorker;
+
 // Mock IndexedDB
 if (!globalThis.indexedDB) {
   const mockTransaction = {
