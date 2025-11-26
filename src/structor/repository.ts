@@ -2,8 +2,7 @@ import { NodeDefinition, Structor, StructorType } from './structor';
 import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
-export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
-export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
+import { AnyType, NumberType } from './type-helpers';
 
 export interface PortHint {
   name: string; // Corresponds to tag. Empty string for default/untagged.
@@ -146,7 +145,54 @@ defaultNodeRepository.register({
   ],
   compileConfig: (uiConfig) => uiConfig?.literal?.value ?? 0.0,
 });
+import { expressionNode } from '../customnodes/expr/nodes';
+import { GraphCompiler } from '../customnodes/expr/parser';
 
+const exprCompiler = new GraphCompiler();
+
+defaultNodeRepository.register({
+  id: 'expression:script',
+  version: '1.0.0',
+  displayName: 'Expression',
+  definition: expressionNode,
+  inputs: [],
+  outputs: [
+    { name: 'result', type: AnyType, description: 'Result of the expression' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { code: uiConfig.code || '' }, untagged: [] }),
+  getPorts: (node) => {
+    const code = node.config.code || '';
+    if (!code.trim()) {
+      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+    }
+
+    try {
+      // We need to parse the code to find external variables.
+      // The GraphCompiler produces an ExecutionGraph.
+      // Nodes with op='input' represent external variables.
+      const graph = exprCompiler.compile(code);
+      const inputs: PortHint[] = [];
+
+      for (const node of Object.values(graph.nodes)) {
+        if (node.op === 'input') {
+          // Avoid duplicates
+          if (!inputs.find(i => i.name === node.params.key)) {
+            inputs.push({ name: node.params.key, type: AnyType, description: `Variable: ${node.params.key}` });
+          }
+        }
+      }
+
+      return {
+        inputs,
+        outputs: [{ name: 'result', type: AnyType }]
+      };
+    } catch (e) {
+      // If parsing fails, just return default ports or maybe show error?
+      // For now, return default.
+      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+    }
+  }
+});
 
 
 

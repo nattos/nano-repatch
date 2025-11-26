@@ -11,6 +11,9 @@ import {
   BroadcastConfig
 } from './structor';
 
+export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
+export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
+
 // --- Type Inference Helpers ---
 
 export type InferStructorType<T extends StructorType> =

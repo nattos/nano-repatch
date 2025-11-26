@@ -5,6 +5,7 @@ import { globalStyles } from './styles';
 import './structor/repository.ui';
 import './customnodes/nicepattern/nodes.ui';
 import './views/workspace-layout';
+import './views/monaco-editor';
 
 @customElement('nano-repatch')
 export class App extends MobxLitElement {

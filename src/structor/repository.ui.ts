@@ -3,6 +3,7 @@ import { defaultNodeRepository, GraphNodeRenderHandlers, InspectorChangeHandler 
 import { GridNode } from '../builder/state';
 import { parseFloatOr } from '../utils/utils';
 import { GraphState } from '../builder/state';
+import '../views/monaco-editor';
 
 // Helper to attach UI handlers
 function attachUI(id: string, ui: {
@@ -95,5 +96,13 @@ attachUI('subgraph', {
         @change=${(e: Event) => onchange({ subgraphId: (e.target as HTMLInputElement).value })}
       />
     </div>
+  `
+});
+
+// Expression Node
+attachUI('expression:script', {
+  renderInspector: (node, onchange) => html`
+@change=${(e: CustomEvent) => onchange({ code: e.detail.value })}
+    > </monaco-editor-wrapper>
   `
 });
