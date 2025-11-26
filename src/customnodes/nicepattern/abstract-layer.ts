@@ -10,7 +10,7 @@ export abstract class AbstractLayer {
 
   constructor(protected config: LayerConfig) { }
 
-  public update(step: Step, dt: number): void {
+  public update(step: Step, dt: number, isNewStep: boolean): void {
     let isActive = this.lastActive;
     const isEvent = step.noteIndex !== null;
     const isAnyNote = this.config.targetNoteIndex === undefined;
@@ -20,7 +20,8 @@ export abstract class AbstractLayer {
       if (isActiveFromEvent) {
         let isReleased = false;
         if (this.lastActive) {
-          if (!step.hold) {
+          // Only retrigger if it's a new step and hold is false
+          if (isNewStep && !step.hold) {
             this.onRelease();
             isReleased = true;
           }
@@ -28,6 +29,8 @@ export abstract class AbstractLayer {
           isReleased = true;
         }
         if (isReleased) {
+          // Only trigger if released (new note or retrigger)
+          // For sustained notes (hold=true), isReleased is false, so we don't retrigger.
           this.onTrigger(step.velocity);
         }
       } else if (!isActiveFromEvent && this.lastActive) {

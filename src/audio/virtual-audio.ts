@@ -14,7 +14,8 @@ export type AudioCommand =
   | { type: 'exponentialRampToValueAtTime'; id: string; param: string; value: number; time: number }
   | { type: 'setTargetAtTime'; id: string; param: string; target: number; startTime: number; timeConstant: number }
   | { type: 'cancelScheduledValues'; id: string; param: string; time: number }
-  | { type: 'setNodeProperty'; id: string; property: string; value: any };
+  | { type: 'setNodeProperty'; id: string; property: string; value: any }
+  | { type: 'dispose'; id: string };
 
 export class VirtualAudioParam {
   constructor(
@@ -24,52 +25,57 @@ export class VirtualAudioParam {
   ) { }
 
   setValueAtTime(value: number, startTime: number) {
+    const delay = Math.max(0, startTime - this.context.currentTime);
     this.context.addCommand({
       type: 'setParamValue',
       id: this.nodeId,
       param: this.paramName,
       value,
-      time: startTime
+      time: delay
     });
   }
 
   linearRampToValueAtTime(value: number, endTime: number) {
+    const delay = Math.max(0, endTime - this.context.currentTime);
     this.context.addCommand({
       type: 'linearRampToValueAtTime',
       id: this.nodeId,
       param: this.paramName,
       value,
-      time: endTime
+      time: delay
     });
   }
 
   exponentialRampToValueAtTime(value: number, endTime: number) {
+    const delay = Math.max(0, endTime - this.context.currentTime);
     this.context.addCommand({
       type: 'exponentialRampToValueAtTime',
       id: this.nodeId,
       param: this.paramName,
       value,
-      time: endTime
+      time: delay
     });
   }
 
   setTargetAtTime(target: number, startTime: number, timeConstant: number) {
+    const delay = Math.max(0, startTime - this.context.currentTime);
     this.context.addCommand({
       type: 'setTargetAtTime',
       id: this.nodeId,
       param: this.paramName,
       target,
-      startTime,
+      startTime: delay,
       timeConstant
     });
   }
 
   cancelScheduledValues(startTime: number) {
+    const delay = Math.max(0, startTime - this.context.currentTime);
     this.context.addCommand({
       type: 'cancelScheduledValues',
       id: this.nodeId,
       param: this.paramName,
-      time: startTime
+      time: delay
     });
   }
 }
@@ -89,6 +95,13 @@ export class VirtualAudioNode {
     this.context.addCommand({
       type: 'disconnect',
       sourceId: this.id
+    });
+  }
+
+  dispose() {
+    this.context.addCommand({
+      type: 'dispose',
+      id: this.id
     });
   }
 }
@@ -111,11 +124,13 @@ export class VirtualOscillatorNode extends VirtualAudioNode {
   }
 
   start(time: number = 0) {
-    this.context.addCommand({ type: 'start', id: this.id, time });
+    const delay = Math.max(0, time - this.context.currentTime);
+    this.context.addCommand({ type: 'start', id: this.id, time: delay });
   }
 
   stop(time: number = 0) {
-    this.context.addCommand({ type: 'stop', id: this.id, time });
+    const delay = Math.max(0, time - this.context.currentTime);
+    this.context.addCommand({ type: 'stop', id: this.id, time: delay });
   }
 }
 

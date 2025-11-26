@@ -1,11 +1,12 @@
 
-import { GraphDefinition, NodeDefinition, Structor, StructorRecord, ExecutionContext } from "./structor";
+import { GraphDefinition, NodeDefinition, Structor, StructorRecord, ExecutionContext, PrimitiveNodeDefinition } from "./structor";
 import { NodeRepository } from "./repository";
 
 interface NodeState {
   output: StructorRecord;
   config: Structor | null;
   isDirty: boolean;
+  isRealtime: boolean;
 }
 
 export class GraphExecutor {
@@ -63,10 +64,15 @@ export class GraphExecutor {
 
   private initializeStates() {
     for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {
+      const definition = this.repository.get(instance.definitionId);
+      const config = instance.defaultConfig ?? null;
+      const isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {}, untagged: [] }) ?? false;
+
       this.nodeStates.set(nodeId, {
         output: { fields: {}, untagged: [] },
         config: instance.defaultConfig ?? null,
         isDirty: true,
+        isRealtime,
       });
     }
   }
@@ -83,6 +89,9 @@ export class GraphExecutor {
     const state = this.nodeStates.get(nodeId);
     if (state) {
       state.config = config;
+      const instance = this.graph.nodes[nodeId];
+      const definition = this.repository.get(instance.definitionId);
+      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {}, untagged: [] }) ?? false;
       this.markDirty(nodeId);
     }
   }
@@ -101,20 +110,27 @@ export class GraphExecutor {
     }
   }
 
-  public update(userContext: Partial<ExecutionContext>): void {
-    for (const nodeId of this.executionOrder) {
-      const state = this.nodeStates.get(nodeId);
-      if (!state || !state.isDirty) {
-        continue;
+  public update(context: Partial<ExecutionContext>): void {
+    // Mark realtime nodes as dirty
+    for (const [nodeId, state] of this.nodeStates) {
+      if (state.isRealtime) {
+        this.markDirty(nodeId);
       }
+    }
+
+    for (const nodeId of this.executionOrder) {
+      const state = this.nodeStates.get(nodeId)!;
+      if (!state.isDirty) continue;
 
       const instance = this.graph.nodes[nodeId];
       const definition = this.repository.get(instance.definitionId);
 
       if (!definition || definition.kind !== 'primitive') {
+        if (!definition) console.warn(`Definition not found for node ${nodeId}`);
         continue;
       }
 
+      // Collect inputs
       const inputRecord: StructorRecord = { fields: {}, untagged: [] };
 
       for (const conn of this.graph.connections) {
@@ -169,9 +185,16 @@ export class GraphExecutor {
         }
       }
 
-      const context: ExecutionContext = {
-        clock: { beat: 0, dt: 0, },
-        ...userContext,
+      const executionContext: ExecutionContext = {
+        ...context,
+        // Ensure required properties are present if not in context (though context is partial)
+        // Actually, we provide the missing parts below.
+        // But TypeScript might complain if we spread Partial into ExecutionContext.
+        // We need to construct it carefully.
+
+        // We need to provide defaults for clock if missing
+        clock: context.clock ?? { beat: 0, dt: 0 },
+        audio: context.audio,
         broadcast: (config, inputs) => {
           if (config.reshape === 'vector') {
             const values = [...Object.values(inputs.fields), ...inputs.untagged];
@@ -220,7 +243,7 @@ export class GraphExecutor {
         nodeId: nodeId
       };
 
-      state.output = definition.execute(inputRecord, state.config as any, context);
+      state.output = definition.execute(inputRecord, state.config as any, executionContext);
       state.isDirty = false;
     }
   }

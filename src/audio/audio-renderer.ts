@@ -55,22 +55,6 @@ export class AudioRenderer {
           case 'start': {
             const node = this.nodes.get(cmd.id) as OscillatorNode;
             if (node) {
-              // Adjust time to be relative to now + delay?
-              // Or assume cmd.time is intended to be "now" if 0?
-              // ToneSynthLayer passes ctx.currentTime + offset.
-              // Worker sends us cmd.time.
-              // We need to map Worker Time -> Main Time.
-              // For now, let's assume cmd.time is relative to "now" if small, or we need a sync.
-              // Actually, ToneSynthLayer uses absolute time (ctx.currentTime).
-              // If VirtualAudioContext.currentTime is 0 and increments, it's not absolute.
-              // We should probably treat cmd.time as "offset from now" if it's close to 0?
-              // Or, better: The worker should send "time relative to current frame".
-              // But ToneSynthLayer logic is "start(time), stop(time + 0.35)".
-              // If we pass `time` as `0` in worker, then `stop` is `0.35`.
-              // In renderer: `start(ctx.currentTime + 0)`, `stop(ctx.currentTime + 0.35)`.
-              // This works if `cmd.time` is relative to the *batch execution time*.
-
-              // Let's assume cmd.time is relative to the batch start.
               const now = this.ctx.currentTime;
               node.start(now + cmd.time);
             }
@@ -128,6 +112,14 @@ export class AudioRenderer {
             const node = this.nodes.get(cmd.id) as any;
             if (node) {
               node[cmd.property] = cmd.value;
+            }
+            break;
+          }
+          case 'dispose': {
+            const node = this.nodes.get(cmd.id);
+            if (node) {
+              node.disconnect();
+              this.nodes.delete(cmd.id);
             }
             break;
           }

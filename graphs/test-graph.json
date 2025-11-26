@@ -7,7 +7,8 @@
       "config": {
         "typeId": "nicepattern:chaos_generator",
         "values": {},
-        "density": 0.45
+        "density": 0.45,
+        "maxNote": 0
       }
     },
     "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
@@ -19,16 +20,6 @@
         "values": {}
       }
     },
-    "node-70a66d18-f570-4d0e-9571-6cef9e7703f7": {
-      "id": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
-      "x": 2,
-      "y": 2,
-      "config": {
-        "typeId": "nicepattern:rhythmic_generator",
-        "values": {},
-        "density": 0.45
-      }
-    },
     "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
       "id": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
       "x": 6,
@@ -38,19 +29,22 @@
         "values": {},
         "targetNote": 0
       }
+    },
+    "node-70a66d18-f570-4d0e-9571-6cef9e7703f7": {
+      "id": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
+      "x": 2,
+      "y": 2,
+      "config": {
+        "typeId": "nicepattern:rhythmic_generator",
+        "values": {},
+        "density": 0.5
+      }
     }
   },
   "connections": {
     "conn-59250ebb-3b2c-40f3-ab6e-5915fd2cb0d6": {
       "id": "conn-59250ebb-3b2c-40f3-ab6e-5915fd2cb0d6",
       "fromNodeId": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
-      "fromPort": "seq_out",
-      "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
-      "toPort": "seq_in"
-    },
-    "conn-ea4c12bd-21e9-4262-be7c-c7b02595b897": {
-      "id": "conn-ea4c12bd-21e9-4262-be7c-c7b02595b897",
-      "fromNodeId": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"

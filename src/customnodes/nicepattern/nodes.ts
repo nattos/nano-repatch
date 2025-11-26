@@ -205,13 +205,21 @@ export const patternPrimitive = definePrimitiveNode({
 
       noteEvent.hold = currentStep.hold; // Set hold from currentStep
 
+      // Determine if we need to trigger a note
+      // 1. Note changed (different pitch or went from null to note)
+      // 2. Same note, but previous step didn't hold (Retrigger)
+      const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
+      const isSameNote = isNoteActive && currentStep.noteIndex === lastStep.noteIndex;
+      const shouldTrigger = isNoteActive && (!isSameNote || !lastStep.hold);
+
       if (currentStep.noteIndex !== lastStep.noteIndex) {
         if (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) {
           noteEvent.offNote = { note: lastStep.noteIndex, velocity: 0 };
         }
-        if (currentStep.noteIndex !== null && currentStep.noteIndex !== undefined) {
-          noteEvent.onNote = { note: currentStep.noteIndex, velocity: currentStep.velocity };
-        }
+      }
+
+      if (shouldTrigger) {
+        noteEvent.onNote = { note: currentStep.noteIndex!, velocity: currentStep.velocity };
       }
       state.lastStepIndex = currentStepIndex;
     }
@@ -243,15 +251,21 @@ function createLayerNode(
     outputs: { out: layerOutputStructorType },
     autoBroadcast: true,
     isRealtime: () => true,
-    createState: () => ({
-      layer: new LayerClass({ targetNoteIndex: 0 }), // Initial target note will be updated in execute
-      lastActive: false,
-    }),
+    createState: (config, context) => {
+      return {
+        layer: new LayerClass({ targetNoteIndex: config.targetNote }),
+        lastActive: false,
+        lastEvent: null as any
+      };
+    },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
       const layer = state.layer as AbstractLayer;
 
       const noteEvent = inputs.event_in;
+      const isNewStep = noteEvent !== state.lastEvent;
+      state.lastEvent = noteEvent;
+
       const onNote = noteEvent?.onNote;
       const offNote = noteEvent?.offNote;
       const targetNote = config.targetNote;
@@ -274,7 +288,7 @@ function createLayerNode(
         hold: noteEvent?.hold ?? false,
       };
 
-      activeLayer.update(syntheticStep, context.clock.dt);
+      activeLayer.update(syntheticStep, context.clock.dt, isNewStep);
       const result = activeLayer.getValue();
 
       return { out: result };
@@ -318,13 +332,17 @@ const toneSynthPrimitive = definePrimitiveNode({
     return {
       layer: new ToneSynthLayer({}),
       lastActive: false,
-      lastActiveNote: null as number | null
+      lastActiveNote: null as number | null,
+      lastEvent: null as any
     };
   },
   execute: (inputs, config, context, state) => {
     const activeLayer = state.layer;
 
     const noteEvent = inputs.event_in;
+    const isNewStep = noteEvent !== state.lastEvent;
+    state.lastEvent = noteEvent;
+
     const onNote = noteEvent?.onNote;
     const offNote = noteEvent?.offNote;
 
@@ -363,7 +381,7 @@ const toneSynthPrimitive = definePrimitiveNode({
       // ToneSynthLayer should handle this or it won't produce sound.
     }
 
-    activeLayer.update(syntheticStep, context.clock.dt);
+    activeLayer.update(syntheticStep, context.clock.dt, isNewStep);
     const result = activeLayer.getValue();
 
     return { out: result };

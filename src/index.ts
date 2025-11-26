@@ -2,9 +2,9 @@ import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
-import './views/workspace-layout';
 import './structor/repository.ui';
 import './customnodes/nicepattern/nodes.ui';
+import './views/workspace-layout';
 
 @customElement('nano-repatch')
 export class App extends MobxLitElement {

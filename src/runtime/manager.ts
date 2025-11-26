@@ -16,10 +16,10 @@ import {
   GraphCompiledMessage,
   ExecutionUpdateMessage
 } from '../workers/types';
+import { AudioRenderer } from '../audio/audio-renderer';
 
 const FRAME_RATE = 60;
 
-import { AudioRenderer } from '../audio/audio-renderer';
 
 export class RuntimeManager {
   // We no longer expose the executor directly.
@@ -215,7 +215,7 @@ export class RuntimeManager {
       // I'll add a 'STEP' action to the worker in a moment.
       const stepMsg: ExecutorWorkerMessage = {
         type: 'CONTROL',
-        action: 'STEP'
+        action: 'STEP' as any // We need to update types.ts
       };
       this.executorWorker.postMessage(stepMsg);
     }

@@ -263,3 +263,34 @@ This entry documents a series of improvements to the wire layout engine, visual 
     *   **Symptoms:** The graph stopped updating. Console showed a TypeError.
     *   **Cause:** The `GraphExecutor` was passing its internal `nodeStates` map (which stores `NodeState` objects) to the `ExecutionContext`'s `nodeState` property. However, the type helpers and primitives expected `nodeState` to be a `Map` interface for storing user-defined state.
     *   **Fix:** Added a dedicated `userNodeStates: Map<string, any>` to `GraphExecutor` and passed this map to the `ExecutionContext`. This ensures the runtime interface matches the expectation of the node implementations.
+
+## Web Worker Migration & Virtual Audio System (As of 2025-11-26)
+
+This entry documents the major architectural shift to Web Workers and the implementation of the Virtual Audio System.
+
+### Architectural Changes
+
+1.  **Web Worker Migration:**
+    *   **Goal:** Offload graph compilation and execution to separate threads to improve UI responsiveness.
+    *   **Components:**
+        *   `CompilerWorker`: Handles `compileGraph` operations.
+        *   `ExecutorWorker`: Runs the `GraphExecutor` loop and processes inputs.
+        *   `RuntimeManager`: Orchestrates workers via message passing (`postMessage`).
+    *   **Communication:** Defined strict message types (`CompilerWorkerMessage`, `ExecutorWorkerMessage`, etc.) in `src/workers/types.ts`.
+
+2.  **Virtual Audio System:**
+    *   **Problem:** `AudioContext` cannot be used directly in Web Workers.
+    *   **Solution:** Implemented a "Proxy" pattern.
+        *   **Worker Side (`VirtualAudioContext`):** Mocks the Web Audio API, recording commands (e.g., `createOscillator`, `connect`) into a command queue.
+        *   **Main Thread (`AudioRenderer`):** Receives batched commands via `EXECUTION_UPDATE` messages and executes them on the real `AudioContext`.
+    *   **Time Synchronization:** The system converts absolute worker time to relative delays before sending commands to the main thread, ensuring accurate scheduling regardless of message latency.
+
+3.  **Realtime Execution Fix:**
+    *   **Issue:** Realtime nodes (like `nicepattern` generators) were not updating because the dirty-checking logic only looked at input changes.
+    *   **Fix:** Introduced `isRealtime` flag in `NodeState`. The `GraphExecutor` now forces these nodes to be marked "dirty" at the start of every update cycle.
+
+### Key Learnings
+
+*   **Worker Constraints:** Not all APIs are available in workers. The "Proxy" pattern is a robust solution for accessing main-thread-only APIs (like Audio or DOM) from workers.
+*   **Time Domains:** synchronizing time between threads is tricky. Using relative delays ("do this 0.1s from *now*") is often safer than trying to sync absolute clocks.
+*   **Race Conditions:** Initialization order matters. Ensure node repositories are populated before the runtime tries to instantiate nodes.

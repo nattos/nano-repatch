@@ -64,11 +64,12 @@ It is entirely up to the node's definition to decide how to interpret this "grab
 
 ### 4. Runtime & Execution
 
-The graph is brought to life by a `GraphExecutor`. This class takes a `GraphDefinition` and manages its runtime state. It's responsible for:
+The execution engine has been modernized to run off the main thread, ensuring the UI remains responsive even during heavy computation.
 
-* **Executing nodes** in the correct topological order.
-* **Storing the output** of every node.
-* **Efficiently performing iterative updates.** When an input to the graph changes, the executor uses a dirty-tracking mechanism to re-calculate only the downstream nodes that are affected.
+*   **`RuntimeManager`:** The main-thread orchestrator. It manages the lifecycle of the workers and handles communication between the UI and the execution engine.
+*   **`CompilerWorker`:** A dedicated Web Worker that compiles the high-level UI graph state into an optimized, low-level `GraphDefinition`.
+*   **`ExecutorWorker`:** A dedicated Web Worker that runs the `GraphExecutor`. It processes the graph in a loop (for realtime nodes) or on demand, sending updates back to the main thread.
+*   **Audio Proxy:** Since Web Workers cannot access the `AudioContext` directly, the system uses a proxy pattern. The worker records audio commands, which are batched and sent to the main thread's `AudioRenderer` for execution.
 
 Node definitions themselves are managed by a `NodeRepository`. This allows for a pluggable system where new nodes (or sets of nodes) can be registered and made available to the graph. The executor uses this repository to look up a node's definition by its ID during execution.
 

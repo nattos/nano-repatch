@@ -98,8 +98,9 @@ export class EnvelopeSequencer {
     // 6. Layer Processing
     // We pass the wall-clock 'dt' for physics.
     // We pass the step data derived from 'effectiveBeat'
+    const isNewStep = currentStepIndex !== this.lastStepIndex;
     for (const layer of this.layers) {
-      layer.update(currentStepData, dt);
+      layer.update(currentStepData, dt, isNewStep);
     }
 
     this.lastProcessedBeat = effectiveBeat;

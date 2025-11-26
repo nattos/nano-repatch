@@ -227,9 +227,9 @@ export class ToneSynthLayer extends AbstractLayer {
 
   private cleanup() {
     try {
-      if (this.osc) { this.osc.stop(); this.osc.disconnect(); }
-      if (this.gain) this.gain.disconnect();
-      if (this.filter) this.filter.disconnect();
+      if (this.osc) { this.osc.stop(); this.osc.disconnect(); (this.osc as any).dispose?.(); }
+      if (this.gain) { this.gain.disconnect(); (this.gain as any).dispose?.(); }
+      if (this.filter) { this.filter.disconnect(); (this.filter as any).dispose?.(); }
     } catch (e) { /* ignore already stopped */ }
   }
 
