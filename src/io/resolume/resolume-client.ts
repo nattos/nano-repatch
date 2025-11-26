@@ -1,6 +1,27 @@
-// src/io/resolume/resolume-client.ts
+export interface ResolumeVersion {
+  major: number;
+  minor: number;
+  micro: number;
+  revision: number;
+}
 
-import { ProductInfo } from './resolume';
+export interface ProductInfo extends ResolumeVersion {
+  name: string;
+}
+
+export interface SubscribeMessage {
+  action: 'subscribe';
+  parameter: string;
+}
+
+export interface SetMessage {
+  action: 'set';
+  parameter: string;
+  id: number;
+  value: any;
+}
+
+export type ResolumeWebSocketMessage = SubscribeMessage | SetMessage;
 
 /**
  * Common interface for both the real and fake Resolume API clients.
@@ -34,7 +55,7 @@ export interface ResolumeWebSocket {
    * Sends a JSON message over the WebSocket connection.
    * @param message The JSON object to send.
    */
-  send(message: object): void;
+  send(message: ResolumeWebSocketMessage): void;
 
   /**
    * Closes the WebSocket connection.

@@ -1,7 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { ResolumeClient, ResolumeWebSocket } from './resolume-client';
-import { FakeResolumeApiClient } from './fake-resolume-client';
 import { ResolumeComposition, ResolumeParameter } from './state';
+import { ResolumeApiClient } from './resolume';
 
 export class ResolumeManager {
   client: ResolumeClient;
@@ -11,8 +11,8 @@ export class ResolumeManager {
   private parameterMap: Map<string, ResolumeParameter> = new Map();
   private subscriptions: Map<string, Set<(value: any) => void>> = new Map();
 
-  constructor() {
-    this.client = new FakeResolumeApiClient();
+  constructor(init?: { client: ResolumeClient; }) {
+    this.client = init?.client ?? new ResolumeApiClient();
     this.state = new ResolumeComposition();
     makeAutoObservable(this);
   }

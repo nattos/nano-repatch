@@ -1,7 +1,7 @@
 // src/io/resolume/fake-resolume-client.ts
 
 import { ResolumeClient, ResolumeWebSocket } from './resolume-client';
-import { ProductInfo } from './resolume';
+import { ProductInfo } from './resolume-client';
 
 // Load the initial state fixture
 import initialCompositionState from '../../io/resolume/probe/resolume-ws-initial-state.json';
@@ -110,27 +110,27 @@ export class FakeResolumeApiClient implements ResolumeClient {
           // Example: /composition/layers/1/video/opacity
           // After finding layers[0], next part is "video", then "opacity".
         } else {
-            // This is complex, as sometimes the ID is part of the path, other times it's an array index
-            // For now, let's assume direct access or by ID in array
-            const targetId = parseInt(part, 10);
-            if (!isNaN(targetId) && Array.isArray(current)) {
-                current = current.find((item: any) => item.id === targetId);
-            } else if (current[part]) {
-                current = current[part];
-            } else {
-                return undefined;
-            }
+          // This is complex, as sometimes the ID is part of the path, other times it's an array index
+          // For now, let's assume direct access or by ID in array
+          const targetId = parseInt(part, 10);
+          if (!isNaN(targetId) && Array.isArray(current)) {
+            current = current.find((item: any) => item.id === targetId);
+          } else if (current[part]) {
+            current = current[part];
+          } else {
+            return undefined;
+          }
         }
-      } else if (part === 'parameter' && parts[i+1] === 'by-id') {
-          // Special handling for /parameter/by-id/<paramId> for subscriptions
-          const paramId = parseInt(parts[i+2], 10);
-          return this.findParameterByIdRecursive(this.currentCompositionState, paramId);
+      } else if (part === 'parameter' && parts[i + 1] === 'by-id') {
+        // Special handling for /parameter/by-id/<paramId> for subscriptions
+        const paramId = parseInt(parts[i + 2], 10);
+        return this.findParameterByIdRecursive(this.currentCompositionState, paramId);
       } else if (current[part]) {
         current = current[part];
       } else if (Array.isArray(current)) {
-          // This path part is likely an ID of an element in an array
-          const targetId = parseInt(part, 10);
-          current = current.find((item: any) => item.id === targetId);
+        // This path part is likely an ID of an element in an array
+        const targetId = parseInt(part, 10);
+        current = current.find((item: any) => item.id === targetId);
       } else {
         return undefined;
       }
@@ -141,21 +141,21 @@ export class FakeResolumeApiClient implements ResolumeClient {
   // Recursive helper for getParameterByPath to find parameter by its ID
   private findParameterByIdRecursive(obj: any, id: number): any | undefined {
     if (typeof obj !== 'object' || obj === null) {
-        return undefined;
+      return undefined;
     }
     if (obj.id === id) {
-        return obj;
+      return obj;
     }
     for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            const found = this.findParameterByIdRecursive(obj[key], id);
-            if (found) {
-                return found;
-            }
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const found = this.findParameterByIdRecursive(obj[key], id);
+        if (found) {
+          return found;
         }
+      }
     }
     return undefined;
-}
+  }
 
 
   private handleIncomingWebSocketMessage(message: WebSocketMessage, onMessageCallback: (data: any) => void) {
@@ -207,7 +207,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
             onMessageCallback({ type: 'parameter_set_success', path: message.parameter, value: message.value });
             console.log(`[FakeResolumeApiClient] Parameter ${message.parameter} (ID: ${message.id}) set to ${message.value}`);
           } else if (parameter) {
-             onMessageCallback({ error: `Parameter ${message.parameter} (ID: ${message.id}) is not a ParamRange or cannot be set this way.` });
+            onMessageCallback({ error: `Parameter ${message.parameter} (ID: ${message.id}) is not a ParamRange or cannot be set this way.` });
           } else {
             onMessageCallback({ error: `Parameter not found for path: ${message.parameter} ID: ${message.id}` });
           }
@@ -222,7 +222,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
           const parameter = this.getParameterByPath(message.parameter);
           if (parameter && parameter.valuetype === 'ParamState') { // Example: connected state
             parameter.value = 'Connected'; // Simulate clip connecting
-             this.notifySubscribers(parameter.id, parameter.value, parameter.valuetype, message.parameter);
+            this.notifySubscribers(parameter.id, parameter.value, parameter.valuetype, message.parameter);
             onMessageCallback({ type: 'trigger_success', path: message.parameter });
             console.log(`[FakeResolumeApiClient] Triggered ${message.parameter}`);
           } else if (parameter && parameter.valuetype === 'ParamTrigger') {
