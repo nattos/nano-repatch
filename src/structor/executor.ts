@@ -156,6 +156,19 @@ export class GraphExecutor {
         }
       }
 
+      // Handle virtual inputs (values from config)
+      if (state.config && typeof state.config === 'object' && 'values' in state.config) {
+        const values = (state.config as any).values;
+        if (values && typeof values === 'object') {
+          for (const [portName, value] of Object.entries(values)) {
+            // Only use virtual input if the port is NOT already connected/set
+            if (inputRecord.fields[portName] === undefined) {
+              inputRecord.fields[portName] = value as Structor;
+            }
+          }
+        }
+      }
+
       const context: ExecutionContext = {
         clock: { beat: 0, dt: 0, },
         ...userContext,
@@ -176,7 +189,9 @@ export class GraphExecutor {
                   }
                 }
               }
-              if (Array.isArray(outputConfig.fromUntagged)) {
+              if (outputConfig.fromUntagged === true) {
+                values.push(...inputs.untagged);
+              } else if (Array.isArray(outputConfig.fromUntagged)) {
                 for (const index of outputConfig.fromUntagged) {
                   if (inputs.untagged[index] !== undefined) {
                     values.push(inputs.untagged[index]);

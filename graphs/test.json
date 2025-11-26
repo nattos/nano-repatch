@@ -1,50 +1,38 @@
 {
   "nodes": {
-    "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092": {
-      "id": "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092",
-      "x": 2,
-      "y": 3,
+    "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a": {
+      "id": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
+      "x": 4,
+      "y": 2,
       "config": {
-        "typeId": "nicepattern:chaos_generator",
-        "values": {},
-        "density": 0,
-        "targetNote": 0
+        "typeId": "clamp",
+        "values": {
+          "min": 0.3,
+          "max": 0.81
+        },
+        "name": "clamp"
       }
     },
-    "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607": {
-      "id": "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607",
-      "x": 8,
-      "y": 3,
+    "node-40581207-edd9-48be-ad8c-04d49501bb6b": {
+      "id": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
+      "x": 3,
+      "y": 0,
       "config": {
-        "typeId": "nicepattern:tone_synth_layer",
+        "typeId": "literal",
         "values": {},
-        "targetNote": 0
-      }
-    },
-    "node-3f7933dc-b400-4219-823e-66eb4fdae17d": {
-      "id": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
-      "x": 5,
-      "y": 3,
-      "config": {
-        "typeId": "nicepattern:pattern",
-        "values": {}
+        "literal": {
+          "value": 2345
+        }
       }
     }
   },
   "connections": {
-    "conn-406e0cc5-2d2e-4026-adf0-f8e88ceea1b5": {
-      "id": "conn-406e0cc5-2d2e-4026-adf0-f8e88ceea1b5",
-      "fromNodeId": "node-7022e0d6-4d8c-4dd1-bc7e-b844f087c092",
-      "fromPort": "seq_out",
-      "toNodeId": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
-      "toPort": "seq_in"
-    },
-    "conn-a1c440e5-d82a-4dbc-8132-ca325974192d": {
-      "id": "conn-a1c440e5-d82a-4dbc-8132-ca325974192d",
-      "fromNodeId": "node-3f7933dc-b400-4219-823e-66eb4fdae17d",
-      "fromPort": "event_out",
-      "toNodeId": "node-8e597f3e-d1d7-4ca1-a7fe-c8847cbe1607",
-      "toPort": "event_in"
+    "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b": {
+      "id": "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b",
+      "fromNodeId": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
+      "fromPort": "",
+      "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
+      "toPort": ""
     }
   }
 }

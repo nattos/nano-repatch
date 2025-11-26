@@ -1,5 +1,5 @@
 import { AppState, GraphState, GridNode } from './state';
-import { GraphDefinition, NodeInstance } from '../structor/structor';
+import { GraphDefinition, NodeInstance, Structor } from '../structor/structor';
 import { parseFloatOr } from '../utils/utils';
 import { NodeRepository } from '../structor/repository';
 
@@ -67,34 +67,41 @@ export function compileGraph(
         // If root, register graph inputs/outputs
         if (isRoot) {
           if (node.config.typeId === 'input') {
-            // In the root graph, an 'input' node defines a graph input.
-            // The port on the input node is usually '0' (output of the identity).
-            // But wait, GraphDefinition.inputs maps a name to a connection *destination*.
-            // Actually, GraphDefinition.inputs maps a name to { nodeId, port }.
-            // This means "when graph input X is set, inject it into nodeId at port".
-            // But our 'input' node is a real node in the graph.
-            // So we treat 'input' nodes as the *source* of the graph input?
-            // No, the executor sets inputs on the graph.
-            // The 'input' node in the editor is a visualization.
-            // In the compiled graph, we want the executor to inject values *into* these nodes?
-            // Or maybe the 'input' node IS the injection point.
-            // Let's assume the 'input' node has a special behavior or we inject into its output?
-            // Actually, the standard way is: GraphDefinition.inputs maps Name -> { nodeId, port }.
-            // This usually means "this internal port is connected to the outside".
-            // But here we have explicit Input Nodes.
-            // So, we can say: The Graph Input "Name" is connected to the "value" input of the Input Node?
-            // Or better: The Input Node *is* the interface.
-            // Let's stick to the primitive_input being an identity.
-            // We can inject the value into the 'input' node's configuration or a special port.
-            // For now, let's register it as a graph input that feeds into the 'input' node's 'value' port (if it had one).
-            // Wait, primitive_input is an identity. It takes 'val' and outputs 'val'.
-            // So we can map the graph input to the 'val' port of this node.
+            // ... (existing input logic)
             const name = node.config.name || node.id;
             flatInputs[name] = { nodeId: nodeId, port: 'val' };
           } else if (node.config.typeId === 'output') {
-            // Similarly for output.
+            // ... (existing output logic)
             const name = node.config.name || node.id;
             flatOutputs[name] = { nodeId: nodeId, port: 'val' };
+          }
+        }
+
+        // Process Virtual Inputs (Configured Values)
+        if (node.config.values) {
+          for (const [portName, value] of Object.entries(node.config.values)) {
+            // Check if this port is already connected in the original graph
+            const isConnected = Object.values(graph.inner.connections).some(
+              c => c.toNodeId === node.id && c.toPort === portName
+            );
+
+            if (!isConnected) {
+              const virtualNodeId = `${nodeId}-virtual-${portName}`;
+
+              // Create Literal Node
+              flatNodes[virtualNodeId] = {
+                definitionId: 'literal',
+                defaultConfig: value as Structor,
+              };
+
+              // Create Connection
+              flatConnections.push({
+                fromNode: virtualNodeId,
+                fromPort: '', // Literal output is untagged/default
+                toNode: nodeId,
+                toPort: portName
+              });
+            }
           }
         }
       }

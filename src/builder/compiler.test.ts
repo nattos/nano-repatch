@@ -117,5 +117,87 @@ describe('Graph Compiler', () => {
       toNode: 'n2', toPort: 'val'
     });
   });
+  describe('Virtual Inputs', () => {
+    it('should generate literal nodes for configured virtual inputs', () => {
+      const graph = createGraph(
+        [
+          {
+            id: 'n1', x: 0, y: 0,
+            config: {
+              typeId: 'clamp',
+              values: { 'min': 0.5, 'max': 1.0 }
+            }
+          }
+        ],
+        []
+      );
+
+      const appState: AppState = { graph };
+      const loadedSubgraphs = new Map();
+
+      const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+
+      // Should have: n1, n1-virtual-min, n1-virtual-max
+      expect(Object.keys(compiled.nodes)).toHaveLength(3);
+
+      // Check Virtual Min
+      const minNodeId = 'n1-virtual-min';
+      expect(compiled.nodes[minNodeId]).toBeDefined();
+      expect(compiled.nodes[minNodeId].definitionId).toBe('literal');
+      expect(compiled.nodes[minNodeId].defaultConfig).toBe(0.5);
+
+      // Check Virtual Max
+      const maxNodeId = 'n1-virtual-max';
+      expect(compiled.nodes[maxNodeId]).toBeDefined();
+      expect(compiled.nodes[maxNodeId].definitionId).toBe('literal');
+      expect(compiled.nodes[maxNodeId].defaultConfig).toBe(1.0);
+
+      // Check Connections
+      expect(compiled.connections).toHaveLength(2);
+      expect(compiled.connections).toContainEqual({
+        fromNode: minNodeId, fromPort: '', // Literal output is untagged/default
+        toNode: 'n1', toPort: 'min'
+      });
+      expect(compiled.connections).toContainEqual({
+        fromNode: maxNodeId, fromPort: '',
+        toNode: 'n1', toPort: 'max'
+      });
+    });
+
+    it('should NOT generate literal nodes if port is connected', () => {
+      const graph = createGraph(
+        [
+          {
+            id: 'n1', x: 0, y: 0,
+            config: {
+              typeId: 'clamp',
+              values: { 'min': 0.5 } // Virtual input configured
+            }
+          },
+          { id: 'n2', x: 0, y: 0, config: { typeId: 'literal', literal: { value: 0.1 } } }
+        ],
+        [
+          // But 'min' is connected to n2
+          { fromNode: 'n2', fromPort: '', toNode: 'n1', toPort: 'min' }
+        ]
+      );
+
+      const appState: AppState = { graph };
+      const loadedSubgraphs = new Map();
+
+      const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+
+      // Should have: n1, n2. NO virtual node for min.
+      expect(Object.keys(compiled.nodes)).toHaveLength(2);
+      expect(compiled.nodes['n1-virtual-min']).toBeUndefined();
+
+      // Check Connections
+      expect(compiled.connections).toHaveLength(1);
+      expect(compiled.connections[0]).toEqual({
+        fromNode: 'n2', fromPort: '',
+        toNode: 'n1', toPort: 'min'
+      });
+    });
+  });
 });
 

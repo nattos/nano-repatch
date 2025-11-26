@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { GraphExecutor } from './executor';
-import { NodeRepository } from './repository';
+import { NodeRepository, defaultNodeRepository } from "./repository";
 import { GraphDefinition, PrimitiveNodeDefinition, AtomicType, StructorRecord, ExecutionContext, Structor } from './structor';
 import { primitive_fmod } from './primitives';
 
@@ -56,7 +56,7 @@ describe('GraphExecutor', () => {
         const executor = new GraphExecutor(testGraph, testRepo);
 
         executor.setInput('a', 5);
-        executor.update();
+        executor.update({});
 
         const output = executor.getGraphOutput('c');
         expect(output).toBe(15); // 5 (input) + 10 (defaultConfig)
@@ -72,14 +72,14 @@ describe('GraphExecutor', () => {
 
         // First update
         executor.setInput('a', 5);
-        executor.update();
+        executor.update({});
         expect(executor.getGraphOutput('c')).toBe(15);
         expect(addExecute).toHaveBeenCalledTimes(1);
         expect(literalExecute).toHaveBeenCalledTimes(1);
 
         // Change config and update again
         executor.setNodeConfig('ten', 100);
-        executor.update();
+        executor.update({});
         expect(executor.getGraphOutput('c')).toBe(105); // 5 + 100
         expect(addExecute).toHaveBeenCalledTimes(2); // Adder is downstream, should re-run
         expect(literalExecute).toHaveBeenCalledTimes(2); // Literal itself re-ran
@@ -111,9 +111,82 @@ describe('GraphExecutor', () => {
         };
 
         const executor = new GraphExecutor(fmodGraph, testRepo);
-        executor.update();
+        executor.update({});
 
         expect(executor.getGraphOutput('div')).toBe(3);
         expect(executor.getGraphOutput('mod')).toBe(1);
+    });
+
+    it('should use virtual input values when ports are not connected', () => {
+        const virtualInputGraph: GraphDefinition = {
+            id: 'virtualInputGraph', kind: 'graph',
+            type: {
+                kind: 'graph',
+                inputs: { kind: 'record', fields: {}, untagged: [] },
+                outputs: { kind: 'record', fields: { 'c': numberType }, untagged: [] },
+            },
+            nodes: {
+                'adder': { definitionId: 'add' },
+            },
+            inputs: {},
+            connections: [], // No connections, relying on virtual inputs
+            outputs: { 'c': { nodeId: 'adder', port: 0 } },
+        };
+
+        const executor = new GraphExecutor(virtualInputGraph, testRepo);
+
+        // Simulate setting virtual input values via config
+        // The 'add' node expects untagged inputs.
+        // However, our current 'add' mock uses untagged inputs.
+        // Let's use a node that uses named fields for clarity, or adapt the test.
+        // The 'fmod' node uses named fields 'dividend' and 'divisor'.
+
+        const fmodGraph: GraphDefinition = {
+            id: 'fmodVirtualGraph', kind: 'graph',
+            type: {
+                kind: 'graph',
+                inputs: { kind: 'record', fields: {}, untagged: [] },
+                outputs: { kind: 'record', fields: { 'mod': numberType }, untagged: [] },
+            },
+            nodes: {
+                'fmod': { definitionId: 'fmod' },
+            },
+            inputs: {},
+            connections: [],
+            outputs: { 'mod': { nodeId: 'fmod', port: 'mod' } },
+        };
+
+        const fmodExecutor = new GraphExecutor(fmodGraph, testRepo);
+
+        // Set virtual inputs
+        fmodExecutor.setNodeConfig('fmod', { values: { 'dividend': 10, 'divisor': 3 } } as any);
+        fmodExecutor.update({});
+
+        expect(fmodExecutor.getGraphOutput('mod')).toBe(1);
+    });
+    it('should correctly broadcast untagged inputs when fromUntagged is true', () => {
+        const graph: GraphDefinition = {
+            id: 'test-graph',
+            kind: 'graph',
+            type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } },
+            nodes: {
+                'n1': { definitionId: 'literal', defaultConfig: 0.5 },
+                'n2': { definitionId: 'clamp', defaultConfig: { values: { min: 0, max: 1 } } as any }
+            },
+            connections: [
+                { fromNode: 'n1', fromPort: '', toNode: 'n2', toPort: 0 } // Connect to untagged input 0
+            ],
+            inputs: {},
+            outputs: {}
+        };
+
+        const executor = new GraphExecutor(graph, defaultNodeRepository);
+        executor.update({});
+
+        const output = executor.getNodeOutput('n2');
+        expect(output).toBeDefined();
+        // Clamp default min=0, max=1. Input 0.5. Output should be 0.5.
+        // primitive_clamp returns an array for untagged output
+        expect(output?.untagged[0]).toEqual([0.5]);
     });
 });

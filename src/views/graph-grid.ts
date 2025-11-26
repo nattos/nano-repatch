@@ -13,11 +13,12 @@ export class GraphGrid extends MobxLitElement {
   static readonly styles = css`
     :host {
       display: grid;
-      grid-template-columns: repeat(auto-fill, 100px);
-      grid-template-rows: repeat(auto-fill, 100px);
+      grid-template-columns: 120px repeat(50, 110px) 120px;
+      grid-template-rows: repeat(auto-fill, 110px);
       width: 100%;
       height: 100%;
-      gap: 10px;
+      overflow: auto;
+      gap: 0; /* Gap is handled by column sizing */
       position: relative;
       user-select: none;
     }
@@ -34,6 +35,7 @@ export class GraphGrid extends MobxLitElement {
       background-color: rgba(255, 255, 255, 0.05);
       border-radius: 4px;
       pointer-events: auto; /* Ensure clicks are captured */
+      margin: 5px; /* Visual gap */
     }
   `;
 
@@ -74,8 +76,20 @@ export class GraphGrid extends MobxLitElement {
 
         for (const node of Object.values(nodes)) {
           // Node position in pixels (relative to grid origin)
-          const nodeX = node.x * 110;
-          const nodeY = node.y * 110;
+          // Input: 10px padding
+          // Main: 120 + (x-1)*110 + 10
+          // Output: 120 + 50*110 + 10 = 5630
+
+          let nodeX = 0;
+          if (node.config.typeId === 'input') {
+            nodeX = 10;
+          } else if (node.config.typeId === 'output') {
+            nodeX = 120 + 50 * 110 + 10;
+          } else {
+            nodeX = 120 + (node.x - 1) * 110 + 10;
+          }
+
+          const nodeY = node.y * 110 + 10;
           const nodeW = 100;
           const nodeH = 100;
 
@@ -138,45 +152,53 @@ export class GraphGrid extends MobxLitElement {
 
     // Check if we clicked on the grid background (gaps) or pinned columns
     const rect = this.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    const clickX = e.clientX - rect.left; // Viewport relative
     const clickY = e.clientY - rect.top; // Viewport relative Y
 
     // Calculate grid row based on clickY + scrollTop
     const scrollTop = this.scrollTop;
     const gridY = Math.floor((clickY + scrollTop) / 110);
 
-    // Input Column (Left)
-    if (clickX < 130) {
+    // Input Column (Left) - Sticky
+    if (clickX < 120) {
       const newNode = appController.createNode('input', 0, gridY);
       localController.queueSelectPaths([newNode.id]);
       return;
     }
 
-    // Output Column (Right)
-    if (clickX > this.clientWidth - 130) {
+    // Output Column (Right) - Sticky
+    if (clickX > this.clientWidth - 120) {
       const newNode = appController.createNode('output', 0, gridY);
       localController.queueSelectPaths([newNode.id]);
       return;
     }
 
-    // Grid settings
-    const cellSize = 100;
-    const gapSize = 10;
-    const totalSize = cellSize + gapSize;
+    // Main Grid
+    // We need to account for scrollLeft and the left input column width (120px)
+    const gridX = Math.floor((clickX + this.scrollLeft - 120) / 110) + 1;
 
-    const modX = clickX % totalSize;
-    const modY = clickY % totalSize;
+    if (gridX >= 1 && gridX <= 50) {
+      // Check for gap clicks if needed, but for now just create node or ignore
+      // The original code had logic for inserting spaces.
+      // Re-implementing gap logic might be tricky with the new layout.
+      // Let's stick to simple creation for now or keep the gap logic if possible.
 
-    // Check for vertical gap click (insert horizontal space)
-    if (modX >= cellSize) {
-      const colIndex = Math.floor(clickX / totalSize);
-      appController.insertSpace('x', colIndex);
-    }
+      // Gap logic was:
+      // const modX = clickX % totalSize;
+      // if (modX >= cellSize) ...
 
-    // Check for horizontal gap click (insert vertical space)
-    if (modY >= cellSize) {
-      const rowIndex = Math.floor(clickY / totalSize);
-      appController.insertSpace('y', rowIndex);
+      // With fixed columns, we can check relative to the cell.
+      const relativeX = (clickX + this.scrollLeft - 120) % 110;
+      const relativeY = (clickY + scrollTop) % 110;
+
+      if (relativeX > 100) { // Gap
+        appController.insertSpace('x', gridX);
+        return;
+      }
+      if (relativeY > 100) { // Gap
+        appController.insertSpace('y', gridY);
+        return;
+      }
     }
   }
 
@@ -242,6 +264,9 @@ export class GraphGrid extends MobxLitElement {
 
     try {
       const parsed = JSON.parse(data);
+      // TODO: Get rid of this. There can't possibly be a reason this is necessary.
+      // We should be able to look up whether a node type is an input or output node
+      // (or neither) from our registry.
       if (parsed.type === 'resolume:parameter') {
         const rect = this.getBoundingClientRect();
         const dropX = e.clientX - rect.left;
@@ -252,18 +277,18 @@ export class GraphGrid extends MobxLitElement {
         let x = 0;
 
         // Determine type based on column
-        if (dropX < 130) {
+        if (dropX < 120) {
           // Input Column
           nodeType = 'resolume:input';
           x = 0;
-        } else if (dropX > this.clientWidth - 130) {
+        } else if (dropX > this.clientWidth - 120) {
           // Output Column
           nodeType = 'resolume:output';
-          x = 0;
+          x = 0; // x is ignored for output/input types usually, but let's be consistent
         } else {
           // Main Grid
           nodeType = 'resolume:input';
-          x = Math.floor((dropX + this.scrollLeft) / 110);
+          x = Math.floor((dropX + this.scrollLeft - 120) / 110) + 1;
         }
 
         const newNode = appController.createNode(nodeType, x, gridY, { path: parsed.path });
@@ -280,9 +305,8 @@ export class GraphGrid extends MobxLitElement {
 
     const cells = [];
     // Render grid cells only for the main area (x >= 1)
-    // We can render a background for the input/output columns if needed
-    for (let y = 0; y < 10; y++) {
-      for (let x = 1; x < 10; x++) {
+    for (let y = 0; y < 20; y++) { // Render enough rows
+      for (let x = 1; x <= 50; x++) {
         if (!nodePositions.has(`${x},${y}`)) {
           cells.push(html`
             <div
@@ -299,22 +323,20 @@ export class GraphGrid extends MobxLitElement {
     const getNodeScreenPos = (node: any) => {
       if (node.config.typeId === 'input') {
         // Pinned to left (visual x=10px padding)
-        // In grid coords (relative to origin): 10 + scrollLeft
-        // But we want grid units for connection.
-        // Connection expects pixels? No, GraphConnection takes grid units and multiplies by 110.
-        // Let's pass raw pixels to GraphConnection instead?
-        // No, GraphConnection logic is: startX = this.from.x * 110 + 90;
-        // So we need to reverse-engineer the "grid x" that would result in the correct pixel position.
-        // Target Pixel X = 10 + scrollLeft.
-        // (GridX * 110) = Target Pixel X.
-        // GridX = (10 + scrollLeft) / 110.
+        // Sticky means it stays at 10px relative to viewport, so 10 + scrollLeft relative to grid origin
         return { x: (10 + this.scrollLeft) / 110, y: node.y };
       } else if (node.config.typeId === 'output') {
-        // Pinned to right (visual x = clientWidth - 130px) (120px width + 10px padding)
+        // Pinned to right (visual x = clientWidth - 130px)
+        // Sticky means it stays at clientWidth - 130 relative to viewport
         const targetPixelX = this.clientWidth - 130 + this.scrollLeft;
         return { x: targetPixelX / 110, y: node.y };
       } else {
-        return { x: node.x, y: node.y };
+        // Main grid: 120 + (x-1)*110 + 10
+        // We need to return "grid units" for the connection line.
+        // The connection line logic likely multiplies by 110.
+        // So we need to return (pixelX / 110).
+        const pixelX = 120 + (node.x - 1) * 110 + 10;
+        return { x: pixelX / 110, y: node.y };
       }
     };
 
@@ -323,26 +345,6 @@ export class GraphGrid extends MobxLitElement {
         <div class="selection-box" style="left: ${this.selectionBox.x}px; top: ${this.selectionBox.y}px; width: ${this.selectionBox.w}px; height: ${this.selectionBox.h}px;"></div>
       ` : ''}
       ${cells}
-      ${Object.values(nodes).map(node => {
-      let style = `grid-row: ${node.y + 1};`;
-      if (node.config.typeId === 'input') {
-        style = `grid-column: 1; grid-row: ${node.y + 1};`;
-      } else if (node.config.typeId === 'output') {
-        style = `grid-column: 3; grid-row: ${node.y + 1};`;
-      } else {
-        style = `grid-column: 2; grid-row: ${node.y + 1}; grid-column-start: ${node.x + 1};`;
-      }
-
-      const isQueued = localController.observableState.queuedSelection.has(node.id);
-
-      return html`
-          <graph-node
-            .node=${node}
-            .isQueued=${isQueued}
-            style="${style}"
-          ></graph-node>
-        `;
-    })}
       ${Object.values(connections).map(conn => {
       const fromNode = nodes[conn.fromNodeId];
       const toNode = nodes[conn.toNodeId];
@@ -356,7 +358,28 @@ export class GraphGrid extends MobxLitElement {
             .connection=${conn}
             .from=${fromPos}
             .to=${toPos}
+            style="grid-column: 1 / -1; grid-row: 1 / -1; position: relative; z-index: 0; pointer-events: none;"
           ></graph-connection>
+        `;
+    })}
+      ${Object.values(nodes).map(node => {
+      let style = `grid-row: ${node.y + 1};`;
+      if (node.config.typeId === 'input') {
+        style = `grid-column: 1; grid-row: ${node.y + 1}; position: sticky; left: 0; z-index: 10; margin-left: 10px;`;
+      } else if (node.config.typeId === 'output') {
+        style = `grid-column: 52; grid-row: ${node.y + 1}; position: sticky; right: 0; z-index: 10; margin-right: 10px;`;
+      } else {
+        style = `grid-column: ${node.x + 1}; grid-row: ${node.y + 1}; margin-left: 10px; z-index: 1; position: relative;`;
+      }
+
+      const isQueued = localController.observableState.queuedSelection.has(node.id);
+
+      return html`
+          <graph-node
+            .node=${node}
+            .isQueued=${isQueued}
+            style="${style}"
+          ></graph-node>
         `;
     })}
     `;

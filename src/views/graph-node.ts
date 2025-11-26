@@ -212,20 +212,43 @@ export class GraphNode extends MobxLitElement {
 
         // Check for pinned nodes in selection
         const state = appController.getState();
-        const hasPinned = selectedNodeIds.some(id => {
+
+        // We need to calculate the new position for THIS node to check constraints
+        // But we are moving a selection.
+        // If the selection contains pinned nodes, we might want to restrict the whole selection?
+        // Or just lock the pinned nodes?
+        // The current logic locks X if ANY pinned node is selected.
+
+        const hasInput = selectedNodeIds.some(id => {
           const n = state.graph.inner.nodes[id];
-          return n && (n.config.typeId === 'input' || n.config.typeId === 'output');
+          return n && n.config.typeId === 'input';
         });
 
-        if (hasPinned) {
+        const hasOutput = selectedNodeIds.some(id => {
+          const n = state.graph.inner.nodes[id];
+          return n && n.config.typeId === 'output';
+        });
+
+        if (hasInput || hasOutput) {
           dx = 0; // Lock X axis for pinned nodes
         }
 
-        // Prevent moving normal nodes into pinned area (x < 1)
-        // This is harder to check for all nodes efficiently without iterating.
-        // But we can check the current node.
-        if (!hasPinned && this.node.x + dx < 1) {
-          dx = 1 - this.node.x;
+        // Enforce boundaries for normal nodes
+        // They should not go into col 0 (Input) or col 51 (Output)
+        if (!hasInput && !hasOutput) {
+          // Check if any node in the selection would violate the bounds
+          for (const id of selectedNodeIds) {
+            const n = state.graph.inner.nodes[id];
+            if (n) {
+              const newX = n.x + dx;
+              if (newX < 1) {
+                dx = 1 - n.x; // Clamp to left boundary (col 1)
+              }
+              if (newX > 50) {
+                dx = 50 - n.x; // Clamp to right boundary (col 50)
+              }
+            }
+          }
         }
 
         console.log('moveNodes', dx, dy);

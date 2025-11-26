@@ -83,13 +83,22 @@ export class RuntimeManager {
 
       const instanceConfig = nodeType.compileConfig
         ? nodeType.compileConfig(node.config)
-        : undefined;
+        : node.config;
 
       const emptyConfig = { fields: {}, untagged: [] };
-      this.executor.setNodeConfig(node.id, instanceConfig ?? emptyConfig);
+      this.executor.setNodeConfig(node.id, (instanceConfig ?? emptyConfig) as any);
+
+      // Update virtual literal nodes if they exist
+      if (node.config.values) {
+        for (const [portName, value] of Object.entries(node.config.values)) {
+          const virtualNodeId = `${node.id}-virtual-${portName}`;
+          // We can safely call setNodeConfig; if the node doesn't exist (because it was connected), it does nothing.
+          this.executor.setNodeConfig(virtualNodeId, value as any);
+        }
+      }
 
       // Check if node is realtime. We cast to any to access the new optional method.
-      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(instanceConfig ?? emptyConfig) ?? false;
+      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.((instanceConfig ?? emptyConfig) as any) ?? false;
       this.realtimeNodeCache.set(node.id, isRealtime);
       if (isRealtime) {
         anyRealtime = true;
