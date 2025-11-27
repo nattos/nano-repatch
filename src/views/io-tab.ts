@@ -3,6 +3,8 @@ import { customElement } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { resolumeManager } from '../io/resolume/manager';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeParameter, ResolumeEffect } from '../io/resolume/state';
+import { midiManager } from '../io/midi/manager';
+import { MidiDevice, MidiEvent } from '../io/midi/state';
 
 @customElement('io-tab')
 export class IOTab extends MobxLitElement {
@@ -101,6 +103,77 @@ export class IOTab extends MobxLitElement {
     details[open] > summary::before {
         transform: rotate(90deg);
     }
+    details[open] > summary::before {
+        transform: rotate(90deg);
+    }
+
+    .section-title {
+      padding: 10px;
+      font-weight: bold;
+      background: #252525;
+      border-bottom: 1px solid #333;
+      border-top: 1px solid #333;
+    }
+
+    .midi-devices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 10px;
+    }
+
+    .chip {
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8em;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .chip.selected {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .chip.disconnected {
+      opacity: 0.5;
+    }
+
+    .midi-events {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .event-card {
+      background: #333;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: grab;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .event-card:hover {
+      background: #444;
+    }
+
+    .event-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .event-type {
+      font-size: 0.8em;
+      color: #aaa;
+    }
+
+    .event-value {
+      font-weight: bold;
+    }
   `;
 
   render() {
@@ -115,7 +188,11 @@ export class IOTab extends MobxLitElement {
         </button>
       </div>
       <div class="tree">
+        <div class="section-title">Resolume</div>
         ${this.renderComposition(state)}
+
+        <div class="section-title">MIDI</div>
+        ${this.renderMidiSection()}
       </div>
     `;
   }
@@ -192,5 +269,77 @@ export class IOTab extends MobxLitElement {
       }));
       e.dataTransfer.effectAllowed = 'copy';
     }
+  }
+
+  renderMidiSection() {
+    const { state } = midiManager;
+    return html`
+      <div class="midi-devices">
+        ${Array.from(state.devices.values()).map(d => this.renderDevice(d))}
+      </div>
+      <div class="midi-events">
+        ${state.recentEvents.map(e => this.renderMidiEvent(e))}
+      </div>
+    `;
+  }
+
+  renderDevice(device: MidiDevice) {
+    const selected = midiManager.state.selectedDeviceIds.has(device.id);
+    return html`
+      <div
+        class="chip ${selected ? 'selected' : ''} ${device.state === 'disconnected' ? 'disconnected' : ''}"
+        @click=${() => midiManager.state.toggleDeviceSelection(device.id)}
+      >
+        ${device.name}
+      </div>
+    `;
+  }
+
+  renderMidiEvent(event: MidiEvent) {
+    const label = event.type === 'cc' ? `CC ${event.target}` : `Note ${event.target}`;
+    const value = event.type === 'note_off' ? 'Off' : event.value;
+
+    return html`
+      <div
+        class="event-card"
+        draggable="true"
+        @dragstart=${(e: DragEvent) => this.handleMidiDragStart(e, event)}
+      >
+        <div class="event-info">
+          <span class="event-type">Ch ${event.channel}</span>
+          <span>${label}</span>
+        </div>
+        <div class="event-value">${value}</div>
+      </div>
+    `;
+  }
+
+  handleMidiDragStart(e: DragEvent, event: MidiEvent) {
+    if (!e.dataTransfer) return;
+
+    let nodeType = '';
+    let config: any = {};
+
+    if (event.type === 'cc') {
+      nodeType = 'midi_cc';
+      config = {
+        channel: event.channel,
+        cc: event.target,
+        deviceId: event.deviceId
+      };
+    } else {
+      nodeType = 'midi_note';
+      config = {
+        channel: event.channel,
+        note: event.target,
+        deviceId: event.deviceId
+      };
+    }
+
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: nodeType,
+      config
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
   }
 }

@@ -3,7 +3,9 @@ import { defaultNodeRepository } from '../structor/repository';
 import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';
 import { Structor, StructorRecord } from '../structor/structor';
 import '../customnodes/nicepattern/nodes';
+import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
+import { workerMidiState } from '../customnodes/midi/nodes';
 import { resolumeManager } from '../io/resolume/manager';
 
 import { VirtualAudioContext } from '../audio/virtual-audio';
@@ -53,6 +55,12 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       } else if (msg.action === 'STEP') {
         runTick();
       }
+      break;
+
+    case 'MIDI_UPDATE':
+      // Update worker MIDI state
+      // msg.values is a Map
+      workerMidiState.values = msg.values;
       break;
   }
 };

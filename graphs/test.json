@@ -24,6 +24,15 @@
           "value": 2345
         }
       }
+    },
+    "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18": {
+      "id": "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18",
+      "x": 0,
+      "y": 4,
+      "config": {
+        "typeId": "output",
+        "values": {}
+      }
     }
   },
   "connections": {
@@ -33,6 +42,13 @@
       "fromPort": "",
       "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
       "toPort": ""
+    },
+    "conn-1f61add8-006a-4517-860d-ab51384f33f9": {
+      "id": "conn-1f61add8-006a-4517-860d-ab51384f33f9",
+      "fromNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
+      "fromPort": "0",
+      "toNodeId": "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18",
+      "toPort": "0"
     }
   }
 }

@@ -195,7 +195,7 @@ export class ExpressionExecutor {
       // Recursive resolution of dependencies
       const args = node.inputs.map(inputId => resolve(inputId));
 
-      let result;
+      let result: any;
       switch (node.op) {
         case 'const':
           result = node.params.value;

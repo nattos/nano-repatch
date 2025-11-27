@@ -147,8 +147,35 @@ defaultNodeRepository.register({
 });
 import { expressionNode } from '../customnodes/expr/nodes';
 import { GraphCompiler } from '../customnodes/expr/parser';
+import { midiCcNode, midiNoteNode } from '../customnodes/midi/nodes';
 
 const exprCompiler = new GraphCompiler();
+
+defaultNodeRepository.register({
+  id: 'midi_cc',
+  version: '1.0.0',
+  displayName: 'MIDI CC',
+  definition: midiCcNode,
+  inputs: [],
+  outputs: [
+    { name: 'value', type: NumberType, description: 'Normalized value (0-1)' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId }, untagged: [] }),
+});
+
+defaultNodeRepository.register({
+  id: 'midi_note',
+  version: '1.0.0',
+  displayName: 'MIDI Note',
+  definition: midiNoteNode,
+  inputs: [],
+  outputs: [
+    { name: 'note', type: NumberType, description: 'Note Number (when on)' },
+    { name: 'velocity', type: NumberType, description: 'Velocity (0-1)' },
+    { name: 'gate', type: NumberType, description: 'Gate (1 when on, 0 when off)' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60, deviceId: uiConfig.deviceId }, untagged: [] }),
+});
 
 defaultNodeRepository.register({
   id: 'expression:script',

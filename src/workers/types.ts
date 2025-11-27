@@ -47,11 +47,17 @@ export type ControlMessage = {
   frameRate?: number;
 };
 
+export type MidiUpdateMessage = {
+  type: 'MIDI_UPDATE';
+  values: Map<string, number>;
+};
+
 export type ExecutorWorkerMessage =
   | InitGraphMessage
   | UpdateConfigMessage
   | UpdateInputMessage
-  | ControlMessage;
+  | ControlMessage
+  | MidiUpdateMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';
 

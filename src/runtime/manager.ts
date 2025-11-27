@@ -17,6 +17,7 @@ import {
   ExecutionUpdateMessage
 } from '../workers/types';
 import { AudioRenderer } from '../audio/audio-renderer';
+import { midiManager } from '../io/midi/manager';
 
 const FRAME_RATE = 60;
 
@@ -80,10 +81,35 @@ export class RuntimeManager {
         };
         this.executorWorker.postMessage(msg);
 
-        if (isRealtime) {
-          this.audioRenderer.resume();
-        }
       }
+    );
+
+    // Sync MIDI state to worker
+    reaction(
+      () => {
+        // Track changes in both maps
+        return {
+          ccVersion: midiManager.state.ccValues.size + Array.from(midiManager.state.ccValues.values()).reduce((a, b) => a + b, 0), // Hack to track value changes?
+          // Better: just return shallow copy or keys/values?
+          // MobX maps are observable. Accessing them tracks.
+          // We want to trigger when any value changes.
+          // Iterating keys/values tracks.
+          cc: new Map(midiManager.state.ccValues),
+          notes: new Map(midiManager.state.activeNotes)
+        };
+      },
+      ({ cc, notes }) => {
+        const values = new Map<string, number>();
+        for (const [k, v] of cc) values.set(k, v);
+        for (const [k, v] of notes) values.set(k, v);
+
+        const msg: ExecutorWorkerMessage = {
+          type: 'MIDI_UPDATE',
+          values
+        };
+        this.executorWorker.postMessage(msg);
+      },
+      { delay: 16 } // Throttle to ~60fps
     );
   }
 
