@@ -1,21 +1,30 @@
 import { LitElement, html, css, PropertyValueMap } from 'lit';
 import { customElement, property, query } from 'lit/decorators.js';
-import * as monaco from 'monaco-editor';
 
 // Configure Monaco workers
 // Note: In a real Vite setup, we might need to configure workers properly.
 // For now, we'll try the basic setup. If it fails, we might need a worker loader.
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import * as monaco from 'monaco-editor';
 
 self.MonacoEnvironment = {
-  getWorker(_: any, label: string) {
-    if (label === 'typescript' || label === 'javascript') {
-      return new tsWorker();
+  getWorker: function (_moduleId: any, label: string) {
+    if (label === 'json') {
+      return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/json/json.worker.js?worker', import.meta.url), { type: 'module' });
     }
-    return new editorWorker();
+    if (label === 'css' || label === 'scss' || label === 'less') {
+      return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/css/css.worker.js?worker', import.meta.url), { type: 'module' });
+    }
+    if (label === 'html' || label === 'handlebars' || label === 'razor') {
+      return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/html/html.worker.js?worker', import.meta.url), { type: 'module' });
+    }
+    if (label === 'typescript' || label === 'javascript') {
+      return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/language/typescript/ts.worker.js?worker', import.meta.url), { type: 'module' });
+    }
+    return new Worker(new URL('../../node_modules/monaco-editor/esm/vs/editor/editor.worker.js?worker', import.meta.url), { type: 'module' });
   }
 };
+
+// Worker configuration is handled globally above
 
 @customElement('monaco-editor-wrapper')
 export class MonacoEditorWrapper extends LitElement {

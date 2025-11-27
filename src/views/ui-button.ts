@@ -1,4 +1,7 @@
-import { LitElement, html, css } from 'lit';
+import 'line-awesome/dist/line-awesome/css/line-awesome.css';
+// @ts-ignore
+import lineawesomecss from 'line-awesome/dist/line-awesome/css/line-awesome.css?raw';
+import { LitElement, html, css, unsafeCSS } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 @customElement('ui-button')
@@ -6,9 +9,7 @@ export class UiButton extends LitElement {
   @property({ type: String }) icon = '';
   @property({ type: Boolean }) disabled = false;
 
-  static readonly styles = css`
-    @import url("https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css");
-
+  static readonly styles = [unsafeCSS(lineawesomecss), css`
     :host {
       display: inline-block;
     }
@@ -51,7 +52,7 @@ export class UiButton extends LitElement {
     span:empty {
         margin-left: 0;
     }
-  `;
+  `];
 
   render() {
     return html`

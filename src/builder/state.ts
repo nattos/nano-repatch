@@ -520,10 +520,28 @@ export class LocalController {
         // Let's route from (fromNode.x + 1, fromNode.y) to (toNode.x, toNode.y).
         // This assumes left-to-right flow.
 
+        let startX = fromNode.x;
+        let startY = fromNode.y;
+        let endX = toNode.x;
+        let endY = toNode.y;
+
+        // Handle pinned nodes
+        if (fromNode.config.typeId === 'input') {
+          startX = 0;
+        } else if (fromNode.config.typeId === 'output') {
+          startX = 21; // Pinned to right
+        }
+
+        if (toNode.config.typeId === 'input') {
+          endX = 0;
+        } else if (toNode.config.typeId === 'output') {
+          endX = 21; // Pinned to right
+        }
+
         wires.push({
           id: conn.id,
-          start: { x: fromNode.x + 1, y: fromNode.y }, // Output is on the right
-          end: { x: toNode.x, y: toNode.y },     // Input is on the left
+          start: { x: startX + 1, y: startY }, // Output is on the right
+          end: { x: endX, y: endY },     // Input is on the left
           fromNodeId: conn.fromNodeId,
           fromPort: conn.fromPort.toString(),
           toNodeId: conn.toNodeId,

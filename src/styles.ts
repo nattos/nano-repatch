@@ -1,6 +1,11 @@
-import { css } from 'lit';
+import 'line-awesome/dist/line-awesome/css/line-awesome.css';
+// @ts-ignore
+import lineawesomecss from 'line-awesome/dist/line-awesome/css/line-awesome.css?raw';
+import { css, unsafeCSS } from 'lit';
 
-export const globalStyles = css`
+export const globalStyles = [
+  unsafeCSS(lineawesomecss),
+  css`
   :host {
     --pixel: 1px;
   }
@@ -27,4 +32,4 @@ export const globalStyles = css`
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
   }
-`;
+`];

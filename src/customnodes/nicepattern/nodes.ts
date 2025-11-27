@@ -12,13 +12,11 @@ import {
 import {
   defaultNodeRepository,
   NodeType,
-  NumberType,
-  AnyType,
   PortHint,
   InspectorChangeHandler,
   GraphNodeRenderHandlers,
 } from "../../structor/repository";
-import { defineType, definePrimitiveNode, typedBroadcast } from "../../structor/type-helpers";
+import { defineType, definePrimitiveNode, typedBroadcast, NumberType, AnyType } from "../../structor/type-helpers";
 import { numberType, booleanType, anyType } from "../../structor/std-types";
 import { Step, Sequence } from "./envelope-generator";
 import {

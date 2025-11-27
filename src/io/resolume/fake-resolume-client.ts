@@ -52,6 +52,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
     console.log('[FakeResolumeApiClient] Simulating WebSocket connection.');
     this._wsReadyState = 1; // OPEN
 
+    const self = this;
     // Simulate WebSocket instance
     this.mockWs = {
       send: (message: object) => {
@@ -66,7 +67,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
         }
       },
       get readyState() {
-        return this._wsReadyState;
+        return self._wsReadyState;
       }
     };
 

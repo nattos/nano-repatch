@@ -1,10 +1,14 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { appController } from '../builder/controllers';
+import { globalStyles } from '../styles';
 
 @customElement('app-sidebar')
 export class AppSidebar extends MobxLitElement {
-  static styles = css`
+  static styles = [
+    globalStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
@@ -45,7 +49,17 @@ export class AppSidebar extends MobxLitElement {
       height: 20px;
       fill: currentColor;
     }
-  `;
+
+    .spacer {
+      flex: 1;
+    }
+
+    .icon.disabled {
+      opacity: 0.5;
+      cursor: default;
+      pointer-events: none;
+    }
+  `];
 
   @property({ type: String })
   activeTab: string | null = null;
@@ -57,9 +71,7 @@ export class AppSidebar extends MobxLitElement {
         @click=${() => this.switchTab('workspace')}
         title="Workspace"
       >
-        <svg viewBox="0 0 24 24">
-          <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
-        </svg>
+        <i class="la la-folder-open" style="font-size: 20px;"></i>
       </div>
 
       <div
@@ -67,9 +79,25 @@ export class AppSidebar extends MobxLitElement {
         @click=${() => this.switchTab('io')}
         title="I/O"
       >
-        <svg viewBox="0 0 24 24">
-          <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
-        </svg>
+        <i class="la la-exchange-alt" style="font-size: 20px;"></i>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div
+        class="icon ${!appController.canUndo ? 'disabled' : ''}"
+        @click=${() => appController.undo()}
+        title="Undo"
+      >
+        <i class="la la-undo" style="font-size: 20px;"></i>
+      </div>
+
+      <div
+        class="icon ${!appController.canRedo ? 'disabled' : ''}"
+        @click=${() => appController.redo()}
+        title="Redo"
+      >
+        <i class="la la-redo" style="font-size: 20px;"></i>
       </div>
     `;
   }

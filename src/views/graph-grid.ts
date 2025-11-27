@@ -13,7 +13,7 @@ export class GraphGrid extends MobxLitElement {
   static readonly styles = css`
     :host {
       display: grid;
-      grid-template-columns: 120px repeat(50, 110px) 120px;
+      grid-template-columns: 120px repeat(20, 110px) 120px;
       grid-template-rows: repeat(auto-fill, 110px);
       width: 100%;
       height: 100%;
@@ -84,7 +84,7 @@ export class GraphGrid extends MobxLitElement {
           if (node.config.typeId === 'input') {
             nodeX = 10;
           } else if (node.config.typeId === 'output') {
-            nodeX = 120 + 50 * 110 + 10;
+            nodeX = 120 + 20 * 110 + 10;
           } else {
             nodeX = 120 + (node.x - 1) * 110 + 10;
           }
@@ -177,7 +177,7 @@ export class GraphGrid extends MobxLitElement {
     // We need to account for scrollLeft and the left input column width (120px)
     const gridX = Math.floor((clickX + this.scrollLeft - 120) / 110) + 1;
 
-    if (gridX >= 1 && gridX <= 50) {
+    if (gridX >= 1 && gridX <= 20) {
       // Check for gap clicks if needed, but for now just create node or ignore
       // The original code had logic for inserting spaces.
       // Re-implementing gap logic might be tricky with the new layout.
@@ -306,7 +306,7 @@ export class GraphGrid extends MobxLitElement {
     const cells = [];
     // Render grid cells only for the main area (x >= 1)
     for (let y = 0; y < 20; y++) { // Render enough rows
-      for (let x = 1; x <= 50; x++) {
+      for (let x = 1; x <= 20; x++) {
         if (!nodePositions.has(`${x},${y}`)) {
           cells.push(html`
             <div
@@ -367,7 +367,7 @@ export class GraphGrid extends MobxLitElement {
       if (node.config.typeId === 'input') {
         style = `grid-column: 1; grid-row: ${node.y + 1}; position: sticky; left: 0; z-index: 10; margin-left: 10px;`;
       } else if (node.config.typeId === 'output') {
-        style = `grid-column: 52; grid-row: ${node.y + 1}; position: sticky; right: 0; z-index: 10; margin-right: 10px;`;
+        style = `grid-column: 22; grid-row: ${node.y + 1}; position: sticky; right: 0; z-index: 10; margin-right: 10px;`;
       } else {
         style = `grid-column: ${node.x + 1}; grid-row: ${node.y + 1}; margin-left: 10px; z-index: 1; position: relative;`;
       }

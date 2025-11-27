@@ -1,8 +1,10 @@
-import { MobxLitElement } from '@adobe/lit-mobx/lit-mobx';
+import { MobxLitElement } from './views/mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
 import './structor/repository.ui';
+
+import './index.css';
 import './customnodes/nicepattern/nodes.ui';
 import './views/workspace-layout';
 import './views/monaco-editor';
@@ -24,7 +26,7 @@ export class App extends MobxLitElement {
       box-sizing: border-box;
       overflow: hidden;
     }
-  `];
+`];
 
 
   render() {

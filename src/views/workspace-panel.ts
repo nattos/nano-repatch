@@ -2,10 +2,13 @@ import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { workspaceController } from '../builder/controllers';
+import { globalStyles } from '../styles';
 
 @customElement('workspace-panel')
 export class WorkspacePanel extends MobxLitElement {
-  static styles = css`
+  static styles = [
+    globalStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
@@ -105,7 +108,7 @@ export class WorkspacePanel extends MobxLitElement {
     .action-btn:hover {
         background-color: #3d3d3d;
     }
-  `;
+  `];
 
   render() {
     const { currentDirHandle, files, currentGraphId, isWaitingForPermission } = workspaceController;
@@ -116,7 +119,7 @@ export class WorkspacePanel extends MobxLitElement {
         ${!currentDirHandle ? html`
           <button @click=${() => workspaceController.openFolder()}>Open Folder</button>
         ` : html`
-          <button @click=${() => workspaceController.refreshFiles()} title="Refresh">↻</button>
+          <button @click=${() => workspaceController.refreshFiles()} title="Refresh"><i class="la la-sync"></i></button>
         `}
       </div>
 
@@ -152,9 +155,7 @@ export class WorkspacePanel extends MobxLitElement {
             class="file-item ${file.name === currentGraphId ? 'active' : ''}"
             @dblclick=${() => workspaceController.openFile(file.name)}
           >
-            <svg class="file-icon" viewBox="0 0 24 24">
-              <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-            </svg>
+            <i class="la la-file file-icon"></i>
             ${file.name}
           </div>
         `)}

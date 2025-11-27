@@ -37,9 +37,11 @@ export class MidiManager {
       this.midiAccess = await (navigator as any).requestMIDIAccess();
       this.updateDevices();
 
-      this.midiAccess.onstatechange = () => {
-        this.updateDevices();
-      };
+      if (this.midiAccess) {
+        this.midiAccess.onstatechange = () => {
+          this.updateDevices();
+        };
+      }
     } catch (e) {
       console.error('Failed to access Web MIDI API:', e);
     }

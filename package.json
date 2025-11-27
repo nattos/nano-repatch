@@ -33,6 +33,7 @@
     "@adobe/lit-mobx": "^2.2.2",
     "@types/audioworklet": "^0.0.82",
     "immer": "^10.2.0",
+    "line-awesome": "^1.3.0",
     "monaco-editor": "^0.55.1",
     "typescript": "^5.2.2",
     "vite": "^7.1.9",

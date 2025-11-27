@@ -5,10 +5,13 @@ import { resolumeManager } from '../io/resolume/manager';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeParameter, ResolumeEffect } from '../io/resolume/state';
 import { midiManager } from '../io/midi/manager';
 import { MidiDevice, MidiEvent } from '../io/midi/state';
+import { globalStyles } from '../styles';
 
 @customElement('io-tab')
 export class IOTab extends MobxLitElement {
-  static styles = css`
+  static styles = [
+    globalStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
@@ -170,11 +173,12 @@ export class IOTab extends MobxLitElement {
       font-size: 0.8em;
       color: #aaa;
     }
-
+  `,
+    css`
     .event-value {
       font-weight: bold;
     }
-  `;
+  `];
 
   render() {
     const { state, ws } = resolumeManager;
@@ -184,7 +188,7 @@ export class IOTab extends MobxLitElement {
       <div class="header">
         <span>Resolume Arena</span>
         <button class="connect-btn" @click=${() => resolumeManager.connect()} ?disabled=${connected}>
-          ${connected ? 'Connected' : 'Connect'}
+          <i class="la ${connected ? 'la-link' : 'la-unlink'}"></i> ${connected ? 'Connected' : 'Connect'}
         </button>
       </div>
       <div class="tree">
