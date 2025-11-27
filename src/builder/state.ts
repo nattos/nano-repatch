@@ -1,6 +1,5 @@
 import { observable, action, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
-import { HTMLTemplateResult } from 'lit';
 
 // Enable Immer support for Map and Set
 enableMapSet();
@@ -487,6 +486,7 @@ export class AppController {
 }
 
 import { LayoutResult, computeWireLayout, WireDef } from '../layout/wire-layout';
+import { HTMLTemplateResult } from 'lit';
 
 // Part 4: Local Controller (UI State)
 export interface LocalState {

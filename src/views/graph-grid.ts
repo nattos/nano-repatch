@@ -6,6 +6,8 @@ import './graph-connection';
 import './graph-node';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { Point } from '../utils/layout-utils';
+import { defaultNodeRepository } from '../structor/repository';
+import { getPortPosition } from '../utils/graph-utils';
 import { styleMap } from 'lit/directives/style-map.js';
 
 @customElement('graph-grid')
@@ -321,25 +323,7 @@ export class GraphGrid extends MobxLitElement {
       }
     }
 
-    const getNodeScreenPos = (node: any) => {
-      if (node.config.typeId === 'input') {
-        // Pinned to left (visual x=10px padding)
-        // Sticky means it stays at 10px relative to viewport, so 10 + scrollLeft relative to grid origin
-        return { x: (10 + this.scrollLeft) / 110, y: node.y };
-      } else if (node.config.typeId === 'output') {
-        // Pinned to right (visual x = clientWidth - 130px)
-        // Sticky means it stays at clientWidth - 130 relative to viewport
-        const targetPixelX = this.clientWidth - 130 + this.scrollLeft;
-        return { x: targetPixelX / 110, y: node.y };
-      } else {
-        // Main grid: 120 + (x-1)*110 + 10
-        // We need to return "grid units" for the connection line.
-        // The connection line logic likely multiplies by 110.
-        // So we need to return (pixelX / 110).
-        const pixelX = 120 + (node.x - 1) * 110 + 10;
-        return { x: pixelX / 110, y: node.y };
-      }
-    };
+
 
     return html`
       ${this.selectionBox ? html`
@@ -351,8 +335,12 @@ export class GraphGrid extends MobxLitElement {
       const toNode = nodes[conn.toNodeId];
       if (!fromNode || !toNode) return '';
 
-      const fromPos = getNodeScreenPos(fromNode);
-      const toPos = getNodeScreenPos(toNode);
+      const fromNodeType = defaultNodeRepository.getNodeType(fromNode.config.typeId);
+      const toNodeType = defaultNodeRepository.getNodeType(toNode.config.typeId);
+      const loadedSubgraphs = localController.observableState.loadedSubgraphs;
+
+      const fromPos = getPortPosition(fromNode, conn.fromPort, 'out', fromNodeType, loadedSubgraphs, this.scrollLeft, this.clientWidth);
+      const toPos = getPortPosition(toNode, conn.toPort, 'in', toNodeType, loadedSubgraphs, this.scrollLeft, this.clientWidth);
 
       return html`
           <graph-connection

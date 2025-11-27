@@ -65,14 +65,14 @@ export class GraphConnection extends MobxLitElement {
       // We need to draw lines between the centers of these cells, but offset by lane.
 
       const points = wireLayout.path.map((p, i) => {
-        // Skip the last point if it matches the destination node,
-        // to avoid going to the center of the node and then back to the port.
-        if (p.x === this.to.x && p.y === this.to.y) {
+        // Skip the first and last points (node centers)
+        // We want to draw from Port -> Neighbor -> ... -> Neighbor -> Port
+        if (i === 0 || i === wireLayout.path.length - 1) {
           return null;
         }
 
-        let x = p.x * 110 + 50; // Center of cell
-        let y = p.y * 110 + 50;
+        let x = p.x * 110 + 10; // Center of cell
+        let y = p.y * 110 + 55;
 
         // Apply lane offset if we have a next point (defining a segment)
         if (i < wireLayout.path.length - 1) {
@@ -98,7 +98,8 @@ export class GraphConnection extends MobxLitElement {
             }
           }
         } else if (i > 0) {
-          // For the last point, use the lane of the previous segment to align
+          // For the last point (which we are skipping anyway, but logic remains for intermediate points),
+          // use the lane of the previous segment to align
           const prev = wireLayout.path[i - 1];
           const k1 = `${prev.x},${prev.y}`;
           const k2 = `${p.x},${p.y}`;
@@ -120,10 +121,10 @@ export class GraphConnection extends MobxLitElement {
 
       // Construct SVG path
       // Start at actual port position (this.from)
-      const startX = this.from.x * 110 + 90;
-      const startY = this.from.y * 110 + 50;
-      const endX = this.to.x * 110 + 10;
-      const endY = this.to.y * 110 + 50;
+      const startX = this.from.x * 110;
+      const startY = this.from.y * 110;
+      const endX = this.to.x * 110;
+      const endY = this.to.y * 110;
 
       d = `M ${startX} ${startY}`;
 
@@ -141,10 +142,10 @@ export class GraphConnection extends MobxLitElement {
 
     } else {
       // Fallback to simple elbow
-      const startX = this.from.x * 110 + 90;
-      const startY = this.from.y * 110 + 50;
-      const endX = this.to.x * 110 + 10;
-      const endY = this.to.y * 110 + 50;
+      const startX = this.from.x * 110;
+      const startY = this.from.y * 110;
+      const endX = this.to.x * 110;
+      const endY = this.to.y * 110;
 
       if (endX > startX) {
         const midX = startX + (endX - startX) / 2;

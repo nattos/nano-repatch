@@ -108,10 +108,30 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
 
         const tentativeGScore = (gScore.get(getKey(current)) ?? Infinity) + 1;
 
-        if (tentativeGScore < (gScore.get(neighborKey) ?? Infinity)) {
+        // Cost Modification for H-V-H Preference
+        let moveCost = 1;
+        const isVertical = neighbor.x === current.x; // Moving in Y (x is constant)
+
+        if (isVertical) {
+          // 1. Port Constraint: Penalize Vertical at Start/End
+          // We want to leave/enter ports horizontally.
+          if (pointsEqual(current, start2x)) moveCost += 50;
+          if (pointsEqual(neighbor, end2x)) moveCost += 50;
+
+          // 2. Centering: Prefer vertical segments near middle
+          // Calculate midpoint of the gap
+          const midX = (start2x.x + end2x.x) / 2;
+          // Add small penalty proportional to distance from midX
+          // This biases towards the center without overriding the main path
+          moveCost += 0.05 * Math.abs(neighbor.x - midX);
+        }
+
+        const newGScore = (gScore.get(getKey(current)) ?? Infinity) + moveCost;
+
+        if (newGScore < (gScore.get(neighborKey) ?? Infinity)) {
           cameFrom.set(neighborKey, current);
-          gScore.set(neighborKey, tentativeGScore);
-          fScore.set(neighborKey, tentativeGScore + manhattan(neighbor, end2x));
+          gScore.set(neighborKey, newGScore);
+          fScore.set(neighborKey, newGScore + manhattan(neighbor, end2x));
 
           if (!openSet.some(p => pointsEqual(p, neighbor))) {
             openSet.push(neighbor);
