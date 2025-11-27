@@ -33,6 +33,17 @@ export class ResolumeManager {
     }
   }
 
+  get isConnected() {
+    return !!this.ws;
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
   private handleMessage(data: any) {
     // Initial state (check if it looks like a composition)
     if (data.layers && data.decks) {

@@ -23,16 +23,16 @@ describe('GraphNode', () => {
   });
 
   it('renders correct ports and virtual inputs for a clamp node', async () => {
-    const inPorts = clampNode.shadowRoot!.querySelectorAll('.in-port');
-    const outPorts = clampNode.shadowRoot!.querySelectorAll('.out-port');
+    const inPorts = clampNode.shadowRoot!.querySelectorAll('graph-port[type="in"]');
+    const outPorts = clampNode.shadowRoot!.querySelectorAll('graph-port[type="out"]');
 
     expect(inPorts.length).to.equal(3, 'Should have 3 input ports (including virtual ones)');
     expect(outPorts.length).to.equal(1, 'Should have 1 output port');
 
-    const inPortNames = Array.from(inPorts).map(p => p.getAttribute('data-port'));
+    const inPortNames = Array.from(inPorts).map(p => p.getAttribute('name'));
     expect(inPortNames).to.have.members(['', 'min', 'max']);
 
-    const outPortNames = Array.from(outPorts).map(p => p.getAttribute('data-port'));
+    const outPortNames = Array.from(outPorts).map(p => p.getAttribute('name'));
     expect(outPortNames).to.have.members(['0']);
 
     const virtualInputs = clampNode.shadowRoot!.querySelectorAll('.virtual-input-field');
@@ -44,22 +44,22 @@ describe('GraphNode', () => {
       id: 'node-test-fmod',
       x: 0,
       y: 0,
-      config: { typeId: 'fmod' }
+      config: { typeId: 'fmod', values: {} }
     };
 
     const fmodNode = await fixture(html`<graph-node .node=${fmodTestNode}></graph-node>`);
     await (fmodNode as LitElement).updateComplete;
 
-    const inPorts = fmodNode.shadowRoot!.querySelectorAll('.in-port');
-    const outPorts = fmodNode.shadowRoot!.querySelectorAll('.out-port');
+    const inPorts = fmodNode.shadowRoot!.querySelectorAll('graph-port[type="in"]');
+    const outPorts = fmodNode.shadowRoot!.querySelectorAll('graph-port[type="out"]');
 
     expect(inPorts.length).to.equal(2, 'Should have 2 input ports');
     expect(outPorts.length).to.equal(2, 'Should have 2 output ports');
 
-    const inPortNames = Array.from(inPorts).map(p => p.getAttribute('data-port'));
+    const inPortNames = Array.from(inPorts).map(p => p.getAttribute('name'));
     expect(inPortNames).to.have.members(['dividend', 'divisor']);
 
-    const outPortNames = Array.from(outPorts).map(p => p.getAttribute('data-port'));
+    const outPortNames = Array.from(outPorts).map(p => p.getAttribute('name'));
     expect(outPortNames).to.have.members(['div', 'mod']);
 
     const virtualInputs = fmodNode.shadowRoot!.querySelectorAll('.virtual-input-field');

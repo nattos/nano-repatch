@@ -28,6 +28,25 @@ export const globalStyles = [
     --app-bg-color1: #222222;
     --app-bg-color2: #313131;
 
+    /* Semantic Theme Variables */
+    --bg-color: #222;
+    --panel-bg: #333;
+    --panel-header-bg: #2a2a2a;
+    --node-bg: #333;
+    --node-border: #444;
+    --text-color: #ddd;
+    --text-muted: #aaa;
+    --border-color: #555;
+    --accent-color: #00aaff;
+    --selection-color: rgba(0, 170, 255, 0.5);
+    --port-color: #555;
+    --port-hover: #777;
+    --port-connected: #00ff00;
+    --input-bg: #444;
+    --button-bg: #333;
+    --button-hover: #444;
+    --button-active: #222;
+
     color: var(--app-text-color2);
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;

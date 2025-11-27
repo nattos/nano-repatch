@@ -220,6 +220,33 @@ export class AppController {
     }
   }
 
+  public calculateConstrainedMove(nodeIds: string[], dx: number, dy: number): { dx: number, dy: number } {
+    const state = this.getState();
+    let constrainedDx = dx;
+    let constrainedDy = dy;
+
+    const nodes = nodeIds.map(id => state.graph.inner.nodes[id]).filter(n => !!n);
+
+    // Check for pinned nodes
+    const hasPinned = nodes.some(n => n.config.typeId === 'input' || n.config.typeId === 'output');
+
+    if (hasPinned) {
+      constrainedDx = 0; // Lock X axis for pinned nodes
+    } else {
+      // Enforce boundaries for normal nodes (1 <= x <= 50)
+      for (const n of nodes) {
+        const newX = n.x + constrainedDx;
+        if (newX < 1) {
+          constrainedDx = 1 - n.x;
+        } else if (newX > 50) {
+          constrainedDx = 50 - n.x;
+        }
+      }
+    }
+
+    return { dx: constrainedDx, dy: constrainedDy };
+  }
+
   public moveNodes(nodeIds: string[], dx: number, dy: number): void {
     const state = this.getState();
     const moves = nodeIds.map(id => {

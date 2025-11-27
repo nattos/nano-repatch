@@ -264,9 +264,10 @@ export class GraphGrid extends MobxLitElement {
 
     try {
       const parsed = JSON.parse(data);
-      // TODO: Get rid of this. There can't possibly be a reason this is necessary.
-      // We should be able to look up whether a node type is an input or output node
-      // (or neither) from our registry.
+      // Handle Resolume parameters specially:
+      // If dropped on the left, create an input.
+      // If dropped on the right, create an output.
+      // Otherwise, default to input.
       if (parsed.type === 'resolume:parameter') {
         const rect = this.getBoundingClientRect();
         const dropX = e.clientX - rect.left;

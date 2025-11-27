@@ -6,94 +6,64 @@ import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeParameter, Re
 import { midiManager } from '../io/midi/manager';
 import { MidiDevice, MidiEvent } from '../io/midi/state';
 import { globalStyles } from '../styles';
+import './ui-button';
+import './ui-panel';
 
 @customElement('io-tab')
 export class IOTab extends MobxLitElement {
-  static styles = [
-    globalStyles,
+  static readonly styles = [
+    ...globalStyles,
     css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      background: #1e1e1e;
-      color: #eee;
-      font-family: 'Inter', sans-serif;
-      overflow: hidden;
-    }
+      :host {
+        display: block;
+        height: 100%;
+      }
 
-    .header {
-      padding: 10px;
-      border-bottom: 1px solid #333;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+      .section {
+        margin-bottom: 20px;
+      }
 
-    .connect-btn {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
+      .section-header {
+        font-weight: bold;
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 5px;
+        color: var(--text-muted);
+      }
 
-    .connect-btn:disabled {
-        background: #555;
-        cursor: default;
-    }
+      .device-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
 
-    .tree {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
+      .device-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px;
+        background-color: var(--input-bg);
+        border-radius: 4px;
+      }
 
-    .item {
-      margin-left: 10px;
-      margin-bottom: 4px;
-    }
+      .status {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #555;
+      }
 
-    .label {
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      padding: 2px 4px;
-      border-radius: 3px;
-    }
+      .status.connected {
+        background-color: var(--port-connected);
+        box-shadow: 0 0 5px var(--port-connected);
+      }
 
-    .label:hover {
-      background: #333;
-    }
-
-    .param {
-      color: #aaa;
-      font-size: 0.9em;
-      cursor: grab;
-    }
-
-    .param:hover {
-        color: #fff;
-        background: #444;
-    }
-
-    .thumbnail {
-      width: 40px;
-      height: 30px;
-      background: #000;
-      margin-right: 8px;
-      object-fit: cover;
-    }
-
-    details > summary {
-        list-style: none;
-        cursor: pointer;
-    }
-
-    details > summary::-webkit-details-marker {
-        display: none;
-    }
+      .resolume-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
 
     details > summary::before {
         content: '▶';
@@ -106,78 +76,6 @@ export class IOTab extends MobxLitElement {
     details[open] > summary::before {
         transform: rotate(90deg);
     }
-    details[open] > summary::before {
-        transform: rotate(90deg);
-    }
-
-    .section-title {
-      padding: 10px;
-      font-weight: bold;
-      background: #252525;
-      border-bottom: 1px solid #333;
-      border-top: 1px solid #333;
-    }
-
-    .midi-devices {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 10px;
-    }
-
-    .chip {
-      background: #333;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.8em;
-      cursor: pointer;
-      border: 1px solid transparent;
-    }
-
-    .chip.selected {
-      background: #4CAF50;
-      color: white;
-    }
-
-    .chip.disconnected {
-      opacity: 0.5;
-    }
-
-    .midi-events {
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
-    .event-card {
-      background: #333;
-      padding: 8px;
-      border-radius: 4px;
-      cursor: grab;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .event-card:hover {
-      background: #444;
-    }
-
-    .event-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .event-type {
-      font-size: 0.8em;
-      color: #aaa;
-    }
-  `,
-    css`
-    .event-value {
-      font-weight: bold;
-    }
   `];
 
   render() {
@@ -185,20 +83,44 @@ export class IOTab extends MobxLitElement {
     const connected = !!ws;
 
     return html`
-      <div class="header">
-        <span>Resolume Arena</span>
-        <button class="connect-btn" @click=${() => resolumeManager.connect()} ?disabled=${connected}>
-          <i class="la ${connected ? 'la-link' : 'la-unlink'}"></i> ${connected ? 'Connected' : 'Connect'}
-        </button>
-      </div>
-      <div class="tree">
-        <div class="section-title">Resolume</div>
-        ${this.renderComposition(state)}
+      <ui-panel title="I/O Devices">
+        <div class="section">
+          <div class="section-header">MIDI Devices</div>
+          <div class="device-list">
+            ${Array.from(midiManager.state.devices.values()).map(input => html`
+              <div class="device-item">
+                <span>${input.name}</span>
+                <div class="status ${input.state === 'connected' ? 'connected' : ''}"></div>
+              </div>
+            `)}
+            ${midiManager.state.devices.size === 0 ? html`<div>No MIDI inputs found</div>` : ''}
+          </div>
+        </div>
 
-        <div class="section-title">MIDI</div>
-        ${this.renderMidiSection()}
-      </div>
+        <div class="section">
+          <div class="section-header">Resolume Arena</div>
+          <div class="resolume-status">
+            <div class="status ${resolumeManager.isConnected ? 'connected' : ''}"></div>
+            <span>${resolumeManager.isConnected ? 'Connected' : 'Disconnected'}</span>
+            <ui-button
+              @click=${this.toggleResolume}
+              ?disabled=${resolumeManager.isConnected}
+              icon="la-plug"
+            >
+              ${resolumeManager.isConnected ? 'Connected' : 'Connect'}
+            </ui-button>
+          </div>
+        </div>
+      </ui-panel>
     `;
+  }
+
+  toggleResolume() {
+    if (resolumeManager.isConnected) {
+      resolumeManager.disconnect();
+    } else {
+      resolumeManager.connect();
+    }
   }
 
   renderComposition(comp: ResolumeComposition) {

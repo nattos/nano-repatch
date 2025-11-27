@@ -2,21 +2,24 @@ import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
-
+import { globalStyles } from '../styles';
 import './ui-button';
+import './ui-input';
 
 @customElement('inspector-popup')
 export class InspectorPopup extends MobxLitElement {
-  static readonly styles = css`
+  static readonly styles = [
+    ...globalStyles,
+    css`
     :host {
       position: absolute;
       bottom: 20px;
       right: 20px;
       width: 300px;
       max-height: 80vh;
-      background-color: #222;
-      color: white;
-      border: 1px solid #444;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
@@ -27,38 +30,27 @@ export class InspectorPopup extends MobxLitElement {
 
     .header {
       padding: 10px;
-      border-bottom: 1px solid #444;
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       gap: 10px;
       justify-content: flex-end;
+      background-color: var(--panel-header-bg);
+      border-radius: 8px 8px 0 0;
     }
 
     .content {
       padding: 20px;
       flex: 1;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
     }
 
     .field {
-      margin-bottom: 15px;
+      margin-bottom: 0;
     }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      color: #aaa;
-      font-size: 12px;
-    }
-
-    select, input {
-      width: 100%;
-      padding: 8px;
-      background-color: #333;
-      border: 1px solid #555;
-      color: white;
-      border-radius: 4px;
-    }
-  `;
+  `];
 
   render() {
     const selection = localController.observableState.selection;

@@ -15,9 +15,9 @@ export class UiButton extends LitElement {
     }
 
     button {
-      background-color: #333;
-      color: white;
-      border: 1px solid #555;
+      background-color: var(--button-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
       border-radius: 4px;
       padding: 8px 12px;
       cursor: pointer;
@@ -29,11 +29,11 @@ export class UiButton extends LitElement {
     }
 
     button:hover:not(:disabled) {
-      background-color: #444;
+      background-color: var(--button-hover);
     }
 
     button:active:not(:disabled) {
-      background-color: #222;
+      background-color: var(--button-active);
     }
 
     button:disabled {

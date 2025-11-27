@@ -47,15 +47,16 @@ describe('GraphNode Subgraph Integration', () => {
     const el = await fixture(html`<graph-node .node=${node}></graph-node>`);
     await (el as LitElement).updateComplete;
 
-    // 4. Verify ports
-    const inPorts = el.shadowRoot!.querySelectorAll('.in-port');
-    const outPorts = el.shadowRoot!.querySelectorAll('.out-port');
+    await el.updateComplete;
+
+    const inPorts = el.shadowRoot!.querySelectorAll('graph-port[type="in"]');
+    const outPorts = el.shadowRoot!.querySelectorAll('graph-port[type="out"]');
 
     expect(inPorts.length).to.equal(1);
-    expect(inPorts[0].getAttribute('data-port')).to.equal('MyInput');
+    expect(inPorts[0].getAttribute('name')).to.equal('MyInput');
 
     expect(outPorts.length).to.equal(1);
-    expect(outPorts[0].getAttribute('data-port')).to.equal('MyOutput');
+    expect(outPorts[0].getAttribute('name')).to.equal('MyOutput');
 
     // Verify title
     const title = el.shadowRoot!.querySelector('.node-title');

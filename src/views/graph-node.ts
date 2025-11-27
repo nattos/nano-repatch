@@ -8,6 +8,8 @@ import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
+import './graph-port';
+
 
 @customElement('graph-node')
 export class GraphNode extends MobxLitElement {
@@ -31,18 +33,17 @@ export class GraphNode extends MobxLitElement {
   @property({ type: Boolean })
   isQueued = false;
 
-  @state()
-  private isHoveringPort: string | null = null;
+
 
   static readonly styles = css`
     :host {
       display: flex;
       flex-direction: column;
-      background-color: #333;
+      background-color: var(--node-bg);
       border-radius: 10px;
       width: 120px; /* Adjusted width */
       min-height: 80px;
-      color: white;
+      color: var(--text-color);
       cursor: grab;
       position: relative;
       border: 2px solid transparent;
@@ -53,21 +54,21 @@ export class GraphNode extends MobxLitElement {
 
     .node {
       position: absolute;
-      background: #222;
+      background: var(--bg-color);
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
       /* overflow: hidden; */
       user-select: none;
-      border: 1px solid #444;
-      border-left: 4px solid var(--node-accent-color, #444);
+      border: 1px solid var(--node-border);
+      border-left: 4px solid var(--node-accent-color, var(--node-border));
       transition: box-shadow 0.2s, border-color 0.2s;
     }
 
     :host([selected]) {
-      border-color: #00aaff;
-      box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+      border-color: var(--accent-color);
+      box-shadow: 0 0 10px var(--selection-color);
     }
 
     .node-main-content {
@@ -120,33 +121,6 @@ export class GraphNode extends MobxLitElement {
       height: 20px; /* Fixed height for port row */
     }
 
-    .port {
-      width: 15px;
-      height: 15px;
-      background-color: #555;
-      border-radius: 50%;
-      cursor: pointer;
-      transition: background-color 0.2s, transform 0.2s;
-      z-index: 10; /* Ensure ports are above other elements */
-    }
-
-    .port:hover {
-      background-color: #777;
-      transform: scale(1.2);
-    }
-
-    .port.connecting {
-      background-color: #00ff00;
-      box-shadow: 0 0 5px #00ff00;
-    }
-
-    .port-label {
-      font-size: 0.7em;
-      white-space: nowrap;
-      color: #ccc;
-      margin: 0 5px;
-    }
-
     .virtual-inputs-container {
       margin-top: 10px;
       width: 100%;
@@ -164,7 +138,7 @@ export class GraphNode extends MobxLitElement {
 
     .virtual-input-field-wrapper label {
       font-size: 0.7em;
-      color: #ccc;
+      color: var(--text-muted);
       margin-bottom: 2px;
     }
 
@@ -172,9 +146,9 @@ export class GraphNode extends MobxLitElement {
       width: calc(100% - 10px); /* Account for padding */
       padding: 3px;
       border-radius: 3px;
-      border: 1px solid #555;
-      background-color: #444;
-      color: white;
+      border: 1px solid var(--border-color);
+      background-color: var(--input-bg);
+      color: var(--text-color);
       font-size: 0.8em;
     }
   `;
@@ -184,7 +158,7 @@ export class GraphNode extends MobxLitElement {
     // We need to check composed path because the target might be inside the shadow DOM of the input
     const path = e.composedPath();
     const isInput = path.some(el => (el as HTMLElement).classList?.contains('virtual-input-field'));
-    const isPort = path.some(el => (el as HTMLElement).classList?.contains('port'));
+    const isPort = path.some(el => (el as HTMLElement).tagName?.toLowerCase() === 'graph-port');
 
     if (isInput || isPort) {
       return;
@@ -210,49 +184,10 @@ export class GraphNode extends MobxLitElement {
         const selectedNodeIds = Array.from(localController.observableState.selection.keys())
           .filter(id => id.startsWith('node-'));
 
-        // Check for pinned nodes in selection
-        const state = appController.getState();
+        const { dx: constrainedDx, dy: constrainedDy } = appController.calculateConstrainedMove(selectedNodeIds, dx, dy);
 
-        // We need to calculate the new position for THIS node to check constraints
-        // But we are moving a selection.
-        // If the selection contains pinned nodes, we might want to restrict the whole selection?
-        // Or just lock the pinned nodes?
-        // The current logic locks X if ANY pinned node is selected.
-
-        const hasInput = selectedNodeIds.some(id => {
-          const n = state.graph.inner.nodes[id];
-          return n && n.config.typeId === 'input';
-        });
-
-        const hasOutput = selectedNodeIds.some(id => {
-          const n = state.graph.inner.nodes[id];
-          return n && n.config.typeId === 'output';
-        });
-
-        if (hasInput || hasOutput) {
-          dx = 0; // Lock X axis for pinned nodes
-        }
-
-        // Enforce boundaries for normal nodes
-        // They should not go into col 0 (Input) or col 51 (Output)
-        if (!hasInput && !hasOutput) {
-          // Check if any node in the selection would violate the bounds
-          for (const id of selectedNodeIds) {
-            const n = state.graph.inner.nodes[id];
-            if (n) {
-              const newX = n.x + dx;
-              if (newX < 1) {
-                dx = 1 - n.x; // Clamp to left boundary (col 1)
-              }
-              if (newX > 50) {
-                dx = 50 - n.x; // Clamp to right boundary (col 50)
-              }
-            }
-          }
-        }
-
-        console.log('moveNodes', dx, dy);
-        appController.moveNodes(selectedNodeIds, dx, dy);
+        console.log('moveNodes', constrainedDx, constrainedDy);
+        appController.moveNodes(selectedNodeIds, constrainedDx, constrainedDy);
 
         this.style.transform = '';
       },
@@ -273,53 +208,6 @@ export class GraphNode extends MobxLitElement {
     });
   }
 
-  private handlePortClick(e: MouseEvent) {
-    e.stopPropagation(); // Prevent node drag from starting
-    const target = e.target as HTMLElement;
-    const port = target.dataset.port!;
-    const type = target.dataset.type as 'in' | 'out';
-
-    const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
-
-    if (!currentInflightOp) {
-      // Start connection
-      localController.setInflightPortConnectionOperation({ nodeId: this.node.id, port, type });
-
-      // Select the port to allow cancellation
-      const portPath = `port://${this.node.id}/${type}/${port}`;
-      const handle = localController.defineSelectable({
-        path: portPath,
-      });
-      handle.select();
-
-      // Watch for deselection to cancel
-      const disposer = reaction(
-        () => localController.observableState.selection.has(portPath),
-        (isSelected) => {
-          if (!isSelected) {
-            // If we are no longer selected, and the operation is still inflight matching this port, cancel it.
-            const current = localController.observableState.inflightPortConnectionOperation;
-            if (current && current.nodeId === this.node.id && current.port === port && current.type === type) {
-              localController.setInflightPortConnectionOperation(null);
-            }
-            disposer();
-          }
-        }
-      );
-
-    } else {
-      // Complete connection
-      if (currentInflightOp.nodeId !== this.node.id && currentInflightOp.type !== type) {
-        const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.node.id, port, type };
-        const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.node.id, port, type };
-
-        appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
-      }
-      localController.setInflightPortConnectionOperation(null);
-      // Clear selection to trigger disposer
-      localController.queueSelectPaths([]);
-    }
-  }
 
   private handleClick(e: MouseEvent) {
     if (this.dataset.dragged) {
@@ -442,34 +330,28 @@ export class GraphNode extends MobxLitElement {
       <div class="ports-wrapper">
         <div class="inputs">
           ${inputs.map(input => {
-      const isConnecting = connectingPort?.type === 'in' && connectingPort?.port === input.name;
       return html`
               <div class="port-wrapper">
-                <div
-                  class="port in-port ${isConnecting ? 'connecting' : ''}"
-                  data-port="${input.name}"
-                  data-type="in"
-                  @click=${this.handlePortClick}
-                  title="${input.description}"
-                ></div>
-                ${input.name ? html`<span class="port-label">${input.name}</span>` : ''}
+                <graph-port
+                  .nodeId=${this.node.id}
+                  .name=${input.name}
+                  type="in"
+                  .description=${input.description || ''}
+                ></graph-port>
               </div>
             `;
     })}
         </div>
         <div class="outputs">
           ${outputs.map(output => {
-      const isConnecting = connectingPort?.type === 'out' && connectingPort?.port === output.name;
       return html`
               <div class="port-wrapper">
-                ${output.name !== '0' ? html`<span class="port-label">${output.name}</span>` : ''}
-                <div
-                  class="port out-port ${isConnecting ? 'connecting' : ''}"
-                  data-port="${output.name}"
-                  data-type="out"
-                  @click=${this.handlePortClick}
-                  title="${output.description}"
-                ></div>
+                <graph-port
+                  .nodeId=${this.node.id}
+                  .name=${output.name}
+                  type="out"
+                  .description=${output.description || ''}
+                ></graph-port>
               </div>
             `;
     })}
