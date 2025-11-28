@@ -110,6 +110,7 @@ export class IOTab extends MobxLitElement {
               ${resolumeManager.isConnected ? 'Connected' : 'Connect'}
             </ui-button>
           </div>
+          ${resolumeManager.isConnected ? this.renderComposition(resolumeManager.state) : ''}
         </div>
       </ui-panel>
     `;
