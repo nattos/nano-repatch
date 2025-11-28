@@ -1,14 +1,10 @@
+import './graph-node';
 import { MobxLitElement } from './mobx-lit-element';
-import { LitElement, html, css } from 'lit';
+import { html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
-
-import './graph-node';
 import { PointerDragOp } from '../utils/pointer-drag-op';
-import { Point, cssColorFromHash } from '../utils/layout-utils';
-import { defaultNodeRepository } from '../structor/repository';
-import { getPortPosition } from '../utils/graph-utils';
-import { styleMap } from 'lit/directives/style-map.js';
+import { cssColorFromHash } from '../utils/layout-utils';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -37,12 +33,12 @@ export class GraphGrid extends MobxLitElement {
       grid-template-columns:
         [input] minmax(120px, auto)
         [gap-start] 10px
-        repeat(12, [node] minmax(100px, auto) [gap] 10px)
+        repeat(12, [node] auto [gap] 10px)
         [output] minmax(120px, auto);
 
       grid-template-rows:
         [gap-top] 10px
-        repeat(auto-fill, [node] minmax(100px, auto) [gap] 10px);
+        repeat(auto-fill, [node] auto [gap] 10px);
 
       min-width: 100%;
       min-height: 100%;
@@ -66,6 +62,8 @@ export class GraphGrid extends MobxLitElement {
 
     .cell.node-cell {
       background-color: rgba(255, 255, 255, 0.05);
+      min-width: 80px;
+      min-height: 80px;
     }
 
     .cell.gap-cell {
@@ -543,7 +541,7 @@ export class GraphGrid extends MobxLitElement {
             <graph-node
               .node=${node}
               .isQueued=${isQueued}
-              style="grid-column: ${col}; grid-row: ${row}; z-index: 10; width: 100%; height: 100%;"
+              style="grid-column: ${col}; grid-row: ${row}; z-index: 10;"
               data-id="${node.id}"
             ></graph-node>
           `;

@@ -2,12 +2,12 @@
   "nodes": {
     "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a": {
       "id": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
-      "x": 4,
-      "y": 3,
+      "x": 5,
+      "y": 4,
       "config": {
         "typeId": "clamp",
         "values": {
-          "min": 0.17,
+          "min": 0,
           "max": 0.81
         },
         "name": "clamp"
@@ -16,7 +16,7 @@
     "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18": {
       "id": "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18",
       "x": 0,
-      "y": 2,
+      "y": 3,
       "config": {
         "typeId": "output",
         "values": {}
@@ -25,7 +25,7 @@
     "node-40581207-edd9-48be-ad8c-04d49501bb6b": {
       "id": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
       "x": 1,
-      "y": 3,
+      "y": 7,
       "config": {
         "typeId": "literal",
         "values": {},
@@ -37,11 +37,22 @@
     },
     "node-8ae8721c-7a50-4c9e-8182-793e5282588c": {
       "id": "node-8ae8721c-7a50-4c9e-8182-793e5282588c",
-      "x": 2,
+      "x": 3,
       "y": 5,
       "config": {
         "typeId": "literal",
         "values": {}
+      }
+    },
+    "node-57ba7895-043b-4a12-b6e6-efb4c2042619": {
+      "id": "node-57ba7895-043b-4a12-b6e6-efb4c2042619",
+      "x": 2,
+      "y": 2,
+      "config": {
+        "typeId": "fmod",
+        "values": {
+          "divisor": 5.4
+        }
       }
     }
   },

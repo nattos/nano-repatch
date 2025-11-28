@@ -50,6 +50,35 @@ export class GraphNode extends MobxLitElement {
       transition: border-color 0.2s;
       box-sizing: border-box;
       padding: 10px; /* Added padding for internal content */
+      transition: width 0.2s, height 0.2s, border-radius 0.2s;
+    }
+
+    :host([data-state="normal"]) {
+      width: 200px;
+    }
+
+    :host([data-state="compressed"]) {
+      width: 100px;
+    }
+
+    :host([data-state="minimal"]) {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      min-height: 80px;
+    }
+
+    :host([data-state="minimal"]) .node {
+      border-radius: 50%;
+    }
+
+    :host([data-state="minimal"]) .node-title {
+      font-size: 0.7em;
+      text-align: center;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .node {
@@ -270,6 +299,47 @@ export class GraphNode extends MobxLitElement {
   updated() {
     if (this.node) {
       this.dataset.id = this.node.id;
+
+      // Re-calculate state for host attribute
+      const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+      let inputs: PortHint[] = [];
+      let outputs: PortHint[] = [];
+
+      if (nodeType) {
+        const dynamicInfo = nodeType.getPorts?.(this.node, localController.observableState.loadedSubgraphs);
+        if (dynamicInfo) {
+          inputs = dynamicInfo.inputs;
+          outputs = dynamicInfo.outputs;
+        } else {
+          inputs = nodeType.inputs || [];
+          outputs = nodeType.outputs || [];
+        }
+      }
+
+      const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(this.node.id) || [];
+      const connectedPorts = new Set(incomingConnections.map(connId => {
+        const conn = appController.observableState.graph.inner.connections[connId];
+        return conn ? conn.toPort : null;
+      }).filter(port => port !== null));
+
+      let hasVisibleSliders = false;
+      inputs.forEach(input => {
+        const isConnected = connectedPorts.has(input.name);
+        if (input.defaultValue !== undefined && !isConnected) {
+          hasVisibleSliders = true;
+        }
+      });
+
+      let state = 'normal';
+      if (!hasVisibleSliders) {
+        if (inputs.length <= 1 && outputs.length <= 1) {
+          state = 'minimal';
+        } else if (inputs.length <= 3 && outputs.length <= 3) {
+          state = 'compressed';
+        }
+      }
+
+      this.dataset.state = state;
     }
   }
 
@@ -320,47 +390,70 @@ export class GraphNode extends MobxLitElement {
     const isQueued = this.isQueued;
     const typeColor = cssColorFromHash(this.node.config.typeId);
 
-    const style = `transform: translate(-14px, -14px); width: 100px; height: 100px; --node-accent-color: ${typeColor};`;
+    // Determine State
+    // Normal: Default
+    // Compressed: inputs <= 3 AND outputs <= 3 AND no visible sliders
+    // Minimal: inputs <= 1 AND outputs <= 1 AND no visible sliders
+
+    let hasVisibleSliders = false;
+    inputs.forEach(input => {
+      const isConnected = connectedPorts.has(input.name);
+      if (input.defaultValue !== undefined && !isConnected) {
+        hasVisibleSliders = true;
+      }
+    });
+
+    let state = 'normal';
+    if (!hasVisibleSliders) {
+      if (inputs.length <= 1 && outputs.length <= 1) {
+        state = 'minimal';
+      } else if (inputs.length <= 3 && outputs.length <= 3) {
+        state = 'compressed';
+      }
+    }
+
+    const style = `transform: translate(-14px, -14px); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
 
     return html`
       <div
         class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''}"
         style="${style}"
+        data-state="${state}"
       >
-      <div class="ports-wrapper">
-        <div class="inputs">
-          ${inputs.map(input => {
+        <div class="ports-wrapper">
+          <div class="inputs">
+            ${inputs.map(input => {
       return html`
-              <div class="port-wrapper">
-                <graph-port
-                  .nodeId=${this.node.id}
-                  .name=${input.name}
-                  type="in"
-                  .description=${input.description || ''}
-                ></graph-port>
-              </div>
-            `;
+                <div class="port-wrapper">
+                  <graph-port
+                    .nodeId=${this.node.id}
+                    .name=${input.name}
+                    type="in"
+                    .description=${input.description || ''}
+                  ></graph-port>
+                </div>
+              `;
     })}
-        </div>
-        <div class="outputs">
-          ${outputs.map(output => {
+          </div>
+          <div class="outputs">
+            ${outputs.map(output => {
       return html`
-              <div class="port-wrapper">
-                <graph-port
-                  .nodeId=${this.node.id}
-                  .name=${output.name}
-                  type="out"
-                  .description=${output.description || ''}
-                ></graph-port>
-              </div>
-            `;
+                <div class="port-wrapper">
+                  <graph-port
+                    .nodeId=${this.node.id}
+                    .name=${output.name}
+                    type="out"
+                    .description=${output.description || ''}
+                  ></graph-port>
+                </div>
+              `;
     })}
+          </div>
         </div>
-      </div>
-      <div class="node-main-content">
-        <div class="node-title">${this.node.config.name || displayName}</div>
-        <div class="virtual-inputs-container">
-          ${inputs.map(input => {
+        <div class="node-main-content">
+          <div class="node-title">${this.node.config.name || displayName}</div>
+          <div class="virtual-inputs-container">
+            ${inputs.map(input => {
       const isConnected = connectedPorts.has(input.name);
       // Render virtual input field if not connected and has a defaultValue
       if (input.defaultValue !== undefined && !isConnected) {
@@ -371,25 +464,26 @@ export class GraphNode extends MobxLitElement {
         const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
 
         return html`
-                <div class="virtual-input-field-wrapper">
-                  <label for="${this.node.id}-${input.name}-virtual-input">${input.name}:</label>
-                  <input
-                    id="${this.node.id}-${input.name}-virtual-input"
-                    type="${isNumber ? 'range' : 'text'}"
-                    .value=${currentValue.toString()}
-                    .min=${input.range?.[0]?.toString() || ''}
-                    .max=${input.range?.[1]?.toString() || ''}
-                    .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : ''}
-                    @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
-                    class="virtual-input-field"
-                    title="${input.description}"
-                  />
-                </div>
-              `;
+                  <div class="virtual-input-field-wrapper">
+                    <label for="${this.node.id}-${input.name}-virtual-input">${input.name}:</label>
+                    <input
+                      id="${this.node.id}-${input.name}-virtual-input"
+                      type="${isNumber ? 'range' : 'text'}"
+                      .value=${currentValue.toString()}
+                      .min=${input.range?.[0]?.toString() || ''}
+                      .max=${input.range?.[1]?.toString() || ''}
+                      .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : ''}
+                      @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
+                      class="virtual-input-field"
+                      title="${input.description}"
+                    />
+                  </div>
+                `;
       }
       return null;
     })}
-    ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
+            ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
+          </div>
         </div>
       </div>
     `;
