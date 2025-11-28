@@ -2,6 +2,7 @@ import { definePrimitiveNode, defineType } from '../../structor/type-helpers';
 import { resolumeManager } from '../../io/resolume/manager';
 import { Structor } from '../../structor/structor';
 import { defaultNodeRepository } from '../../structor/repository';
+import { numberType } from '../../structor/std-types';
 
 const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
@@ -13,7 +14,7 @@ export const resolumeInputNode = definePrimitiveNode({
     path: stringType
   },
   outputs: {
-    value: anyType
+    value: numberType
   },
   autoBroadcast: false,
   isRealtime: () => true, // Inputs change over time

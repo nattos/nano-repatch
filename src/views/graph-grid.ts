@@ -192,7 +192,21 @@ export class GraphGrid extends MobxLitElement {
       // If it's a gap cell, we might want to insert space or ignore.
       // If it's a node cell (but empty), create node.
       if (target.classList.contains('node-cell')) {
-        const newNode = appController.createNode('literal', x, y);
+        const rawX = target.dataset.x;
+        let typeId = 'literal';
+        let x = 0;
+
+        if (rawX === 'output') {
+          typeId = 'resolume:output';
+          x = 20; // Arbitrary high number for output column
+        } else {
+          x = parseInt(rawX || '0');
+          if (x === 0) {
+            typeId = 'resolume:input';
+          }
+        }
+
+        const newNode = appController.createNode(typeId, x, y);
         localController.queueSelectPaths([newNode.id]);
         return;
       }
@@ -531,8 +545,8 @@ export class GraphGrid extends MobxLitElement {
 
       // Calculate grid position
       let col = 0;
-      if (node.config.typeId === 'input') col = 1;
-      else if (node.config.typeId === 'output') col = outputCol;
+      if (node.config.typeId === 'input' || node.config.typeId === 'resolume:input') col = 1;
+      else if (node.config.typeId === 'output' || node.config.typeId === 'resolume:output') col = outputCol;
       else col = 2 * node.x + 1;
 
       const row = 2 * node.y + 2;

@@ -231,7 +231,6 @@ export class GraphNode extends MobxLitElement {
 
         const { dx: constrainedDx, dy: constrainedDy } = appController.calculateConstrainedMove(selectedNodeIds, dx, dy);
 
-        console.log('moveNodes', constrainedDx, constrainedDy);
         appController.moveNodes(selectedNodeIds, constrainedDx, constrainedDy);
 
         this.style.transform = '';

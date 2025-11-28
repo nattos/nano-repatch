@@ -13,7 +13,7 @@ export class ResolumeManager {
   private subscriptions: Map<string, Set<(value: any) => void>> = new Map();
 
   constructor(init?: { client: ResolumeClient; }) {
-    this.client = init?.client ?? new FakeResolumeApiClient();
+    this.client = init?.client ?? new ResolumeApiClient();
     this.state = new ResolumeComposition();
     makeAutoObservable(this);
   }

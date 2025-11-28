@@ -6,6 +6,7 @@ import './structor/repository.ui';
 
 import './index.css';
 import './customnodes/nicepattern/nodes.ui';
+import './customnodes/resolume/nodes.ui';
 import './views/workspace-layout';
 import './views/monaco-editor';
 

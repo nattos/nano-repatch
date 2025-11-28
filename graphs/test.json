@@ -51,8 +51,49 @@
       "config": {
         "typeId": "fmod",
         "values": {
-          "divisor": 5.4
+          "divisor": 0.9
         }
+      }
+    },
+    "node-de34e36e-668a-4759-b61a-ee3217b47fe1": {
+      "id": "node-de34e36e-668a-4759-b61a-ee3217b47fe1",
+      "x": 0,
+      "y": 3,
+      "config": {
+        "typeId": "resolume:input",
+        "values": {},
+        "path": "/composition/dashboard/link2"
+      }
+    },
+    "node-cbfa1410-a2b0-4159-b5de-6f5d4d63a378": {
+      "id": "node-cbfa1410-a2b0-4159-b5de-6f5d4d63a378",
+      "x": 20,
+      "y": 2,
+      "config": {
+        "typeId": "resolume:output",
+        "values": {},
+        "path": "/composition/dashboard/link_1"
+      }
+    },
+    "node-dd3a793f-ce31-4d88-833d-3d52f5d999fe": {
+      "id": "node-dd3a793f-ce31-4d88-833d-3d52f5d999fe",
+      "x": 1,
+      "y": 4,
+      "config": {
+        "typeId": "resolume:input",
+        "values": {},
+        "path": "/composition/dashboard/link_2",
+        "name": "resoin"
+      }
+    },
+    "node-2f5b0a88-6521-476e-a659-e199d795e694": {
+      "id": "node-2f5b0a88-6521-476e-a659-e199d795e694",
+      "x": null,
+      "y": 6,
+      "config": {
+        "typeId": "resolume:input",
+        "values": {},
+        "path": "/composition/dashboard/link_1"
       }
     }
   },
@@ -77,6 +118,20 @@
       "fromPort": "",
       "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
       "toPort": ""
+    },
+    "conn-96638bc4-18b7-4488-8a52-d4f78c1663be": {
+      "id": "conn-96638bc4-18b7-4488-8a52-d4f78c1663be",
+      "fromNodeId": "node-dd3a793f-ce31-4d88-833d-3d52f5d999fe",
+      "fromPort": "value",
+      "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
+      "toPort": "max"
+    },
+    "conn-f1ec99f1-ebe3-4336-b12c-32b1060b6d08": {
+      "id": "conn-f1ec99f1-ebe3-4336-b12c-32b1060b6d08",
+      "fromNodeId": "node-dd3a793f-ce31-4d88-833d-3d52f5d999fe",
+      "fromPort": "value",
+      "toNodeId": "node-cbfa1410-a2b0-4159-b5de-6f5d4d63a378",
+      "toPort": "value"
     }
   }
 }
