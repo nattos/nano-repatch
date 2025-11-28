@@ -160,4 +160,79 @@ describe('Wire Layout Engine', () => {
     const key = "0,0:0.5,0";
     expect(result2.wires['w1'].lanes[key].count).toBe(1);
   });
+  it('should route backward connections avoiding node columns', () => {
+    // Scenario:
+    // Node 1 at 0,0 (Output at 1,0)
+    // Node 2 at 0,2 (Input at 0,2)
+    // Wire from Node 2 (Output at 1,2) to Node 1 (Input at 0,0)
+    // This is a "backward" connection (Right to Left, Bottom to Top)
+    // It should avoid the node columns (x=0, x=1) and use gaps (x=-0.5, x=0.5, x=1.5)
+    // Note: In 2x grid:
+    // Node 1: x=0, y=0. Output: x=2, y=0. Input: x=0, y=0.
+    // Node 2: x=0, y=4. Output: x=2, y=4. Input: x=0, y=4.
+    // Wire Start: 2,4 (Node 2 Output). End: 0,0 (Node 1 Input).
+
+    // Obstacles at Node positions:
+    // Node 1: 0,0
+    // Node 2: 0,4
+    // Let's add obstacles to force routing around
+
+    const wire: WireDef = {
+      id: 'w1',
+      start: { x: 1, y: 2 }, // Node 2 Output (x=1 means Node 2 center? No, x=1 is Node 2 center if Node 2 is at x=1)
+      // Wait, in test we define coordinates manually.
+      // If Node 2 is at x=1.
+      // start: { x: 1, y: 2 }.
+      // start2x: { x: 2, y: 4 }.
+      // actualStart: { x: 3, y: 4 }. (Right of Node 2)
+
+      // Node 1 is at x=0.
+      // end: { x: 0, y: 0 }.
+      // end2x: { x: 0, y: 0 }.
+      // actualEnd: { x: -1, y: 0 }. (Left of Node 1)
+
+      // Path: 3,4 -> ... -> -1,0.
+
+      end: { x: 0, y: 0 },   // Node 1 Input
+      fromNodeId: 'n2', fromPort: 'out', toNodeId: 'n1', toPort: 'in'
+    };
+
+    const result = computeWireLayout([wire], {
+      obstacles: [
+        { x: 0, y: 0 }, // Node 1
+        { x: 1, y: 2 }  // Node 2 (at x=1, y=2)
+      ]
+    });
+
+    const path = result.wires['w1'].path;
+
+    // Check that we don't travel vertically along Node Columns (x=0, x=1)
+    // except for start/end segments.
+    // In 1x grid: Node Columns are Integer X. Gap Columns are X.5.
+
+    // Filter out start/end points
+    const intermediatePoints = path.slice(1, path.length - 1);
+
+    // Check vertical segments
+    for (let i = 0; i < intermediatePoints.length - 1; i++) {
+      const p1 = intermediatePoints[i];
+      const p2 = intermediatePoints[i + 1];
+
+      if (p1.x === p2.x) {
+        // Vertical Segment
+        // Should be on a Gap Column (x ends in .5)
+        // Or at least NOT on a Node Column (x is integer)
+        // Unless it's unavoidable?
+        // With our new penalty, it should prefer x=0.5 or x=1.5 or x=-0.5
+
+        const isNodeColumn = Number.isInteger(p1.x);
+        if (isNodeColumn) {
+          console.log('Failed Segment:', p1, p2);
+          console.log('Path:', path);
+        }
+        expect(isNodeColumn).toBe(false);
+      }
+    }
+  });
 });
+

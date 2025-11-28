@@ -320,7 +320,7 @@ export class GraphNode extends MobxLitElement {
     const isQueued = this.isQueued;
     const typeColor = cssColorFromHash(this.node.config.typeId);
 
-    const style = `transform: translate(-10px, -10px); width: 100px; height: 100px; --node-accent-color: ${typeColor};`;
+    const style = `transform: translate(-14px, -14px); width: 100px; height: 100px; --node-accent-color: ${typeColor};`;
 
     return html`
       <div

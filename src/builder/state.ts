@@ -567,7 +567,7 @@ export class LocalController {
 
         wires.push({
           id: conn.id,
-          start: { x: startX + 1, y: startY }, // Output is on the right
+          start: { x: startX, y: startY }, // Output is on the right
           end: { x: endX, y: endY },     // Input is on the left
           fromNodeId: conn.fromNodeId,
           fromPort: conn.fromPort.toString(),

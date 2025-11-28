@@ -62,86 +62,126 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
     const start2x = { x: wire.start.x * 2, y: wire.start.y * 2 };
     const end2x = { x: wire.end.x * 2, y: wire.end.y * 2 };
 
-    const openSet: GridPoint[] = [start2x];
-    const cameFrom = new Map<string, GridPoint>();
-    const gScore = new Map<string, number>();
-    const fScore = new Map<string, number>();
+    // Enforce Port Directionality
+    // Start (Output): Always leave to the Right (x + 1)
+    // End (Input): Always enter from the Left (x - 1)
+    const actualStart = { x: start2x.x + 1, y: start2x.y };
+    const actualEnd = { x: end2x.x - 1, y: end2x.y };
 
-    gScore.set(getKey(start2x), 0);
-    fScore.set(getKey(start2x), manhattan(start2x, end2x));
+    // If actualStart == actualEnd, we are just crossing a gap (Forward neighbor).
+    // Path is start -> actualStart -> end.
 
     let path2x: GridPoint[] = [];
 
-    while (openSet.length > 0) {
-      openSet.sort((a, b) => (fScore.get(getKey(a)) ?? Infinity) - (fScore.get(getKey(b)) ?? Infinity));
-      const current = openSet.shift()!;
+    if (pointsEqual(actualStart, actualEnd)) {
+      path2x = [actualStart];
+    } else {
+      // Run A* from actualStart to actualEnd
+      const openSet: GridPoint[] = [actualStart];
+      const cameFrom = new Map<string, GridPoint>();
+      const gScore = new Map<string, number>();
+      const fScore = new Map<string, number>();
 
-      if (pointsEqual(current, end2x)) {
-        let curr = current;
-        path2x = [curr];
-        while (cameFrom.has(getKey(curr))) {
-          curr = cameFrom.get(getKey(curr))!;
-          path2x.unshift(curr);
-        }
-        break;
-      }
+      gScore.set(getKey(actualStart), 0);
+      fScore.set(getKey(actualStart), manhattan(actualStart, actualEnd));
 
-      const neighbors: GridPoint[] = [
-        { x: current.x + 1, y: current.y },
-        { x: current.x - 1, y: current.y },
-        { x: current.x, y: current.y + 1 },
-        { x: current.x, y: current.y - 1 },
-      ];
+      while (openSet.length > 0) {
+        openSet.sort((a, b) => (fScore.get(getKey(a)) ?? Infinity) - (fScore.get(getKey(b)) ?? Infinity));
+        const current = openSet.shift()!;
 
-      for (const neighbor of neighbors) {
-        const neighborKey = getKey(neighbor);
-
-        // Check obstacles
-        // In 2x grid, obstacles are at (even, even).
-        // We allow the start and end points even if they are obstacles (ports are inside nodes).
-        const isObstacle = (neighbor.x % 2 === 0 && neighbor.y % 2 === 0) &&
-          obstacles.has(getKey({ x: neighbor.x / 2, y: neighbor.y / 2 }));
-
-        if (isObstacle && !pointsEqual(neighbor, end2x) && !pointsEqual(neighbor, start2x)) {
-          continue;
+        if (pointsEqual(current, actualEnd)) {
+          let curr = current;
+          path2x = [curr];
+          while (cameFrom.has(getKey(curr))) {
+            curr = cameFrom.get(getKey(curr))!;
+            path2x.unshift(curr);
+          }
+          break;
         }
 
-        const tentativeGScore = (gScore.get(getKey(current)) ?? Infinity) + 1;
+        const neighbors: GridPoint[] = [
+          { x: current.x + 1, y: current.y },
+          { x: current.x - 1, y: current.y },
+          { x: current.x, y: current.y + 1 },
+          { x: current.x, y: current.y - 1 },
+        ];
 
-        // Cost Modification for H-V-H Preference
-        let moveCost = 1;
-        const isVertical = neighbor.x === current.x; // Moving in Y (x is constant)
+        for (const neighbor of neighbors) {
+          const neighborKey = getKey(neighbor);
 
-        if (isVertical) {
-          // 1. Port Constraint: Penalize Vertical at Start/End
-          // We want to leave/enter ports horizontally.
-          if (pointsEqual(current, start2x)) moveCost += 50;
-          if (pointsEqual(neighbor, end2x)) moveCost += 50;
+          // Check obstacles
+          // In 2x grid, obstacles are at (even, even).
+          const isObstacle = (neighbor.x % 2 === 0 && neighbor.y % 2 === 0) &&
+            obstacles.has(getKey({ x: neighbor.x / 2, y: neighbor.y / 2 }));
 
-          // 2. Centering: Prefer vertical segments near middle
-          // Calculate midpoint of the gap
-          const midX = (start2x.x + end2x.x) / 2;
-          // Add small penalty proportional to distance from midX
-          // This biases towards the center without overriding the main path
-          moveCost += 0.05 * Math.abs(neighbor.x - midX);
-        }
+          // We allow actualStart and actualEnd even if they were obstacles (unlikely for gaps)
+          // But strictly speaking, we are routing *between* nodes, so we shouldn't hit nodes.
+          if (isObstacle && !pointsEqual(neighbor, actualEnd) && !pointsEqual(neighbor, actualStart)) {
+            continue;
+          }
 
-        const newGScore = (gScore.get(getKey(current)) ?? Infinity) + moveCost;
+          const tentativeGScore = (gScore.get(getKey(current)) ?? Infinity) + 1;
 
-        if (newGScore < (gScore.get(neighborKey) ?? Infinity)) {
-          cameFrom.set(neighborKey, current);
-          gScore.set(neighborKey, newGScore);
-          fScore.set(neighborKey, newGScore + manhattan(neighbor, end2x));
+          // Cost Modification for H-V-H Preference & Gap Usage
+          let moveCost = 1;
+          const isVertical = neighbor.x === current.x; // Moving in Y (x is constant)
+          const isHorizontal = neighbor.y === current.y; // Moving in X (y is constant)
 
-          if (!openSet.some(p => pointsEqual(p, neighbor))) {
-            openSet.push(neighbor);
+          // Penalize moving along Node Lanes (Even Coordinates)
+          if (isVertical && neighbor.x % 2 === 0) {
+            moveCost += 10;
+          }
+          if (isHorizontal && neighbor.y % 2 === 0) {
+            moveCost += 10;
+          }
+
+          if (isVertical) {
+            // 1. Port Constraint: Penalize Vertical at Start/End
+            // We want to leave/enter ports horizontally.
+            // BUT: We already enforced a horizontal segment from start2x -> actualStart.
+            // So actualStart is in the gap. We SHOULD allow vertical movement here.
+            // if (pointsEqual(current, actualStart)) moveCost += 50;
+            // if (pointsEqual(neighbor, actualEnd)) moveCost += 50;
+
+            // 2. Centering: Prefer vertical segments near middle
+            let midX = (start2x.x + end2x.x) / 2;
+            const nearestOdd = Math.round((midX - 1) / 2) * 2 + 1;
+            midX = nearestOdd;
+            moveCost += 0.05 * Math.abs(neighbor.x - midX);
+          }
+
+          const newGScore = (gScore.get(getKey(current)) ?? Infinity) + moveCost;
+
+          if (newGScore < (gScore.get(neighborKey) ?? Infinity)) {
+            cameFrom.set(neighborKey, current);
+            gScore.set(neighborKey, newGScore);
+            fScore.set(neighborKey, newGScore + manhattan(neighbor, actualEnd));
+
+            if (!openSet.some(p => pointsEqual(p, neighbor))) {
+              openSet.push(neighbor);
+            }
           }
         }
       }
     }
 
+    // Prepend start and append end
+    // path2x currently goes from actualStart to actualEnd
+    // We need start2x -> actualStart -> ... -> actualEnd -> end2x
+
+    // Note: If path2x is empty (no path found), we fallback to direct?
+    // Or if actualStart == actualEnd, path2x has 1 point.
+
+    if (path2x.length > 0) {
+      path2x.unshift(start2x);
+      path2x.push(end2x);
+    } else {
+      // Fallback if A* failed?
+      path2x = [start2x, actualStart, actualEnd, end2x];
+    }
+
     // Convert path back to 1x coordinates (fractional)
-    const path = path2x.length > 0 ? path2x.map(p => ({ x: p.x / 2, y: p.y / 2 })) : [wire.start, wire.end];
+    const path = path2x.map(p => ({ x: p.x / 2, y: p.y / 2 }));
 
     result.wires[wire.id] = {
       path,
