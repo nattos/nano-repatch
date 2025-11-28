@@ -2,8 +2,8 @@
   "nodes": {
     "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a": {
       "id": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
-      "x": 6,
-      "y": 3,
+      "x": 5,
+      "y": 4,
       "config": {
         "typeId": "clamp",
         "values": {
@@ -11,19 +11,6 @@
           "max": 0.81
         },
         "name": "clamp"
-      }
-    },
-    "node-40581207-edd9-48be-ad8c-04d49501bb6b": {
-      "id": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
-      "x": 3,
-      "y": 4,
-      "config": {
-        "typeId": "literal",
-        "values": {},
-        "literal": {
-          "value": 2345
-        },
-        "name": "into value"
       }
     },
     "node-bbc1d7fd-b68a-41c5-a68f-2f05caf4ac18": {
@@ -37,7 +24,7 @@
     },
     "node-722702ff-6d71-44b2-9122-17a60589a502": {
       "id": "node-722702ff-6d71-44b2-9122-17a60589a502",
-      "x": 1,
+      "x": 3,
       "y": 3,
       "config": {
         "typeId": "literal",
@@ -48,22 +35,28 @@
     "node-5533bada-ee9d-45d3-ab52-5e63ecc4a8d9": {
       "id": "node-5533bada-ee9d-45d3-ab52-5e63ecc4a8d9",
       "x": 1,
-      "y": 1,
+      "y": 3,
       "config": {
         "typeId": "literal",
         "values": {},
         "name": "into max"
       }
+    },
+    "node-40581207-edd9-48be-ad8c-04d49501bb6b": {
+      "id": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
+      "x": 1,
+      "y": 5,
+      "config": {
+        "typeId": "literal",
+        "values": {},
+        "literal": {
+          "value": 2345
+        },
+        "name": "into value"
+      }
     }
   },
   "connections": {
-    "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b": {
-      "id": "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b",
-      "fromNodeId": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
-      "fromPort": "",
-      "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
-      "toPort": ""
-    },
     "conn-1f61add8-006a-4517-860d-ab51384f33f9": {
       "id": "conn-1f61add8-006a-4517-860d-ab51384f33f9",
       "fromNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
@@ -84,6 +77,13 @@
       "fromPort": "",
       "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
       "toPort": "max"
+    },
+    "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b": {
+      "id": "conn-9d5b3214-bd24-4f98-a9f6-23578c4c749b",
+      "fromNodeId": "node-40581207-edd9-48be-ad8c-04d49501bb6b",
+      "fromPort": "",
+      "toNodeId": "node-0e83514f-6131-43ce-a6f5-7ef98e36a36a",
+      "toPort": ""
     }
   }
 }
