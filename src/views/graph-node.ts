@@ -33,6 +33,12 @@ export class GraphNode extends MobxLitElement {
   @property({ type: Boolean })
   isQueued = false;
 
+  @property({ type: Number })
+  x = 0;
+
+  @property({ type: Number })
+  y = 0;
+
 
 
   static readonly styles = css`
@@ -129,9 +135,10 @@ export class GraphNode extends MobxLitElement {
     .inputs, .outputs {
       display: flex;
       flex-direction: column;
-      justify-content: space-around; /* Distribute ports evenly */
+      justify-content: flex-start; /* Stack from top */
       padding: 5px 0;
       pointer-events: all; /* Re-enable pointer events for ports */
+      gap: 0; /* No gap, use fixed height */
     }
 
     .inputs {
@@ -147,7 +154,7 @@ export class GraphNode extends MobxLitElement {
     .port-wrapper {
       display: flex;
       align-items: center;
-      height: 20px; /* Fixed height for port row */
+      height: 24px; /* Fixed height for port row */
     }
 
     .virtual-inputs-container {
@@ -155,7 +162,13 @@ export class GraphNode extends MobxLitElement {
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 0;
+      position: absolute;
+      top: 30px; /* Below title */
+      left: 15px; /* Align with input ports */
+      right: 15px;
+      bottom: 0;
+      pointer-events: none; /* Let clicks pass through to node unless on input */
     }
 
     .virtual-input-field-wrapper {
@@ -163,6 +176,9 @@ export class GraphNode extends MobxLitElement {
       flex-direction: column;
       align-items: flex-start;
       width: 100%;
+      height: 24px; /* Match port height */
+      justify-content: center;
+      pointer-events: auto;
     }
 
     .virtual-input-field-wrapper label {
@@ -340,6 +356,25 @@ export class GraphNode extends MobxLitElement {
       }
 
       this.dataset.state = state;
+
+      // Compute Height
+      const ROW_HEIGHT = 24;
+      const HEADER_HEIGHT = 30;
+      const PADDING = 10;
+      const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
+      let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING;
+
+      // For minimal state, force 80px
+      if (state === 'minimal') {
+        computedHeight = 80;
+      }
+
+      this.style.height = `${computedHeight}px`;
+
+      // If nodeType is missing, it might be loaded later. Retry update.
+      if (!nodeType) {
+        setTimeout(() => this.requestUpdate(), 200);
+      }
     }
   }
 
@@ -412,6 +447,19 @@ export class GraphNode extends MobxLitElement {
       }
     }
 
+    // Compute Height
+    const ROW_HEIGHT = 24;
+    const HEADER_HEIGHT = 30;
+    const PADDING = 10;
+    const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
+
+    let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING;
+
+    // For minimal state, force 80px
+    if (state === 'minimal') {
+      computedHeight = 80;
+    }
+
     const style = `transform: translate(-14px, -14px); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
 
     return html`
@@ -422,9 +470,9 @@ export class GraphNode extends MobxLitElement {
       >
         <div class="ports-wrapper">
           <div class="inputs">
-            ${inputs.map(input => {
+            ${inputs.map((input, index) => {
       return html`
-                <div class="port-wrapper">
+                <div class="port-wrapper" style="top: ${30 + index * 24}px; position: absolute; left: 0;">
                   <graph-port
                     .nodeId=${this.node.id}
                     .name=${input.name}
@@ -436,9 +484,9 @@ export class GraphNode extends MobxLitElement {
     })}
           </div>
           <div class="outputs">
-            ${outputs.map(output => {
+            ${outputs.map((output, index) => {
       return html`
-                <div class="port-wrapper">
+                <div class="port-wrapper" style="top: ${30 + index * 24}px; position: absolute; right: 0;">
                   <graph-port
                     .nodeId=${this.node.id}
                     .name=${output.name}
@@ -453,7 +501,7 @@ export class GraphNode extends MobxLitElement {
         <div class="node-main-content">
           <div class="node-title">${this.node.config.name || displayName}</div>
           <div class="virtual-inputs-container">
-            ${inputs.map(input => {
+            ${inputs.map((input, index) => {
       const isConnected = connectedPorts.has(input.name);
       // Render virtual input field if not connected and has a defaultValue
       if (input.defaultValue !== undefined && !isConnected) {
@@ -464,8 +512,7 @@ export class GraphNode extends MobxLitElement {
         const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
 
         return html`
-                  <div class="virtual-input-field-wrapper">
-                    <label for="${this.node.id}-${input.name}-virtual-input">${input.name}:</label>
+                  <div class="virtual-input-field-wrapper" style="top: ${index * 24}px; position: absolute; width: 100%;">
                     <input
                       id="${this.node.id}-${input.name}-virtual-input"
                       type="${isNumber ? 'range' : 'text'}"

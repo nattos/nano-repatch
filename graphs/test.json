@@ -46,8 +46,8 @@
     },
     "node-57ba7895-043b-4a12-b6e6-efb4c2042619": {
       "id": "node-57ba7895-043b-4a12-b6e6-efb4c2042619",
-      "x": 2,
-      "y": 2,
+      "x": 3,
+      "y": 3,
       "config": {
         "typeId": "fmod",
         "values": {

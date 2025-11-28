@@ -38,7 +38,7 @@ export class GraphGrid extends MobxLitElement {
 
       grid-template-rows:
         [gap-top] 10px
-        repeat(auto-fill, [node] auto [gap] 10px);
+        repeat(12, [node] auto [gap] 10px);
 
       min-width: 100%;
       min-height: 100%;
@@ -541,6 +541,8 @@ export class GraphGrid extends MobxLitElement {
             <graph-node
               .node=${node}
               .isQueued=${isQueued}
+              .x=${node.x}
+              .y=${node.y}
               style="grid-column: ${col}; grid-row: ${row}; z-index: 10;"
               data-id="${node.id}"
             ></graph-node>
