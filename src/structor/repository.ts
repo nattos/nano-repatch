@@ -541,7 +541,7 @@ import { midiCcNode, midiNoteNode } from '../customnodes/midi/nodes';
 const exprCompiler = new GraphCompiler();
 
 defaultNodeRepository.register({
-  id: 'io.midi.cc',
+  id: 'midi.cc',
   version: '1.0.0',
   displayName: 'MIDI CC',
   definition: midiCcNode,
@@ -553,7 +553,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'io.midi.note',
+  id: 'midi.note',
   version: '1.0.0',
   displayName: 'MIDI Note',
   definition: midiNoteNode,

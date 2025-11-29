@@ -1,10 +1,13 @@
 import './graph-node';
+import '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
+import { NodeCatalog } from '../structor/node-catalog';
+import { defaultNodeRepository } from '../structor/repository';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -102,12 +105,34 @@ export class GraphGrid extends MobxLitElement {
       right: -5px;
       bottom: -5px;
     }
+
+    .popup-container {
+        position: absolute;
+        z-index: 1000;
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
   `;
 
   @property({ attribute: false })
   selectionBox: { x: number, y: number, w: number, h: number } | null = null;
 
+  @state()
+  popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string } | null = null;
+
+  private catalog = new NodeCatalog(defaultNodeRepository);
+
   private handlePointerDown(e: PointerEvent) {
+    // If popup is open, close it on click outside (unless clicking inside popup, which is handled by stopPropagation in popup)
+    if (this.popup) {
+      const path = e.composedPath();
+      const isPopup = path.some(el => (el as Element).classList?.contains('popup-container'));
+      if (!isPopup) {
+        this.popup = null;
+      }
+    }
+
     const path = e.composedPath();
     const isNode = path.some(el => (el as Element).tagName === 'GRAPH-NODE');
     const isConnection = path.some(el => (el as Element).tagName === 'GRAPH-CONNECTION');
@@ -190,24 +215,42 @@ export class GraphGrid extends MobxLitElement {
       const y = parseInt(target.dataset.y || '0');
 
       // If it's a gap cell, we might want to insert space or ignore.
-      // If it's a node cell (but empty), create node.
+      // If it's a node cell (but empty), create node immediately and show popup.
       if (target.classList.contains('node-cell')) {
         const rawX = target.dataset.x;
-        let typeId = 'data.literal';
-        let x = 0;
+        let initialValue = 'util.hub'; // Default changed from literal to hub
+        let gridX = 0;
 
         if (rawX === 'output') {
-          typeId = 'io.resolume.output';
-          x = 20; // Arbitrary high number for output column
+          initialValue = 'io.output'; // Default for output column
+          gridX = 20; // Arbitrary high number for output column
         } else {
-          x = parseInt(rawX || '0');
-          if (x === 0) {
-            typeId = 'io.resolume.input';
+          gridX = parseInt(rawX || '0');
+          if (gridX === 0) {
+            initialValue = 'io.input'; // Default for input column
           }
         }
 
-        const newNode = appController.createNode(typeId, x, y);
+        // Create node immediately
+        const newNode = appController.createNode(initialValue, gridX, y);
         localController.queueSelectPaths([newNode.id]);
+
+        // Calculate popup position
+        // We want it above the cell.
+        const rect = target.getBoundingClientRect();
+        const parentRect = this.getBoundingClientRect();
+
+        const popupX = rect.left - parentRect.left + this.scrollLeft;
+        const popupY = rect.top - parentRect.top + this.scrollTop - 40; // Above the cell
+
+        this.popup = {
+          x: popupX,
+          y: popupY,
+          gridX,
+          gridY: y,
+          initialValue,
+          nodeId: newNode.id // Track the created node ID
+        };
         return;
       }
       return;
@@ -308,17 +351,17 @@ export class GraphGrid extends MobxLitElement {
         try {
           const parsed = JSON.parse(data);
           if (parsed.type === 'resolume:parameter') {
-            let nodeType = 'io.resolume.input';
+            let nodeType = 'resolume.input';
             let targetX = x;
 
             const rawX = cell.dataset.x;
             if (rawX === 'output') {
-              nodeType = 'io.resolume.output';
+              nodeType = 'resolume.output';
               targetX = 20; // Output column
             } else {
               targetX = parseInt(rawX || '0');
               if (targetX === 0) {
-                nodeType = 'io.resolume.input';
+                nodeType = 'resolume.input';
               }
             }
 
@@ -330,6 +373,41 @@ export class GraphGrid extends MobxLitElement {
         }
       }
     }
+  }
+
+  private handlePopupCommit(e: CustomEvent) {
+    if (!this.popup) return;
+    const typeId = e.detail;
+
+    // If we have a nodeId, update it.
+    if (this.popup.nodeId) {
+      appController.setNodeConfig(this.popup.nodeId, { typeId });
+    } else {
+      // Fallback if somehow nodeId is missing (shouldn't happen with new flow)
+      const { gridX, gridY } = this.popup;
+      try {
+        const newNode = appController.createNode(typeId, gridX, gridY);
+        localController.queueSelectPaths([newNode.id]);
+      } catch (e) {
+        console.error("Failed to create node:", e);
+      }
+    }
+
+    this.popup = null;
+  }
+
+  private handlePopupPreview(e: CustomEvent) {
+    if (!this.popup || !this.popup.nodeId) return;
+    const typeId = e.detail;
+    appController.setNodeConfig(this.popup.nodeId, { typeId });
+  }
+
+  private handlePopupCancel() {
+    if (this.popup && this.popup.nodeId) {
+      // User cancelled creation, delete the temp node
+      appController.deleteNode(this.popup.nodeId);
+    }
+    this.popup = null;
   }
 
   render() {
@@ -385,6 +463,19 @@ export class GraphGrid extends MobxLitElement {
     return html`
       ${this.selectionBox ? html`
         <div class="selection-box" style="left: ${this.selectionBox.x}px; top: ${this.selectionBox.y}px; width: ${this.selectionBox.w}px; height: ${this.selectionBox.h}px;"></div>
+      ` : ''}
+
+      ${this.popup ? html`
+        <div class="popup-container" style="left: ${this.popup.x}px; top: ${this.popup.y}px;">
+            <smart-input
+                .catalog=${this.catalog}
+                .value=${this.popup.initialValue}
+                .autofocus=${true}
+                @commit=${this.handlePopupCommit}
+                @preview-type=${this.handlePopupPreview}
+                @cancel=${this.handlePopupCancel}
+            ></smart-input>
+        </div>
       ` : ''}
 
       <div class="grid-container">
@@ -547,8 +638,8 @@ export class GraphGrid extends MobxLitElement {
 
       // Calculate grid position
       let col = 0;
-      if (node.config.typeId === 'io.input' || node.config.typeId === 'io.resolume.input') col = 1;
-      else if (node.config.typeId === 'io.output' || node.config.typeId === 'io.resolume.output') col = outputCol;
+      if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') col = 1;
+      else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') col = outputCol;
       else col = 2 * node.x + 1;
 
       const row = 2 * node.y + 2;

@@ -8,6 +8,8 @@ import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
+import '../components/smart-input';
+import { NodeCatalog } from '../structor/node-catalog';
 import './graph-port';
 
 
@@ -38,6 +40,8 @@ export class GraphNode extends MobxLitElement {
 
   @property({ type: Number })
   y = 0;
+
+  private catalog = new NodeCatalog(defaultNodeRepository);
 
 
 
@@ -277,6 +281,11 @@ export class GraphNode extends MobxLitElement {
     appController.setNodeConfig(this.node.id, { typeId: target.value });
   }
 
+  private handleSmartTypeChange(e: CustomEvent) {
+    const typeId = e.detail;
+    appController.setNodeConfig(this.node.id, { typeId });
+  }
+
   private handleNameChange(e: Event) {
     const target = e.target as HTMLInputElement;
     appController.setNodeConfig(this.node.id, { name: target.value });
@@ -301,11 +310,11 @@ export class GraphNode extends MobxLitElement {
       </div>
       <div class="field">
         <label>Type:</label>
-        <select .value=${this.node.config.typeId} @change=${this.handleTypeChange.bind(this)}>
-          ${Array.from(defaultNodeRepository.getAllNodeTypes()).map(type => html`
-            <option value=${type.id}>${type.displayName}</option>
-          `)}
-        </select>
+        <smart-input
+            .catalog=${this.catalog}
+            .value=${this.node.config.typeId}
+            @commit=${this.handleSmartTypeChange}
+        ></smart-input>
       </div>
       ${nodeType?.renderInspector ? nodeType.renderInspector(this.node, onchange) : ''}
     `;

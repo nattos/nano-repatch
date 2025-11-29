@@ -8,7 +8,7 @@ const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
 
 export const resolumeInputNode = definePrimitiveNode({
-  id: 'io.resolume.input',
+  id: 'resolume.input',
   metadata: {
     category: NodeCategory.IO,
     keywords: ['resolume', 'arena', 'parameter', 'read'],
@@ -67,7 +67,7 @@ export const resolumeInputNode = definePrimitiveNode({
 });
 
 export const resolumeOutputNode = definePrimitiveNode({
-  id: 'io.resolume.output',
+  id: 'resolume.output',
   metadata: {
     category: NodeCategory.IO,
     keywords: ['resolume', 'arena', 'parameter', 'write'],
@@ -111,7 +111,7 @@ export const resolumeOutputNode = definePrimitiveNode({
 });
 
 defaultNodeRepository.register({
-  id: 'io.resolume.input',
+  id: 'resolume.input',
   version: '1.0.0',
   displayName: 'Resolume Input',
   definition: resolumeInputNode,
@@ -126,7 +126,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'io.resolume.output',
+  id: 'resolume.output',
   version: '1.0.0',
   displayName: 'Resolume Output',
   definition: resolumeOutputNode,

@@ -21,7 +21,7 @@ export const workerMidiState = {
 };
 
 export const midiCcNode = definePrimitiveNode({
-  id: "io.midi.cc",
+  id: "midi.cc",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'cc', 'control change'],
@@ -59,7 +59,7 @@ export const midiCcNode = definePrimitiveNode({
 });
 
 export const midiNoteNode = definePrimitiveNode({
-  id: "io.midi.note",
+  id: "midi.note",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'note', 'keyboard'],
