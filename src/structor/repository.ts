@@ -48,9 +48,20 @@ export interface NodeType {
   renderBody?: (node: GridNode, handlers: GraphNodeRenderHandlers) => unknown;
 
   /**
+   * Returns the exact pixel height required for the custom body.
+   * Required if renderBody is defined and takes up space.
+   */
+  getBodyHeight?: (node: GridNode) => number;
+
+  /**
    * A custom Lit-element renderer for the node's inspector content.
    */
   renderInspector?: (node: GridNode, onchange: InspectorChangeHandler) => unknown;
+
+  /**
+   * Returns the exact pixel height required for the custom inspector editor.
+   */
+  getInspectorHeight?: (node: GridNode) => number;
 
   /**
    * A function to dynamically get the ports for a node.

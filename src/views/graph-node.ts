@@ -64,7 +64,7 @@ export class GraphNode extends MobxLitElement {
     }
 
     :host([data-state="normal"]) {
-      width: 200px;
+      width: 240px;
     }
 
     :host([data-state="compressed"]) {
@@ -442,7 +442,10 @@ export class GraphNode extends MobxLitElement {
       const HEADER_HEIGHT = 30;
       const PADDING = 10;
       const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
-      let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING;
+
+      const bodyHeight = nodeType?.getBodyHeight?.(this.node) || 0;
+
+      let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING + bodyHeight;
 
       // For minimal state, force 80px
       if (state === 'minimal') {
@@ -533,7 +536,9 @@ export class GraphNode extends MobxLitElement {
     const PADDING = 10;
     const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
 
-    let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING;
+    const bodyHeight = nodeType?.getBodyHeight?.(this.node) || 0;
+
+    let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING + bodyHeight;
 
     // For minimal state, force 80px
     if (state === 'minimal') {
