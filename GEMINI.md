@@ -321,3 +321,65 @@ The standard library of primitive nodes was significantly expanded to provide a 
 The changes were verified with a comprehensive test suite:
 *   `src/structor/broadcast.test.ts`: Verifies the core broadcast logic and `apply` behavior.
 *   Existing tests were updated to align with the new broadcast pattern, ensuring no regressions.
+
+## Deep Dive: Structor & Broadcast Architecture (As of 2025-11-29)
+
+This entry provides a detailed analysis of the core `Structor` and `Broadcast` systems, specifically focusing on vectorization strategies and the architectural trade-offs inherent in the current implementation.
+
+### 1. The Structor System
+
+**Concept:**
+The system is built around the `Structor`, a generalized data structure that acts as a superset of tensors. Unlike traditional tensor libraries (which are strictly rectangular numeric arrays), a `Structor` can hold:
+*   **Atomic Values:** `number`, `string`, `boolean`.
+*   **Arrays:** Multidimensional and ragged arrays (`StructorArray`).
+*   **Records:** Key-value maps (`StructorRecord`).
+*   **Functors:** First-class functions.
+
+**Data Flow:**
+Nodes do not receive fixed arguments. Instead, they receive a single `StructorRecord` containing a "grab bag" of all connected inputs. This design decouples the node's logic from the graph topology, allowing a node to dynamically adapt to varying numbers of inputs (e.g., a variadic `add` node).
+
+### 2. The Broadcast Engine & Vectorization
+
+**The Problem:**
+In a node-based system, handling arrays is complex. A simple `add` node should ideally work for:
+*   Scalar + Scalar (`1 + 2`)
+*   Vector + Scalar (`[1, 2] + 1`)
+*   Vector + Vector (`[1, 2] + [3, 4]`)
+
+Implementing this logic manually in every node is error-prone and verbose.
+
+**The Solution: Universal Broadcast:**
+The `Broadcast` engine acts as a middleware between the raw inputs and the node's logic. It declaratively reshapes data based on a `BroadcastConfig`.
+
+**Vectorization Strategy:**
+The system implements **"Virtual Vectorization"**. It does not currently use SIMD or GPU acceleration. Instead, it abstracts the iteration logic away from the node developer.
+
+*   **Reshape 'vector':** The engine identifies the common shape of all inputs (e.g., `[10, 2]`). It then "broadcasts" all scalar or smaller-dimension inputs to match this shape, conceptually creating a set of aligned arrays.
+*   **The `apply` Pattern:** The recent refactor introduced `BroadcastResult.apply(lambda)`.
+    *   **Input (SoA):** The engine holds data as a "Structure of Arrays" (separate arrays for each channel).
+    *   **Execution (AoS View):** The `apply` method iterates over the common shape. For each index, it constructs a transient object (the "args") representing a slice of the data at that index.
+    *   **Developer Experience:** The node developer writes logic as if operating on scalars: `(args) => args.a + args.b`. The system automatically applies this to vectors.
+
+### 3. Pros & Cons of the Implementation
+
+#### Pros
+
+1.  **Developer Ergonomics:** This is the biggest win. Node developers write simple, scalar logic. They don't need to write loops, check array lengths, or handle broadcasting rules. The code is clean, readable, and less prone to off-by-one errors.
+2.  **Correctness & Safety:** The static analysis phase mirrors the runtime broadcast logic. If the graph is valid at compile-time, the runtime guarantees that the shapes will align. This eliminates a vast class of runtime errors common in dynamic dataflow systems.
+3.  **Flexibility:** Unlike strict tensor libraries (TensorFlow, PyTorch), this system handles **ragged arrays** and **heterogeneous types**. You can broadcast a list of strings against a single number, or a list of functors against a list of values.
+4.  **Composable Abstractions:** The "grab bag" input style combined with broadcasting allows for powerful meta-nodes. For example, a node could accept *any* number of inputs and sum them, or zip them into a JSON object, without changing its definition.
+
+#### Cons
+
+1.  **Performance Overhead:**
+    *   **Function Calls:** The `apply` pattern involves calling a lambda function for every single element in the broadcasted arrays. In JavaScript, this function call overhead is significant compared to a raw `for` loop.
+    *   **Object Allocation:** The `apply` method creates a transient `args` object for every iteration to present the "AoS" view. This generates high garbage collection (GC) pressure.
+    *   **No SIMD:** Because the logic is hidden inside an opaque lambda, the JS engine cannot easily optimize it into SIMD instructions.
+2.  **Complexity of the Engine:** The broadcast engine itself is complex. It must handle recursive broadcasting, shape inference, and edge cases (like empty arrays or mismatched dimensions). Debugging the engine is difficult.
+3.  **Opaque Execution:** For the node developer, the execution is "magic". If performance is poor, it's hard to optimize the node without bypassing the broadcast system entirely and writing raw loops (which defeats the purpose).
+
+### 4. Future Optimization Paths
+
+To address the performance cons while keeping the ergonomics, future versions could:
+*   **Code Generation:** Instead of iterating and calling a lambda, the `CompilerWorker` could generate a specialized, raw `for` loop string for the specific graph topology and  it (or use ). This would inline the node's logic and remove the function call/object allocation overhead.
+*   **TypedArrays:** For strictly numeric data, moving to `Float32Array` would allow for better memory locality and potential SIMD optimizations, though it would complicate the support for heterogeneous types.
