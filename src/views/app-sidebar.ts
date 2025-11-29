@@ -59,6 +59,29 @@ export class AppSidebar extends MobxLitElement {
       cursor: default;
       pointer-events: none;
     }
+    .branding {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 0;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      cursor: default;
+    }
+
+    .branding:hover {
+      opacity: 0.8;
+    }
+
+    .branding-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: #fff;
+      font-weight: 500;
+    }
   `];
 
   @property({ type: String })
@@ -92,20 +115,9 @@ export class AppSidebar extends MobxLitElement {
 
       <div class="spacer"></div>
 
-      <div
-        class="icon ${!appController.canUndo ? 'disabled' : ''}"
-        @click=${() => appController.undo()}
-        title="Undo"
-      >
-        <i class="la la-undo" style="font-size: 20px;"></i>
-      </div>
-
-      <div
-        class="icon ${!appController.canRedo ? 'disabled' : ''}"
-        @click=${() => appController.redo()}
-        title="Redo"
-      >
-        <i class="la la-redo" style="font-size: 20px;"></i>
+      <div class="branding" title="nano-repatch">
+        <i class="la la-microchip" style="font-size: 16px; color: #fff; transform: rotate(90deg);"></i>
+        <span class="branding-text">nano-repatch</span>
       </div>
     `;
   }

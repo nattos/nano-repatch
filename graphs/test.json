@@ -31,18 +31,6 @@
         }
       }
     },
-    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
-      "id": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
-      "x": 1,
-      "y": 5,
-      "config": {
-        "typeId": "math.subtract",
-        "values": {
-          "value": 0
-        },
-        "name": "Subtract"
-      }
-    },
     "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1": {
       "id": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
       "x": 1,
@@ -50,9 +38,23 @@
       "config": {
         "typeId": "data.float",
         "values": {
-          "value": 0.56
+          "value": 0.35
         },
         "name": ""
+      }
+    },
+    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
+      "id": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
+      "x": 1,
+      "y": 5,
+      "config": {
+        "typeId": "math.subtract",
+        "values": {
+          "value": 0,
+          "a": 1,
+          "b": 1
+        },
+        "name": "Subtract"
       }
     }
   },
@@ -64,19 +66,19 @@
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "toPort": "max"
     },
-    "conn-988e6cc0-8928-4c01-b734-2d73fb227135": {
-      "id": "conn-988e6cc0-8928-4c01-b734-2d73fb227135",
-      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
-      "fromPort": "value",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": "min"
-    },
     "conn-8cdc8e34-f314-410b-b77f-9bd164cca681": {
       "id": "conn-8cdc8e34-f314-410b-b77f-9bd164cca681",
       "fromNodeId": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
       "fromPort": "value",
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "toPort": ""
+    },
+    "conn-988e6cc0-8928-4c01-b734-2d73fb227135": {
+      "id": "conn-988e6cc0-8928-4c01-b734-2d73fb227135",
+      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
+      "fromPort": "value",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": "min"
     }
   }
 }
