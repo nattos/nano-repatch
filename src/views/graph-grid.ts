@@ -308,21 +308,21 @@ export class GraphGrid extends MobxLitElement {
         try {
           const parsed = JSON.parse(data);
           if (parsed.type === 'resolume:parameter') {
-            // Determine type based on x (input/output/main)
             let nodeType = 'resolume:input';
-            if (x === 0) nodeType = 'resolume:input';
-            else if (x > 20) nodeType = 'resolume:output'; // Or whatever max is
-            else nodeType = 'resolume:input'; // Default
+            let targetX = x;
 
-            // Actually, input/output columns are special.
-            // If we dropped on input column (x=0?), create input.
-            // If we dropped on output column, create output.
+            const rawX = cell.dataset.x;
+            if (rawX === 'output') {
+              nodeType = 'resolume:output';
+              targetX = 20; // Output column
+            } else {
+              targetX = parseInt(rawX || '0');
+              if (targetX === 0) {
+                nodeType = 'resolume:input';
+              }
+            }
 
-            // Wait, our loop below sets data-x for main grid.
-            // Input column doesn't have data-x?
-            // We should ensure all cells have data-x/y.
-
-            const newNode = appController.createNode(nodeType, x, y, { path: parsed.path });
+            const newNode = appController.createNode(nodeType, targetX, y, { path: parsed.path });
             localController.queueSelectPaths([newNode.id]);
           }
         } catch (err) {
