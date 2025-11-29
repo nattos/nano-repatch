@@ -280,17 +280,15 @@ export function definePrimitiveNode<
           }
           return { fields: wrappedFields, untagged: [] };
         }
-      } else if (options.inputs) {
+      } else if (options.inputs && Object.keys(options.inputs).length > 0) {
         // Even if not broadcasting, we might want to unwrap the raw inputs if they match the schema
-        if (options.inputs) {
-          const inputs: any = {};
-          for (const [key, type] of Object.entries(options.inputs)) {
-            if (rawInput.fields && rawInput.fields[key] !== undefined) {
-              inputs[key] = fromStructor(rawInput.fields[key], type);
-            }
+        const inputs: any = {};
+        for (const [key, type] of Object.entries(options.inputs)) {
+          if (rawInput.fields && rawInput.fields[key] !== undefined) {
+            inputs[key] = fromStructor(rawInput.fields[key], type);
           }
-          processedInput = inputs;
         }
+        processedInput = inputs;
       }
 
       const result = options.execute(

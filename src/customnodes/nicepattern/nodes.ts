@@ -77,6 +77,11 @@ const SEQUENCE_LENGTH = 16;
 // RhythmicGenerator
 export const rhythmicGeneratorPrimitive = definePrimitiveNode({
   id: "nicepattern:rhythmic_generator",
+  metadata: {
+    category: 'NicePattern',
+    keywords: ['rhythm', 'generator', 'sequence', 'euclidean'],
+    description: 'Generates a rhythmic sequence based on density.'
+  },
   config: { targetNote: numberType, density: numberType },
   inputs: {},
   outputs: { seq_out: sequenceStructorType },
@@ -114,6 +119,11 @@ defaultNodeRepository.register({
 // ChaosGenerator
 export const chaosGeneratorPrimitive = definePrimitiveNode({
   id: "nicepattern:chaos_generator",
+  metadata: {
+    category: 'NicePattern',
+    keywords: ['chaos', 'random', 'generator', 'sequence', 'stochastic'],
+    description: 'Generates a random sequence of notes.'
+  },
   config: { minNote: numberType, maxNote: numberType, density: numberType },
   inputs: {},
   outputs: { seq_out: sequenceStructorType },
@@ -152,6 +162,11 @@ defaultNodeRepository.register({
 // Pattern Node
 export const patternPrimitive = definePrimitiveNode({
   id: "nicepattern:pattern",
+  metadata: {
+    category: 'NicePattern',
+    keywords: ['pattern', 'sequencer', 'combiner', 'event'],
+    description: 'Combines multiple sequences into note events.'
+  },
   config: {},
   inputs: {}, // We handle inputs manually via typedBroadcast
   outputs: { event_out: noteEventStructorType },
@@ -244,6 +259,11 @@ function createLayerNode(
 ): NodeType {
   const primitive = definePrimitiveNode({
     id,
+    metadata: {
+      category: 'NicePattern',
+      keywords: ['layer', 'effect', 'modifier'],
+      description: `Layer node: ${displayName}`
+    },
     config: { targetNote: numberType },
     inputs: { event_in: noteEventStructorType, prev_layer: layerOutputStructorType },
     outputs: { out: layerOutputStructorType },
@@ -321,6 +341,11 @@ defaultNodeRepository.register(createLayerNode("nicepattern:noise_layer", "Noise
 // ToneSynthLayer is special as it takes audio context
 const toneSynthPrimitive = definePrimitiveNode({
   id: "nicepattern:tone_synth_layer",
+  metadata: {
+    category: 'NicePattern',
+    keywords: ['synth', 'audio', 'sound', 'tone'],
+    description: 'Simple synthesizer layer using Tone.js.'
+  },
   config: { targetNote: numberType },
   inputs: { event_in: noteEventStructorType, prev_layer: layerOutputStructorType },
   outputs: { out: layerOutputStructorType },
