@@ -441,11 +441,27 @@ export class GraphNode extends MobxLitElement {
       const ROW_HEIGHT = 24;
       const HEADER_HEIGHT = 30;
       const PADDING = 10;
-      const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
 
+      let totalInputHeight = 0;
+      inputs.forEach(input => {
+        const isConnected = connectedPorts.has(input.name);
+        let height = ROW_HEIGHT;
+        if (!isConnected) {
+          const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
+          if (customHeight) {
+            height = Math.max(ROW_HEIGHT, customHeight);
+          }
+        }
+        totalInputHeight += height;
+      });
+
+      const totalOutputHeight = outputs.length * ROW_HEIGHT;
       const bodyHeight = nodeType?.getBodyHeight?.(this.node) || 0;
 
-      let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING + bodyHeight;
+      // Ensure at least one row height if no ports
+      const portsHeight = Math.max(totalInputHeight, totalOutputHeight, ROW_HEIGHT);
+
+      let computedHeight = HEADER_HEIGHT + portsHeight + PADDING + bodyHeight;
 
       // For minimal state, force 80px
       if (state === 'minimal') {
@@ -465,8 +481,6 @@ export class GraphNode extends MobxLitElement {
     const { selection, inflightPortConnectionOperation, queuedSelection } = localController.observableState;
     const isSelected = selection.has(this.node.id);
 
-    // We need to observe queuedSelection so that if we are queued, we re-render and call defineSelectable to promote ourselves
-    // This is now handled by the isQueued prop passed from GraphGrid, but we keep the check here logic-wise
     if (this.isQueued) {
       // It will be promoted in defineSelectable called below
     }
@@ -508,11 +522,7 @@ export class GraphNode extends MobxLitElement {
     const isQueued = this.isQueued;
     const typeColor = cssColorFromHash(this.node.config.typeId);
 
-    // Determine State
-    // Normal: Default
-    // Compressed: inputs <= 3 AND outputs <= 3 AND no visible sliders
-    // Minimal: inputs <= 1 AND outputs <= 1 AND no visible sliders
-
+    // Determine State (Logic duplicated from updated() for render consistency)
     let hasVisibleSliders = false;
     inputs.forEach(input => {
       const isConnected = connectedPorts.has(input.name);
@@ -530,20 +540,79 @@ export class GraphNode extends MobxLitElement {
       }
     }
 
-    // Compute Height
+    // Compute Layout
     const ROW_HEIGHT = 24;
     const HEADER_HEIGHT = 30;
-    const PADDING = 10;
-    const numRows = Math.max(inputs.length, outputs.length, 1); // At least 1 row
 
-    const bodyHeight = nodeType?.getBodyHeight?.(this.node) || 0;
+    let currentInputY = HEADER_HEIGHT;
+    const inputElements: any[] = [];
+    const virtualInputElements: any[] = [];
 
-    let computedHeight = HEADER_HEIGHT + (numRows * ROW_HEIGHT) + PADDING + bodyHeight;
+    inputs.forEach((input, index) => {
+      const isConnected = connectedPorts.has(input.name);
+      let height = ROW_HEIGHT;
 
-    // For minimal state, force 80px
-    if (state === 'minimal') {
-      computedHeight = 80;
-    }
+      // Render Port
+      inputElements.push(html`
+        <div class="port-wrapper" style="top: ${currentInputY}px; position: absolute; left: 0; height: ${ROW_HEIGHT}px;">
+          <graph-port
+            .nodeId=${this.node.id}
+            .name=${input.name}
+            type="in"
+            .description=${input.description || ''}
+          ></graph-port>
+        </div>
+      `);
+
+      // Render Editor (if disconnected)
+      if (!isConnected) {
+        const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
+        if (customHeight) {
+          height = Math.max(ROW_HEIGHT, customHeight);
+        }
+
+        let editorContent;
+        if (nodeType?.renderInputEditor) {
+          editorContent = nodeType.renderInputEditor(this.node, input.name, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) });
+        }
+
+        // Fallback to default editor if no custom editor or it returned nothing
+        if (!editorContent) {
+          const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
+            ? this.node.config.values[input.name]
+            : input.defaultValue || '';
+
+          // Always show default editor if no custom editor is provided
+          // This matches previous behavior where all disconnected inputs got a field
+          const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
+          editorContent = html`
+                <div class="virtual-input-field-wrapper" style="height: 24px;">
+                  <input
+                    id="${this.node.id}-${input.name}-virtual-input"
+                    type="${isNumber ? 'range' : 'text'}"
+                    .value=${currentValue.toString()}
+                    .min=${input.range?.[0]?.toString() || '0'}
+                    .max=${input.range?.[1]?.toString() || '1'}
+                    .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
+                    @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
+                    class="virtual-input-field"
+                    title="${input.description}"
+                  />
+                </div>
+             `;
+        }
+
+        if (editorContent) {
+          virtualInputElements.push(html`
+            <div style="top: ${currentInputY}px; position: absolute; width: 100%; height: ${height}px; display: flex; align-items: center;">
+              ${editorContent}
+            </div>
+          `);
+        }
+      }
+
+      currentInputY += height;
+    });
 
     const style = `transform: translate(-14px, -14px); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
 
@@ -555,23 +624,12 @@ export class GraphNode extends MobxLitElement {
       >
         <div class="ports-wrapper">
           <div class="inputs">
-            ${inputs.map((input, index) => {
-      return html`
-                <div class="port-wrapper" style="top: ${30 + index * 24}px; position: absolute; left: 0;">
-                  <graph-port
-                    .nodeId=${this.node.id}
-                    .name=${input.name}
-                    type="in"
-                    .description=${input.description || ''}
-                  ></graph-port>
-                </div>
-              `;
-    })}
+            ${inputElements}
           </div>
           <div class="outputs">
             ${outputs.map((output, index) => {
       return html`
-                <div class="port-wrapper" style="top: ${30 + index * 24}px; position: absolute; right: 0;">
+                <div class="port-wrapper" style="top: ${HEADER_HEIGHT + index * ROW_HEIGHT}px; position: absolute; right: 0;">
                   ${this.renderDebugValue(output.name)}
                   <graph-port
                     .nodeId=${this.node.id}
@@ -587,34 +645,7 @@ export class GraphNode extends MobxLitElement {
         <div class="node-main-content">
           <div class="node-title">${this.node.config.name || displayName}</div>
           <div class="virtual-inputs-container">
-            ${inputs.map((input, index) => {
-      const isConnected = connectedPorts.has(input.name);
-      // Render virtual input field if not connected and has a defaultValue
-      if (!isConnected) {
-        const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
-          ? this.node.config.values[input.name]
-          : input.defaultValue || '';
-
-        const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
-
-        return html`
-                  <div class="virtual-input-field-wrapper" style="top: ${index * 24}px; position: absolute; width: 100%;">
-                    <input
-                      id="${this.node.id}-${input.name}-virtual-input"
-                      type="${isNumber ? 'range' : 'text'}"
-                      .value=${currentValue.toString()}
-                      .min=${input.range?.[0]?.toString() || '0'}
-                      .max=${input.range?.[1]?.toString() || '1'}
-                      .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
-                      @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
-                      class="virtual-input-field"
-                      title="${input.description}"
-                    />
-                  </div>
-                `;
-      }
-      return null;
-    })}
+            ${virtualInputElements}
             ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
           </div>
         </div>

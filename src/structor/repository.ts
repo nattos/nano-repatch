@@ -64,6 +64,17 @@ export interface NodeType {
   getInspectorHeight?: (node: GridNode) => number;
 
   /**
+   * A custom Lit-element renderer for a specific input port.
+   * Renders in place of the default virtual input when the port is disconnected.
+   */
+  renderInputEditor?: (node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown;
+
+  /**
+   * Returns the exact pixel height required for the custom input editor.
+   */
+  getInputEditorHeight?: (node: GridNode, portName: string) => number;
+
+  /**
    * A function to dynamically get the ports for a node.
    * Used for nodes like subgraphs where ports depend on internal state.
    */
