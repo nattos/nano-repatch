@@ -100,6 +100,11 @@ export class GraphPort extends MobxLitElement {
     }
   }
 
+  @property({ type: Boolean })
+  hideLabel = false;
+
+  // ... (styles)
+
   render() {
     const { inflightPortConnectionOperation } = localController.observableState;
 
@@ -108,13 +113,13 @@ export class GraphPort extends MobxLitElement {
       inflightPortConnectionOperation?.nodeId === this.nodeId;
 
     return html`
-      ${this.type === 'out' && this.name !== '0' ? html`<span class="port-label">${this.name}</span>` : ''}
+      ${this.type === 'out' && this.name !== '0' && !this.hideLabel ? html`<span class="port-label">${this.name}</span>` : ''}
       <div
         class="port ${this.type}-port ${isConnecting ? 'connecting' : ''}"
         @click=${this.handlePortClick}
         title="${this.description}"
       ></div>
-      ${this.type === 'in' && this.name ? html`<span class="port-label">${this.name}</span>` : ''}
+      ${this.type === 'in' && this.name && !this.hideLabel ? html`<span class="port-label">${this.name}</span>` : ''}
     `;
   }
 }

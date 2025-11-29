@@ -37,7 +37,19 @@
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
         "values": {},
-        "density": 0.5
+        "density": 0.2
+      }
+    },
+    "node-782aafbe-54e7-424b-9fd5-0682ee3fb62d": {
+      "id": "node-782aafbe-54e7-424b-9fd5-0682ee3fb62d",
+      "x": 1,
+      "y": 5,
+      "config": {
+        "typeId": "math.add",
+        "values": {
+          "a": 0.11,
+          "b": 0.61
+        }
       }
     }
   },

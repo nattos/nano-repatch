@@ -18,7 +18,7 @@
       "config": {
         "typeId": "data.float",
         "values": {
-          "value": 0.22
+          "value": 0
         }
       }
     },
@@ -28,6 +28,17 @@
       "y": 5,
       "config": {
         "typeId": "math.clamp",
+        "values": {
+          "min": 0.02
+        }
+      }
+    },
+    "node-172eec0f-e4b9-443b-9003-8af7616375a3": {
+      "id": "node-172eec0f-e4b9-443b-9003-8af7616375a3",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "math.fmod",
         "values": {}
       }
     },
@@ -38,28 +49,28 @@
       "config": {
         "typeId": "data.float",
         "values": {
-          "value": 0.33
+          "value": 0.51
         }
       }
     }
   },
   "connections": {
-    "conn-4b21ab10-b050-4d64-ad3b-9ed2b79ef261": {
-      "id": "conn-4b21ab10-b050-4d64-ad3b-9ed2b79ef261",
-      "fromNodeId": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
-      "fromPort": "value",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": ""
-    },
-    "conn-d1aea740-18d6-4696-a9b7-5db7940164d6": {
-      "id": "conn-d1aea740-18d6-4696-a9b7-5db7940164d6",
+    "conn-988e6cc0-8928-4c01-b734-2d73fb227135": {
+      "id": "conn-988e6cc0-8928-4c01-b734-2d73fb227135",
       "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
       "fromPort": "value",
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "toPort": "min"
     },
-    "conn-fbe7bef1-9a97-46c6-abc5-cc1e0fd217e8": {
-      "id": "conn-fbe7bef1-9a97-46c6-abc5-cc1e0fd217e8",
+    "conn-8cdc8e34-f314-410b-b77f-9bd164cca681": {
+      "id": "conn-8cdc8e34-f314-410b-b77f-9bd164cca681",
+      "fromNodeId": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
+      "fromPort": "value",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": ""
+    },
+    "conn-7fc88e3e-dbfa-4122-b4ad-4d4aa0ec1129": {
+      "id": "conn-7fc88e3e-dbfa-4122-b4ad-4d4aa0ec1129",
       "fromNodeId": "node-745fae79-a25e-4605-8ed0-6658917e71f5",
       "fromPort": "value",
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",

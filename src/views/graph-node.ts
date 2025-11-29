@@ -59,9 +59,11 @@ export class GraphNode extends MobxLitElement {
       border: 2px solid transparent;
       transition: border-color 0.2s;
       box-sizing: border-box;
-      padding: 10px; /* Added padding for internal content */
+      /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
     }
+
+
 
     :host([data-state="normal"]) {
       width: 240px;
@@ -103,7 +105,10 @@ export class GraphNode extends MobxLitElement {
       border: 1px solid var(--node-border);
       border-left: 4px solid var(--node-accent-color, var(--node-border));
       transition: box-shadow 0.2s, border-color 0.2s;
+      box-sizing: border-box; /* Ensure borders are included in width */
     }
+
+
 
     :host([selected]) {
       border-color: var(--accent-color);
@@ -115,14 +120,28 @@ export class GraphNode extends MobxLitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       padding: 5px 0;
     }
 
     .node-title {
       font-weight: bold;
-      margin-bottom: 5px;
-      text-align: center;
+      margin: 2px 0;
+      width: calc(100% - 19px);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      padding: 0 17px; /* Align with port labels */
+    }
+
+    .node-type-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7em;
+      color: var(--text-muted, #888);
+      font-weight: normal;
+      flex-shrink: 0;
     }
 
     .ports-wrapper {
@@ -134,6 +153,7 @@ export class GraphNode extends MobxLitElement {
       display: flex;
       justify-content: space-between;
       pointer-events: none; /* Allow clicks to pass through to node-main-content */
+      z-index: 10; /* Ensure ports render above custom editors */
     }
 
     .inputs, .outputs {
@@ -147,59 +167,76 @@ export class GraphNode extends MobxLitElement {
 
     .inputs {
       align-items: flex-start;
-      margin-left: -15px; /* Move outside */
+      position: relative;
+      left: -9px; /* Move pips out to hang off node */
+      top: 2px; /* Adjust vertical alignment */
     }
 
     .outputs {
       align-items: flex-end;
-      margin-right: -15px; /* Move outside */
-    }
-
-    .port-wrapper {
-      display: flex;
-      align-items: center;
-      height: 24px; /* Fixed height for port row */
+      position: relative;
+      right: -9px; /* Move pips out */
+      top: 2px; /* Adjust vertical alignment */
     }
 
     .virtual-inputs-container {
-      margin-top: 10px;
-      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 6px;
+      width: 220px;
       display: flex;
       flex-direction: column;
-      gap: 0;
-      position: absolute;
-      top: 30px; /* Below title */
-      left: 15px; /* Align with input ports */
-      right: 15px;
-      bottom: 0;
-      pointer-events: none; /* Let clicks pass through to node unless on input */
+      pointer-events: none;
+      z-index: 5;
     }
 
     .virtual-input-field-wrapper {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
+      flex-direction: row; /* Horizontal layout for labels + slider */
+      align-items: center;
       width: 100%;
       height: 24px; /* Match port height */
-      justify-content: center;
+      justify-content: space-between;
       pointer-events: auto;
     }
 
-    .virtual-input-field-wrapper label {
+    .slider-label {
+      width: 38px;
       font-size: 0.7em;
       color: var(--text-muted);
-      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    .slider-label:first-child {
+      text-align: left;
+      padding-left: 5px;
+    }
+
+    .slider-label:last-child {
+      text-align: left;
+      padding-left: 4px;
     }
 
     .virtual-input-field {
-      width: calc(100% - 10px); /* Account for padding */
-      padding: 3px;
-      border-radius: 3px;
-      border: 1px solid var(--border-color);
-      background-color: var(--input-bg);
-      color: var(--text-color);
-      font-size: 0.8em;
+      flex-grow: 1; /* Fill remaining space */
+      width: auto; /* Let flex handle width */
+      padding: 0;
+      margin: 0 5px;
+      height: 16px; /* Standard slider height */
+      /* border-radius: 3px; */
+      /* border: 1px solid var(--border-color); */
+      /* background-color: var(--input-bg); */
+      /* color: var(--text-color); */
+      /* font-size: 0.8em; */
+      /* box-sizing: border-box; */
+      cursor: pointer;
     }
+
+
+
 
     .debug-chip {
       position: absolute;
@@ -439,8 +476,8 @@ export class GraphNode extends MobxLitElement {
 
       // Compute Height
       const ROW_HEIGHT = 24;
-      const HEADER_HEIGHT = 30;
-      const PADDING = 10;
+      const HEADER_HEIGHT = 25;
+      const PADDING = 7;
 
       let totalInputHeight = 0;
       inputs.forEach(input => {
@@ -542,11 +579,42 @@ export class GraphNode extends MobxLitElement {
 
     // Compute Layout
     const ROW_HEIGHT = 24;
-    const HEADER_HEIGHT = 30;
+    const HEADER_HEIGHT = 25;
 
     let currentInputY = HEADER_HEIGHT;
     const inputElements: any[] = [];
     const virtualInputElements: any[] = [];
+
+    // Helper to check if a port label should be hidden
+    const shouldHideLabel = (portName: string, type: 'in' | 'out') => {
+      // If it's an input and has a custom editor (or default slider), hide the label
+      // because the editor will render it.
+      if (type === 'in') {
+        const input = inputs.find(i => i.name === portName);
+        if (input) {
+          const isConnected = connectedPorts.has(input.name);
+          if (!isConnected) {
+            // If disconnected, we show an editor.
+            // For now, assume ALL editors want to hide labels if they are active.
+            return true;
+          }
+        }
+      }
+
+      // If it's an output, check if the corresponding input (same row) has an editor
+      if (type === 'out') {
+        const outputIndex = outputs.findIndex(o => o.name === portName);
+        if (outputIndex !== -1 && outputIndex < inputs.length) {
+          const input = inputs[outputIndex];
+          const isConnected = connectedPorts.has(input.name);
+          if (!isConnected) {
+            // Corresponding input has an editor, so hide output label too
+            return true;
+          }
+        }
+      }
+      return false;
+    };
 
     inputs.forEach((input, index) => {
       const isConnected = connectedPorts.has(input.name);
@@ -560,6 +628,7 @@ export class GraphNode extends MobxLitElement {
             .name=${input.name}
             type="in"
             .description=${input.description || ''}
+            ?hideLabel="${shouldHideLabel(input.name, 'in')}"
           ></graph-port>
         </div>
       `);
@@ -583,10 +652,14 @@ export class GraphNode extends MobxLitElement {
             : input.defaultValue || '';
 
           // Always show default editor if no custom editor is provided
-          // This matches previous behavior where all disconnected inputs got a field
           const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';
+
+          // Find corresponding output name for the right label
+          const outputName = outputs[index]?.name || '';
+
           editorContent = html`
                 <div class="virtual-input-field-wrapper" style="height: 24px;">
+                  <div class="slider-label" title="${input.name}">${input.name}</div>
                   <input
                     id="${this.node.id}-${input.name}-virtual-input"
                     type="${isNumber ? 'range' : 'text'}"
@@ -598,6 +671,7 @@ export class GraphNode extends MobxLitElement {
                     class="virtual-input-field"
                     title="${input.description}"
                   />
+                  <div class="slider-label" title="${outputName}">${outputName}</div>
                 </div>
              `;
         }
@@ -614,7 +688,7 @@ export class GraphNode extends MobxLitElement {
       currentInputY += height;
     });
 
-    const style = `transform: translate(-14px, -14px); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
+    const style = `transform: translate(0, 0); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
 
     return html`
       <div
@@ -636,6 +710,7 @@ export class GraphNode extends MobxLitElement {
                     .name=${output.name}
                     type="out"
                     .description=${output.description || ''}
+                    ?hideLabel="${shouldHideLabel(output.name, 'out')}"
                   ></graph-port>
                 </div>
               `;
@@ -643,7 +718,10 @@ export class GraphNode extends MobxLitElement {
           </div>
         </div>
         <div class="node-main-content">
-          <div class="node-title">${this.node.config.name || displayName}</div>
+          <div class="node-title">
+            ${this.node.config.name || displayName}
+            <span class="node-type-id">${this.node.config.typeId}</span>
+          </div>
           <div class="virtual-inputs-container">
             ${virtualInputElements}
             ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}

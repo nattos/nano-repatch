@@ -1,4 +1,4 @@
-import { LitElement, TemplateResult } from 'lit';
+import { LitElement, PropertyValues, TemplateResult } from 'lit';
 import { autorun, IReactionDisposer } from 'mobx';
 
 export class MobxLitElement extends LitElement {
@@ -54,6 +54,13 @@ export class MobxLitElement extends LitElement {
       isInitialSyncRun = false; // The synchronous run is complete.
       return template;
     };
+  }
+
+  protected update(changedProperties: PropertyValues): void {
+    super.update(changedProperties);
+    if (changedProperties.size > 0) {
+      this.requestUpdate();
+    }
   }
 
   disconnectedCallback() {

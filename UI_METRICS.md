@@ -17,8 +17,17 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | **`NODE_WIDTH`** | **`240px`** | Total width of the node (Border Box). |
 | **`NODE_PADDING`** | **`10px`** | Internal padding of the node. |
 | **`CONTENT_WIDTH`** | **`220px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING`). |
-| **`PIP_OFFSET_X`** | **`-17.5px`** | Horizontal offset from the **Content Box Left Edge** to the **Center** of the input pip. <br>Calculation: `PipLeft (-15px) + Radius (7.5px) - Padding (10px)` |
+| **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset from the **Content Box Left Edge** to the **Center** of the input pip. |
 | **`PIP_OFFSET_Y`** | **`12px`** | Vertical offset from the top of the port row to the center of the pip. |
+
+## Port Label Metrics
+
+| Metric | Value | Description |
+| :--- | :--- | :--- |
+| **`LABEL_HEIGHT`** | **`24px`** | Height of the label container (matches `PORT_ROW_HEIGHT`). |
+| **`LABEL_FONT_SIZE`** | **`0.7em`** | Font size for port labels. |
+| **`LABEL_MARGIN`** | **`0 5px`** | Margin around the label text. |
+| **`SLIDER_LABEL_WIDTH`** | **`38px`** | Fixed width for labels inside slider editors. |
 
 ## Inspector Metrics
 
@@ -32,4 +41,6 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 
 1.  **Fixed Widths**: Custom editors **MUST** be designed to fit exactly within `STANDARD_EDITOR_WIDTH` (220px). They should not rely on flexbox expansion for width.
 2.  **Explicit Heights**: Custom editors **MUST** return their exact pixel height. This height will be **enforced**, and any overflowing content will be **clipped**. CSS auto-layout for height is discouraged to prevent layout thrashing.
-3.  **Pip Alignment**: When rendering custom connections or overlays, use `PIP_OFFSET_X` (-17.5px) to align visually with the input ports.
+3.  **Pip Alignment**: When rendering custom connections or overlays, use `PIP_OFFSET_X` (-9px) to align visually with the input ports.
+4.  **Z-Index**: Ports and pips must always render **above** custom editors (`z-index > 0`).
+5.  **Slider Labels**: Slider editors should render their own input/output labels, allocating `SLIDER_LABEL_WIDTH` (38px) on each side, ellipsizing text if necessary.
