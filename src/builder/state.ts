@@ -495,6 +495,7 @@ export interface LocalState {
   inflightPortConnectionOperation: { nodeId: string, port: string, type: 'in' | 'out' } | null;
   loadedSubgraphs: Map<string, GraphState>;
   wireLayout: LayoutResult;
+  showDebugValues: boolean;
 }
 
 export interface Selectable {
@@ -516,6 +517,7 @@ export class LocalController {
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
       wireLayout: { wires: {} },
+      showDebugValues: false,
     });
     makeObservable(this);
   }
@@ -644,5 +646,10 @@ export class LocalController {
   @action
   public loadSubgraph(id: string, graph: GraphState): void {
     this.observableState.loadedSubgraphs.set(id, graph);
+  }
+
+  @action
+  public setShowDebugValues(enabled: boolean): void {
+    this.observableState.showDebugValues = enabled;
   }
 }

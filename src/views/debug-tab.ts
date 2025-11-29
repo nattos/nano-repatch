@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { RuntimeManager } from '../runtime/manager';
 import { AppController } from '../builder/state';
-import { appController, runtimeManager } from '../builder/controllers';
+import { appController, localController, runtimeManager } from '../builder/controllers';
 import { globalStyles } from '../styles';
 
 @customElement('debug-tab')
@@ -120,7 +120,18 @@ export class DebugTab extends MobxLitElement {
     const outputs = Array.from(runtimeManager.outputs.entries());
 
     return html`
-      <div class="header">Debug Output</div>
+      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Debug Output</span>
+        <label style="display: flex; align-items: center; cursor: pointer; font-size: 10px; text-transform: none; color: #888; user-select: none;">
+          <input
+            type="checkbox"
+            .checked=${localController.observableState.showDebugValues}
+            @change=${(e: Event) => localController.setShowDebugValues((e.target as HTMLInputElement).checked)}
+            style="margin-right: 4px;"
+          >
+          Show on Graph
+        </label>
+      </div>
       <div class="stats">
         Last Update: ${stats.nodeCount} nodes in ${stats.executionTime.toFixed(2)}ms
       </div>

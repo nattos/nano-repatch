@@ -3,7 +3,7 @@ import { css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
-import { appController, localController } from '../builder/controllers';
+import { appController, localController, runtimeManager } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
@@ -200,7 +200,79 @@ export class GraphNode extends MobxLitElement {
       color: var(--text-color);
       font-size: 0.8em;
     }
+
+    .debug-chip {
+      position: absolute;
+      left: 100%; /* Position to the right of the port (outside) */
+      margin-left: 8px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #ddd;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 10;
+      border: 1px solid #444;
+    }
+
+    .debug-chip.vector {
+      color: #8dc1e3;
+      border-color: #3a5f7a;
+      background: rgba(42, 63, 74, 0.8);
+    }
+
+    .debug-chip.struct {
+      color: #c18de3;
+      border-color: #5f3a7a;
+      background: rgba(58, 42, 74, 0.8);
+    }
   `;
+
+  private renderDebugValue(portName: string) {
+    if (!localController.observableState.showDebugValues) return null;
+
+    const output = runtimeManager.outputs.get(this.node.id);
+    if (!output) return null;
+
+    let value: any = undefined;
+
+    // Check fields first
+    if (output.fields && portName in output.fields) {
+      value = output.fields[portName];
+    }
+    // Then check untagged if it's the default output (empty string name)
+    else if (portName === '' && output.untagged && output.untagged.length > 0) {
+      value = output.untagged[0];
+    }
+
+    if (value === undefined) return null;
+
+    let displayValue = '';
+    let isStruct = false;
+    let isVector = false;
+
+    if (typeof value === 'number') {
+      displayValue = value.toFixed(2);
+    } else if (typeof value === 'string') {
+      displayValue = `"${value.length > 10 ? value.substring(0, 8) + '..' : value}"`;
+    } else if (Array.isArray(value)) {
+      displayValue = `vec(${value.length})`;
+      isVector = true;
+    } else if (typeof value === 'object' && value !== null) {
+      displayValue = 'struct';
+      isStruct = true;
+    } else {
+      displayValue = String(value);
+    }
+
+    const classes = ['debug-chip'];
+    if (isVector) classes.push('vector');
+    if (isStruct) classes.push('struct');
+
+    return html`<div class="${classes.join(' ')}">${displayValue}</div>`;
+  }
 
   private handlePointerDown(e: PointerEvent) {
     // Ignore if clicking on a port or virtual input field
@@ -495,6 +567,7 @@ export class GraphNode extends MobxLitElement {
             ${outputs.map((output, index) => {
       return html`
                 <div class="port-wrapper" style="top: ${30 + index * 24}px; position: absolute; right: 0;">
+                  ${this.renderDebugValue(output.name)}
                   <graph-port
                     .nodeId=${this.node.id}
                     .name=${output.name}
