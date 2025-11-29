@@ -92,7 +92,19 @@ export class ResolumeManager {
     };
 
     visit(this.state);
+    visit(this.state);
     console.log(`[ResolumeManager] Indexed ${this.parameterMap.size} parameters`);
+
+    // Re-apply subscriptions for found parameters
+    for (const [path, subs] of this.subscriptions.entries()) {
+      const param = this.parameterMap.get(path);
+      if (param) {
+        console.log(`[ResolumeManager] Resubscribing to ${path}`);
+        this.sendSubscription(param);
+        // Notify with current value
+        subs.forEach(cb => cb(param.value));
+      }
+    }
   }
 
   private findParameterById(id: number): ResolumeParameter | undefined {
@@ -113,22 +125,25 @@ export class ResolumeManager {
     }
     this.subscriptions.get(path)!.add(callback);
 
-    // If first subscriber, send subscribe message to Resolume
-    // Note: Fake client expects /parameter/by-id/<id>
+    // If we are connected and the parameter exists, send subscribe message.
+    // If not connected, we will send it when we connect/receive initial state.
+    // If parameter doesn't exist yet, we will send it when we rebuild the map.
     const param = this.getParameter(path);
     if (param && this.ws) {
-      // Only send if we haven't already?
-      // Actually, fake client handles multiple subs fine.
-      // But we need to use the ID format for the fake client.
+      this.sendSubscription(param);
+      // Immediate callback with current value
+      callback(param.value);
+    } else {
+      console.log(`[ResolumeManager] Queued subscription for ${path} (Connected: ${!!this.ws}, Param found: ${!!param})`);
+    }
+  }
+
+  private sendSubscription(param: ResolumeParameter) {
+    if (this.ws) {
       this.ws.send({
         action: 'subscribe',
         parameter: `/parameter/by-id/${param.id}`
       });
-
-      // Immediate callback with current value
-      callback(param.value);
-    } else {
-      console.warn(`[ResolumeManager] Cannot subscribe to ${path}: Parameter not found or WS not ready`);
     }
   }
 

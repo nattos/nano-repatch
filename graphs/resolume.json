@@ -1,0 +1,33 @@
+{
+  "nodes": {
+    "node-be28dad6-c763-42d8-bc75-a9a85d119395": {
+      "id": "node-be28dad6-c763-42d8-bc75-a9a85d119395",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "resolume:input",
+        "values": {},
+        "path": "/composition/video/effects/1763903992255/brightness"
+      }
+    },
+    "node-251470e1-dbbe-4e93-840a-09ca320d7d42": {
+      "id": "node-251470e1-dbbe-4e93-840a-09ca320d7d42",
+      "x": 20,
+      "y": 3,
+      "config": {
+        "typeId": "resolume:output",
+        "values": {},
+        "path": "/composition/video/effects/1763903992255/contrast"
+      }
+    }
+  },
+  "connections": {
+    "conn-22b0568d-da80-4ee2-b943-75d1e661b215": {
+      "id": "conn-22b0568d-da80-4ee2-b943-75d1e661b215",
+      "fromNodeId": "node-be28dad6-c763-42d8-bc75-a9a85d119395",
+      "fromPort": "value",
+      "toNodeId": "node-251470e1-dbbe-4e93-840a-09ca320d7d42",
+      "toPort": "value"
+    }
+  }
+}

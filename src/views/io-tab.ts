@@ -65,6 +65,15 @@ export class IOTab extends MobxLitElement {
         margin-bottom: 10px;
       }
 
+    details > summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    details > summary::-webkit-details-marker {
+        display: none;
+    }
+
     details > summary::before {
         content: '▶';
         font-size: 0.8em;
@@ -130,6 +139,7 @@ export class IOTab extends MobxLitElement {
         <details open>
             <summary class="label">Composition</summary>
             ${comp.params.map(p => this.renderParameter(p))}
+            ${comp.effects.map(e => this.renderEffect(e))}
             ${comp.layers.map(l => this.renderLayer(l))}
         </details>
       </div>

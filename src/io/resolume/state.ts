@@ -149,6 +149,7 @@ export class ResolumeLayer {
 export class ResolumeComposition {
   layers: ResolumeLayer[] = [];
   params: ResolumeParameter[] = [];
+  effects: ResolumeEffect[] = [];
   path: string = '/composition';
 
   constructor() {
@@ -158,6 +159,7 @@ export class ResolumeComposition {
   load(data: any) {
     this.layers = [];
     this.params = [];
+    this.effects = [];
 
     if (data.layers && Array.isArray(data.layers)) {
       this.layers = data.layers.map((l: any, i: number) => new ResolumeLayer(l, this.path, i));
@@ -168,7 +170,14 @@ export class ResolumeComposition {
       for (const [key, value] of Object.entries(obj)) {
         if (key === 'layers' || key === 'decks') continue; // Handled or ignored for now
 
-        if (isParameter(value)) {
+        if (key === 'effects' && Array.isArray(value)) {
+          // Composition effects
+          // We need a place to store them. ResolumeComposition has 'params' and 'layers'.
+          // Let's add 'effects' property to ResolumeComposition if it doesn't exist, or just parse them.
+          // The class definition needs 'effects: ResolumeEffect[] = []'.
+          // For now, let's assume we add it to the class.
+          value.forEach(eff => this.effects.push(new ResolumeEffect(eff, currentPath)));
+        } else if (isParameter(value)) {
           this.params.push(new ResolumeParameter(value, currentPath, key));
         } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
           processObject(value, `${currentPath}/${key}`);
