@@ -4,6 +4,7 @@ import { customElement, state } from 'lit/decorators.js';
 import './app-sidebar';
 import './workspace-panel';
 import './io-tab';
+import './debug-tab';
 import './graph-editor';
 
 @customElement('workspace-layout')
@@ -80,6 +81,8 @@ export class WorkspaceLayout extends MobxLitElement {
         return html`<workspace-panel></workspace-panel>`;
       case 'io':
         return html`<io-tab></io-tab>`;
+      case 'debug':
+        return html`<debug-tab></debug-tab>`;
       default:
         return null;
     }

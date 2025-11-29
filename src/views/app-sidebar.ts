@@ -82,6 +82,14 @@ export class AppSidebar extends MobxLitElement {
         <i class="la la-exchange-alt" style="font-size: 20px;"></i>
       </div>
 
+      <div
+        class="icon ${this.activeTab === 'debug' ? 'active' : ''}"
+        @click=${() => this.switchTab('debug')}
+        title="Debug"
+      >
+        <i class="la la-bug" style="font-size: 20px;"></i>
+      </div>
+
       <div class="spacer"></div>
 
       <div

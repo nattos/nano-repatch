@@ -168,8 +168,12 @@ export class SmartInput extends LitElement {
               }
             }
 
-            // Always ensure completion is running
-            startCompletion(this.editorView!);
+            // Only start completion if the change was caused by user input (typing/deleting)
+            // This prevents the popup from opening when the value is updated programmatically (e.g. via Inspector selection)
+            const isUserEvent = update.transactions.some(tr => tr.isUserEvent('input') || tr.isUserEvent('delete'));
+            if (isUserEvent) {
+              startCompletion(this.editorView!);
+            }
           }
         })
       ]
