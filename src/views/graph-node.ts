@@ -340,7 +340,7 @@ export class GraphNode extends MobxLitElement {
       let hasVisibleSliders = false;
       inputs.forEach(input => {
         const isConnected = connectedPorts.has(input.name);
-        if (input.defaultValue !== undefined && !isConnected) {
+        if (!isConnected) {
           hasVisibleSliders = true;
         }
       });
@@ -432,7 +432,7 @@ export class GraphNode extends MobxLitElement {
     let hasVisibleSliders = false;
     inputs.forEach(input => {
       const isConnected = connectedPorts.has(input.name);
-      if (input.defaultValue !== undefined && !isConnected) {
+      if (!isConnected) {
         hasVisibleSliders = true;
       }
     });
@@ -503,7 +503,7 @@ export class GraphNode extends MobxLitElement {
             ${inputs.map((input, index) => {
       const isConnected = connectedPorts.has(input.name);
       // Render virtual input field if not connected and has a defaultValue
-      if (input.defaultValue !== undefined && !isConnected) {
+      if (!isConnected) {
         const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
           ? this.node.config.values[input.name]
           : input.defaultValue || '';

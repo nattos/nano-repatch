@@ -7,8 +7,8 @@
       "config": {
         "typeId": "math.clamp",
         "values": {
-          "max": 0.47,
-          "min": 0.39
+          "max": 0.18,
+          "min": 0.34
         }
       }
     },
@@ -18,7 +18,9 @@
       "y": 4,
       "config": {
         "typeId": "math.add",
-        "values": {}
+        "values": {
+          "b": 41
+        }
       }
     },
     "node-02bd4c1e-495b-4f0d-b2b7-bcf3cfeeb174": {
@@ -32,19 +34,19 @@
     }
   },
   "connections": {
-    "conn-067b9e2b-a0fb-4a80-8601-569770596694": {
-      "id": "conn-067b9e2b-a0fb-4a80-8601-569770596694",
-      "fromNodeId": "node-3f88b92b-1c53-42b0-8553-95a564e9d0c4",
-      "fromPort": "0",
-      "toNodeId": "node-f42e1279-b764-4c51-9138-3446f56a2e4e",
-      "toPort": "a"
-    },
     "conn-61424dcf-5154-44ba-8726-6b71011e44d0": {
       "id": "conn-61424dcf-5154-44ba-8726-6b71011e44d0",
       "fromNodeId": "node-02bd4c1e-495b-4f0d-b2b7-bcf3cfeeb174",
       "fromPort": "",
       "toNodeId": "node-3f88b92b-1c53-42b0-8553-95a564e9d0c4",
       "toPort": ""
+    },
+    "conn-cd9a6f87-e6df-4996-af75-996466805e0d": {
+      "id": "conn-cd9a6f87-e6df-4996-af75-996466805e0d",
+      "fromNodeId": "node-3f88b92b-1c53-42b0-8553-95a564e9d0c4",
+      "fromPort": "",
+      "toNodeId": "node-f42e1279-b764-4c51-9138-3446f56a2e4e",
+      "toPort": "a"
     }
   }
 }
