@@ -18,7 +18,9 @@ const context = {
     for (const key of Object.keys(input.fields)) {
       fields[key] = input.fields[key];
     }
-    return { fields, untagged: [] };
+    return {
+      apply: (lambda: any) => lambda(fields)
+    };
   },
   nodeState: new Map()
 } as unknown as ExecutionContext;

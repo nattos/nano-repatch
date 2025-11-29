@@ -75,8 +75,8 @@ describe('GraphNode Subgraph Integration', () => {
     await (el as LitElement).updateComplete;
 
     const virtualInputs = el.shadowRoot!.querySelectorAll('.virtual-input-field');
-    // Clamp has 2 inputs with defaults: min, max
-    expect(virtualInputs.length).to.equal(2);
+    // Clamp has 3 inputs: value, min, max
+    expect(virtualInputs.length).to.equal(3);
 
     // Find the min input
     const minInput = Array.from(virtualInputs).find(i => i.id.includes('min'));

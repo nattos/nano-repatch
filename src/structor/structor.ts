@@ -72,13 +72,17 @@ import { NodeRepository } from './repository';
 
 export type NodeDefinition = PrimitiveNodeDefinition | GraphDefinition;
 
+export interface BroadcastResult {
+  apply(lambda: (args: any) => any): any;
+}
+
 // Faking the contexts for now
 export interface AnalysisContext {
   broadcast: (config: BroadcastConfig, inputs: RecordType) => any;
   repository: NodeRepository;
 };
 export interface ExecutionContext {
-  broadcast: (config: BroadcastConfig, inputs: StructorRecord) => any;
+  broadcast: (config: BroadcastConfig, inputs: StructorRecord) => BroadcastResult;
   repository: NodeRepository;
   clock: {
     beat: number;

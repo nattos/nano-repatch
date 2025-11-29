@@ -20,8 +20,7 @@ describe('Structor Core Tests', () => {
         computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
         execute: (input, config, context) => {
             const broadcastResult = context.broadcast({} as any, input);
-            const sum = broadcastResult.broadcasted.map((tuple: number[]) => tuple.reduce((a: number, b: number) => a + b, 0));
-            const result = sum.length === 1 && broadcastResult.broadcasted.length === 1 ? sum[0] : sum;
+            const result = broadcastResult.apply((args: any) => args.reduce((a: number, b: number) => a + b, 0));
             return { fields: {}, untagged: [result] };
         }
     };
@@ -30,8 +29,8 @@ describe('Structor Core Tests', () => {
         id: 'mock_clamp', kind: 'primitive',
         computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [i.fields['value'] || i.untagged[0]] }),
         execute: (input, config, context) => {
-            const broadcastResult = context.broadcast({} as any, input) as { fields: { value: number[], min: number, max: number } };
-            const clamped = broadcastResult.fields.value.map(v => Math.max(broadcastResult.fields.min, Math.min(v, broadcastResult.fields.max)));
+            const broadcastResult = context.broadcast({} as any, input);
+            const clamped = broadcastResult.apply((args: any) => Math.max(args.min, Math.min(args.value, args.max)));
             return { fields: {}, untagged: [clamped] };
         }
     };
@@ -72,7 +71,12 @@ describe('Structor Core Tests', () => {
 
         it('should pass the runtime execution test', () => {
             const executionContext: ExecutionContext = {
-                broadcast: (config, inputs) => ({ broadcasted: [[10, 100, 5], [10, 200, 5]] }),
+                broadcast: (config, inputs) => ({
+                    apply: (lambda: any) => [
+                        lambda([10, 100, 5]),
+                        lambda([10, 200, 5])
+                    ]
+                } as any),
                 repository: testRepo,
                 clock: { beat: 0, dt: 0 },
                 nodeState: new Map()
@@ -97,7 +101,12 @@ describe('Structor Core Tests', () => {
 
         it('should pass the runtime execution test', () => {
             const executionContext: ExecutionContext = {
-                broadcast: (config, inputs) => ({ fields: { 'value': [5, 500], 'min': 10, 'max': 100 } }),
+                broadcast: (config, inputs) => ({
+                    apply: (lambda: any) => [
+                        lambda({ value: 5, min: 10, max: 100 }),
+                        lambda({ value: 500, min: 10, max: 100 })
+                    ]
+                } as any),
                 repository: testRepo,
                 clock: { beat: 0, dt: 0 },
                 nodeState: new Map()
@@ -143,7 +152,9 @@ describe('Structor Core Tests', () => {
             const myFunctor: Functor = (x) => (x as number) * 2;
             const inputData: StructorRecord = { "fields": { "myFunctor": myFunctor }, "untagged": [] };
             const executionContext: ExecutionContext = {
-                broadcast: (config, inputs) => ({ broadcasted: [[inputs.untagged[0], inputs.untagged[1]]] }),
+                broadcast: (config, inputs) => ({
+                    apply: (lambda: any) => lambda([inputs.untagged[0], inputs.untagged[1]])
+                } as any),
                 repository: testRepo,
                 clock: { beat: 0, dt: 0 },
                 nodeState: new Map()

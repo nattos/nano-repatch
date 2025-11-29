@@ -33,10 +33,10 @@ describe('GraphNode', () => {
     expect(inPortNames).to.have.members(['', 'min', 'max']);
 
     const outPortNames = Array.from(outPorts).map(p => p.getAttribute('name'));
-    expect(outPortNames).to.have.members(['0']);
+    expect(outPortNames).to.have.members(['']);
 
     const virtualInputs = clampNode.shadowRoot!.querySelectorAll('.virtual-input-field');
-    expect(virtualInputs.length).to.equal(2, 'Should have 2 virtual inputs');
+    expect(virtualInputs.length).to.equal(3, 'Should have 3 virtual inputs');
   });
 
   it('renders correct ports for an fmod node', async () => {
@@ -63,6 +63,6 @@ describe('GraphNode', () => {
     expect(outPortNames).to.have.members(['div', 'mod']);
 
     const virtualInputs = fmodNode.shadowRoot!.querySelectorAll('.virtual-input-field');
-    expect(virtualInputs.length).to.equal(1, 'Should have 1 virtual input for divisor');
+    expect(virtualInputs.length).to.equal(2, 'Should have 2 virtual inputs');
   });
 });

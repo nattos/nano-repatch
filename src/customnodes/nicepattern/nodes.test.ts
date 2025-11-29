@@ -12,13 +12,24 @@ import { defaultNodeRepository } from '../../structor/repository';
 const createMockContext = (): ExecutionContext => ({
   broadcast: vi.fn((config, inputs) => {
     // Simple mock for broadcast
-    // For pattern node, it expects 'seqs'
-    if (config.outputs['seqs']) {
-      // Collect all untagged inputs
-      const seqs = inputs.untagged || [];
-      return { seqs };
-    }
-    return {};
+    return {
+      apply: (fn: any) => {
+        // For generators with no inputs, just call fn with empty args
+        if (Object.keys(inputs.fields).length === 0 && inputs.untagged.length === 0) {
+          return fn({});
+        }
+        // For pattern node, it expects 'seqs' from untagged
+        if (config.outputs['seqs']) {
+          const seqs = inputs.untagged || [];
+          // typedBroadcast expects apply to return the data
+          // If we are simulating typedBroadcast's usage of broadcast:
+          // typedBroadcast calls apply(args => args).
+          // So we should return the data structure here.
+          return { seqs };
+        }
+        return fn({});
+      }
+    } as any;
   }),
   repository: defaultNodeRepository,
   clock: { beat: 0, dt: 0.1 },
@@ -75,10 +86,10 @@ describe('NicePattern Nodes', () => {
       // The pattern node calls typedBroadcast which calls context.broadcast
       // Our mock context.broadcast needs to return what typedBroadcast expects
       // typedBroadcast expects { seqs: Structor[] } which it then unwraps.
-      // But wait, typedBroadcast unwraps!
-      // So context.broadcast should return { fields: { seqs: [mockSeq] } } (as Structor)
 
-      context.broadcast = vi.fn().mockReturnValue({ fields: { seqs: [mockSeq] } });
+      context.broadcast = vi.fn().mockReturnValue({
+        apply: (fn: any) => ({ seqs: [mockSeq] })
+      });
 
       const config = { fields: {}, untagged: [] };
       const input = { fields: {}, untagged: [mockSeq] }; // Raw input

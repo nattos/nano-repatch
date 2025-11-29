@@ -516,9 +516,9 @@ export class GraphNode extends MobxLitElement {
                       id="${this.node.id}-${input.name}-virtual-input"
                       type="${isNumber ? 'range' : 'text'}"
                       .value=${currentValue.toString()}
-                      .min=${input.range?.[0]?.toString() || ''}
-                      .max=${input.range?.[1]?.toString() || ''}
-                      .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : ''}
+                      .min=${input.range?.[0]?.toString() || '0'}
+                      .max=${input.range?.[1]?.toString() || '1'}
+                      .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
                       @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
                       class="virtual-input-field"
                       title="${input.description}"

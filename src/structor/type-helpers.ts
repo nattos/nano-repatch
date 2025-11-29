@@ -183,42 +183,6 @@ export function definePrimitiveNode<
     isRealtime: options.isRealtime,
     computeOutputTypes: () => outputType,
     execute: (rawInput, rawConfig, context) => {
-      let processedInput: any = rawInput;
-
-      if (options.autoBroadcast && options.inputs) {
-
-        const broadcastConfig: BroadcastConfig = {
-          outputs: {},
-          reshape: 'none'
-        };
-
-        for (const [key, type] of Object.entries(options.inputs)) {
-          const isArray = type.kind === 'array';
-          broadcastConfig.outputs[key] = {
-            fromFields: [key],
-            fromUntagged: false,
-            combine: isArray ? 'collect' : { reduce: 'first' }
-          };
-        }
-
-        const broadcasted = context.broadcast(broadcastConfig, rawInput);
-
-        // Unwrap broadcast results
-        const unwrapped: any = {};
-        // context.broadcast returns { fields: ... }
-        const broadcastFields = (broadcasted as any).fields || {};
-        for (const [key, type] of Object.entries(options.inputs)) {
-          unwrapped[key] = fromStructor(broadcastFields[key], type);
-        }
-        processedInput = unwrapped;
-      } else if (options.inputs) {
-        // Even if not broadcasting, we might want to unwrap the raw inputs if they match the schema
-        // But rawInput is a StructorRecord.
-        // If autoBroadcast is false, we pass rawInput (as any) which matches the loose typing
-        // BUT if we want to be nice, we should probably unwrap it too?
-        // For now, let's respect the flag: false means "I want raw StructorRecord"
-      }
-
       // Unwrap config
       // Config is also a StructorRecord (or plain object?)
       // Usually config comes from the graph and is a StructorRecord.
@@ -241,6 +205,92 @@ export function definePrimitiveNode<
           context.nodeState.set(key, options.createState(processedConfig, context));
         }
         state = context.nodeState.get(key);
+      }
+
+      let processedInput: any = rawInput;
+
+      if (options.autoBroadcast && options.inputs) {
+
+        const broadcastConfig: BroadcastConfig = {
+          outputs: {},
+          reshape: 'none'
+        };
+
+        for (const [key, type] of Object.entries(options.inputs)) {
+          const isArray = type.kind === 'array';
+          broadcastConfig.outputs[key] = {
+            fromFields: [key],
+            fromUntagged: false,
+            combine: isArray ? 'collect' : { reduce: 'first' }
+          };
+        }
+
+        const broadcasted = context.broadcast(broadcastConfig, rawInput);
+
+        // We use apply to execute the node logic for each item in the broadcast result.
+        // If the result is a vector, apply will return an array of results.
+        // We then need to transpose this array of results back into a structure of arrays (fields).
+        const result = broadcasted.apply((args: any) => {
+          // Unwrap inputs
+          const inputs: any = {};
+          for (const [key, type] of Object.entries(options.inputs!)) {
+            inputs[key] = fromStructor(args[key], type);
+          }
+
+          // Execute
+          return options.execute(inputs, processedConfig, context, state);
+        });
+
+        // Transpose result if it's an array (vector broadcast)
+        if (Array.isArray(result)) {
+          if (result.length > 0) {
+            const fields: Record<string, Structor[]> = {};
+            const first = result[0];
+            for (const key of Object.keys(first)) {
+              fields[key] = [];
+            }
+
+            for (const res of result) {
+              for (const [key, val] of Object.entries(res)) {
+                if (fields[key]) fields[key].push(val as Structor);
+              }
+            }
+
+            // Wrap outputs
+            const wrappedFields: Record<string, Structor> = {};
+            for (const [key, val] of Object.entries(fields)) {
+              if (options.outputs[key]) {
+                wrappedFields[key] = toStructor(val, { kind: 'array', element: options.outputs[key], size: result.length });
+              }
+            }
+            return { fields: wrappedFields, untagged: [] };
+          } else {
+            return { fields: {}, untagged: [] };
+          }
+        } else {
+          // Scalar result
+          const anyResult = result as any;
+          const wrappedFields: Record<string, Structor> = {};
+          for (const [key, type] of Object.entries(options.outputs)) {
+            // The result from apply (scalar) is the return value of execute, which is a plain object (not StructorRecord yet)
+            // e.g. { result: 123 }
+            if (anyResult[key] !== undefined) {
+              wrappedFields[key] = toStructor(anyResult[key], type);
+            }
+          }
+          return { fields: wrappedFields, untagged: [] };
+        }
+      } else if (options.inputs) {
+        // Even if not broadcasting, we might want to unwrap the raw inputs if they match the schema
+        if (options.inputs) {
+          const inputs: any = {};
+          for (const [key, type] of Object.entries(options.inputs)) {
+            if (rawInput.fields && rawInput.fields[key] !== undefined) {
+              inputs[key] = fromStructor(rawInput.fields[key], type);
+            }
+          }
+          processedInput = inputs;
+        }
       }
 
       const result = options.execute(
@@ -267,7 +317,7 @@ export function definePrimitiveNode<
   };
 }
 
-// --- Typed Broadcast Helper ---
+
 
 export interface TypedBroadcastChannel {
   source?: string | string[]; // Default to channel name if omitted
@@ -302,21 +352,63 @@ export function typedBroadcast<TSchema extends TypedBroadcastSchema>(
     };
   }
 
-  const rawResult = context.broadcast(config, inputs);
-  const processedResult: any = {};
-  const rawFields = (rawResult as any).fields || {};
+  const broadcasted = context.broadcast(config, inputs);
 
+  // Use apply to get the data structure (AoS)
+  const result = broadcasted.apply((args: any) => args);
+
+  const processedResult: any = {};
+
+  // Transpose if vector
+  if (Array.isArray(result)) {
+    // Initialize arrays
+    for (const key of Object.keys(schema)) {
+      processedResult[key] = [];
+    }
+    for (const item of result) {
+      for (const key of Object.keys(schema)) {
+        processedResult[key].push(item[key]);
+      }
+    }
+  } else {
+    // Scalar
+    for (const key of Object.keys(schema)) {
+      processedResult[key] = result[key];
+    }
+  }
+
+  // Type conversion
   for (const [key, def] of Object.entries(schema)) {
     if (def.type) {
-      // If combine is collect, the result is an array of Structors
       if (def.combine === 'collect') {
-        const arr = rawFields[key] as Structor[];
-        processedResult[key] = arr.map(v => fromStructor(v, def.type!));
+        // If collect, the value is already an array (from broadcast logic)
+        // But if we transposed a vector of collects, we have array of arrays?
+        // Wait, if result is array (vector), then processedResult[key] is array of values.
+        // If combine is collect, values are arrays.
+        // So processedResult[key] is array of arrays.
+
+        // typedBroadcast expects `Array<InferStructorType>`.
+        // If it's a vector, it expects `Array<Array<...>>`?
+        // The type definition says `Array<InferStructorType>`.
+
+        // If typedBroadcast is used for manual handling, maybe it doesn't expect vectors?
+        // Or maybe it expects the "column".
+
+        // Let's assume processedResult[key] IS the column.
+        const val = processedResult[key];
+        if (Array.isArray(val)) {
+          processedResult[key] = val.map((v: any) => fromStructor(v, def.type!));
+        } else {
+          processedResult[key] = fromStructor(val, def.type!);
+        }
       } else {
-        processedResult[key] = fromStructor(rawFields[key], def.type!);
+        const val = processedResult[key];
+        if (Array.isArray(val)) {
+          processedResult[key] = val.map((v: any) => fromStructor(v, def.type!));
+        } else {
+          processedResult[key] = fromStructor(val, def.type!);
+        }
       }
-    } else {
-      processedResult[key] = rawFields[key];
     }
   }
 
