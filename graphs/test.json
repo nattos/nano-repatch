@@ -8,7 +8,8 @@
         "typeId": "data.float",
         "values": {
           "value": 0.56
-        }
+        },
+        "name": "Float"
       }
     },
     "node-6a4256ab-cd70-4409-be3b-fb340380f7da": {
@@ -47,11 +48,11 @@
       "x": 1,
       "y": 5,
       "config": {
-        "typeId": "math.add",
+        "typeId": "math.subtract",
         "values": {
           "value": 0
         },
-        "name": "Add"
+        "name": "Subtract"
       }
     }
   },

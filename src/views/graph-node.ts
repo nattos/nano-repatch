@@ -140,6 +140,32 @@ export class GraphNode extends MobxLitElement {
       padding: 0 17px; /* Align with port labels */
     }
 
+    .node-title.editing {
+      overflow: visible;
+    }
+
+    .editable-label-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .editable-label-wrapper.name {
+      flex-grow: 1;
+      overflow: hidden;
+      min-width: 30px;
+    }
+    .editable-label-wrapper.name.editing {
+      overflow: visible;
+    }
+
+    .editable-label-wrapper.type {
+      flex-shrink: 0;
+    }
+    .editable-label-wrapper.type.editing {
+      overflow: visible;
+    }
+
     .node-type-id {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.7em;
@@ -741,40 +767,44 @@ export class GraphNode extends MobxLitElement {
           </div>
         </div>
         <div class="node-main-content">
-          <div class="node-title">
-            ${this.editingField === 'name'
-        ? html`
+          <div class="node-title ${this.editingField ? 'editing' : ''}">
+            <div class="editable-label-wrapper name ${this.editingField === 'name' ? 'editing' : ''}">
+              <span
+                @dblclick=${(e: MouseEvent) => this.handleDoubleClick('name', e)}
+                style="display: block; overflow: hidden; text-overflow: ellipsis; visibility: ${this.editingField === 'name' ? 'hidden' : 'visible'};"
+              >
+                ${this.node.config.name || displayName}
+              </span>
+              ${this.editingField === 'name' ? html`
                 <smart-input
                   .value=${this.node.config.name || displayName}
                   .autofocus=${true}
                   @commit=${(e: CustomEvent) => this.handleEditCommit('name', e)}
                   @cancel=${this.handleEditCancel}
-                  style="flex-grow: 1;"
+                  style="position: absolute; top: -6px; left: -8px; width: calc(100% + 8px); height: calc(100% + 4px);"
                 ></smart-input>
-              `
-        : html`
-                <span @dblclick=${(e: MouseEvent) => this.handleDoubleClick('name', e)} style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis;">
-                  ${this.node.config.name || displayName}
-                </span>
-              `
-      }
-            ${this.editingField === 'type'
-        ? html`
+              ` : ''}
+            </div>
+
+            <div class="editable-label-wrapper type ${this.editingField === 'type' ? 'editing' : ''}">
+              <span
+                class="node-type-id"
+                @dblclick=${(e: MouseEvent) => this.handleDoubleClick('type', e)}
+                style="visibility: ${this.editingField === 'type' ? 'hidden' : 'visible'};"
+              >
+                ${this.node.config.typeId}
+              </span>
+              ${this.editingField === 'type' ? html`
                 <smart-input
                   .catalog=${this.catalog}
                   .value=${this.node.config.typeId}
                   .autofocus=${true}
                   @commit=${(e: CustomEvent) => this.handleEditCommit('type', e)}
                   @cancel=${this.handleEditCancel}
-                  style="min-width: 100px;"
+                  style="position: absolute; top: -6px; left: -8px; width: calc(100% + 8px); height: calc(100% + 4px);"
                 ></smart-input>
-              `
-        : html`
-                <span class="node-type-id" @dblclick=${(e: MouseEvent) => this.handleDoubleClick('type', e)}>
-                  ${this.node.config.typeId}
-                </span>
-              `
-      }
+              ` : ''}
+            </div>
           </div>
           <div class="virtual-inputs-container">
             ${virtualInputElements}

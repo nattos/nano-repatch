@@ -29,7 +29,6 @@ export class SmartInput extends LitElement {
       border: 1px solid #ccc;
       border-radius: 4px;
       background: white;
-      overflow: hidden;
     }
 
     /* CodeMirror Overrides */
