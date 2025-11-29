@@ -166,14 +166,60 @@ export function compileGraph(
 
   processGraph(appState.graph, '', true);
 
-  console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${flatConnections.length} connections.`);
+  // 3. Cycle Detection and Breaking
+  // We perform a DFS to detect back edges. Any back edge found implies a cycle.
+  // We break the cycle by removing the back edge.
+
+  const adjacency = new Map<string, Array<{ toNode: string; connIndex: number }>>();
+  flatConnections.forEach((conn, index) => {
+    if (!adjacency.has(conn.fromNode)) {
+      adjacency.set(conn.fromNode, []);
+    }
+    adjacency.get(conn.fromNode)!.push({ toNode: conn.toNode, connIndex: index });
+  });
+
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+  const edgesToRemove = new Set<number>();
+
+  function detectCycles(nodeId: string) {
+    visited.add(nodeId);
+    recursionStack.add(nodeId);
+
+    const neighbors = adjacency.get(nodeId);
+    if (neighbors) {
+      for (const { toNode, connIndex } of neighbors) {
+        if (recursionStack.has(toNode)) {
+          // Cycle detected!
+          console.warn(`Cycle detected: ${nodeId} -> ${toNode}. Breaking connection to prevent infinite loop.`);
+          edgesToRemove.add(connIndex);
+        } else if (!visited.has(toNode)) {
+          detectCycles(toNode);
+        }
+      }
+    }
+
+    recursionStack.delete(nodeId);
+  }
+
+  // Run DFS from every node (to handle disconnected components)
+  for (const nodeId of Object.keys(flatNodes)) {
+    if (!visited.has(nodeId)) {
+      detectCycles(nodeId);
+    }
+  }
+
+  // Filter out broken connections
+  const validConnections = flatConnections.filter((_, index) => !edgesToRemove.has(index));
+
+  console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${validConnections.length} connections (removed ${edgesToRemove.size} cyclic connections).`);
 
   return {
     id: 'compiled-graph',
     kind: 'graph',
     type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } }, // TODO: Compute actual type
     nodes: flatNodes,
-    connections: flatConnections,
+    connections: validConnections,
     inputs: flatInputs,
     outputs: flatOutputs
   };
