@@ -2,6 +2,13 @@
 
 This document lists all available primitive nodes in the Structor system.
 
+## Math (Constants)
+
+| ID | Name | Description | Inputs | Outputs |
+| :--- | :--- | :--- | :--- | :--- |
+| `math.pi` | Pi | Returns the value of Pi. | - | `result` (Number) |
+| `math.e` | E | Returns the value of Euler's number. | - | `result` (Number) |
+
 ## Math (Binary)
 
 | ID | Name | Description | Inputs | Outputs |

@@ -2,7 +2,8 @@ import { expect } from '@open-wc/testing';
 import {
   primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
   primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
-  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not
+  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
+  primitive_pi, primitive_e
 } from './primitives';
 import { ExecutionContext } from './structor';
 
@@ -32,6 +33,15 @@ describe('Primitive Nodes', () => {
     const result = node.execute({ fields: { a }, untagged: [] }, {}, context);
     return result.fields.result;
   };
+
+  describe('Math (Constants)', () => {
+    it('math.pi', () => {
+      expect(primitive_pi.execute({}, {}, context).fields.result).to.be.closeTo(Math.PI, 0.0001);
+    });
+    it('math.e', () => {
+      expect(primitive_e.execute({}, {}, context).fields.result).to.be.closeTo(Math.E, 0.0001);
+    });
+  });
 
   describe('Math (Binary)', () => {
     it('math.subtract', () => {

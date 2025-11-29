@@ -3,7 +3,8 @@ import {
   primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph,
   primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
   primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
-  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not
+  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
+  primitive_pi, primitive_e
 } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
@@ -94,6 +95,28 @@ defaultNodeRepository.register({
   ],
   outputs: [
     { name: '0', type: NumberType, description: 'The sum of all inputs.' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.pi',
+  version: '1.0.0',
+  displayName: 'Pi',
+  definition: primitive_pi,
+  inputs: [],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Pi' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.e',
+  version: '1.0.0',
+  displayName: 'E',
+  definition: primitive_e,
+  inputs: [],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Euler\'s Number' }
   ]
 });
 

@@ -217,6 +217,24 @@ export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = [
   primitive_subgraph
 ];
 
+// --- Math (Constants) ---
+
+export const primitive_pi = definePrimitiveNode({
+  id: 'math.pi',
+  metadata: { category: NodeCategory.Math, keywords: ['pi', 'constant'], description: 'Returns the value of Pi.' },
+  inputs: {},
+  outputs: { result: numberType },
+  execute: () => ({ result: Math.PI })
+});
+
+export const primitive_e = definePrimitiveNode({
+  id: 'math.e',
+  metadata: { category: NodeCategory.Math, keywords: ['e', 'euler', 'constant'], description: 'Returns the value of Euler\'s number.' },
+  inputs: {},
+  outputs: { result: numberType },
+  execute: () => ({ result: Math.E })
+});
+
 // --- Math (Binary) ---
 
 export const primitive_subtract = defineMathNode(
@@ -389,5 +407,7 @@ ALL_PRIMITIVES.push(
   primitive_equals,
   primitive_greater_than,
   primitive_less_than,
-  primitive_not
+  primitive_not,
+  primitive_pi,
+  primitive_e
 );
