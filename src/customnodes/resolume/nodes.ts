@@ -21,36 +21,42 @@ export const resolumeInputNode = definePrimitiveNode({
 
   createState: (config, context) => {
     // Initial state
-    const state = { value: 0 as any, unsubscribe: () => { } };
+    const state = {
+      value: 0 as any,
+      unsubscribe: () => { },
+      currentPath: config.path,
+      callback: (val: any) => { }
+    };
+
+    state.callback = (val: any) => {
+      state.value = val;
+    };
 
     if (config.path) {
-      const callback = (val: any) => {
-        state.value = val;
-        // Mark dirty? The manager doesn't know about the graph.
-        // We need a way to trigger graph update.
-        // The node itself is dirty if its state changes?
-        // Currently, dirty tracking is from inputs.
-        // If a node's internal state changes, it needs to tell the executor?
-        // The executor polls? Or we need a mechanism to push updates.
-        // For now, let's assume the graph loop runs or we need to trigger it.
-        // The `ExecutionContext` doesn't have a `markDirty` method exposed to `execute`.
-        // But `createState` is called once.
-
-        // HACK: We need to trigger a graph update.
-        // We can use `appController`? No, that's UI.
-        // We need access to the runtime.
-        // For now, let's just update the state object.
-        // If the graph is running in a loop (e.g. requestAnimationFrame), it will pick it up next frame.
-      };
-
-      resolumeManager.subscribe(config.path, callback);
-      state.unsubscribe = () => resolumeManager.unsubscribe(config.path, callback);
+      resolumeManager.subscribe(config.path, state.callback);
+      state.unsubscribe = () => resolumeManager.unsubscribe(config.path, state.callback);
     }
 
     return state;
   },
 
   execute: (inputs, config, context, state) => {
+    // Check for path change
+    if (config.path !== state.currentPath) {
+      // Unsubscribe from old
+      if (state.currentPath) {
+        state.unsubscribe();
+      }
+
+      state.currentPath = config.path;
+
+      // Subscribe to new
+      if (config.path) {
+        resolumeManager.subscribe(config.path, state.callback);
+        state.unsubscribe = () => resolumeManager.unsubscribe(config.path, state.callback);
+      }
+    }
+
     return { value: state?.value ?? 0 };
   }
 });
@@ -66,12 +72,29 @@ export const resolumeOutputNode = definePrimitiveNode({
   outputs: {},
   autoBroadcast: true,
 
-  execute: (inputs, config, context) => {
+  createState: (config, context) => {
+    return { lastValue: undefined as any };
+  },
+
+  execute: (inputs, config, context, state) => {
     if (config.path && inputs.value !== undefined) {
-      // Only send if changed? ResolumeManager or Client should handle dedup if needed.
-      // But we don't want to flood WS.
-      // For now, send every frame.
-      resolumeManager.setValue(config.path, inputs.value);
+      const newValue = inputs.value;
+      const lastValue = state.lastValue;
+
+      let changed = false;
+
+      if (typeof newValue === 'number' && typeof lastValue === 'number') {
+        if (Math.abs(newValue - lastValue) > 1e-5) {
+          changed = true;
+        }
+      } else if (newValue !== lastValue) {
+        changed = true;
+      }
+
+      if (changed) {
+        resolumeManager.setValue(config.path, newValue);
+        state.lastValue = newValue;
+      }
     }
     return {};
   }
