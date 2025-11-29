@@ -393,7 +393,10 @@ export class GraphGrid extends MobxLitElement {
       }
     }
 
-    this.popup = null;
+    // Defer popup removal to ensure render cycle completes and prevents race conditions
+    setTimeout(() => {
+      this.popup = null;
+    }, 0);
   }
 
   private handlePopupPreview(e: CustomEvent) {
@@ -471,9 +474,9 @@ export class GraphGrid extends MobxLitElement {
                 .catalog=${this.catalog}
                 .value=${this.popup.initialValue}
                 .autofocus=${true}
-                @commit=${this.handlePopupCommit}
-                @preview-type=${this.handlePopupPreview}
-                @cancel=${this.handlePopupCancel}
+                @commit=${this.handlePopupCommit.bind(this)}
+                @preview-type=${this.handlePopupPreview.bind(this)}
+                @cancel=${this.handlePopupCancel.bind(this)}
             ></smart-input>
         </div>
       ` : ''}

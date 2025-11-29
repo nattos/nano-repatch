@@ -1,16 +1,5 @@
 {
   "nodes": {
-    "node-f42e1279-b764-4c51-9138-3446f56a2e4e": {
-      "id": "node-f42e1279-b764-4c51-9138-3446f56a2e4e",
-      "x": 3,
-      "y": 4,
-      "config": {
-        "typeId": "math.add",
-        "values": {
-          "b": 0.36
-        }
-      }
-    },
     "node-4a2694cf-54f9-4c79-9aca-63c0006caa04": {
       "id": "node-4a2694cf-54f9-4c79-9aca-63c0006caa04",
       "x": 1,
@@ -23,15 +12,25 @@
           "max": 1
         }
       }
+    },
+    "node-17bea4ac-f7e0-40ba-b72a-dd5acfe9dbb2": {
+      "id": "node-17bea4ac-f7e0-40ba-b72a-dd5acfe9dbb2",
+      "x": 3,
+      "y": 4,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
+    },
+    "node-568a4dbf-5160-4e33-9277-ee5b5288f307": {
+      "id": "node-568a4dbf-5160-4e33-9277-ee5b5288f307",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
     }
   },
-  "connections": {
-    "conn-558036fb-42ab-4ff6-a72b-26946c5a9176": {
-      "id": "conn-558036fb-42ab-4ff6-a72b-26946c5a9176",
-      "fromNodeId": "node-4a2694cf-54f9-4c79-9aca-63c0006caa04",
-      "fromPort": "",
-      "toNodeId": "node-f42e1279-b764-4c51-9138-3446f56a2e4e",
-      "toPort": "a"
-    }
-  }
+  "connections": {}
 }

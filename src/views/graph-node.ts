@@ -313,7 +313,7 @@ export class GraphNode extends MobxLitElement {
         <smart-input
             .catalog=${this.catalog}
             .value=${this.node.config.typeId}
-            @commit=${this.handleSmartTypeChange}
+            @commit=${this.handleSmartTypeChange.bind(this)}
         ></smart-input>
       </div>
       ${nodeType?.renderInspector ? nodeType.renderInspector(this.node, onchange) : ''}

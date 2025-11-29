@@ -117,7 +117,6 @@ export class SmartInput extends LitElement {
       extensions: [
         darkTheme,
         keymap.of([
-          ...standardKeymap,
           {
             key: 'Tab',
             run: (view) => {
@@ -145,7 +144,8 @@ export class SmartInput extends LitElement {
               this.dispatchEvent(new CustomEvent('cancel'));
               return true;
             }
-          }
+          },
+          ...standardKeymap
         ]),
         placeholder(this.placeholder),
         autocompletion({
@@ -203,16 +203,15 @@ export class SmartInput extends LitElement {
   }
 
   private completionSource(context: CompletionContext): CompletionResult | null {
-    // Always match everything to keep popup open
-    const word = context.matchBefore(/.*/) || { from: context.pos, text: "", to: context.pos };
-
-    const query = word.text;
+    // Always use the full document text as the query
+    // This ensures that even if text is selected (during two-step commit), we search for the full node ID.
+    const query = context.state.doc.toString();
     let results = this.catalog.search(query);
 
     // If no results, show "No suggestions"
     if (results.length === 0) {
       return {
-        from: word.from,
+        from: 0,
         options: [{
           label: "No suggestions",
           type: "no-suggestion",
@@ -223,7 +222,7 @@ export class SmartInput extends LitElement {
     }
 
     return {
-      from: word.from,
+      from: 0, // Always replace from the start
       options: results.map(item => ({
         label: item.label,
         detail: item.detail,
@@ -273,6 +272,10 @@ export class SmartInput extends LitElement {
   }
 
   private dispatchCommit(value: string) {
+    if (this.editorView) {
+      closeCompletion(this.editorView);
+      this.editorView.contentDOM.blur();
+    }
     this.dispatchEvent(new CustomEvent('commit', { detail: value }));
   }
 
