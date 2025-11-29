@@ -1,6 +1,6 @@
 import { definePrimitiveNode, AnyType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
-import { Structor } from "../../structor/structor";
+import { Structor, NodeCategory } from "../../structor/structor";
 
 // Singleton instances for compilation and execution
 const compiler = new GraphCompiler();
@@ -25,7 +25,12 @@ function getCompiledGraph(code: string): ExecutionGraph {
 }
 
 export const expressionNode = definePrimitiveNode({
-  id: "expression",
+  id: "logic.expression",
+  metadata: {
+    category: NodeCategory.Logic,
+    keywords: ['expression', 'math', 'script', 'code'],
+    description: 'Evaluates a mathematical expression.'
+  },
   inputs: {}, // Inputs are dynamic, but we can define a catch-all or let the executor handle it
   // Actually, for the expression node, we want inputs to be dynamic based on the script.
   // But definePrimitiveNode expects static inputs.

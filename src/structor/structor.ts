@@ -94,12 +94,31 @@ export interface ExecutionContext {
 };
 
 
+
+export enum NodeCategory {
+  IO = 'IO',
+  Math = 'Math',
+  Logic = 'Logic',
+  Data = 'Data',
+  Functional = 'Functional',
+  Core = 'Core',
+  Custom = 'Custom',
+}
+
+export interface NodeMetadata {
+  category: NodeCategory | string;
+  keywords?: string[];
+  description?: string;
+  deprecated?: boolean;
+}
+
 /**
  * A "black box" operation implemented in native TypeScript.
  */
 export interface PrimitiveNodeDefinition {
   id: string;
   kind: 'primitive';
+  metadata?: NodeMetadata;
   configType?: StructorType;
 
   /** Static analysis function: computes output types from input types. */
@@ -125,6 +144,7 @@ export interface PrimitiveNodeDefinition {
 export interface GraphDefinition {
   id: string;
   kind: 'graph';
+  metadata?: NodeMetadata;
   type: GraphType; // The pre-computed I/O signature of this graph
   nodes: Record<string, NodeInstance>;
   connections: { fromNode: string; fromPort: string | number; toNode: string; toPort: string | number; }[];

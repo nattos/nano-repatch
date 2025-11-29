@@ -1,3 +1,4 @@
+
 import {
   StructorType,
   AtomicType,
@@ -8,7 +9,8 @@ import {
   ExecutionContext,
   AnalysisContext,
   Structor,
-  BroadcastConfig
+  BroadcastConfig,
+  NodeMetadata
 } from './structor';
 
 export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
@@ -124,6 +126,7 @@ export interface TypedNodeOptions<
   TState = undefined
 > {
   id: string;
+  metadata?: NodeMetadata;
   inputs?: TInputs;
   config?: TConfig;
   outputs: TOutputs;
@@ -175,6 +178,7 @@ export function definePrimitiveNode<
   return {
     id: options.id,
     kind: 'primitive',
+    metadata: options.metadata,
     configType,
     isRealtime: options.isRealtime,
     computeOutputTypes: () => outputType,

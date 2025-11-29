@@ -193,16 +193,16 @@ export class GraphGrid extends MobxLitElement {
       // If it's a node cell (but empty), create node.
       if (target.classList.contains('node-cell')) {
         const rawX = target.dataset.x;
-        let typeId = 'literal';
+        let typeId = 'data.literal';
         let x = 0;
 
         if (rawX === 'output') {
-          typeId = 'resolume:output';
+          typeId = 'io.resolume.output';
           x = 20; // Arbitrary high number for output column
         } else {
           x = parseInt(rawX || '0');
           if (x === 0) {
-            typeId = 'resolume:input';
+            typeId = 'io.resolume.input';
           }
         }
 
@@ -308,17 +308,17 @@ export class GraphGrid extends MobxLitElement {
         try {
           const parsed = JSON.parse(data);
           if (parsed.type === 'resolume:parameter') {
-            let nodeType = 'resolume:input';
+            let nodeType = 'io.resolume.input';
             let targetX = x;
 
             const rawX = cell.dataset.x;
             if (rawX === 'output') {
-              nodeType = 'resolume:output';
+              nodeType = 'io.resolume.output';
               targetX = 20; // Output column
             } else {
               targetX = parseInt(rawX || '0');
               if (targetX === 0) {
-                nodeType = 'resolume:input';
+                nodeType = 'io.resolume.input';
               }
             }
 
@@ -403,6 +403,7 @@ export class GraphGrid extends MobxLitElement {
               <div class="field">
                 <label>From Port:</label>
                 <input
+                  data-testid="from-port-input"
                   type="text"
                   .value=${conn.fromPort.toString()}
                   @input=${(e: Event) => {
@@ -414,6 +415,7 @@ export class GraphGrid extends MobxLitElement {
               <div class="field">
                 <label>To Port:</label>
                 <input
+                  data-testid="to-port-input"
                   type="text"
                   .value=${conn.toPort.toString()}
                   @input=${(e: Event) => {
@@ -545,8 +547,8 @@ export class GraphGrid extends MobxLitElement {
 
       // Calculate grid position
       let col = 0;
-      if (node.config.typeId === 'input' || node.config.typeId === 'resolume:input') col = 1;
-      else if (node.config.typeId === 'output' || node.config.typeId === 'resolume:output') col = outputCol;
+      if (node.config.typeId === 'io.input' || node.config.typeId === 'io.resolume.input') col = 1;
+      else if (node.config.typeId === 'io.output' || node.config.typeId === 'io.resolume.output') col = outputCol;
       else col = 2 * node.x + 1;
 
       const row = 2 * node.y + 2;

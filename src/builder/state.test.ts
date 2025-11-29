@@ -25,8 +25,8 @@ describe('AppController', () => {
         it('should correctly build auxiliary maps from an initial state', () => {
             const initialState: GraphInnerState = {
                 nodes: {
-                    'node-1': { id: 'node-1', x: 10, y: 10, config: { typeId: 'literal', literal: { value: 5 } } },
-                    'node-2': { id: 'node-2', x: 20, y: 10, config: { typeId: 'add' } },
+                    'node-1': { id: 'node-1', x: 10, y: 10, config: { typeId: 'data.literal', literal: { value: 5 }, values: {} } },
+                    'node-2': { id: 'node-2', x: 20, y: 10, config: { typeId: 'math.add', values: {} } },
                 },
                 connections: {
                     'conn-1': { id: 'conn-1', fromNodeId: 'node-1', fromPort: 0, toNodeId: 'node-2', toPort: 0 },
@@ -41,9 +41,9 @@ describe('AppController', () => {
 
     describe('Node Operations', () => {
         it('should create a new node with the correct typeId in config', () => {
-            const newNode = controller.createNode('add', 5, 10);
+            const newNode = controller.createNode('math.add', 5, 10);
             const state = controller.getState();
-            expect(state.graph.inner.nodes[newNode.id].config.typeId).toBe('add');
+            expect(state.graph.inner.nodes[newNode.id].config.typeId).toBe('math.add');
         });
 
         it('should delete a node and clean up auxiliary maps', () => {
@@ -63,11 +63,11 @@ describe('AppController', () => {
         });
 
         it('should change a node typeId and preserve old config', () => {
-            const node = controller.createNode('literal', 0, 0);
+            const node = controller.createNode('data.literal', 0, 0);
             controller.setNodeConfig(node.id, { literal: { value: 10 } });
-            controller.setNodeConfig(node.id, { typeId: 'add' });
+            controller.setNodeConfig(node.id, { typeId: 'math.add' });
             const finalNode = controller.getState().graph.inner.nodes[node.id];
-            expect(finalNode.config.typeId).toBe('add');
+            expect(finalNode.config.typeId).toBe('math.add');
             expect(finalNode.config.literal.value).toBe(10);
         });
     });
@@ -214,7 +214,7 @@ describe('AppController', () => {
         });
 
         it('should react to node config changes', () => {
-            const node = controller.createNode('literal', 0, 0);
+            const node = controller.createNode('data.literal', 0, 0);
             const history: any[] = [];
             const dispose = autorun(() => { history.push(controller.observableState.graph.inner.nodes[node.id]?.config.literal?.value); });
             expect(history).toEqual([undefined]);

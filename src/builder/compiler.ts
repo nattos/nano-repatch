@@ -32,7 +32,7 @@ export function compileGraph(
     for (const node of Object.values(graph.inner.nodes)) {
       const nodeId = idPrefix + node.id;
 
-      if (node.config.typeId === 'subgraph') {
+      if (node.config.typeId === 'core.subgraph' || node.config.typeId === 'subgraph') {
         // Recursively process subgraph
         const subgraphId = node.config.subgraphId;
         const subgraph = loadedSubgraphs.get(subgraphId);
@@ -66,11 +66,11 @@ export function compileGraph(
 
         // If root, register graph inputs/outputs
         if (isRoot) {
-          if (node.config.typeId === 'input') {
+          if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
             // ... (existing input logic)
             const name = node.config.name || node.id;
             flatInputs[name] = { nodeId: nodeId, port: 'val' };
-          } else if (node.config.typeId === 'output') {
+          } else if (node.config.typeId === 'io.output' || node.config.typeId === 'output') {
             // ... (existing output logic)
             const name = node.config.name || node.id;
             flatOutputs[name] = { nodeId: nodeId, port: 'val' };
@@ -90,7 +90,7 @@ export function compileGraph(
 
               // Create Literal Node
               flatNodes[virtualNodeId] = {
-                definitionId: 'literal',
+                definitionId: 'data.literal',
                 defaultConfig: value as Structor,
               };
 
@@ -114,7 +114,7 @@ export function compileGraph(
       let fromPort = conn.fromPort;
 
       const fromNode = graph.inner.nodes[conn.fromNodeId];
-      if (fromNode && fromNode.config.typeId === 'subgraph') {
+      if (fromNode && (fromNode.config.typeId === 'core.subgraph' || fromNode.config.typeId === 'subgraph')) {
         // Connection FROM a subgraph node (output of subgraph)
         // We need to find the corresponding 'output' node inside the subgraph.
         // The port name on the subgraph node corresponds to the name of the output node.
@@ -123,7 +123,7 @@ export function compileGraph(
         const subgraph = loadedSubgraphs.get(subgraphId);
         if (subgraph) {
           const outputNode = Object.values(subgraph.inner.nodes).find(n =>
-            n.config.typeId === 'output' && (n.config.name === fromPort || n.id === fromPort)
+            (n.config.typeId === 'io.output' || n.config.typeId === 'output') && (n.config.name === fromPort || n.id === fromPort)
           );
           if (outputNode) {
             // Rewire: Source is the 'output' node inside the subgraph
@@ -138,14 +138,14 @@ export function compileGraph(
       let toPort = conn.toPort;
 
       const toNode = graph.inner.nodes[conn.toNodeId];
-      if (toNode && toNode.config.typeId === 'subgraph') {
+      if (toNode && (toNode.config.typeId === 'core.subgraph' || toNode.config.typeId === 'subgraph')) {
         // Connection TO a subgraph node (input of subgraph)
         // We need to find the corresponding 'input' node inside the subgraph.
         const subgraphId = toNode.config.subgraphId;
         const subgraph = loadedSubgraphs.get(subgraphId);
         if (subgraph) {
           const inputNode = Object.values(subgraph.inner.nodes).find(n =>
-            n.config.typeId === 'input' && (n.config.name === toPort || n.id === toPort)
+            (n.config.typeId === 'io.input' || n.config.typeId === 'input') && (n.config.name === toPort || n.id === toPort)
           );
           if (inputNode) {
             // Rewire: Destination is the 'input' node inside the subgraph

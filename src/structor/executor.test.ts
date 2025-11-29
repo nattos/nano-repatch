@@ -14,7 +14,7 @@ describe('GraphExecutor', () => {
     });
 
     const mock_primitive_add: PrimitiveNodeDefinition = {
-        id: 'add', kind: 'primitive',
+        id: 'math.add', kind: 'primitive',
         computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
         execute: addExecute,
     };
@@ -24,15 +24,15 @@ describe('GraphExecutor', () => {
     });
 
     const mock_primitive_literal: PrimitiveNodeDefinition = {
-        id: 'literal', kind: 'primitive', configType: numberType,
+        id: 'data.literal', kind: 'primitive', configType: numberType,
         computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
         execute: literalExecute,
     };
 
     const testRepo = new NodeRepository();
-    testRepo.register({ id: 'add', version: '1.0.0', displayName: 'Add', definition: mock_primitive_add });
-    testRepo.register({ id: 'literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
-    testRepo.register({ id: 'fmod', version: '1.0.0', displayName: 'FMod', definition: primitive_fmod });
+    testRepo.register({ id: 'math.add', version: '1.0.0', displayName: 'Add', definition: mock_primitive_add });
+    testRepo.register({ id: 'data.literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
+    testRepo.register({ id: 'math.fmod', version: '1.0.0', displayName: 'FMod', definition: primitive_fmod });
 
     const testGraph: GraphDefinition = {
         id: 'testGraph', kind: 'graph',
@@ -42,8 +42,8 @@ describe('GraphExecutor', () => {
             outputs: { kind: 'record', fields: { 'c': numberType }, untagged: [] },
         },
         nodes: {
-            'adder': { definitionId: 'add' },
-            'ten': { definitionId: 'literal', defaultConfig: 10 },
+            'adder': { definitionId: 'math.add' },
+            'ten': { definitionId: 'data.literal', defaultConfig: 10 },
         },
         inputs: { 'a': { nodeId: 'adder', port: 0 } },
         connections: [{ fromNode: 'ten', fromPort: 0, toNode: 'adder', toPort: 1 }],
@@ -95,9 +95,9 @@ describe('GraphExecutor', () => {
                 outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, untagged: [] },
             },
             nodes: {
-                'dividend': { definitionId: 'literal', defaultConfig: 10 },
-                'divisor': { definitionId: 'literal', defaultConfig: 3 },
-                'fmod': { definitionId: 'fmod' },
+                'dividend': { definitionId: 'data.literal', defaultConfig: 10 },
+                'divisor': { definitionId: 'data.literal', defaultConfig: 3 },
+                'fmod': { definitionId: 'math.fmod' },
             },
             inputs: {},
             connections: [
@@ -126,7 +126,7 @@ describe('GraphExecutor', () => {
                 outputs: { kind: 'record', fields: { 'c': numberType }, untagged: [] },
             },
             nodes: {
-                'adder': { definitionId: 'add' },
+                'adder': { definitionId: 'math.add' },
             },
             inputs: {},
             connections: [], // No connections, relying on virtual inputs
@@ -149,7 +149,7 @@ describe('GraphExecutor', () => {
                 outputs: { kind: 'record', fields: { 'mod': numberType }, untagged: [] },
             },
             nodes: {
-                'fmod': { definitionId: 'fmod' },
+                'fmod': { definitionId: 'math.fmod' },
             },
             inputs: {},
             connections: [],
@@ -170,8 +170,8 @@ describe('GraphExecutor', () => {
             kind: 'graph',
             type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } },
             nodes: {
-                'n1': { definitionId: 'literal', defaultConfig: 0.5 },
-                'n2': { definitionId: 'clamp', defaultConfig: { values: { min: 0, max: 1 } } as any }
+                'n1': { definitionId: 'data.literal', defaultConfig: 0.5 },
+                'n2': { definitionId: 'math.clamp', defaultConfig: { values: { min: 0, max: 1 } } as any }
             },
             connections: [
                 { fromNode: 'n1', fromPort: '', toNode: 'n2', toPort: 0 } // Connect to untagged input 0
@@ -207,7 +207,7 @@ describe('GraphExecutor', () => {
             inputs: [{ name: 'multi_in', type: numberType, redirect: 'untagged' }],
             outputs: [{ name: 'out', type: numberType }]
         });
-        repo.register({ id: 'literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
+        repo.register({ id: 'data.literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
 
         const graph: GraphDefinition = {
             id: 'redirectGraph', kind: 'graph',

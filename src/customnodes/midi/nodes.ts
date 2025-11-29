@@ -1,4 +1,5 @@
 import { definePrimitiveNode, NumberType } from "../../structor/type-helpers";
+import { NodeCategory } from "../../structor/structor";
 
 // We need a way to access MIDI state in the worker.
 // We'll export a singleton `midiState` here that the worker can update.
@@ -20,7 +21,12 @@ export const workerMidiState = {
 };
 
 export const midiCcNode = definePrimitiveNode({
-  id: "midi_cc",
+  id: "io.midi.cc",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'cc', 'control change'],
+    description: 'Reads MIDI Control Change messages.'
+  },
   inputs: {},
   config: {
     channel: NumberType,
@@ -53,7 +59,12 @@ export const midiCcNode = definePrimitiveNode({
 });
 
 export const midiNoteNode = definePrimitiveNode({
-  id: "midi_note",
+  id: "io.midi.note",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'note', 'keyboard'],
+    description: 'Reads MIDI Note messages.'
+  },
   inputs: {},
   config: {
     channel: NumberType,

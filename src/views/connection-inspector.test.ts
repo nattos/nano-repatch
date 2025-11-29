@@ -21,8 +21,8 @@ describe('Connection Inspector', () => {
     editor = await fixture(html`<graph-editor></graph-editor>`);
 
     appController.transaction(tr => {
-      const node1 = tr.createNode('literal', 1, 1);
-      const node2 = tr.createNode('add', 3, 1);
+      const node1 = tr.createNode('data.literal', 1, 1);
+      const node2 = tr.createNode('math.add', 3, 1);
       connection = tr.createConnection(node1.id, '0', node2.id, '0');
     });
 

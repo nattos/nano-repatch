@@ -78,8 +78,9 @@ export class NodeRepository {
 
 export const defaultNodeRepository = new NodeRepository();
 
+
 defaultNodeRepository.register({
-  id: 'add',
+  id: 'math.add',
   version: '1.0.0',
   displayName: 'Add',
   definition: primitive_add,
@@ -92,7 +93,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'clamp',
+  id: 'math.clamp',
   version: '1.0.0',
   displayName: 'Clamp',
   definition: primitive_clamp,
@@ -107,7 +108,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'fmod',
+  id: 'math.fmod',
   version: '1.0.0',
   displayName: 'FMod',
   definition: primitive_fmod,
@@ -122,7 +123,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'apply',
+  id: 'functional.apply',
   version: '1.0.0',
   displayName: 'Apply Functor',
   definition: primitive_apply,
@@ -136,7 +137,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'literal',
+  id: 'data.literal',
   version: '1.0.0',
   displayName: 'Literal',
   definition: primitive_literal,
@@ -152,7 +153,7 @@ import { midiCcNode, midiNoteNode } from '../customnodes/midi/nodes';
 const exprCompiler = new GraphCompiler();
 
 defaultNodeRepository.register({
-  id: 'midi_cc',
+  id: 'io.midi.cc',
   version: '1.0.0',
   displayName: 'MIDI CC',
   definition: midiCcNode,
@@ -164,7 +165,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'midi_note',
+  id: 'io.midi.note',
   version: '1.0.0',
   displayName: 'MIDI Note',
   definition: midiNoteNode,
@@ -178,7 +179,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'expression:script',
+  id: 'logic.expression',
   version: '1.0.0',
   displayName: 'Expression',
   definition: expressionNode,
@@ -225,7 +226,7 @@ defaultNodeRepository.register({
 
 
 defaultNodeRepository.register({
-  id: 'input',
+  id: 'io.input',
   version: '1.0.0',
   displayName: 'Input',
   definition: primitive_input,
@@ -237,7 +238,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'output',
+  id: 'io.output',
   version: '1.0.0',
   displayName: 'Output',
   definition: primitive_output,
@@ -248,7 +249,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'subgraph',
+  id: 'core.subgraph',
   version: '1.0.0',
   displayName: 'Subgraph',
   definition: primitive_subgraph,
@@ -260,12 +261,12 @@ defaultNodeRepository.register({
     if (subgraph) {
       const subgraphNodes = Object.values(subgraph.inner.nodes);
       const inputs = subgraphNodes
-        .filter(n => n.config.typeId === 'input')
+        .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input') // Support both for now
         .sort((a, b) => a.y - b.y)
         .map(n => ({ name: n.config.name || '0', description: 'Subgraph Input', type: AnyType }));
 
       const outputs = subgraphNodes
-        .filter(n => n.config.typeId === 'output')
+        .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output') // Support both for now
         .sort((a, b) => a.y - b.y)
         .map(n => ({ name: n.config.name || '0', description: 'Subgraph Output', type: AnyType }));
 

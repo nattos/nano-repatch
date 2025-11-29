@@ -33,21 +33,21 @@ describe('AppController Refactoring', () => {
     });
 
     it('should lock X axis for pinned input nodes', () => {
-      const node = controller.createNode('input', 0, 10); // Input node at x=0
+      const node = controller.createNode('io.input', 0, 10); // Input node at x=0
       const { dx, dy } = controller.calculateConstrainedMove([node.id], 5, 5);
       expect(dx).toBe(0); // X locked
       expect(dy).toBe(5); // Y allowed
     });
 
     it('should lock X axis for pinned output nodes', () => {
-      const node = controller.createNode('output', 51, 10); // Output node at x=51
+      const node = controller.createNode('io.output', 51, 10); // Output node at x=51
       const { dx, dy } = controller.calculateConstrainedMove([node.id], -5, 5);
       expect(dx).toBe(0); // X locked
       expect(dy).toBe(5); // Y allowed
     });
 
     it('should lock X axis if ANY selected node is pinned', () => {
-      const inputNode = controller.createNode('input', 0, 10);
+      const inputNode = controller.createNode('io.input', 0, 10);
       const normalNode = controller.createNode('test', 10, 10);
 
       const { dx, dy } = controller.calculateConstrainedMove([inputNode.id, normalNode.id], 5, 5);

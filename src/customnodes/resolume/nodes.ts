@@ -1,6 +1,6 @@
 import { definePrimitiveNode, defineType } from '../../structor/type-helpers';
 import { resolumeManager } from '../../io/resolume/manager';
-import { Structor } from '../../structor/structor';
+import { Structor, NodeCategory } from '../../structor/structor';
 import { defaultNodeRepository } from '../../structor/repository';
 import { numberType } from '../../structor/std-types';
 
@@ -8,7 +8,12 @@ const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
 
 export const resolumeInputNode = definePrimitiveNode({
-  id: 'resolume:input',
+  id: 'io.resolume.input',
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['resolume', 'arena', 'parameter', 'read'],
+    description: 'Reads a parameter value from Resolume Arena.'
+  },
   inputs: {},
   config: {
     path: stringType
@@ -62,7 +67,12 @@ export const resolumeInputNode = definePrimitiveNode({
 });
 
 export const resolumeOutputNode = definePrimitiveNode({
-  id: 'resolume:output',
+  id: 'io.resolume.output',
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['resolume', 'arena', 'parameter', 'write'],
+    description: 'Writes a value to a Resolume Arena parameter.'
+  },
   inputs: {
     value: anyType
   },
@@ -101,7 +111,7 @@ export const resolumeOutputNode = definePrimitiveNode({
 });
 
 defaultNodeRepository.register({
-  id: 'resolume:input',
+  id: 'io.resolume.input',
   version: '1.0.0',
   displayName: 'Resolume Input',
   definition: resolumeInputNode,
@@ -116,7 +126,7 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
-  id: 'resolume:output',
+  id: 'io.resolume.output',
   version: '1.0.0',
   displayName: 'Resolume Output',
   definition: resolumeOutputNode,

@@ -26,7 +26,7 @@ describe('Graph Compiler', () => {
   it('should compile a simple flat graph', () => {
     const graph = createGraph(
       [
-        { id: 'n1', x: 0, y: 0, config: { typeId: 'add' } },
+        { id: 'n1', x: 0, y: 0, config: { typeId: 'math.add' } },
         { id: 'n2', x: 0, y: 0, config: { typeId: 'mul' } }
       ],
       [
@@ -40,7 +40,7 @@ describe('Graph Compiler', () => {
     const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     expect(Object.keys(compiled.nodes)).toHaveLength(2);
-    expect(compiled.nodes['n1'].definitionId).toBe('add');
+    expect(compiled.nodes['n1'].definitionId).toBe('math.add');
     expect(compiled.nodes['n2'].definitionId).toBe('mul');
     expect(compiled.connections).toHaveLength(1);
     expect(compiled.connections[0]).toEqual({
@@ -54,9 +54,9 @@ describe('Graph Compiler', () => {
     // In -> Add -> Out
     const subgraph = createGraph(
       [
-        { id: 'sub_in', x: 0, y: 0, config: { typeId: 'input', name: 'A' } },
-        { id: 'sub_add', x: 0, y: 0, config: { typeId: 'add' } },
-        { id: 'sub_out', x: 0, y: 0, config: { typeId: 'output', name: 'B' } }
+        { id: 'sub_in', x: 0, y: 0, config: { typeId: 'io.input', name: 'A' } },
+        { id: 'sub_add', x: 0, y: 0, config: { typeId: 'math.add' } },
+        { id: 'sub_out', x: 0, y: 0, config: { typeId: 'io.output', name: 'B' } }
       ],
       [
         { fromNode: 'sub_in', fromPort: 'val', toNode: 'sub_add', toPort: 'a' },
@@ -71,7 +71,7 @@ describe('Graph Compiler', () => {
     const mainGraph = createGraph(
       [
         { id: 'n1', x: 0, y: 0, config: { typeId: 'const' } },
-        { id: 'sub1', x: 0, y: 0, config: { typeId: 'subgraph', subgraphId: 'my_sub' } },
+        { id: 'sub1', x: 0, y: 0, config: { typeId: 'core.subgraph', subgraphId: 'my_sub' } },
         { id: 'n2', x: 0, y: 0, config: { typeId: 'print' } }
       ],
       [
@@ -90,7 +90,7 @@ describe('Graph Compiler', () => {
     // Should have: n1, n2, sub1.sub_in, sub1.sub_add, sub1.sub_out
     expect(Object.keys(compiled.nodes)).toHaveLength(5);
     expect(compiled.nodes['sub1.sub_add']).toBeDefined();
-    expect(compiled.nodes['sub1.sub_add'].definitionId).toBe('add');
+    expect(compiled.nodes['sub1.sub_add'].definitionId).toBe('math.add');
 
     // Check Connections
     // 1. Internal subgraph connections (rewired with prefix)
@@ -124,7 +124,7 @@ describe('Graph Compiler', () => {
           {
             id: 'n1', x: 0, y: 0,
             config: {
-              typeId: 'clamp',
+              typeId: 'math.clamp',
               values: { 'min': 0.5, 'max': 1.0 }
             }
           }
@@ -143,13 +143,13 @@ describe('Graph Compiler', () => {
       // Check Virtual Min
       const minNodeId = 'n1-virtual-min';
       expect(compiled.nodes[minNodeId]).toBeDefined();
-      expect(compiled.nodes[minNodeId].definitionId).toBe('literal');
+      expect(compiled.nodes[minNodeId].definitionId).toBe('data.literal');
       expect(compiled.nodes[minNodeId].defaultConfig).toBe(0.5);
 
       // Check Virtual Max
       const maxNodeId = 'n1-virtual-max';
       expect(compiled.nodes[maxNodeId]).toBeDefined();
-      expect(compiled.nodes[maxNodeId].definitionId).toBe('literal');
+      expect(compiled.nodes[maxNodeId].definitionId).toBe('data.literal');
       expect(compiled.nodes[maxNodeId].defaultConfig).toBe(1.0);
 
       // Check Connections
@@ -170,11 +170,11 @@ describe('Graph Compiler', () => {
           {
             id: 'n1', x: 0, y: 0,
             config: {
-              typeId: 'clamp',
+              typeId: 'math.clamp',
               values: { 'min': 0.5 } // Virtual input configured
             }
           },
-          { id: 'n2', x: 0, y: 0, config: { typeId: 'literal', literal: { value: 0.1 } } }
+          { id: 'n2', x: 0, y: 0, config: { typeId: 'data.literal', literal: { value: 0.1 } } }
         ],
         [
           // But 'min' is connected to n2

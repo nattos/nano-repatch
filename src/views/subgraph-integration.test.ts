@@ -21,9 +21,9 @@ describe('GraphNode Subgraph Integration', () => {
     const subgraphState: GraphState = {
       inner: {
         nodes: {
-          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'input', name: 'MyInput', values: {} } },
-          'out1': { id: 'out1', x: 10, y: 0, config: { typeId: 'output', name: 'MyOutput', values: {} } },
-          'other': { id: 'other', x: 5, y: 0, config: { typeId: 'add', values: {} } } // Should be ignored
+          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'io.input', name: 'MyInput', values: {} } },
+          'out1': { id: 'out1', x: 10, y: 0, config: { typeId: 'io.output', name: 'MyOutput', values: {} } },
+          'other': { id: 'other', x: 5, y: 0, config: { typeId: 'math.add', values: {} } } // Should be ignored
         },
         connections: {}
       },
@@ -41,13 +41,13 @@ describe('GraphNode Subgraph Integration', () => {
       id: 'node-subgraph',
       x: 0,
       y: 0,
-      config: { typeId: 'subgraph', subgraphId: subgraphId, values: {} }
+      config: { typeId: 'core.subgraph', subgraphId: subgraphId, values: {} }
     };
 
     const el = await fixture(html`<graph-node .node=${node}></graph-node>`);
     await (el as LitElement).updateComplete;
 
-    await el.updateComplete;
+    await (el as LitElement).updateComplete;
 
     const inPorts = el.shadowRoot!.querySelectorAll('graph-port[type="in"]');
     const outPorts = el.shadowRoot!.querySelectorAll('graph-port[type="out"]');
@@ -68,7 +68,7 @@ describe('GraphNode Subgraph Integration', () => {
       id: 'node-clamp',
       x: 0,
       y: 0,
-      config: { typeId: 'clamp', values: { 'min': 0.5 } }
+      config: { typeId: 'math.clamp', values: { 'min': 0.5 } }
     };
 
     const el = await fixture(html`<graph-node .node=${clampNode}></graph-node>`);

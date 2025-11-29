@@ -227,7 +227,7 @@ export class AppController {
     const nodes = nodeIds.map(id => state.graph.inner.nodes[id]).filter(n => !!n);
 
     // Check for pinned nodes
-    const hasPinned = nodes.some(n => n.config.typeId === 'input' || n.config.typeId === 'output');
+    const hasPinned = nodes.some(n => n.config.typeId === 'io.input' || n.config.typeId === 'io.output');
 
     if (hasPinned) {
       constrainedDx = 0; // Lock X axis for pinned nodes
@@ -553,15 +553,15 @@ export class LocalController {
         let endY = toNode.y;
 
         // Handle pinned nodes
-        if (fromNode.config.typeId === 'input') {
+        if (fromNode.config.typeId === 'io.input') {
           startX = 0;
-        } else if (fromNode.config.typeId === 'output') {
+        } else if (fromNode.config.typeId === 'io.output') {
           startX = 21; // Pinned to right
         }
 
-        if (toNode.config.typeId === 'input') {
+        if (toNode.config.typeId === 'io.input') {
           endX = 0;
-        } else if (toNode.config.typeId === 'output') {
+        } else if (toNode.config.typeId === 'io.output') {
           endX = 21; // Pinned to right
         }
 

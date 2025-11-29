@@ -9,14 +9,20 @@ import {
   AnalysisContext,
   Functor,
   FunctorType,
-  StructorRecord
+  StructorRecord,
+  NodeCategory
 } from "./structor";
 import { definePrimitiveNode } from "./type-helpers";
 import { numberType, anyType } from "./std-types";
 
 export const primitive_add: PrimitiveNodeDefinition = {
-  id: 'primitive:add',
+  id: 'math.add',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.Math,
+    keywords: ['sum', 'plus'],
+    description: 'Adds multiple numbers together.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
     const inputNames = [...Object.keys(inputType.fields), ...inputType.untagged.map((_, i) => i)];
     const broadcastConfig: BroadcastConfig = { outputs: {}, reshape: 'vector' };
@@ -51,8 +57,13 @@ export const primitive_add: PrimitiveNodeDefinition = {
 };
 
 export const primitive_clamp: PrimitiveNodeDefinition = {
-  id: 'primitive:clamp',
+  id: 'math.clamp',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.Math,
+    keywords: ['limit', 'range'],
+    description: 'Clamps a value between a minimum and maximum.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     const broadcastConfig: BroadcastConfig = {
       outputs: {
@@ -83,7 +94,12 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
 };
 
 export const primitive_fmod = definePrimitiveNode({
-  id: 'primitive:fmod',
+  id: 'math.fmod',
+  metadata: {
+    category: NodeCategory.Math,
+    keywords: ['modulo', 'remainder'],
+    description: 'Floating point modulo operation.'
+  },
   inputs: { dividend: numberType, divisor: numberType },
   outputs: { div: numberType, mod: numberType },
   autoBroadcast: true,
@@ -96,8 +112,13 @@ export const primitive_fmod = definePrimitiveNode({
 });
 
 export const primitive_literal: PrimitiveNodeDefinition = {
-  id: 'primitive:literal',
+  id: 'data.literal',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.Data,
+    keywords: ['value', 'constant'],
+    description: 'Outputs a constant value.'
+  },
   configType: { kind: 'atomic', type: 'any' }, // This literal can hold any type of value
   computeOutputTypes: (inputType: RecordType, configType: StructorType, context: AnalysisContext) => {
     return { kind: 'record', fields: {}, untagged: [configType] };
@@ -108,8 +129,13 @@ export const primitive_literal: PrimitiveNodeDefinition = {
 };
 
 export const primitive_apply: PrimitiveNodeDefinition = {
-  id: 'primitive:apply',
+  id: 'functional.apply',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.Functional,
+    keywords: ['call', 'invoke'],
+    description: 'Applies a functor to an input value.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     const functorType = inputType.fields['functor'] as FunctorType;
     return { kind: 'record', fields: {}, untagged: [functorType.output] };
@@ -122,8 +148,13 @@ export const primitive_apply: PrimitiveNodeDefinition = {
 };
 
 export const primitive_input: PrimitiveNodeDefinition = {
-  id: 'primitive:input',
+  id: 'io.input',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['source', 'in'],
+    description: 'Graph input node.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // Identity: Output type is same as input type of 'val' (injected by executor) or config type
     const valType = inputType.fields['val'] || config || { kind: 'atomic', type: 'any' };
@@ -137,8 +168,13 @@ export const primitive_input: PrimitiveNodeDefinition = {
 };
 
 export const primitive_output: PrimitiveNodeDefinition = {
-  id: 'primitive:output',
+  id: 'io.output',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['sink', 'out'],
+    description: 'Graph output node.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // Identity: Output type is same as input type of 'val'
     const valType = inputType.fields['val'] || inputType.untagged[0] || { kind: 'atomic', type: 'any' };
@@ -152,8 +188,13 @@ export const primitive_output: PrimitiveNodeDefinition = {
 };
 
 export const primitive_subgraph: PrimitiveNodeDefinition = {
-  id: 'primitive:subgraph',
+  id: 'core.subgraph',
   kind: 'primitive',
+  metadata: {
+    category: NodeCategory.Core,
+    keywords: ['nested', 'graph'],
+    description: 'Executes a nested subgraph.'
+  },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // In a real implementation, we would look up the subgraph definition and return its output types.
     // Since we can't access the config value (subgraphId) here, we return Any.

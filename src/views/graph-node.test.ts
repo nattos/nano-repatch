@@ -15,7 +15,7 @@ describe('GraphNode', () => {
       id: 'node-test-clamp',
       x: 0,
       y: 0,
-      config: { typeId: 'clamp' }
+      config: { typeId: 'math.clamp', values: {} }
     };
 
     clampNode = await fixture(html`<graph-node .node=${testNode}></graph-node>`);
@@ -44,7 +44,7 @@ describe('GraphNode', () => {
       id: 'node-test-fmod',
       x: 0,
       y: 0,
-      config: { typeId: 'fmod', values: {} }
+      config: { typeId: 'math.fmod', values: {} }
     };
 
     const fmodNode = await fixture(html`<graph-node .node=${fmodTestNode}></graph-node>`);

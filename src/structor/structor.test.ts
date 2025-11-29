@@ -55,7 +55,7 @@ describe('Structor Core Tests', () => {
     // --- TEST CASE 1 ---
     describe('Test Case 1: \'Add\' Node (Broadcasting & Coercion)', () => {
         const testRepo = new NodeRepository();
-        testRepo.register({ id: 'add', version: '1.0.0', displayName: 'Add', definition: mock_add });
+        testRepo.register({ id: 'math.add', version: '1.0.0', displayName: 'Add', definition: mock_add });
 
         const graph_TestAdd: GraphDefinition = {
             id: 'graph:TestAdd', kind: 'graph',
@@ -64,7 +64,7 @@ describe('Structor Core Tests', () => {
                 inputs: { kind: 'record', fields: { 'a': numberType, 'b': { kind: 'array', size: 2, element: numberType }, 'c': stringType }, untagged: [] },
                 outputs: { kind: 'record', fields: { 'result': { kind: 'array', size: 2, element: numberType } }, untagged: [] }
             },
-            nodes: { 'adder': { definitionId: 'add' } },
+            nodes: { 'adder': { definitionId: 'math.add' } },
             connections: [],
             inputs: { 'a': { nodeId: 'adder', port: 'val_a' }, 'b': { nodeId: 'adder', port: 'val_b' }, 'c': { nodeId: 'adder', port: 0 } },
             outputs: { 'result': { nodeId: 'adder', port: 0 } }
@@ -73,15 +73,17 @@ describe('Structor Core Tests', () => {
         it('should pass the runtime execution test', () => {
             const executionContext: ExecutionContext = {
                 broadcast: (config, inputs) => ({ broadcasted: [[10, 100, 5], [10, 200, 5]] }),
-                repository: testRepo
+                repository: testRepo,
+                clock: { beat: 0, dt: 0 },
+                nodeState: new Map()
             };
-            const adderDef = executionContext.repository.get('add') as PrimitiveNodeDefinition;
+            const adderDef = executionContext.repository.get('math.add') as PrimitiveNodeDefinition;
             const inputData: StructorRecord = { "fields": { "a": 10, "b": [100, 200], "c": "5" }, "untagged": [] };
             const adderInput: StructorRecord = {
                 fields: { 'val_a': inputData.fields['a'], 'val_b': inputData.fields['b'] },
                 untagged: [inputData.fields['c']]
             };
-            const adderOutput = adderDef.execute(adderInput, null, executionContext);
+            const adderOutput = adderDef.execute(adderInput, undefined as any, executionContext);
             const finalOutput: StructorRecord = { fields: { 'result': adderOutput.untagged[0] }, untagged: [] };
             const expectedOutput: StructorRecord = { "fields": { "result": [115, 215] }, "untagged": [] };
             expect(finalOutput).toEqual(expectedOutput);
@@ -91,20 +93,22 @@ describe('Structor Core Tests', () => {
     // --- TEST CASE 2 ---
     describe('Test Case 2: \'Clamp\' Node (Reduction & Input Gathering)', () => {
         const testRepo = new NodeRepository();
-        testRepo.register({ id: 'clamp', version: '1.0.0', displayName: 'Clamp', definition: mock_clamp });
+        testRepo.register({ id: 'math.clamp', version: '1.0.0', displayName: 'Clamp', definition: mock_clamp });
 
         it('should pass the runtime execution test', () => {
             const executionContext: ExecutionContext = {
                 broadcast: (config, inputs) => ({ fields: { 'value': [5, 500], 'min': 10, 'max': 100 } }),
-                repository: testRepo
+                repository: testRepo,
+                clock: { beat: 0, dt: 0 },
+                nodeState: new Map()
             };
-            const clamperDef = executionContext.repository.get('clamp') as PrimitiveNodeDefinition;
+            const clamperDef = executionContext.repository.get('math.clamp') as PrimitiveNodeDefinition;
             const inputData: StructorRecord = { "fields": { "v1": 5, "v2": 500, "min1": 10, "max1": 100, "max2": 90 }, "untagged": [] };
             const clamperInput: StructorRecord = {
                 fields: { 'value': [inputData.fields['v1']], 'min': [inputData.fields['min1']], 'max': [inputData.fields['max1'], inputData.fields['max2']] },
                 untagged: [inputData.fields['v2']]
             };
-            const clamperOutput = clamperDef.execute(clamperInput, null, executionContext);
+            const clamperOutput = clamperDef.execute(clamperInput, undefined as any, executionContext);
             const finalOutput: StructorRecord = { fields: { 'result': clamperOutput.untagged[0] }, untagged: [] };
             const expectedOutput: StructorRecord = { "fields": { "result": [10, 100] }, "untagged": [] };
             expect(finalOutput).toEqual(expectedOutput);
@@ -114,9 +118,9 @@ describe('Structor Core Tests', () => {
     // --- TEST CASE 3 ---
     describe('Test Case 3: Nested Graphs, Functors, and Chaining', () => {
         const testRepo = new NodeRepository();
-        testRepo.register({ id: 'add', version: '1.0.0', displayName: 'Add', definition: mock_add });
-        testRepo.register({ id: 'apply', version: '1.0.0', displayName: 'Apply', definition: mock_apply });
-        testRepo.register({ id: 'literal', version: '1.0.0', displayName: 'Literal', definition: mock_literal });
+        testRepo.register({ id: 'math.add', version: '1.0.0', displayName: 'Add', definition: mock_add });
+        testRepo.register({ id: 'functional.apply', version: '1.0.0', displayName: 'Apply', definition: mock_apply });
+        testRepo.register({ id: 'data.literal', version: '1.0.0', displayName: 'Literal', definition: mock_literal });
 
         const graph_SubGraphAdd5: GraphDefinition = {
             id: 'graph:SubGraphAdd5', kind: 'graph',
@@ -126,8 +130,8 @@ describe('Structor Core Tests', () => {
                 outputs: { kind: 'record', fields: { 'out': numberType }, untagged: [] }
             },
             nodes: {
-                'adder': { definitionId: 'add' },
-                'const5': { definitionId: 'literal', defaultConfig: 5 }
+                'adder': { definitionId: 'math.add' },
+                'const5': { definitionId: 'data.literal', defaultConfig: 5 }
             },
             connections: [{ fromNode: 'const5', fromPort: 0, toNode: 'adder', toPort: 1 }],
             inputs: { 'in': { nodeId: 'adder', port: 0 } },
@@ -140,25 +144,27 @@ describe('Structor Core Tests', () => {
             const inputData: StructorRecord = { "fields": { "myFunctor": myFunctor }, "untagged": [] };
             const executionContext: ExecutionContext = {
                 broadcast: (config, inputs) => ({ broadcasted: [[inputs.untagged[0], inputs.untagged[1]]] }),
-                repository: testRepo
+                repository: testRepo,
+                clock: { beat: 0, dt: 0 },
+                nodeState: new Map()
             };
 
             // Simulate execution flow
-            const const10Def = executionContext.repository.get('literal') as PrimitiveNodeDefinition;
+            const const10Def = executionContext.repository.get('data.literal') as PrimitiveNodeDefinition;
             const const10Output = const10Def.execute(null as any, 10, executionContext).untagged[0];
             expect(const10Output).toBe(10);
 
-            const applierDef = executionContext.repository.get('apply') as PrimitiveNodeDefinition;
+            const applierDef = executionContext.repository.get('functional.apply') as PrimitiveNodeDefinition;
             const applierInput: StructorRecord = { fields: { 'functor': inputData.fields['myFunctor'], 'input': const10Output }, untagged: [] };
-            const applierOutput = applierDef.execute(applierInput, null, executionContext).untagged[0];
+            const applierOutput = applierDef.execute(applierInput, undefined as any, executionContext).untagged[0];
             expect(applierOutput).toBe(20);
 
             // Mock subgraph execution
-            const const5Def = executionContext.repository.get('literal') as PrimitiveNodeDefinition;
+            const const5Def = executionContext.repository.get('data.literal') as PrimitiveNodeDefinition;
             const const5Output = const5Def.execute(null as any, 5, executionContext).untagged[0];
-            const addDef = executionContext.repository.get('add') as PrimitiveNodeDefinition;
+            const addDef = executionContext.repository.get('math.add') as PrimitiveNodeDefinition;
             const adderInput: StructorRecord = { fields: {}, untagged: [applierOutput, const5Output] };
-            const add5GraphOutput = addDef.execute(adderInput, null, executionContext);
+            const add5GraphOutput = addDef.execute(adderInput, undefined as any, executionContext);
 
             const finalOutput: StructorRecord = { fields: { 'result': add5GraphOutput.untagged[0] }, untagged: [] };
             const expectedOutput: StructorRecord = { "fields": { "result": 25 }, "untagged": [] };
