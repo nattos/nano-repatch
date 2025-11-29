@@ -294,3 +294,30 @@ This entry documents the major architectural shift to Web Workers and the implem
 *   **Worker Constraints:** Not all APIs are available in workers. The "Proxy" pattern is a robust solution for accessing main-thread-only APIs (like Audio or DOM) from workers.
 *   **Time Domains:** synchronizing time between threads is tricky. Using relative delays ("do this 0.1s from *now*") is often safer than trying to sync absolute clocks.
 *   **Race Conditions:** Initialization order matters. Ensure node repositories are populated before the runtime tries to instantiate nodes.
+
+## Broadcast System Refactor & Primitive Expansion (As of 2025-11-29)
+
+This entry documents the completion of the broadcast system refactor and the expansion of the standard primitive library.
+
+### Broadcast System Refactor
+
+The "Universal Broadcast Operation" was refactored to address the "Incomplete Core Logic" weakness identified in earlier analysis.
+
+1.  **`BroadcastResult` Pattern:** The `broadcast` function now returns a `BroadcastResult` object instead of a raw data structure. This object exposes an `apply` method.
+2.  **Declarative Execution:** Nodes now use `result.apply(lambda)` to execute their logic. The `apply` method handles the complexity of iterating over broadcasted arrays (vectors) or passing scalars directly. This removes the need for nodes to manually handle `reshape: 'vector'` logic or check for array types.
+3.  **Type Safety:** The refactor included strict type definitions for `BroadcastConfig` and `BroadcastResult`, ensuring that the data flow remains statically analyzable and type-safe.
+
+### Primitive Library Expansion
+
+The standard library of primitive nodes was significantly expanded to provide a comprehensive set of tools for graph construction.
+
+1.  **Math:** Added a full suite of binary (`add`, `sub`, `mul`, `div`, `pow`, `min`, `max`, `fmod`) and unary (`abs`, `neg`, `ceil`, `floor`, `round`, `sin`, `cos`, `tan`, `sqrt`) operations, as well as constants (`pi`, `e`) and utilities (`lerp`, `map`, `clamp`).
+2.  **Logic:** Added binary (`and`, `or`, `xor`, `equals`, `gt`, `lt`) and unary (`not`) logic gates.
+3.  **Utility & IO:** Added `hub`, `float`, `input`, `output`, and `midi` nodes.
+4.  **Documentation:** Created `src/structor/PRIMITIVES.md` to document the new nodes.
+
+### Verification
+
+The changes were verified with a comprehensive test suite:
+*   `src/structor/broadcast.test.ts`: Verifies the core broadcast logic and `apply` behavior.
+*   Existing tests were updated to align with the new broadcast pattern, ensuring no regressions.

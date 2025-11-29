@@ -118,9 +118,14 @@ A `clamp` node needs one array of *values* and two *scalars* (min and max).
 
   * `reshape: 'none'`.
 
-* **Result:** The broadcast engine performs the partitioning and reduction and passes the node's `execute` function an object like:
-  `{ value: [1, 50, -10], min: 0, max: 25 }`
-  The node's logic is now trivial: `value.map(v => clamp(v, min, max))`.
+* **Result:** The broadcast engine performs the partitioning and reduction and returns a `BroadcastResult`. The node then calls `apply` to execute its logic:
+     ```typescript
+     const result = context.broadcast(config, inputs);
+     return result.apply((args) => {
+       // args.value is a scalar here, automatically iterated over the broadcasted arrays
+       return Math.max(args.min, Math.min(args.value, args.max));
+     });
+     ```
 
 #### Example 2: `add` Node (`reshape: 'vector'`)
 
@@ -132,19 +137,14 @@ An `add` node wants to sum *everything* it's given, element-wise.
 
   * `reshape: 'vector'`.
 
-* **Result:** The broadcast engine:
-
-  1. Collects all channels: `{ 'a': [1, 2], 'b': 10, 'c': [5, 6, 7] }`.
-
-  2. Finds the common broadcast shape (e.g., `[2, 3]`).
-
-  3. Performs a tensor-broadcast on all channels to match this shape.
-
-  4. "Zips" the broadcasted channels into a single array of tuples.
-
-  5. Passes the node's `execute` function an object like:
-     `{ 'broadcasted': [ [a[0,0], b[0,0], c[0,0]], [a[0,1], b[0,1], c[0,1]], ... ] }`
-     The node's logic is now trivial: it just iterates over the list of tuples and sums them.
+* **Result:** The broadcast engine handles the tensor-broadcasting and alignment. The node simply applies its logic:
+     ```typescript
+     return result.apply((args) => {
+       // args is a dictionary of scalars { a: 1, b: 10, c: 5 }
+       return args.a + args.b + args.c;
+     });
+     ```
+     The `apply` method handles the iteration and re-assembly of the result, returning either a scalar (if all inputs were scalar) or an array (if any input was a vector).
 
 ## Static Analysis
 
@@ -464,4 +464,20 @@ export interface BroadcastConfig {
    */
   reshape: 'none' | 'vector';
 }
+
+export interface BroadcastResult {
+  apply(lambda: (args: any) => any): any;
+}
 ```
+
+## Standard Library
+
+Structor comes with a comprehensive set of primitive nodes:
+
+*   **Math:** Constants (`pi`, `e`), Binary (`add`, `sub`, `mul`, `div`, `pow`, `min`, `max`, `fmod`), Unary (`abs`, `neg`, `ceil`, `floor`, `round`, `sin`, `cos`, `tan`, `sqrt`), and Utility (`lerp`, `map`, `clamp`).
+*   **Logic:** Binary (`and`, `or`, `xor`, `equals`, `gt`, `lt`) and Unary (`not`).
+*   **Utility:** `hub`, `float`.
+*   **Functional:** `apply`.
+*   **IO:** `input`, `output`, `midi`.
+
+For a full list of available nodes, see [PRIMITIVES.md](src/structor/PRIMITIVES.md).
