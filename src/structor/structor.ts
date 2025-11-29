@@ -103,6 +103,7 @@ export enum NodeCategory {
   Functional = 'Functional',
   Core = 'Core',
   Custom = 'Custom',
+  Utility = 'Utility',
 }
 
 export interface NodeMetadata {

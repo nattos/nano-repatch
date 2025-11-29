@@ -13,7 +13,7 @@ This document lists all available primitive nodes in the Structor system.
 
 | ID | Name | Description | Inputs | Outputs |
 | :--- | :--- | :--- | :--- | :--- |
-| `math.add` | Add | Adds multiple numbers together. | `...` (Number) | `0` (Number) |
+| `math.add` | Add | Adds `a` and `b`. | `a` (Number), `b` (Number) | `result` (Number) |
 | `math.subtract` | Subtract | Subtracts `b` from `a`. | `a` (Number), `b` (Number) | `result` (Number) |
 | `math.multiply` | Multiply | Multiplies `a` and `b`. | `a` (Number), `b` (Number) | `result` (Number) |
 | `math.divide` | Divide | Divides `a` by `b`. | `a` (Number), `b` (Number) | `result` (Number) |
@@ -22,6 +22,13 @@ This document lists all available primitive nodes in the Structor system.
 | `math.max` | Max | Returns the larger of `a` and `b`. | `a` (Number), `b` (Number) | `result` (Number) |
 | `math.clamp` | Clamp | Clamps a value between a minimum and maximum. | `value` (Number), `min` (Number), `max` (Number) | `0` (Number) |
 | `math.fmod` | FMod | Floating point modulo operation. | `dividend` (Number), `divisor` (Number) | `div` (Number), `mod` (Number) |
+
+## Math (Utility)
+
+| ID | Name | Description | Inputs | Outputs |
+| :--- | :--- | :--- | :--- | :--- |
+| `math.lerp` | Lerp | Linear interpolation between `a` and `b` by `t`. | `a` (Number), `b` (Number), `t` (Number) | `result` (Number) |
+| `math.map` | Map | Maps `value` from [`inMin`, `inMax`] to [`outMin`, `outMax`]. | `value`, `inMin`, `inMax`, `outMin`, `outMax` | `result` (Number) |
 
 ## Math (Unary)
 
@@ -54,11 +61,18 @@ This document lists all available primitive nodes in the Structor system.
 | :--- | :--- | :--- | :--- | :--- |
 | `logic.not` | NOT | Logical NOT (1 if zero, 0 if non-zero). | `a` (Number) | `result` (Number) |
 
+## Utility
+
+| ID | Name | Description | Inputs | Outputs |
+| :--- | :--- | :--- | :--- | :--- |
+| `util.hub` | Hub | Passes input to output. | `value` (Any) | `value` (Any) |
+
 ## Data
 
 | ID | Name | Description | Inputs | Outputs |
 | :--- | :--- | :--- | :--- | :--- |
 | `data.literal` | Literal | Outputs a constant value. | - | `0` (Any) |
+| `data.float` | Float | Float value with slider. | `value` (Number) | `value` (Number) |
 
 ## Functional
 

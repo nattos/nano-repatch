@@ -4,7 +4,8 @@ import {
   primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
   primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
   primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
-  primitive_pi, primitive_e
+  primitive_pi, primitive_e,
+  primitive_lerp, primitive_map, primitive_hub, primitive_float
 } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
@@ -91,11 +92,72 @@ defaultNodeRepository.register({
   displayName: 'Add',
   definition: primitive_add,
   inputs: [
-    { name: '', type: NumberType, description: 'Value to add. Can receive multiple connections.' }
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
   ],
   outputs: [
-    { name: '0', type: NumberType, description: 'The sum of all inputs.' }
+    { name: 'result', type: NumberType, description: 'Sum' }
   ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.lerp',
+  version: '1.0.0',
+  displayName: 'Lerp',
+  definition: primitive_lerp,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Start Value' },
+    { name: 'b', type: NumberType, description: 'End Value' },
+    { name: 't', type: NumberType, description: 'Interpolant (0-1)' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Interpolated Value' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { clamp: uiConfig.clamp ?? true }, untagged: [] }),
+});
+
+defaultNodeRepository.register({
+  id: 'math.map',
+  version: '1.0.0',
+  displayName: 'Map',
+  definition: primitive_map,
+  inputs: [
+    { name: 'value', type: NumberType, description: 'Input Value' },
+    { name: 'inMin', type: NumberType, description: 'Input Min' },
+    { name: 'inMax', type: NumberType, description: 'Input Max' },
+    { name: 'outMin', type: NumberType, description: 'Output Min' },
+    { name: 'outMax', type: NumberType, description: 'Output Max' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Mapped Value' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'util.hub',
+  version: '1.0.0',
+  displayName: 'Hub',
+  definition: primitive_hub,
+  inputs: [
+    { name: 'value', type: AnyType, description: 'Input' }
+  ],
+  outputs: [
+    { name: 'value', type: AnyType, description: 'Output' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'data.float',
+  version: '1.0.0',
+  displayName: 'Float',
+  definition: primitive_float,
+  inputs: [
+    { name: 'value', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'value', type: NumberType, description: 'Value' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { value: uiConfig.value ?? 0.0 }, untagged: [] }),
 });
 
 defaultNodeRepository.register({
@@ -215,7 +277,7 @@ defaultNodeRepository.register({
     { name: 'max', type: NumberType, description: 'Maximum value.', defaultValue: 1, range: [0, 1] }
   ],
   outputs: [
-    { name: '0', type: NumberType, description: 'The clamped value.' }
+    { name: '', type: NumberType, description: 'The clamped value.' }
   ]
 });
 

@@ -15,46 +15,11 @@ import {
 import { definePrimitiveNode, defineMathNode } from "./type-helpers";
 import { numberType, anyType } from "./std-types";
 
-export const primitive_add: PrimitiveNodeDefinition = {
-  id: 'math.add',
-  kind: 'primitive',
-  metadata: {
-    category: NodeCategory.Math,
-    keywords: ['sum', 'plus'],
-    description: 'Adds multiple numbers together.'
-  },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext): RecordType => {
-    const inputNames = [...Object.keys(inputType.fields), ...inputType.untagged.map((_, i) => i)];
-    const broadcastConfig: BroadcastConfig = { outputs: {}, reshape: 'vector' };
-    for (const name of inputNames) {
-      if (typeof name === 'number') {
-        broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
-      } else {
-        broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
-      }
-    }
-    const broadcastResultType = context.broadcast(broadcastConfig, inputType);
-    if (broadcastResultType.kind === 'array' && broadcastResultType.size === 1) {
-      return { kind: 'record', fields: {}, untagged: [broadcastResultType.element] };
-    }
-    return { kind: 'record', fields: {}, untagged: [broadcastResultType] };
-  },
-  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    const inputNames = [...Object.keys(input.fields), ...input.untagged.map((_, i) => i)];
-    const broadcastConfig: BroadcastConfig = { outputs: {}, reshape: 'vector' };
-    for (const name of inputNames) {
-      if (typeof name === 'number') {
-        broadcastConfig.outputs[`untagged_${name}`] = { fromFields: [], fromUntagged: [name], combine: 'collect', coerceTo: 'number' };
-      } else {
-        broadcastConfig.outputs[name] = { fromFields: [name], fromUntagged: false, combine: 'collect', coerceTo: 'number' };
-      }
-    }
-    const broadcastResult = context.broadcast(broadcastConfig, input);
-    const sum = broadcastResult.broadcasted.map((tuple: number[]) => tuple.reduce((a, b) => a + b, 0));
-    const result = sum.length === 1 && broadcastResult.broadcasted.length === 1 ? sum[0] : sum;
-    return { fields: {}, untagged: [result] };
-  }
-};
+export const primitive_add = defineMathNode(
+  'math.add',
+  { category: NodeCategory.Math, keywords: ['sum', 'plus'], description: 'Adds a and b.' },
+  (a, b) => a + b
+);
 
 export const primitive_clamp: PrimitiveNodeDefinition = {
   id: 'math.clamp',
@@ -235,6 +200,48 @@ export const primitive_e = definePrimitiveNode({
   execute: () => ({ result: Math.E })
 });
 
+export const primitive_lerp = definePrimitiveNode({
+  id: 'math.lerp',
+  metadata: { category: NodeCategory.Math, keywords: ['lerp', 'mix', 'interpolate'], description: 'Linear interpolation between a and b.' },
+  inputs: {
+    a: numberType,
+    b: numberType,
+    t: numberType
+  },
+  config: {
+    clamp: { kind: 'atomic', type: 'boolean', optional: true }
+  },
+  outputs: { result: numberType },
+  autoBroadcast: true,
+  execute: (inputs, config) => {
+    const { a, b, t } = inputs as { a: number, b: number, t: number };
+    const doClamp = config.clamp !== false; // Default to true
+    let tClamped = t;
+    if (doClamp) {
+      tClamped = Math.max(0, Math.min(1, t));
+    }
+    return { result: a * (1 - tClamped) + b * tClamped };
+  }
+});
+
+export const primitive_map = definePrimitiveNode({
+  id: 'math.map',
+  metadata: { category: NodeCategory.Math, keywords: ['map', 'remap', 'range'], description: 'Maps a value from one range to another.' },
+  inputs: {
+    value: numberType,
+    inMin: numberType,
+    inMax: numberType,
+    outMin: numberType,
+    outMax: numberType
+  },
+  outputs: { result: numberType },
+  autoBroadcast: true,
+  execute: (inputs) => {
+    const { value, inMin, inMax, outMin, outMax } = inputs as { value: number, inMin: number, inMax: number, outMin: number, outMax: number };
+    return { result: outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin) };
+  }
+});
+
 // --- Math (Binary) ---
 
 export const primitive_subtract = defineMathNode(
@@ -384,6 +391,24 @@ export const primitive_not = defineMathNode(
   (a) => (a === 0) ? 1 : 0,
   'unary'
 );
+
+export const primitive_hub = definePrimitiveNode({
+  id: 'util.hub',
+  metadata: { category: NodeCategory.Utility, keywords: ['hub', 'reroute'], description: 'Passes input to output.' },
+  inputs: { value: anyType },
+  outputs: { value: anyType },
+  autoBroadcast: true,
+  execute: (inputs) => ({ value: inputs.value })
+});
+
+export const primitive_float = definePrimitiveNode({
+  id: 'data.float',
+  metadata: { category: NodeCategory.Data, keywords: ['float', 'number', 'slider'], description: 'Float value with slider.' },
+  inputs: { value: numberType },
+  outputs: { value: numberType },
+  autoBroadcast: true,
+  execute: (inputs) => ({ value: inputs.value })
+});
 
 ALL_PRIMITIVES.push(
   primitive_subtract,
