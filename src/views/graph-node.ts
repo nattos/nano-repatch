@@ -43,6 +43,9 @@ export class GraphNode extends MobxLitElement {
 
   private catalog = new NodeCatalog(defaultNodeRepository);
 
+  @state()
+  private editingField: 'name' | 'type' | null = null;
+
 
 
   static readonly styles = css`
@@ -59,6 +62,7 @@ export class GraphNode extends MobxLitElement {
       border: 2px solid transparent;
       transition: border-color 0.2s;
       box-sizing: border-box;
+      align-self: center;
       /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
     }
@@ -407,6 +411,25 @@ export class GraphNode extends MobxLitElement {
     appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
   }
 
+  private handleDoubleClick(field: 'name' | 'type', e: MouseEvent) {
+    e.stopPropagation();
+    this.editingField = field;
+  }
+
+  private handleEditCommit(field: 'name' | 'type', e: CustomEvent) {
+    const value = e.detail;
+    if (field === 'name') {
+      appController.setNodeConfig(this.node.id, { name: value });
+    } else {
+      appController.setNodeConfig(this.node.id, { typeId: value });
+    }
+    this.editingField = null;
+  }
+
+  private handleEditCancel() {
+    this.editingField = null;
+  }
+
   renderInspectorContent() {
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
     const onchange = (config: object) => appController.setNodeConfig(this.node.id, config);
@@ -719,8 +742,39 @@ export class GraphNode extends MobxLitElement {
         </div>
         <div class="node-main-content">
           <div class="node-title">
-            ${this.node.config.name || displayName}
-            <span class="node-type-id">${this.node.config.typeId}</span>
+            ${this.editingField === 'name'
+        ? html`
+                <smart-input
+                  .value=${this.node.config.name || displayName}
+                  .autofocus=${true}
+                  @commit=${(e: CustomEvent) => this.handleEditCommit('name', e)}
+                  @cancel=${this.handleEditCancel}
+                  style="flex-grow: 1;"
+                ></smart-input>
+              `
+        : html`
+                <span @dblclick=${(e: MouseEvent) => this.handleDoubleClick('name', e)} style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis;">
+                  ${this.node.config.name || displayName}
+                </span>
+              `
+      }
+            ${this.editingField === 'type'
+        ? html`
+                <smart-input
+                  .catalog=${this.catalog}
+                  .value=${this.node.config.typeId}
+                  .autofocus=${true}
+                  @commit=${(e: CustomEvent) => this.handleEditCommit('type', e)}
+                  @cancel=${this.handleEditCancel}
+                  style="min-width: 100px;"
+                ></smart-input>
+              `
+        : html`
+                <span class="node-type-id" @dblclick=${(e: MouseEvent) => this.handleDoubleClick('type', e)}>
+                  ${this.node.config.typeId}
+                </span>
+              `
+      }
           </div>
           <div class="virtual-inputs-container">
             ${virtualInputElements}

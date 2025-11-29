@@ -8,7 +8,7 @@ import { NodeCatalog } from '../structor/node-catalog';
 
 @customElement('smart-input')
 export class SmartInput extends LitElement {
-  @property({ type: Object }) catalog!: NodeCatalog;
+  @property({ type: Object }) catalog?: NodeCatalog;
   @property({ type: String }) value = '';
   @property({ type: String }) placeholder = 'Type to search...';
   @property({ type: Boolean }) autofocus = false;
@@ -112,53 +112,46 @@ export class SmartInput extends LitElement {
       }
     }, { dark: true });
 
-    const startState = EditorState.create({
-      doc: this.value,
-      extensions: [
-        darkTheme,
-        keymap.of([
-          {
-            key: 'Tab',
-            run: (view) => {
-              if (acceptCompletion(view)) {
-                return true;
-              }
-              // If no completion open/accepted, commit current value
-              this.dispatchCommit(view.state.doc.toString());
+    const extensions = [
+      darkTheme,
+      keymap.of([
+        {
+          key: 'Tab',
+          run: (view) => {
+            if (acceptCompletion(view)) {
               return true;
             }
-          },
-          {
-            key: 'Enter',
-            run: (view) => {
-              if (acceptCompletion(view)) {
-                return true;
-              }
-              this.dispatchCommit(view.state.doc.toString());
+            // If no completion open/accepted, commit current value
+            this.dispatchCommit(view.state.doc.toString());
+            return true;
+          }
+        },
+        {
+          key: 'Enter',
+          run: (view) => {
+            if (acceptCompletion(view)) {
               return true;
             }
-          },
-          {
-            key: 'Escape',
-            run: () => {
-              this.dispatchEvent(new CustomEvent('cancel'));
-              return true;
-            }
-          },
-          ...standardKeymap
-        ]),
-        placeholder(this.placeholder),
-        autocompletion({
-          override: [this.completionSource.bind(this)],
-          icons: false,
-          defaultKeymap: false,
-          optionClass: (opt) => opt.type === 'no-suggestion' ? 'no-suggestion-option' : ''
-        }),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            this.value = update.state.doc.toString();
-            this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
+            this.dispatchCommit(view.state.doc.toString());
+            return true;
+          }
+        },
+        {
+          key: 'Escape',
+          run: () => {
+            this.dispatchEvent(new CustomEvent('cancel'));
+            return true;
+          }
+        },
+        ...standardKeymap
+      ]),
+      placeholder(this.placeholder),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          this.value = update.state.doc.toString();
+          this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
 
+          if (this.catalog) {
             // Live Preview Logic
             const results = this.catalog.search(this.value);
             if (results.length > 0) {
@@ -175,8 +168,22 @@ export class SmartInput extends LitElement {
               startCompletion(this.editorView!);
             }
           }
-        })
-      ]
+        }
+      })
+    ];
+
+    if (this.catalog) {
+      extensions.push(autocompletion({
+        override: [this.completionSource.bind(this)],
+        icons: false,
+        defaultKeymap: false,
+        optionClass: (opt) => opt.type === 'no-suggestion' ? 'no-suggestion-option' : ''
+      }));
+    }
+
+    const startState = EditorState.create({
+      doc: this.value,
+      extensions: extensions
     });
 
     this.editorView = new EditorView({
@@ -190,8 +197,10 @@ export class SmartInput extends LitElement {
       this.editorView.dispatch({
         selection: { anchor: 0, head: this.value.length }
       });
-      // Start completion immediately
-      startCompletion(this.editorView);
+      // Start completion immediately if catalog exists
+      if (this.catalog) {
+        startCompletion(this.editorView);
+      }
     }
   }
 
@@ -207,6 +216,8 @@ export class SmartInput extends LitElement {
   }
 
   private completionSource(context: CompletionContext): CompletionResult | null {
+    if (!this.catalog) return null;
+
     // Always use the full document text as the query
     // This ensures that even if text is selected (during two-step commit), we search for the full node ID.
     const query = context.state.doc.toString();
