@@ -1,17 +1,5 @@
 {
   "nodes": {
-    "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1": {
-      "id": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
-      "x": 1,
-      "y": 3,
-      "config": {
-        "typeId": "data.float",
-        "values": {
-          "value": 0.56
-        },
-        "name": "Float"
-      }
-    },
     "node-6a4256ab-cd70-4409-be3b-fb340380f7da": {
       "id": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "x": 3,
@@ -25,8 +13,8 @@
     },
     "node-172eec0f-e4b9-443b-9003-8af7616375a3": {
       "id": "node-172eec0f-e4b9-443b-9003-8af7616375a3",
-      "x": 4,
-      "y": 4,
+      "x": 6,
+      "y": 3,
       "config": {
         "typeId": "math.fmod",
         "values": {}
@@ -54,16 +42,21 @@
         },
         "name": "Subtract"
       }
+    },
+    "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1": {
+      "id": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "data.float",
+        "values": {
+          "value": 0.56
+        },
+        "name": ""
+      }
     }
   },
   "connections": {
-    "conn-8cdc8e34-f314-410b-b77f-9bd164cca681": {
-      "id": "conn-8cdc8e34-f314-410b-b77f-9bd164cca681",
-      "fromNodeId": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
-      "fromPort": "value",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": ""
-    },
     "conn-7fc88e3e-dbfa-4122-b4ad-4d4aa0ec1129": {
       "id": "conn-7fc88e3e-dbfa-4122-b4ad-4d4aa0ec1129",
       "fromNodeId": "node-745fae79-a25e-4605-8ed0-6658917e71f5",
@@ -77,6 +70,13 @@
       "fromPort": "value",
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "toPort": "min"
+    },
+    "conn-8cdc8e34-f314-410b-b77f-9bd164cca681": {
+      "id": "conn-8cdc8e34-f314-410b-b77f-9bd164cca681",
+      "fromNodeId": "node-59fe7cad-7c0b-4499-b409-02ce3eb8fcc1",
+      "fromPort": "value",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": ""
     }
   }
 }

@@ -283,8 +283,7 @@ export class GraphGrid extends MobxLitElement {
     appController.deleteConnection(e.detail.connectionId);
   }
 
-  @property({ attribute: false })
-  scrollLeft = 0;
+
 
   @property({ attribute: false })
   clientWidth = 0;

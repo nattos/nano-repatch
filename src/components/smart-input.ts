@@ -16,6 +16,8 @@ export class SmartInput extends LitElement {
   @query('#editor') editorContainer!: HTMLElement;
 
   private editorView?: EditorView;
+  private originalValue = '';
+  private lastPreviewedId: string | null = null;
 
   static styles = css`
     :host {
@@ -111,6 +113,8 @@ export class SmartInput extends LitElement {
       }
     }, { dark: true });
 
+    this.originalValue = this.value;
+
     const extensions = [
       darkTheme,
       keymap.of([
@@ -128,9 +132,7 @@ export class SmartInput extends LitElement {
         {
           key: 'Enter',
           run: (view) => {
-            if (acceptCompletion(view)) {
-              return true;
-            }
+            acceptCompletion(view);
             this.dispatchCommit(view.state.doc.toString());
             return true;
           }
@@ -156,8 +158,13 @@ export class SmartInput extends LitElement {
             if (results.length > 0) {
               const top = results[0];
               if (top.type === 'node' && top.id) {
+                this.lastPreviewedId = top.id;
                 this.dispatchEvent(new CustomEvent('preview-type', { detail: top.id }));
+              } else {
+                this.lastPreviewedId = null;
               }
+            } else {
+              this.lastPreviewedId = null;
             }
 
             // Only start completion if the change was caused by user input (typing/deleting)
@@ -201,6 +208,11 @@ export class SmartInput extends LitElement {
         startCompletion(this.editorView);
       }
     }
+
+    // Commit on blur
+    this.editorView.contentDOM.addEventListener('blur', () => {
+      this.dispatchCommit(this.editorView!.state.doc.toString());
+    });
   }
 
   updated(changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>) {
@@ -288,8 +300,17 @@ export class SmartInput extends LitElement {
   private dispatchCommit(value: string) {
     if (this.editorView) {
       closeCompletion(this.editorView);
-      this.editorView.contentDOM.blur();
+      // this.editorView.contentDOM.blur(); // Don't blur manually, we might be here FROM a blur event
     }
+
+    if (this.catalog) {
+      if (this.lastPreviewedId) {
+        value = this.lastPreviewedId;
+      } else {
+        value = this.originalValue;
+      }
+    }
+
     this.dispatchEvent(new CustomEvent('commit', { detail: value }));
   }
 
