@@ -1,5 +1,10 @@
 import { NodeDefinition, Structor, StructorType } from './structor';
-import { primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph } from './primitives';
+import {
+  primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph,
+  primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
+  primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
+  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not
+} from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
 import { AnyType, NumberType } from './type-helpers';
@@ -93,6 +98,90 @@ defaultNodeRepository.register({
 });
 
 defaultNodeRepository.register({
+  id: 'math.subtract',
+  version: '1.0.0',
+  displayName: 'Subtract',
+  definition: primitive_subtract,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Minuend' },
+    { name: 'b', type: NumberType, description: 'Subtrahend' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.multiply',
+  version: '1.0.0',
+  displayName: 'Multiply',
+  definition: primitive_multiply,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Factor A' },
+    { name: 'b', type: NumberType, description: 'Factor B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Product' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.divide',
+  version: '1.0.0',
+  displayName: 'Divide',
+  definition: primitive_divide,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Dividend' },
+    { name: 'b', type: NumberType, description: 'Divisor' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Quotient' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.pow',
+  version: '1.0.0',
+  displayName: 'Power',
+  definition: primitive_pow,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Base' },
+    { name: 'b', type: NumberType, description: 'Exponent' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.min',
+  version: '1.0.0',
+  displayName: 'Min',
+  definition: primitive_min,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Minimum' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.max',
+  version: '1.0.0',
+  displayName: 'Max',
+  definition: primitive_max,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Maximum' }
+  ]
+});
+
+defaultNodeRepository.register({
   id: 'math.clamp',
   version: '1.0.0',
   displayName: 'Clamp',
@@ -119,6 +208,220 @@ defaultNodeRepository.register({
   outputs: [
     { name: 'div', type: NumberType, description: 'The integer division result.' },
     { name: 'mod', type: NumberType, description: 'The remainder.' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.abs',
+  version: '1.0.0',
+  displayName: 'Abs',
+  definition: primitive_abs,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Absolute Value' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.negate',
+  version: '1.0.0',
+  displayName: 'Negate',
+  definition: primitive_negate,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Negated Value' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.ceil',
+  version: '1.0.0',
+  displayName: 'Ceil',
+  definition: primitive_ceil,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Ceiling' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.floor',
+  version: '1.0.0',
+  displayName: 'Floor',
+  definition: primitive_floor,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Floor' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.round',
+  version: '1.0.0',
+  displayName: 'Round',
+  definition: primitive_round,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Rounded Value' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.sin',
+  version: '1.0.0',
+  displayName: 'Sin',
+  definition: primitive_sin,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value (Radians)' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Sine' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.cos',
+  version: '1.0.0',
+  displayName: 'Cos',
+  definition: primitive_cos,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value (Radians)' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Cosine' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.tan',
+  version: '1.0.0',
+  displayName: 'Tan',
+  definition: primitive_tan,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value (Radians)' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Tangent' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.sqrt',
+  version: '1.0.0',
+  displayName: 'Sqrt',
+  definition: primitive_sqrt,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Square Root' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.and',
+  version: '1.0.0',
+  displayName: 'AND',
+  definition: primitive_and,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.or',
+  version: '1.0.0',
+  displayName: 'OR',
+  definition: primitive_or,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.xor',
+  version: '1.0.0',
+  displayName: 'XOR',
+  definition: primitive_xor,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.equals',
+  version: '1.0.0',
+  displayName: 'Equals',
+  definition: primitive_equals,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.greater_than',
+  version: '1.0.0',
+  displayName: 'Greater Than',
+  definition: primitive_greater_than,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.less_than',
+  version: '1.0.0',
+  displayName: 'Less Than',
+  definition: primitive_less_than,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value A' },
+    { name: 'b', type: NumberType, description: 'Value B' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'logic.not',
+  version: '1.0.0',
+  displayName: 'NOT',
+  definition: primitive_not,
+  inputs: [
+    { name: 'a', type: NumberType, description: 'Value' }
+  ],
+  outputs: [
+    { name: 'result', type: NumberType, description: 'Result' }
   ]
 });
 

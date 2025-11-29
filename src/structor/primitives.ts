@@ -12,7 +12,7 @@ import {
   StructorRecord,
   NodeCategory
 } from "./structor";
-import { definePrimitiveNode } from "./type-helpers";
+import { definePrimitiveNode, defineMathNode } from "./type-helpers";
 import { numberType, anyType } from "./std-types";
 
 export const primitive_add: PrimitiveNodeDefinition = {
@@ -216,3 +216,178 @@ export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = [
   primitive_output,
   primitive_subgraph
 ];
+
+// --- Math (Binary) ---
+
+export const primitive_subtract = defineMathNode(
+  'math.subtract',
+  { category: NodeCategory.Math, keywords: ['minus', 'difference'], description: 'Subtracts b from a.' },
+  (a, b) => a - b
+);
+
+export const primitive_multiply = defineMathNode(
+  'math.multiply',
+  { category: NodeCategory.Math, keywords: ['times', 'product'], description: 'Multiplies a and b.' },
+  (a, b) => a * b
+);
+
+export const primitive_divide = defineMathNode(
+  'math.divide',
+  { category: NodeCategory.Math, keywords: ['div', 'quotient'], description: 'Divides a by b.' },
+  (a, b) => a / b
+);
+
+export const primitive_pow = defineMathNode(
+  'math.pow',
+  { category: NodeCategory.Math, keywords: ['power', 'exponent'], description: 'Raises a to the power of b.' },
+  (a, b) => Math.pow(a, b)
+);
+
+export const primitive_min = defineMathNode(
+  'math.min',
+  { category: NodeCategory.Math, keywords: ['minimum', 'smallest'], description: 'Returns the smaller of a and b.' },
+  (a, b) => Math.min(a, b)
+);
+
+export const primitive_max = defineMathNode(
+  'math.max',
+  { category: NodeCategory.Math, keywords: ['maximum', 'largest'], description: 'Returns the larger of a and b.' },
+  (a, b) => Math.max(a, b)
+);
+
+// --- Math (Unary) ---
+
+export const primitive_abs = defineMathNode(
+  'math.abs',
+  { category: NodeCategory.Math, keywords: ['absolute', 'magnitude'], description: 'Returns the absolute value of a.' },
+  (a) => Math.abs(a),
+  'unary'
+);
+
+export const primitive_negate = defineMathNode(
+  'math.negate',
+  { category: NodeCategory.Math, keywords: ['negative', 'invert'], description: 'Negates a.' },
+  (a) => -a,
+  'unary'
+);
+
+export const primitive_ceil = defineMathNode(
+  'math.ceil',
+  { category: NodeCategory.Math, keywords: ['ceiling', 'round up'], description: 'Rounds a up to the nearest integer.' },
+  (a) => Math.ceil(a),
+  'unary'
+);
+
+export const primitive_floor = defineMathNode(
+  'math.floor',
+  { category: NodeCategory.Math, keywords: ['floor', 'round down'], description: 'Rounds a down to the nearest integer.' },
+  (a) => Math.floor(a),
+  'unary'
+);
+
+export const primitive_round = defineMathNode(
+  'math.round',
+  { category: NodeCategory.Math, keywords: ['round', 'nearest'], description: 'Rounds a to the nearest integer.' },
+  (a) => Math.round(a),
+  'unary'
+);
+
+export const primitive_sin = defineMathNode(
+  'math.sin',
+  { category: NodeCategory.Math, keywords: ['sine'], description: 'Returns the sine of a (radians).' },
+  (a) => Math.sin(a),
+  'unary'
+);
+
+export const primitive_cos = defineMathNode(
+  'math.cos',
+  { category: NodeCategory.Math, keywords: ['cosine'], description: 'Returns the cosine of a (radians).' },
+  (a) => Math.cos(a),
+  'unary'
+);
+
+export const primitive_tan = defineMathNode(
+  'math.tan',
+  { category: NodeCategory.Math, keywords: ['tangent'], description: 'Returns the tangent of a (radians).' },
+  (a) => Math.tan(a),
+  'unary'
+);
+
+export const primitive_sqrt = defineMathNode(
+  'math.sqrt',
+  { category: NodeCategory.Math, keywords: ['square root'], description: 'Returns the square root of a.' },
+  (a) => Math.sqrt(a),
+  'unary'
+);
+
+// --- Logic (Binary) ---
+
+export const primitive_and = defineMathNode(
+  'logic.and',
+  { category: NodeCategory.Logic, keywords: ['boolean', '&&'], description: 'Logical AND (1 if both non-zero, else 0).' },
+  (a, b) => (a !== 0 && b !== 0) ? 1 : 0
+);
+
+export const primitive_or = defineMathNode(
+  'logic.or',
+  { category: NodeCategory.Logic, keywords: ['boolean', '||'], description: 'Logical OR (1 if either non-zero, else 0).' },
+  (a, b) => (a !== 0 || b !== 0) ? 1 : 0
+);
+
+export const primitive_xor = defineMathNode(
+  'logic.xor',
+  { category: NodeCategory.Logic, keywords: ['boolean', '^'], description: 'Logical XOR (1 if different truthiness, else 0).' },
+  (a, b) => ((a !== 0) !== (b !== 0)) ? 1 : 0
+);
+
+export const primitive_equals = defineMathNode(
+  'logic.equals',
+  { category: NodeCategory.Logic, keywords: ['==', 'equality'], description: 'Returns 1 if a equals b, else 0.' },
+  (a, b) => (a === b) ? 1 : 0
+);
+
+export const primitive_greater_than = defineMathNode(
+  'logic.greater_than',
+  { category: NodeCategory.Logic, keywords: ['>', 'gt'], description: 'Returns 1 if a > b, else 0.' },
+  (a, b) => (a > b) ? 1 : 0
+);
+
+export const primitive_less_than = defineMathNode(
+  'logic.less_than',
+  { category: NodeCategory.Logic, keywords: ['<', 'lt'], description: 'Returns 1 if a < b, else 0.' },
+  (a, b) => (a < b) ? 1 : 0
+);
+
+// --- Logic (Unary) ---
+
+export const primitive_not = defineMathNode(
+  'logic.not',
+  { category: NodeCategory.Logic, keywords: ['!', 'invert'], description: 'Logical NOT (1 if zero, 0 if non-zero).' },
+  (a) => (a === 0) ? 1 : 0,
+  'unary'
+);
+
+ALL_PRIMITIVES.push(
+  primitive_subtract,
+  primitive_multiply,
+  primitive_divide,
+  primitive_pow,
+  primitive_min,
+  primitive_max,
+  primitive_abs,
+  primitive_negate,
+  primitive_ceil,
+  primitive_floor,
+  primitive_round,
+  primitive_sin,
+  primitive_cos,
+  primitive_tan,
+  primitive_sqrt,
+  primitive_and,
+  primitive_or,
+  primitive_xor,
+  primitive_equals,
+  primitive_greater_than,
+  primitive_less_than,
+  primitive_not
+);

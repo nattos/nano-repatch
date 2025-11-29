@@ -322,3 +322,30 @@ export function typedBroadcast<TSchema extends TypedBroadcastSchema>(
 
   return processedResult;
 }
+export function defineMathNode(
+  id: string,
+  metadata: NodeMetadata,
+  op: (a: number, b: number) => number,
+  arity: 'unary' | 'binary' = 'binary'
+): PrimitiveNodeDefinition {
+  const inputs: NodeInputsDef = arity === 'binary'
+    ? { a: NumberType, b: NumberType }
+    : { a: NumberType };
+
+  return definePrimitiveNode({
+    id,
+    metadata,
+    inputs,
+    outputs: { result: NumberType },
+    autoBroadcast: true,
+    execute: (inputs, config, context) => {
+      if (arity === 'binary') {
+        const { a, b } = inputs as { a: number, b: number };
+        return { result: op(a, b) };
+      } else {
+        const { a } = inputs as { a: number };
+        return { result: op(a, 0) };
+      }
+    }
+  });
+}
