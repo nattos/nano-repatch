@@ -5,6 +5,8 @@ import { RuntimeManager } from '../runtime/manager';
 import { AppController } from '../builder/state';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { globalStyles } from '../styles';
+import { formatType, formatValue } from './formatters';
+import { defaultNodeRepository } from '../structor/repository';
 
 @customElement('debug-tab')
 export class DebugTab extends MobxLitElement {
@@ -112,6 +114,25 @@ export class DebugTab extends MobxLitElement {
         color: #c18de3;
         border-color: #5f3a7a;
       }
+
+      .chip.midi {
+        background: #4a3a2a;
+        color: #e3c18d;
+        border-color: #7a5f3a;
+      }
+
+      .chip.midi-stream {
+        background: #2a4a3a;
+        color: #8de3c1;
+        border-color: #3a7a5f;
+      }
+
+      .type-hint {
+        font-size: 10px;
+        color: #555;
+        margin-right: 6px;
+        font-family: 'JetBrains Mono', monospace;
+      }
     `,
   ];
 
@@ -153,6 +174,26 @@ export class DebugTab extends MobxLitElement {
     }
 
     const node = appController.getState().graph.inner.nodes[nodeId];
+    const definition = node ? defaultNodeRepository.get(node.config.typeId) : undefined;
+
+    // Attempt to get output types
+    // This is tricky without AnalysisContext.
+    // For now, we look at the static definition if available.
+    // Or we can try to infer from the value? No, we want the type hint.
+
+    // If it's a primitive node, we might have static outputs.
+    let outputDef: any = undefined;
+    if (definition && definition.kind === 'primitive') {
+      // We can't easily run computeOutputTypes here.
+      // But we can check if 'outputs' property exists on the definition object (it's in the repo entry).
+      // The repo entry has 'outputs' which is PortHint[].
+      // PortHint has 'type'.
+      const repoEntry = defaultNodeRepository.get(node.config.typeId); // This returns NodeDefinition? No, repo returns NodeType (wrapper).
+      // Wait, repository.get returns NodeType | undefined.
+      // NodeType has 'outputs' which is PortHint[].
+    }
+
+    const repoEntry = node ? defaultNodeRepository.get(node.config.typeId) : undefined;
     const displayName = node ? (node.config.name || node.config.typeId) : id;
     const typeName = node ? node.config.typeId : 'Unknown';
 
@@ -162,12 +203,12 @@ export class DebugTab extends MobxLitElement {
           <span class="node-name">${displayName}${suffix}</span>
           <span class="node-type">${typeName}</span>
         </div>
-        ${this.renderValues(output)}
+        ${this.renderValues(output, repoEntry)}
       </div>
     `;
   }
 
-  private renderValues(output: any) {
+  private renderValues(output: any, repoEntry?: any) {
     if (!output) return html`<div class="value-row"><span class="chip">null</span></div>`;
 
     const elements = [];
@@ -175,10 +216,18 @@ export class DebugTab extends MobxLitElement {
     // Handle Fields
     if (output.fields) {
       for (const [key, val] of Object.entries(output.fields)) {
+        // Find type for this field
+        let type: any = undefined;
+        if (repoEntry && repoEntry.outputs) {
+          const port = repoEntry.outputs.find((p: any) => p.name === key);
+          if (port) type = port.type;
+        }
+
         elements.push(html`
           <div class="value-row">
             <span class="field-name">${key}:</span>
-            ${this.renderChip(val)}
+            <span class="type-hint">${formatType(type)}</span>
+            ${formatValue(val, type)}
           </div>
         `);
       }
@@ -187,10 +236,15 @@ export class DebugTab extends MobxLitElement {
     // Handle Untagged
     if (output.untagged && Array.isArray(output.untagged)) {
       output.untagged.forEach((val: any, index: number) => {
+        // Find type for untagged?
+        // Usually untagged outputs are uniform or defined by index.
+        // For now, we don't have easy mapping for untagged indices in PortHint unless name matches?
+        // Or maybe we assume 'untagged' type if available?
+
         elements.push(html`
           <div class="value-row">
             <span class="field-name">[${index}]:</span>
-            ${this.renderChip(val)}
+            ${formatValue(val)}
           </div>
         `);
       });
@@ -201,27 +255,5 @@ export class DebugTab extends MobxLitElement {
     }
 
     return elements;
-  }
-
-  private renderChip(value: any) {
-    if (typeof value === 'number') {
-      return html`<span class="chip">${value.toFixed(2)}</span>`;
-    }
-
-    if (typeof value === 'string') {
-      return html`<span class="chip">"${value}"</span>`;
-    }
-
-    if (Array.isArray(value)) {
-      // Vector
-      return html`<span class="chip vector">vector(${value.length})</span>`;
-    }
-
-    if (typeof value === 'object' && value !== null) {
-      // Struct
-      return html`<span class="chip struct">struct</span>`;
-    }
-
-    return html`<span class="chip">${String(value)}</span>`;
   }
 }

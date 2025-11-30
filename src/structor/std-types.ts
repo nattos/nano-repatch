@@ -13,11 +13,13 @@ export const midiEventType = defineType({
     data2: numberType,
     time: numberType,
   },
-  untagged: []
+  untagged: [],
+  hint: 'midi'
 });
 
 export const midiStreamType = defineType({
   kind: "array",
   size: "dynamic",
-  element: midiEventType
+  element: midiEventType,
+  hint: 'midi-stream'
 });

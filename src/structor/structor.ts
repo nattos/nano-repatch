@@ -22,6 +22,7 @@ export interface ArrayType {
   size: number | 'dynamic'; // 'dynamic' for runtime-sized/ragged arrays
   element: StructorType;
   optional?: boolean;
+  hint?: string;
 }
 
 export interface RecordType {
@@ -29,6 +30,7 @@ export interface RecordType {
   fields: Record<string, StructorType>; // Named/tagged inputs
   untagged: StructorType[];             // Ordered/untagged inputs
   optional?: boolean;
+  hint?: string;
 }
 
 export interface GraphType {
