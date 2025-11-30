@@ -238,6 +238,7 @@ export class GraphNode extends MobxLitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       flex-shrink: 0;
+      box-sizing: border-box;
     }
 
     .slider-label:first-child {
@@ -246,8 +247,8 @@ export class GraphNode extends MobxLitElement {
     }
 
     .slider-label:last-child {
-      text-align: left;
-      padding-left: 4px;
+      text-align: right;
+      padding-right: 5px;
     }
 
     .virtual-input-field {
@@ -455,6 +456,10 @@ export class GraphNode extends MobxLitElement {
   private handleEditCancel() {
     this.editingField = null;
   }
+
+
+
+
 
   renderInspectorContent() {
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);

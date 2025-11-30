@@ -1,0 +1,51 @@
+{
+  "nodes": {
+    "node-1f826a73-2afc-4264-b4cc-73c0c74fd51d": {
+      "id": "node-1f826a73-2afc-4264-b4cc-73c0c74fd51d",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd": {
+      "id": "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd",
+      "x": 2,
+      "y": 4,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-25e77064-d17d-4509-a25b-65e09d06c19e": {
+      "id": "node-25e77064-d17d-4509-a25b-65e09d06c19e",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "math.clamp",
+        "values": {
+          "max": 0.45
+        }
+      }
+    },
+    "node-5c0fbd62-d5ab-48f7-9470-d4d92bf90adf": {
+      "id": "node-5c0fbd62-d5ab-48f7-9470-d4d92bf90adf",
+      "x": 2,
+      "y": 6,
+      "config": {
+        "typeId": "math.map",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-81b89539-6bdc-4435-86a0-3be6b4185b4b": {
+      "id": "conn-81b89539-6bdc-4435-86a0-3be6b4185b4b",
+      "fromNodeId": "node-1f826a73-2afc-4264-b4cc-73c0c74fd51d",
+      "fromPort": "value",
+      "toNodeId": "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd",
+      "toPort": "dividend"
+    }
+  }
+}

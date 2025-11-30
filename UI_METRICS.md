@@ -15,9 +15,10 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | Metric | Value | Description |
 | :--- | :--- | :--- |
 | **`NODE_WIDTH`** | **`240px`** | Total width of the node (Border Box). |
-| **`NODE_PADDING`** | **`10px`** | Internal padding of the node. |
-| **`CONTENT_WIDTH`** | **`220px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING`). |
-| **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset from the **Content Box Left Edge** to the **Center** of the input pip. |
+| **`NODE_PADDING`** | **`7px`** | Internal padding of the node (effective content offset). |
+| **`HEADER_HEIGHT`** | **`30px`** | Effective visual height of the header (top of first port row). |
+| **`CONTENT_WIDTH`** | **`220px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING` approx). |
+| **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset from the **Main Content Left Edge** to the **Center** of the input pip. |
 | **`PIP_OFFSET_Y`** | **`12px`** | Vertical offset from the top of the port row to the center of the pip. |
 
 ## Port Label Metrics
@@ -26,8 +27,11 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | :--- | :--- | :--- |
 | **`LABEL_HEIGHT`** | **`24px`** | Height of the label container (matches `PORT_ROW_HEIGHT`). |
 | **`LABEL_FONT_SIZE`** | **`0.7em`** | Font size for port labels. |
-| **`LABEL_MARGIN`** | **`0 5px`** | Margin around the label text. |
-| **`SLIDER_LABEL_WIDTH`** | **`38px`** | Fixed width for labels inside slider editors. |
+| **`LABEL_PADDING`** | **`0 5px`** | Padding inside the label container. |
+| **`LABEL_COLOR`** | **`var(--text-muted)`** | Text color for labels. |
+| **`SLIDER_LABEL_WIDTH`** | **`38px`** | Fixed width for labels inside slider editors (includes padding). |
+| **`LABEL_BOX_SIZING`** | **`border-box`** | Box sizing model for labels. |
+| **`LABEL_OVERFLOW`** | **`ellipsis`** | Text overflow behavior for fixed-width labels. |
 
 ## Inspector Metrics
 

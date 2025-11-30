@@ -49,7 +49,7 @@ export class GraphPort extends MobxLitElement {
       font-size: 0.7em;
       white-space: nowrap;
       color: var(--text-muted);
-      margin: 0 5px;
+      padding: 0 5px;
     }
   `;
 
@@ -113,13 +113,13 @@ export class GraphPort extends MobxLitElement {
       inflightPortConnectionOperation?.nodeId === this.nodeId;
 
     return html`
-      ${this.type === 'out' && this.name !== '0' && !this.hideLabel ? html`<span class="port-label">${this.name}</span>` : ''}
+      ${this.type === 'out' && this.name !== '0' && !this.hideLabel ? html`<div class="port-label">${this.name}</div>` : ''}
       <div
         class="port ${this.type}-port ${isConnecting ? 'connecting' : ''}"
         @click=${this.handlePortClick}
         title="${this.description}"
       ></div>
-      ${this.type === 'in' && this.name && !this.hideLabel ? html`<span class="port-label">${this.name}</span>` : ''}
+      ${this.type === 'in' && this.name && !this.hideLabel ? html`<div class="port-label">${this.name}</div>` : ''}
     `;
   }
 }
