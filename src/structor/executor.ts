@@ -1,5 +1,5 @@
 
-import { GraphDefinition, NodeDefinition, Structor, StructorRecord, ExecutionContext, PrimitiveNodeDefinition } from "./structor";
+import { GraphDefinition, Structor, StructorRecord, ExecutionContext, PrimitiveNodeDefinition } from "./structor";
 import { NodeRepository } from "./repository";
 import { broadcast } from "./broadcast";
 

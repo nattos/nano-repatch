@@ -1,6 +1,6 @@
 
 import { html, TemplateResult } from 'lit';
-import { Structor, StructorType } from '../structor/structor';
+import { StructorType } from '../structor/structor';
 
 export function formatType(type: StructorType | undefined): string {
   if (!type) return 'unknown';

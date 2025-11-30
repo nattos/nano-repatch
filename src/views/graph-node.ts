@@ -1,7 +1,6 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
@@ -20,7 +19,6 @@ import {
   NODE_WIDTH_MINIMAL,
   ROW_HEIGHT,
   HEADER_HEIGHT,
-  NODE_PADDING_X,
   NODE_PADDING_Y,
   SLIDER_LABEL_WIDTH,
   SLIDER_HEIGHT,

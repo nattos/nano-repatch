@@ -13,7 +13,6 @@ import {
   NoiseLayer,
   toneSynthPrimitive
 } from './nodes';
-import { GraphDefinition, StructorRecord } from '../../structor/structor';
 import { numberType, midiStreamType } from '../../structor/std-types';
 import { compileGraph } from '../../builder/compiler';
 import { AppState, GridNode, Connection, GraphState } from '../../builder/state';

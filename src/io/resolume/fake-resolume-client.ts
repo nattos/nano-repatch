@@ -49,18 +49,18 @@ export class FakeResolumeApiClient implements ResolumeClient {
     onError?: (error: any) => void,
     onClose?: (event: any) => void
   ): ResolumeWebSocket {
-    console.log('[FakeResolumeApiClient] Simulating WebSocket connection.');
+    // console.log('[FakeResolumeApiClient] Simulating WebSocket connection.');
     this._wsReadyState = 1; // OPEN
 
     const self = this;
     // Simulate WebSocket instance
     this.mockWs = {
       send: (message: object) => {
-        console.log('[FakeResolumeApiClient] WS Received:', JSON.stringify(message));
+        // console.log('[FakeResolumeApiClient] WS Received:', JSON.stringify(message));
         this.handleIncomingWebSocketMessage(message as WebSocketMessage, onMessage);
       },
       close: () => {
-        console.log('[FakeResolumeApiClient] Simulating WS close.');
+        // console.log('[FakeResolumeApiClient] Simulating WS close.');
         this._wsReadyState = 3; // CLOSED
         if (onClose) {
           onClose({ code: 1000, reason: 'Simulated close' });
@@ -73,7 +73,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
 
     // Simulate connection opening and sending initial state
     setTimeout(() => {
-      console.log('[FakeResolumeApiClient] Sending initial state on WS open...');
+      // console.log('[FakeResolumeApiClient] Sending initial state on WS open...');
       onMessage(this.currentCompositionState);
     }, 100); // Small delay to simulate async behavior
 
@@ -185,7 +185,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
                 this.subscribedParameters.set(paramId, subs);
               }
               subs.push({ id: paramId, path: subscriptionMessage.path, callback: onMessageCallback });
-              console.log(`[FakeResolumeApiClient] Subscribed to parameter ${paramId}`);
+              // console.log(`[FakeResolumeApiClient] Subscribed to parameter ${paramId}`);
             } else {
               onMessageCallback({ error: `Parameter not found for ID: ${paramId}`, path: message.parameter });
             }
@@ -206,7 +206,7 @@ export class FakeResolumeApiClient implements ResolumeClient {
             // Simulate parameter update broadcast
             this.notifySubscribers(parameter.id, parameter.value, parameter.valuetype, message.parameter);
             onMessageCallback({ type: 'parameter_set_success', path: message.parameter, value: message.value });
-            console.log(`[FakeResolumeApiClient] Parameter ${message.parameter} (ID: ${message.id}) set to ${message.value}`);
+            // console.log(`[FakeResolumeApiClient] Parameter ${message.parameter} (ID: ${message.id}) set to ${message.value}`);
           } else if (parameter) {
             onMessageCallback({ error: `Parameter ${message.parameter} (ID: ${message.id}) is not a ParamRange or cannot be set this way.` });
           } else {
@@ -225,11 +225,11 @@ export class FakeResolumeApiClient implements ResolumeClient {
             parameter.value = 'Connected'; // Simulate clip connecting
             this.notifySubscribers(parameter.id, parameter.value, parameter.valuetype, message.parameter);
             onMessageCallback({ type: 'trigger_success', path: message.parameter });
-            console.log(`[FakeResolumeApiClient] Triggered ${message.parameter}`);
+            // console.log(`[FakeResolumeApiClient] Triggered ${message.parameter}`);
           } else if (parameter && parameter.valuetype === 'ParamTrigger') {
             // For true ParamTrigger types, no state change, just an event
             onMessageCallback({ type: 'trigger_success', path: message.parameter });
-            console.log(`[FakeResolumeApiClient] Triggered event ${message.parameter}`);
+            // console.log(`[FakeResolumeApiClient] Triggered event ${message.parameter}`);
           } else {
             onMessageCallback({ error: `Parameter not found or not a trigger for path: ${message.parameter}` });
           }

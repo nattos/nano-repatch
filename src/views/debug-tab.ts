@@ -1,8 +1,6 @@
 import { css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
-import { RuntimeManager } from '../runtime/manager';
-import { AppController } from '../builder/state';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { globalStyles } from '../styles';
 import { formatType, formatValue } from './formatters';

@@ -2,10 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   rhythmicGeneratorPrimitive,
   chaosGeneratorPrimitive,
-  patternPrimitive,
-  sequenceStructorType
+  patternPrimitive
 } from './nodes';
-import { ExecutionContext, StructorRecord } from '../../structor/structor';
+import { ExecutionContext } from '../../structor/structor';
 import { defaultNodeRepository } from '../../structor/repository';
 
 // Mock ExecutionContext

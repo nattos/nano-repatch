@@ -1,12 +1,11 @@
+import '../customnodes/nicepattern/nodes';
+import '../customnodes/nicepattern/nodes';
+import '../customnodes/resolume/nodes';
 import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
 import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';
 import { Structor, StructorRecord } from '../structor/structor';
-import '../customnodes/nicepattern/nodes';
-import '../customnodes/nicepattern/nodes';
-import '../customnodes/resolume/nodes';
 import { resolumeManager } from '../io/resolume/manager';
-
 import { VirtualAudioContext } from '../audio/virtual-audio';
 
 let executor: GraphExecutor | null = null;

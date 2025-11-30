@@ -1,24 +1,13 @@
 import {
-  PrimitiveNodeDefinition,
-  RecordType,
-  Structor,
-  StructorType,
-  AnalysisContext,
-  ExecutionContext,
   StructorRecord,
-  ArrayType,
-  AtomicType,
 } from "../../structor/structor";
 import {
   defaultNodeRepository,
   NodeType,
-  PortHint,
-  InspectorChangeHandler,
-  GraphNodeRenderHandlers,
 } from "../../structor/repository";
-import { defineType, definePrimitiveNode, typedBroadcast, NumberType, AnyType } from "../../structor/type-helpers";
+import { defineType, definePrimitiveNode, typedBroadcast } from "../../structor/type-helpers";
 import { numberType, booleanType, anyType, midiStreamType } from "../../structor/std-types";
-import { Step, Sequence } from "./envelope-generator";
+import { Step } from "./envelope-generator";
 import {
   GateLayer,
   ExponentialLayer,

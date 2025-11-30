@@ -1,6 +1,5 @@
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance, Structor } from '../structor/structor';
-import { parseFloatOr } from '../utils/utils';
 import { NodeRepository } from '../structor/repository';
 
 /**
@@ -212,7 +211,7 @@ export function compileGraph(
   // Filter out broken connections
   const validConnections = flatConnections.filter((_, index) => !edgesToRemove.has(index));
 
-  console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${validConnections.length} connections (removed ${edgesToRemove.size} cyclic connections).`);
+  // console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${validConnections.length} connections (removed ${edgesToRemove.size} cyclic connections).`);
 
   return {
     id: 'compiled-graph',

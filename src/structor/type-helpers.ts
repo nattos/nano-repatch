@@ -7,7 +7,6 @@ import {
   PrimitiveNodeDefinition,
   StructorRecord,
   ExecutionContext,
-  AnalysisContext,
   Structor,
   BroadcastConfig,
   NodeMetadata
