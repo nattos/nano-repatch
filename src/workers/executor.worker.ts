@@ -5,7 +5,6 @@ import { Structor, StructorRecord } from '../structor/structor';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
-import { workerMidiState } from '../customnodes/midi/nodes';
 import { resolumeManager } from '../io/resolume/manager';
 
 import { VirtualAudioContext } from '../audio/virtual-audio';
@@ -21,6 +20,7 @@ resolumeManager.connect();
 
 // Clock state
 let clock = { beat: 0 };
+let workerMidiValues = new Map<string, number>();
 
 self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
   const msg = event.data;
@@ -60,7 +60,7 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
     case 'MIDI_UPDATE':
       // Update worker MIDI state
       // msg.values is a Map
-      workerMidiState.values = msg.values;
+      workerMidiValues = msg.values;
       break;
   }
 };
@@ -119,7 +119,8 @@ function runTick() {
   try {
     executor.update({
       clock: { beat: clock.beat, dt },
-      audio: { context: virtualAudioContext }
+      audio: { context: virtualAudioContext },
+      midi: { values: workerMidiValues }
     });
   } catch (e) {
     console.error('Executor Worker: Error during update', e);

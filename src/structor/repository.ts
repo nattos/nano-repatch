@@ -10,6 +10,7 @@ import {
 import type { GraphState, GridNode } from '../builder/state';
 
 import { AnyType, NumberType } from './type-helpers';
+import { midiStreamType } from './std-types';
 
 export interface PortHint {
   name: string; // Corresponds to tag. Empty string for default/untagged.
@@ -560,16 +561,42 @@ defaultNodeRepository.register({
 });
 import { expressionNode } from '../customnodes/expr/nodes';
 import { GraphCompiler } from '../customnodes/expr/parser';
-import { midiCcNode, midiNoteNode } from '../customnodes/midi/nodes';
+import { midiCcNode, midiNoteNode, midiToMonoNode, midiInputNode, midiCcInputNode } from '../customnodes/midi/nodes';
 
 const exprCompiler = new GraphCompiler();
+
+defaultNodeRepository.register({
+  id: 'midi.input',
+  version: '1.0.0',
+  displayName: 'MIDI Input',
+  definition: midiInputNode,
+  inputs: [],
+  outputs: [
+    { name: 'stream', type: midiStreamType, description: 'MIDI Stream' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { deviceId: uiConfig.deviceId }, untagged: [] }),
+});
+
+defaultNodeRepository.register({
+  id: 'midi.cc.input',
+  version: '1.0.0',
+  displayName: 'MIDI CC Input',
+  definition: midiCcInputNode,
+  inputs: [],
+  outputs: [
+    { name: 'value', type: NumberType, description: 'CC Value' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId }, untagged: [] }),
+});
 
 defaultNodeRepository.register({
   id: 'midi.cc',
   version: '1.0.0',
   displayName: 'MIDI CC',
   definition: midiCcNode,
-  inputs: [],
+  inputs: [
+    { name: 'stream', type: midiStreamType, description: 'MIDI Stream' }
+  ],
   outputs: [
     { name: 'value', type: NumberType, description: 'Normalized value (0-1)' }
   ],
@@ -581,13 +608,32 @@ defaultNodeRepository.register({
   version: '1.0.0',
   displayName: 'MIDI Note',
   definition: midiNoteNode,
-  inputs: [],
+  inputs: [
+    { name: 'stream', type: midiStreamType, description: 'MIDI Stream' }
+  ],
   outputs: [
     { name: 'note', type: NumberType, description: 'Note Number (when on)' },
     { name: 'velocity', type: NumberType, description: 'Velocity (0-1)' },
     { name: 'gate', type: NumberType, description: 'Gate (1 when on, 0 when off)' }
   ],
   compileConfig: (uiConfig) => ({ fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60, deviceId: uiConfig.deviceId }, untagged: [] }),
+});
+
+defaultNodeRepository.register({
+  id: 'midi.to_mono',
+  version: '1.0.0',
+  displayName: 'MIDI to Mono',
+  definition: midiToMonoNode,
+  inputs: [
+    { name: 'stream', type: midiStreamType, description: 'MIDI Stream' }
+  ],
+  outputs: [
+    { name: 'note', type: NumberType, description: 'Relative Note Number' },
+    { name: 'velocity', type: NumberType, description: 'Velocity (0-1)' },
+    { name: 'gate', type: NumberType, description: 'Gate (1 when on, 0 when off)' },
+    { name: 'frequency', type: NumberType, description: 'Frequency (Hz)' }
+  ],
+  compileConfig: (uiConfig) => ({ fields: { channel: uiConfig.channel ?? 1, rootNote: uiConfig.rootNote ?? 60, priority: uiConfig.priority ?? 'last' }, untagged: [] }),
 });
 
 defaultNodeRepository.register({

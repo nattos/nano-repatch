@@ -95,6 +95,9 @@ export interface ExecutionContext {
   // In a real implementation, this would be scoped to the graph instance
   nodeState: Map<string, any>;
   nodeId?: string;
+  midi?: {
+    values: Map<string, number>;
+  };
 };
 
 
