@@ -426,3 +426,16 @@ The system implements **"Virtual Vectorization"**. It does not currently use SIM
 To address the performance cons while keeping the ergonomics, future versions could:
 *   **Code Generation:** Instead of iterating and calling a lambda, the `CompilerWorker` could generate a specialized, raw `for` loop string for the specific graph topology and  it (or use ). This would inline the node's logic and remove the function call/object allocation overhead.
 *   **TypedArrays:** For strictly numeric data, moving to `Float32Array` would allow for better memory locality and potential SIMD optimizations, though it would complicate the support for heterogeneous types.
+
+## Final Polish & Cleanup (As of 2025-11-30)
+
+This entry documents the final steps taken to ensure the codebase is clean and all tests are passing.
+
+### Test Fixes
+
+1.  **Executor Tests:** Updated `src/structor/executor.test.ts` to align with the changes made to `primitive_clamp`. The test now correctly expects a named output `value` instead of an untagged array. This resolves the regression caused by the primitive library expansion.
+
+### Code Hygiene
+
+1.  **Cleanup:** Performed a sweep of the codebase to remove unused imports, commented-out debug logs, and legacy code artifacts. Affected files include `compiler.ts`, `graph-node.ts`, `nodes.ts`, `type-helpers.ts`, and `executor.worker.ts`.
+2.  **Documentation:** Updated `GEMINI.md` (this document) and `walkthrough.md` to reflect the current state of the system and the successful resolution of all tasks.
