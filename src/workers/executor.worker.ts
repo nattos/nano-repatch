@@ -16,7 +16,7 @@ let isRunning = false;
 let virtualAudioContext = new VirtualAudioContext();
 
 // Connect Resolume Manager (Worker instance)
-resolumeManager.connect();
+// resolumeManager.connect(); // Moved to INIT_GRAPH for lazy loading
 
 // Clock state
 let clock = { beat: 0 };
@@ -29,6 +29,10 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
     case 'INIT_GRAPH':
       // console.log('Executor Worker: Initializing graph...');
       executor = new GraphExecutor(msg.graph, defaultNodeRepository);
+
+      // Lazy connect resolume
+      resolumeManager.connect();
+
       // Reset audio context on new graph?
       // virtualAudioContext = new VirtualAudioContext(); // Maybe?
       // For now, keep it persistent or reset if needed.
