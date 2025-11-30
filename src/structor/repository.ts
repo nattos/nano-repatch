@@ -19,6 +19,8 @@ export interface PortHint {
   defaultValue?: any;
   range?: [number, number];
   redirect?: 'untagged';
+  suppressInputEditor?: boolean;
+  suppressLabel?: boolean;
 }
 
 export type InspectorChangeHandler = (config: Partial<GridNode['config']>) => void;
@@ -161,10 +163,10 @@ defaultNodeRepository.register({
   displayName: 'Hub',
   definition: primitive_hub,
   inputs: [
-    { name: 'value', type: AnyType, description: 'Input' }
+    { name: 'value', type: AnyType, description: 'Input', suppressInputEditor: true, suppressLabel: true }
   ],
   outputs: [
-    { name: 'value', type: AnyType, description: 'Output' }
+    { name: 'value', type: AnyType, description: 'Output', suppressLabel: true }
   ]
 });
 

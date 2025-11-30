@@ -564,7 +564,7 @@ export class GraphGrid extends MobxLitElement {
       const elements = [];
 
       if (wireLayout && wireLayout.path.length > 0) {
-        for (let i = 0; i < wireLayout.path.length; i++) {
+        for (let i = 1; i < wireLayout.path.length - 1; i++) {
           const curr = wireLayout.path[i];
           const prev = i > 0 ? wireLayout.path[i - 1] : null;
           const next = i < wireLayout.path.length - 1 ? wireLayout.path[i + 1] : null;

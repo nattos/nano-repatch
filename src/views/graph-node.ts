@@ -503,6 +503,12 @@ export class GraphNode extends MobxLitElement {
     `;
   }
 
+  private shouldShowInputEditor(input: PortHint, isConnected: boolean): boolean {
+    if (isConnected) return false;
+    if (input.suppressInputEditor) return false;
+    return true;
+  }
+
   updated() {
     if (this.node) {
       this.dataset.id = this.node.id;
@@ -532,7 +538,7 @@ export class GraphNode extends MobxLitElement {
       let hasVisibleSliders = false;
       inputs.forEach(input => {
         const isConnected = connectedPorts.has(input.name);
-        if (!isConnected) {
+        if (this.shouldShowInputEditor(input, isConnected)) {
           hasVisibleSliders = true;
         }
       });
@@ -555,7 +561,7 @@ export class GraphNode extends MobxLitElement {
       inputs.forEach(input => {
         const isConnected = connectedPorts.has(input.name);
         let height = ROW_HEIGHT;
-        if (!isConnected) {
+        if (this.shouldShowInputEditor(input, isConnected)) {
           const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
           if (customHeight) {
             height = Math.max(ROW_HEIGHT, customHeight);
@@ -635,7 +641,7 @@ export class GraphNode extends MobxLitElement {
     let hasVisibleSliders = false;
     inputs.forEach(input => {
       const isConnected = connectedPorts.has(input.name);
-      if (!isConnected) {
+      if (this.shouldShowInputEditor(input, isConnected)) {
         hasVisibleSliders = true;
       }
     });
@@ -658,27 +664,27 @@ export class GraphNode extends MobxLitElement {
 
     // Helper to check if a port label should be hidden
     const shouldHideLabel = (portName: string, type: 'in' | 'out') => {
-      // If it's an input and has a custom editor (or default slider), hide the label
-      // because the editor will render it.
       if (type === 'in') {
         const input = inputs.find(i => i.name === portName);
         if (input) {
+          if (input.suppressLabel) return true;
           const isConnected = connectedPorts.has(input.name);
-          if (!isConnected) {
-            // If disconnected, we show an editor.
-            // For now, assume ALL editors want to hide labels if they are active.
+          if (this.shouldShowInputEditor(input, isConnected)) {
+            // If we are showing an editor, we hide the label
             return true;
           }
         }
       }
 
-      // If it's an output, check if the corresponding input (same row) has an editor
       if (type === 'out') {
+        const output = outputs.find(o => o.name === portName);
+        if (output && output.suppressLabel) return true;
+
         const outputIndex = outputs.findIndex(o => o.name === portName);
         if (outputIndex !== -1 && outputIndex < inputs.length) {
           const input = inputs[outputIndex];
           const isConnected = connectedPorts.has(input.name);
-          if (!isConnected) {
+          if (this.shouldShowInputEditor(input, isConnected)) {
             // Corresponding input has an editor, so hide output label too
             return true;
           }
@@ -705,7 +711,7 @@ export class GraphNode extends MobxLitElement {
       `);
 
       // Render Editor (if disconnected)
-      if (!isConnected) {
+      if (this.shouldShowInputEditor(input, isConnected)) {
         const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
         if (customHeight) {
           height = Math.max(ROW_HEIGHT, customHeight);
