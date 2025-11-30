@@ -458,8 +458,18 @@ export class GraphGrid extends MobxLitElement {
 
     // Render Grid Cells
     const cells = [];
-    const rows = 12; // Reduced to 12 as requested
-    const cols = 12;
+
+    // Calculate dynamic grid size
+    let maxNodeX = 0;
+    let maxNodeY = 0;
+
+    for (const node of Object.values(nodes)) {
+      if (node.x > maxNodeX) maxNodeX = node.x;
+      if (node.y > maxNodeY) maxNodeY = node.y;
+    }
+
+    const rows = Math.max(maxNodeY + 3, 12);
+    const cols = Math.max(maxNodeX + 3, 8);
 
     // Input Column (x=0)
     for (let y = 0; y < rows; y++) {
@@ -468,7 +478,7 @@ export class GraphGrid extends MobxLitElement {
       cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
     }
 
-    // Main Grid (x=1..12)
+    // Main Grid (x=1..cols)
     for (let x = 1; x <= cols; x++) {
       const colIdx = 2 * x + 1;
 
@@ -490,11 +500,7 @@ export class GraphGrid extends MobxLitElement {
     }
 
     // Output Column
-    // Col index for output?
-    // We have 12 nodes. Last node is Col 2*12+1 = 25.
-    // Gap after last node is Col 26.
-    // Output is Col 27.
-    const outputCol = 2 * 12 + 3;
+    const outputCol = 2 * cols + 3;
     for (let y = 0; y < rows; y++) {
       cells.push(html`<div class="cell node-cell" data-x="output" data-y="${y}" style="grid-column: ${outputCol}; grid-row: ${2 * y + 2};"></div>`);
       cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${outputCol}; grid-row: ${2 * y + 3};"></div>`);

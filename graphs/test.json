@@ -11,15 +11,6 @@
         }
       }
     },
-    "node-172eec0f-e4b9-443b-9003-8af7616375a3": {
-      "id": "node-172eec0f-e4b9-443b-9003-8af7616375a3",
-      "x": 6,
-      "y": 3,
-      "config": {
-        "typeId": "math.fmod",
-        "values": {}
-      }
-    },
     "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
       "id": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
       "x": 1,
@@ -45,8 +36,8 @@
     },
     "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215": {
       "id": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
-      "x": 2,
-      "y": 6,
+      "x": 4,
+      "y": 8,
       "config": {
         "typeId": "util.hub",
         "values": {}

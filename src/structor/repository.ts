@@ -644,7 +644,7 @@ defaultNodeRepository.register({
   definition: primitive_input,
   inputs: [],
   outputs: [
-    { name: '0', type: AnyType, description: 'The input value.' }
+    { name: '0', type: AnyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
   ],
   compileConfig: (uiConfig) => uiConfig?.values?.['0'],
 });
@@ -655,7 +655,7 @@ defaultNodeRepository.register({
   displayName: 'Output',
   definition: primitive_output,
   inputs: [
-    { name: '0', type: AnyType, description: 'The output value.' }
+    { name: '0', type: AnyType, description: 'The output value.', suppressInputEditor: true, suppressLabel: true }
   ],
   outputs: [],
 });
