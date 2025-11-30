@@ -1,6 +1,6 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { workspaceController } from '../builder/controllers';
 import { globalStyles } from '../styles';
 import './ui-button';
@@ -43,6 +43,23 @@ export class WorkspacePanel extends MobxLitElement {
       .file-icon {
         font-size: 1.2em;
       }
+
+      .input-group {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+        width: 100%;
+      }
+
+      .input-group input {
+        flex: 1;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        padding: 6px;
+        border-radius: 4px;
+        min-width: 0;
+      }
     `,
     css`
     .empty-state {
@@ -52,6 +69,9 @@ export class WorkspacePanel extends MobxLitElement {
       font-size: 12px;
     }
   `];
+
+  @state() isCreatingGraph = false;
+  @state() newGraphName = '';
 
   render() {
     const { currentDirHandle, files, currentGraphId, isWaitingForPermission } = workspaceController;
@@ -73,22 +93,52 @@ export class WorkspacePanel extends MobxLitElement {
           `)}
         </div>
 
-        <div slot="actions" style="display: flex; gap: 5px;">
-          <ui-button icon="la-folder-open" @click=${() => workspaceController.openFolder()}>Open Folder</ui-button>
-          <ui-button icon="la-plus" @click=${this.newGraph}>New Graph</ui-button>
+        <div slot="actions" style="display: flex; gap: 5px; width: 100%;">
+          ${this.isCreatingGraph ? html`
+            <div class="input-group">
+              <input
+                type="text"
+                .value=${this.newGraphName}
+                @input=${(e: any) => this.newGraphName = e.target.value}
+                @keydown=${this.handleNewGraphKeydown}
+                placeholder="Graph Name"
+                autofocus
+              />
+              <ui-button icon="la-check" @click=${this.confirmNewGraph}></ui-button>
+              <ui-button icon="la-times" @click=${this.cancelNewGraph}></ui-button>
+            </div>
+          ` : html`
+            <ui-button icon="la-folder-open" @click=${() => workspaceController.openFolder()}>Open Folder</ui-button>
+            <ui-button icon="la-plus" @click=${() => { this.isCreatingGraph = true; this.newGraphName = ''; }}>New Graph</ui-button>
+          `}
         </div>
       </ui-panel>
     `;
   }
 
-  private async newGraph() {
-    const name = prompt('Enter graph name (e.g. my-graph):');
-    if (name) {
+  private async confirmNewGraph() {
+    if (this.newGraphName) {
       try {
-        await workspaceController.createNewGraph(name);
+        await workspaceController.createNewGraph(this.newGraphName);
+        this.isCreatingGraph = false;
+        this.newGraphName = '';
       } catch (e) {
         alert('Failed to create graph: ' + e);
       }
     }
+  }
+
+  private cancelNewGraph() {
+    this.isCreatingGraph = false;
+    this.newGraphName = '';
+  }
+
+  private handleNewGraphKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      this.confirmNewGraph();
+    } else if (e.key === 'Escape') {
+      this.cancelNewGraph();
+    }
+    e.stopPropagation();
   }
 }
