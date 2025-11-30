@@ -273,7 +273,9 @@ function createLayerNode(
     config: { targetNote: numberType },
     inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
     outputs: { out: layerOutputStructorType },
-    autoBroadcast: true,
+    autoBroadcast: {
+      midi_in: { combine: { reduce: 'first' } }
+    },
     isRealtime: () => true,
     createState: (config, context) => {
       return {
@@ -356,7 +358,9 @@ const toneSynthPrimitive = definePrimitiveNode({
   config: { targetNote: numberType },
   inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
   outputs: { out: layerOutputStructorType },
-  autoBroadcast: true,
+  autoBroadcast: {
+    midi_in: { combine: { reduce: 'first' } }
+  },
   isRealtime: () => true,
   createState: (config, context) => {
     return {

@@ -147,9 +147,9 @@ export interface TypedNodeOptions<
 
   /**
    * If true, inputs are automatically broadcasted to match the input definition.
-   * If false (default), inputs are passed as raw StructorRecord.
+   * Can also be a record to override specific input broadcast settings.
    */
-  autoBroadcast?: boolean;
+  autoBroadcast?: boolean | Record<string, Partial<TypedBroadcastChannel>>;
 
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
@@ -220,12 +220,16 @@ export function definePrimitiveNode<
           reshape: 'none'
         };
 
+        const overrides = typeof options.autoBroadcast === 'object' ? options.autoBroadcast : {};
+
         for (const [key, type] of Object.entries(options.inputs)) {
           const isArray = type.kind === 'array';
+          const override = overrides[key];
+
           broadcastConfig.outputs[key] = {
             fromFields: [key],
             fromUntagged: false,
-            combine: isArray ? 'collect' : { reduce: 'first' }
+            combine: override?.combine ?? (isArray ? 'collect' : { reduce: 'first' })
           };
         }
 

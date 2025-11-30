@@ -66,7 +66,7 @@ export type Structor =
   | StructorArray
   | StructorRecord;
 
-import { NodeRepository } from './repository';
+import type { NodeRepository } from './repository';
 
 /* ===================================================================
  * 3. Node Definitions

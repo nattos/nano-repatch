@@ -193,7 +193,7 @@ export class DebugTab extends MobxLitElement {
       // NodeType has 'outputs' which is PortHint[].
     }
 
-    const repoEntry = node ? defaultNodeRepository.get(node.config.typeId) : undefined;
+    const repoEntry = node ? defaultNodeRepository.getNodeType(node.config.typeId) : undefined;
     const displayName = node ? (node.config.name || node.config.typeId) : id;
     const typeName = node ? node.config.typeId : 'Unknown';
 
