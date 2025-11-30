@@ -29,8 +29,8 @@ export const globalStyles = [
     --app-bg-color2: #313131;
 
     /* Semantic Theme Variables */
-    --bg-color: #222;
-    --panel-bg: #333;
+    --bg-color: #212020ff;
+    --panel-bg: #2a2a2aff;
     --panel-header-bg: #2a2a2a;
     --node-bg: #333;
     --node-border: #444;

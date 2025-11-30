@@ -15,11 +15,13 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | Metric | Value | Description |
 | :--- | :--- | :--- |
 | **`NODE_WIDTH`** | **`272px`** | Total width of the node (Border Box). |
-| **`NODE_PADDING`** | **`8px`** | Internal padding of the node (effective content offset). |
-| **`HEADER_HEIGHT`** | **`24px`** | Effective visual height of the header (top of first port row). |
-| **`CONTENT_WIDTH`** | **`252px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING` - 4px). |
-| **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset from the **Main Content Left Edge** to the **Center** of the input pip. |
-| **`PIP_OFFSET_Y`** | **`12px`** | Vertical offset from the top of the port row to the center of the pip. |
+| **`NODE_PADDING_X`** | **`16px`** | Horizontal internal padding. |
+| **`NODE_PADDING_Y`** | **`8px`** | Vertical internal padding. |
+| **`NODE_BORDER_WIDTH`** | **`3px`** | Width of the left accent border. |
+| **`HEADER_HEIGHT`** | **`24px`** | Effective visual height of the header. |
+| **`CONTENT_WIDTH`** | **`240px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING_X`). |
+| **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset of input pips. |
+| **`PIP_OFFSET_Y`** | **`12px`** | Vertical offset of input pips. |
 
 ## Port Label Metrics
 
@@ -28,6 +30,31 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | **`LABEL_HEIGHT`** | **`24px`** | Height of the label container (matches `PORT_ROW_HEIGHT`). |
 | **`LABEL_FONT_SIZE`** | **`0.7em`** | Font size for port labels. |
 | **`LABEL_PADDING`** | **`0 5px`** | Padding inside the label container. |
+
+## Vertical Rhythm & Grid Fit
+
+The layout is designed so that nodes of varying sizes (Single, Double, Triple grid units) fit perfectly into the grid without slack.
+
+*   **Row Height**: `24px`
+*   **Header Height**: `24px`
+*   **Bottom Padding**: `8px` (NODE_PADDING_Y)
+
+### Height Calculation
+`Total Height = Header + (Rows * 24) + Padding`
+`Total Height = 24 + (Rows * 24) + 8`
+
+### Grid Fit Verification
+
+| Size | Grid Height | Calculation | Fits Rows | Node Height |
+| :--- | :--- | :--- | :--- | :--- |
+| **Single** | **80px** | `80` | **2** | `24 + 48 + 8 = 80px` |
+| **Double** | **176px** | `80 + 16 + 80` | **6** | `24 + 144 + 8 = 176px` |
+| **Triple** | **272px** | `176 + 16 + 80` | **10** | `24 + 240 + 8 = 272px` |
+
+This means custom editors should aim for heights that are multiples of **24px** to maintain alignment.
+
+| Metric | Value | Description |
+| :--- | :--- | :--- |
 | **`LABEL_COLOR`** | **`var(--text-muted)`** | Text color for labels. |
 | **`SLIDER_LABEL_WIDTH`** | **`38px`** | Fixed width for labels inside slider editors (includes padding). |
 | **`LABEL_BOX_SIZING`** | **`border-box`** | Box sizing model for labels. |

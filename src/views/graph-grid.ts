@@ -22,6 +22,7 @@ export class GraphGrid extends MobxLitElement {
       overflow: auto;
       position: relative;
       user-select: none;
+      background-color: var(--bg-color);
     }
 
     .grid-container {
@@ -67,13 +68,50 @@ export class GraphGrid extends MobxLitElement {
     }
 
     .cell.node-cell {
-      background-color: rgba(255, 255, 255, 0.05);
+      /* background-color: rgba(255, 255, 255, 0.05); */
+      /* border: 1px dashed rgba(255, 255, 255, 0.15); */
       min-width: 80px;
       min-height: 80px;
     }
 
     .cell.gap-cell {
-      /* Optional: visual indication of gaps */
+      position: relative;
+    }
+
+    .cell.gap-h::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+    }
+
+    .cell.gap-v::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      border-left: 1px dashed rgba(255, 255, 255, 0.15);
+    }
+
+    .cell.gap-c::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+    }
+
+    .cell.gap-c::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      border-left: 1px dashed rgba(255, 255, 255, 0.15);
     }
 
     /* Wire Styles (moved from GraphConnection) */
@@ -427,7 +465,7 @@ export class GraphGrid extends MobxLitElement {
     for (let y = 0; y < rows; y++) {
       cells.push(html`<div class="cell node-cell" data-x="0" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2};"></div>`);
       // Gap below input?
-      cells.push(html`<div class="cell gap-cell" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
     }
 
     // Main Grid (x=1..12)
@@ -440,14 +478,14 @@ export class GraphGrid extends MobxLitElement {
         // Node Cell
         cells.push(html`<div class="cell node-cell" data-x="${x}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx};"></div>`);
 
-        // Gap below Node (Row 2*y+3)
-        cells.push(html`<div class="cell gap-cell" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
+        // Gap below Node (Row 2*y+3) -> Horizontal Line
+        cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
 
-        // Gap to the left (Col 2*x)
-        cells.push(html`<div class="cell gap-cell" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx};"></div>`);
+        // Gap to the left (Col 2*x) -> Vertical Line
+        cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx};"></div>`);
 
-        // Corner (Gap left + Gap below) -> Col 2*x, Row 2*y+3
-        cells.push(html`<div class="cell gap-cell" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx + 1};"></div>`);
+        // Corner (Gap left + Gap below) -> Cross
+        cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx + 1};"></div>`);
       }
     }
 
@@ -459,10 +497,10 @@ export class GraphGrid extends MobxLitElement {
     const outputCol = 2 * 12 + 3;
     for (let y = 0; y < rows; y++) {
       cells.push(html`<div class="cell node-cell" data-x="output" data-y="${y}" style="grid-column: ${outputCol}; grid-row: ${2 * y + 2};"></div>`);
-      cells.push(html`<div class="cell gap-cell" style="grid-column: ${outputCol}; grid-row: ${2 * y + 3};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${outputCol}; grid-row: ${2 * y + 3};"></div>`);
       // Gap to left of output
-      cells.push(html`<div class="cell gap-cell" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 2};"></div>`);
-      cells.push(html`<div class="cell gap-cell" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 3};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 2};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 3};"></div>`);
     }
 
     return html`

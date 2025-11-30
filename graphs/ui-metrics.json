@@ -11,8 +11,8 @@
     },
     "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd": {
       "id": "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd",
-      "x": 2,
-      "y": 4,
+      "x": 4,
+      "y": 3,
       "config": {
         "typeId": "math.fmod",
         "values": {}
@@ -25,7 +25,8 @@
       "config": {
         "typeId": "math.clamp",
         "values": {
-          "max": 0.45
+          "max": 0.45,
+          "": 0.43
         }
       }
     },
@@ -35,7 +36,9 @@
       "y": 6,
       "config": {
         "typeId": "math.map",
-        "values": {}
+        "values": {
+          "value": 1
+        }
       }
     },
     "node-16b9104a-01af-4589-8664-53288cb6d070": {

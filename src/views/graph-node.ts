@@ -117,7 +117,7 @@ export class GraphNode extends MobxLitElement {
 
     .node {
       position: absolute;
-      background: var(--bg-color);
+      background-color: var(--panel-bg);
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.5);
       display: flex;
