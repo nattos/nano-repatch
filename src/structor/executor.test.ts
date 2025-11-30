@@ -186,8 +186,8 @@ describe('GraphExecutor', () => {
         const output = executor.getNodeOutput('n2');
         expect(output).toBeDefined();
         // Clamp default min=0, max=1. Input 0.5. Output should be 0.5.
-        // primitive_clamp returns an array for untagged output
-        expect(output?.untagged[0]).toEqual(0.5);
+        // primitive_clamp returns a named field 'value'
+        expect(output?.fields.value).toEqual(0.5);
     });
 
     it('should redirect named inputs to untagged when redirect: "untagged" is set', () => {

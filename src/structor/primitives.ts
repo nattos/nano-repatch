@@ -21,14 +21,16 @@ export const primitive_add = defineMathNode(
   (a, b) => a + b
 );
 
-export const primitive_clamp: PrimitiveNodeDefinition = {
+export const primitive_clamp = {
   id: 'math.clamp',
-  kind: 'primitive',
+  kind: 'primitive' as const,
   metadata: {
     category: NodeCategory.Math,
     keywords: ['limit', 'range'],
     description: 'Clamps a value between a minimum and maximum.'
   },
+  inputs: { value: numberType, min: numberType, max: numberType },
+  outputs: { value: numberType },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     const broadcastConfig: BroadcastConfig = {
       outputs: {
@@ -39,7 +41,7 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
       reshape: 'none',
     };
     const broadcastResultType = context.broadcast(broadcastConfig, inputType);
-    return { kind: 'record', fields: {}, untagged: [broadcastResultType.fields.value] };
+    return { kind: 'record' as const, fields: { value: broadcastResultType.fields.value }, untagged: [] };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     const broadcastConfig: BroadcastConfig = {
@@ -54,7 +56,7 @@ export const primitive_clamp: PrimitiveNodeDefinition = {
     const clamped = broadcastResult.apply((args: any) =>
       Math.max(args.min, Math.min(args.value, args.max))
     );
-    return { fields: {}, untagged: [clamped] };
+    return { fields: { value: clamped }, untagged: [] };
   }
 };
 
@@ -214,13 +216,16 @@ export const primitive_lerp = definePrimitiveNode({
   outputs: { result: numberType },
   autoBroadcast: true,
   execute: (inputs, config) => {
+    // console.log('Lerp execute:', inputs, config);
     const { a, b, t } = inputs as { a: number, b: number, t: number };
     const doClamp = config.clamp !== false; // Default to true
-    let tClamped = t;
-    if (doClamp) {
-      tClamped = Math.max(0, Math.min(1, t));
-    }
-    return { result: a * (1 - tClamped) + b * tClamped };
+
+    const val = a + (b - a) * t;
+    const result = doClamp
+      ? Math.max(Math.min(val, Math.max(a, b)), Math.min(a, b))
+      : val;
+
+    return { result };
   }
 });
 
@@ -434,5 +439,9 @@ ALL_PRIMITIVES.push(
   primitive_less_than,
   primitive_not,
   primitive_pi,
-  primitive_e
+  primitive_e,
+  primitive_lerp,
+  primitive_map,
+  primitive_hub,
+  primitive_float
 );

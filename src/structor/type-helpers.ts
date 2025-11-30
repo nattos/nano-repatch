@@ -188,22 +188,11 @@ export function definePrimitiveNode<
     computeOutputTypes: () => outputType,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
-      // Config is also a StructorRecord (or plain object?)
-      // Usually config comes from the graph and is a StructorRecord.
       const processedConfig = fromStructor(rawConfig, configType);
 
       // Handle State
       let state: TState = undefined as any;
       if (options.createState) {
-        // We need a unique key for this node instance.
-        // Currently, we don't have a stable instance ID passed to execute.
-        // We have to rely on a hack using the config as a key, or assume the context provides a way to identify the node.
-        // The user mentioned: "Let's add a way to get and set the current node's state in ExecutionContext, which will know how to lookup the current node."
-        // But for now, let's assume we use the config-based key hack OR if context has a current node ID.
-        // Since we don't have current node ID in context yet, let's stick to the config hack for now,
-        // BUT ideally we should fix this in the executor.
-        // Wait, the user said: "Clearly nodes will need state. Let's add a way to get and set the current node's state in ExecutionContext... An alternative we should explore is having nodes be able to declare the exact type of their state... Then their execute method will receive the state"
-        // Use nodeId if available (stable), otherwise fallback to config hash (unstable but works for stateless/tests)
         const key = context.nodeId || `${options.id}-${JSON.stringify(rawConfig)}`;
         if (!context.nodeState.has(key)) {
           context.nodeState.set(key, options.createState(processedConfig, context));
@@ -235,9 +224,6 @@ export function definePrimitiveNode<
 
         const broadcasted = context.broadcast(broadcastConfig, rawInput);
 
-        // We use apply to execute the node logic for each item in the broadcast result.
-        // If the result is a vector, apply will return an array of results.
-        // We then need to transpose this array of results back into a structure of arrays (fields).
         const result = broadcasted.apply((args: any) => {
           // Unwrap inputs
           const inputs: any = {};
@@ -280,8 +266,6 @@ export function definePrimitiveNode<
           const anyResult = result as any;
           const wrappedFields: Record<string, Structor> = {};
           for (const [key, type] of Object.entries(options.outputs)) {
-            // The result from apply (scalar) is the return value of execute, which is a plain object (not StructorRecord yet)
-            // e.g. { result: 123 }
             if (anyResult[key] !== undefined) {
               wrappedFields[key] = toStructor(anyResult[key], type);
             }

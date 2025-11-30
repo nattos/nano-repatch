@@ -117,6 +117,31 @@ This entry documents the implementation of the graph composition features and th
 
 *   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
 
+## Primitive Node Integration Tests (As of 2025-11-30)
+
+This entry documents the creation of integration tests for primitive nodes and the resolution of a critical bug in node registration.
+
+### Features Implemented
+
+1.  **Primitives Integration Test Suite:** Created `src/structor/primitives-integration.test.ts` to verify the execution of primitive nodes within a compiled graph.
+2.  **`compileAndRun` Helper:** Implemented a helper function to simplify test setup by creating a graph from a concise definition, compiling it, and running the executor.
+3.  **Test Cases:** Added tests for:
+    *   Chained math operations (`add`, `multiply`).
+    *   Chained logic operations (`greater_than`, `less_than`, `and`).
+    *   `math.clamp` (verifying named output `value`).
+    *   `math.lerp` (verifying `autoBroadcast` and execution).
+
+### Bug Fixes
+
+1.  **Missing Node Registration:** Discovered that `primitive_lerp` (and several other nodes like `map`, `hub`, `float`) were defined but **not added** to the `ALL_PRIMITIVES` array. This caused the `GraphExecutor` to fail silently when trying to execute these nodes, as their definitions were not found in the repository. Added these nodes to `ALL_PRIMITIVES`.
+2.  **`primitive_clamp` Definition:** Updated `primitive_clamp` to use a named output `value` instead of relying on default behavior, matching the test expectations.
+
+### Debugging Insights
+
+*   **Silent Failures:** The `GraphExecutor` silently skips nodes if their definition is missing. This made debugging difficult as the graph topology looked correct, but the node simply didn't run.
+*   **Execution Order:** The `executionOrder` was correct, but the node execution itself was skipped due to the missing definition.
+*   **`autoBroadcast` Verification:** Confirmed that `autoBroadcast: true` works correctly for `math.lerp` once the node is properly registered.
+
 ## Principled Layout System (As of 2025-11-30)
 
 This entry documents the implementation of the "Perfect Alignment" grid system and the subsequent styling refinements.
