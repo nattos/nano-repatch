@@ -2,12 +2,14 @@ import 'line-awesome/dist/line-awesome/css/line-awesome.css';
 // @ts-ignore
 import lineawesomecss from 'line-awesome/dist/line-awesome/css/line-awesome.css?raw';
 import { LitElement, html, css, unsafeCSS } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 @customElement('ui-button')
 export class UiButton extends LitElement {
   @property({ type: String }) icon = '';
   @property({ type: Boolean }) disabled = false;
+
+  @state() private hasContent = false;
 
   static readonly styles = [unsafeCSS(lineawesomecss), css`
     :host {
@@ -49,16 +51,28 @@ export class UiButton extends LitElement {
       margin-left: 8px;
     }
 
-    span:empty {
-        margin-left: 0;
+    span.hidden {
+        display: none;
     }
   `];
+
+  private handleSlotChange(e: Event) {
+    const slot = e.target as HTMLSlotElement;
+    const nodes = slot.assignedNodes({ flatten: true });
+    // Check if there are any non-empty text nodes or elements
+    this.hasContent = nodes.some(node =>
+      node.nodeType === Node.ELEMENT_NODE ||
+      (node.nodeType === Node.TEXT_NODE && node.textContent?.trim() !== '')
+    );
+  }
 
   render() {
     return html`
       <button ?disabled=${this.disabled}>
         ${this.icon ? html`<i class="las ${this.icon}"></i>` : ''}
-        <span><slot></slot></span>
+        <span class="${this.hasContent ? '' : 'hidden'}">
+          <slot @slotchange=${this.handleSlotChange}></slot>
+        </span>
       </button>
     `;
   }
