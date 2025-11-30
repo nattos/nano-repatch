@@ -16,31 +16,6 @@ export class WorkspacePanel extends MobxLitElement {
         height: 100%;
       }
 
-      .file-list {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .file-item {
-        padding: 8px;
-        cursor: pointer;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .file-item:hover {
-        background-color: var(--button-hover);
-      }
-
-      .file-item.selected {
-        background-color: var(--selection-color);
-        border: 1px solid var(--selection-border);
-        color: var(--text-color);
-      }
-
       .file-icon {
         font-size: 1.2em;
       }
@@ -82,14 +57,16 @@ export class WorkspacePanel extends MobxLitElement {
       <ui-panel title="Workspace">
         <ui-button slot="header-actions" icon="la-sync" @click=${() => workspaceController.refreshFiles()} title="Refresh"></ui-button>
 
-        <div class="file-list">
+        <div class="ui-list">
           ${files.map((file, index) => html`
             <div
-              class="file-item ${file.name === currentGraphId ? 'selected' : ''}"
+              class="ui-list-item ${file.name === currentGraphId ? 'selected' : ''}"
               @click=${() => workspaceController.openFile(file.name)}
             >
-              <i class="la la-file file-icon"></i>
-              <span>${file.name}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="la la-file file-icon"></i>
+                <span>${file.name}</span>
+              </div>
             </div>
           `)}
         </div>

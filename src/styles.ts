@@ -60,4 +60,30 @@ export const globalStyles = [
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
   }
+
+  .ui-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .ui-list-item {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .ui-list-item:hover {
+    background-color: var(--button-hover);
+  }
+
+  .ui-list-item.selected {
+    background-color: var(--selection-color);
+    border: 1px solid var(--selection-border);
+    color: var(--text-color);
+  }
 `];

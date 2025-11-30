@@ -2,10 +2,12 @@ import { html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { resolumeManager } from '../io/resolume/manager';
-import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeParameter, ResolumeEffect } from '../io/resolume/state';
+import { ResolumeComposition, ResolumeLayer, ResolumeClip } from '../io/resolume/state';
+import { ResolumeInspectorWrapper } from './resolume-inspector';
 import { midiManager } from '../io/midi/manager';
 import { MidiDevice, MidiEvent } from '../io/midi/state';
 import { globalStyles } from '../styles';
+import { localController } from '../builder/controllers';
 import './ui-button';
 import './ui-panel';
 
@@ -15,35 +17,127 @@ export class IOTab extends MobxLitElement {
     ...globalStyles,
     css`
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
         height: 100%;
+        overflow: hidden;
+      }
+
+      .tab-header {
+        padding: 10px 15px;
+        font-weight: bold;
+        font-size: 1.1em;
+        border-bottom: 1px solid var(--border-color);
+        background-color: var(--panel-header-bg);
+        flex-shrink: 0;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-bottom: 20px;
+        flex: 1;
+        overflow-y: auto;
       }
 
       .section {
-        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
       }
 
       .section-header {
         font-weight: bold;
         margin-bottom: 10px;
         border-bottom: 1px solid var(--border-color);
-        padding-bottom: 5px;
+        padding: 5px 15px;
         color: var(--text-muted);
       }
 
-      .device-list {
+      .resolume-container {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 10px;
       }
 
-      .device-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+      .composition-list {
+        flex: 0 0 250px;
+        border-right: 1px solid var(--border-color);
+        overflow-y: auto;
+        padding-right: 10px;
+      }
+
+      .clips-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+        align-content: start;
         padding: 5px;
+        border-top: 1px solid var(--border-color);
+        margin-top: 10px;
+        padding-top: 15px;
+      }
+
+      .list-item {
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-bottom: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .list-item:hover {
+        background-color: var(--input-bg);
+      }
+
+      .list-item.selected {
+        background-color: var(--accent-color);
+        color: var(--bg-color);
+      }
+
+      .clip-card {
         background-color: var(--input-bg);
         border-radius: 4px;
+        overflow: hidden;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        aspect-ratio: 4/3;
+        border: 2px solid transparent;
+      }
+
+      .clip-card:hover {
+        border-color: var(--text-muted);
+      }
+
+      .clip-card.selected {
+        border-color: var(--accent-color);
+      }
+
+      .clip-thumb {
+        flex: 1;
+        background-color: #000;
+        background-size: cover;
+        background-position: center;
+      }
+
+      .clip-name {
+        padding: 5px;
+        font-size: 0.8em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: rgba(0,0,0,0.5);
+      }
+
+      .resolume-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 0 15px;
       }
 
       .status {
@@ -58,54 +152,95 @@ export class IOTab extends MobxLitElement {
         box-shadow: 0 0 5px var(--port-connected);
       }
 
-      .resolume-status {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+      .midi-section {
+        flex: 0 0 auto;
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+        margin-top: 10px;
       }
 
-    details > summary {
-        list-style: none;
+      .midi-devices {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 10px;
+        padding: 0 15px;
+      }
+
+      .chip {
+        padding: 4px 8px;
+        background-color: var(--input-bg);
+        border-radius: 12px;
+        font-size: 0.9em;
         cursor: pointer;
-    }
+        border: 1px solid transparent;
+        transition: all 0.2s;
+      }
 
-    details > summary::-webkit-details-marker {
-        display: none;
-    }
+      .chip:hover {
+        background-color: var(--button-hover);
+      }
 
-    details > summary::before {
-        content: '▶';
+      .chip.selected {
+        background-color: var(--selection-color);
+        border-color: var(--selection-border);
+        color: var(--text-color);
+      }
+
+      .chip.disconnected {
+        opacity: 0.5;
+        text-decoration: line-through;
+      }
+
+      .midi-events {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0 15px;
+      }
+
+      .event-card {
+        background-color: var(--input-bg);
+        padding: 8px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: grab;
+        border: 1px solid transparent;
+      }
+
+      .event-card:hover {
+        border-color: var(--border-color);
+      }
+
+      .event-info {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .event-type {
         font-size: 0.8em;
-        margin-right: 5px;
-        display: inline-block;
-        transition: transform 0.1s;
-    }
+        color: var(--text-muted);
+        background-color: rgba(0,0,0,0.2);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
 
-    details[open] > summary::before {
-        transform: rotate(90deg);
-    }
-  `];
+      .event-value {
+        font-family: monospace;
+        font-weight: bold;
+      }
+    `
+  ];
 
   render() {
-    const { state, ws } = resolumeManager;
-    const connected = !!ws;
-
     return html`
-      <ui-panel title="I/O Devices">
-        <div class="section">
-          <div class="section-header">MIDI Devices</div>
-          <div class="device-list">
-            ${Array.from(midiManager.state.devices.values()).map(input => html`
-              <div class="device-item">
-                <span>${input.name}</span>
-                <div class="status ${input.state === 'connected' ? 'connected' : ''}"></div>
-              </div>
-            `)}
-            ${midiManager.state.devices.size === 0 ? html`<div>No MIDI inputs found</div>` : ''}
-          </div>
-        </div>
-
+      <div class="tab-header">I/O Devices</div>
+      <div class="container">
         <div class="section">
           <div class="section-header">Resolume Arena</div>
           <div class="resolume-status">
@@ -119,9 +254,14 @@ export class IOTab extends MobxLitElement {
               ${resolumeManager.isConnected ? 'Connected' : 'Connect'}
             </ui-button>
           </div>
-          ${resolumeManager.isConnected ? this.renderComposition(resolumeManager.state) : ''}
+          ${resolumeManager.isConnected ? this.renderResolumeContent() : ''}
         </div>
-      </ui-panel>
+
+        <div class="section midi-section">
+          <div class="section-header">MIDI Devices</div>
+          ${this.renderMidiSection()}
+        </div>
+      </div>
     `;
   }
 
@@ -133,79 +273,97 @@ export class IOTab extends MobxLitElement {
     }
   }
 
-  renderComposition(comp: ResolumeComposition) {
-    return html`
-      <div class="item">
-        <details open>
-            <summary class="label">Composition</summary>
-            ${comp.params.map(p => this.renderParameter(p))}
-            ${comp.effects.map(e => this.renderEffect(e))}
-            ${comp.layers.map(l => this.renderLayer(l))}
-        </details>
-      </div>
-    `;
-  }
+  renderResolumeContent() {
+    const comp = resolumeManager.state;
+    const selection = localController.observableState.selection;
 
-  renderLayer(layer: ResolumeLayer) {
-    return html`
-      <div class="item">
-        <details>
-            <summary class="label">${layer.name}</summary>
-            ${layer.params.map(p => this.renderParameter(p))}
-            ${layer.effects.map(e => this.renderEffect(e))}
-            ${layer.clips.map(c => this.renderClip(c))}
-        </details>
-      </div>
-    `;
-  }
+    // Find selected layer to show clips
+    let selectedLayer: ResolumeLayer | undefined;
+    for (const layer of comp.layers) {
+      if (selection.has(layer.path)) {
+        selectedLayer = layer;
+        break;
+      }
+    }
 
-  renderClip(clip: ResolumeClip) {
-    return html`
-      <div class="item">
-        <details>
-            <summary class="label">
-                ${clip.thumbnail ? html`<img class="thumbnail" src="http://127.0.0.1:8080${clip.thumbnail}">` : ''}
-                ${clip.name}
-            </summary>
-            ${clip.params.map(p => this.renderParameter(p))}
-            ${clip.effects.map(e => this.renderEffect(e))}
-        </details>
-      </div>
-    `;
-  }
+    // If a clip is selected, find its layer
+    if (!selectedLayer) {
+      for (const layer of comp.layers) {
+        for (const clip of layer.clips) {
+          if (selection.has(clip.path)) {
+            selectedLayer = layer;
+            break;
+          }
+        }
+        if (selectedLayer) break;
+      }
+    }
 
-  renderEffect(effect: ResolumeEffect) {
+    // Use original order (Layer 1, Layer 2, Layer 3)
+    // const reversedLayers = [...comp.layers].reverse(); // Reverted
+
     return html`
-        <div class="item">
-            <details>
-                <summary class="label">FX: ${effect.name}</summary>
-                ${effect.params.map(p => this.renderParameter(p))}
-            </details>
+      <div class="resolume-container">
+        <div class="ui-list">
+          <div
+            class="ui-list-item ${selection.has(comp.path) ? 'selected' : ''}"
+            @click=${() => localController.defineSelectable(new ResolumeInspectorWrapper(comp)).select()}
+          >
+            <strong>Composition</strong>
+          </div>
+
+          ${comp.layers.map(layer => {
+      // Replace # with index (1-based index from end? or original index?)
+      // Resolume usually names them "Layer 1", "Layer 2".
+      // If the name contains '#', replace it with the layer index.
+      // The layer object has an index (implied by position or id?).
+      // ResolumeLayer has 'name' property.
+      // If name is "Layer #", replace with "Layer N".
+      // We can use the layer's ID or index.
+      // Let's assume layer.name is raw.
+      // Actually, Resolume API usually sends resolved names.
+      // But user said "look for # characters... replace with layer index".
+      // I'll use a regex.
+
+      // We need the original index (1-based).
+      // comp.layers is ordered 0..N.
+      // So layer index is comp.layers.indexOf(layer) + 1.
+      const index = comp.layers.indexOf(layer) + 1;
+      const displayName = layer.name.replace('#', index.toString());
+
+      return html`
+              <div
+                class="ui-list-item ${selection.has(layer.path) ? 'selected' : ''}"
+                @click=${() => localController.defineSelectable(new ResolumeInspectorWrapper(layer)).select()}
+              >
+                ${displayName}
+              </div>
+            `;
+    })}
         </div>
-      `;
+
+        ${selectedLayer ? html`
+          <div class="clips-grid">
+            ${selectedLayer.clips.map(clip => this.renderClipCard(clip))}
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
-  renderParameter(param: ResolumeParameter) {
+  renderClipCard(clip: ResolumeClip) {
+    const isSelected = localController.observableState.selection.has(clip.path);
+    const thumbUrl = clip.thumbnail ? `http://127.0.0.1:8080${clip.thumbnail}` : '';
+
     return html`
       <div
-        class="item param"
-        draggable="true"
-        @dragstart=${(e: DragEvent) => this.handleDragStart(e, param)}
+        class="clip-card ${isSelected ? 'selected' : ''}"
+        @click=${() => localController.defineSelectable(new ResolumeInspectorWrapper(clip)).select()}
       >
-        ${param.name} <span style="opacity: 0.5">(${param.value})</span>
+        <div class="clip-thumb" style="background-image: url('${thumbUrl}')"></div>
+        <div class="clip-name">${clip.name}</div>
       </div>
     `;
-  }
-
-  handleDragStart(e: DragEvent, param: ResolumeParameter) {
-    if (e.dataTransfer) {
-      e.dataTransfer.setData('application/json', JSON.stringify({
-        type: 'resolume:parameter',
-        path: param.path,
-        name: param.name
-      }));
-      e.dataTransfer.effectAllowed = 'copy';
-    }
   }
 
   renderMidiSection() {
