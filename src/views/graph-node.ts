@@ -12,6 +12,7 @@ import '../components/smart-input';
 import { NodeCatalog } from '../structor/node-catalog';
 import './graph-port';
 import { globalStyles } from '../styles';
+import { formatValue } from './formatters';
 import {
   NODE_WIDTH_NORMAL,
   NODE_CONTENT_WIDTH,
@@ -289,32 +290,56 @@ export class GraphNode extends MobxLitElement {
 
 
 
-    .debug-chip {
+    .debug-chip-wrapper {
       position: absolute;
       left: 100%; /* Position to the right of the port (outside) */
       margin-left: 8px;
+      pointer-events: none;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    /* Styles for chips returned by formatValue */
+    .chip {
+      display: inline-flex;
+      align-items: center;
       background: rgba(0, 0, 0, 0.7);
       color: #ddd;
       padding: 1px 4px;
       border-radius: 4px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 9px;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 10;
       border: 1px solid #444;
     }
 
-    .debug-chip.vector {
+    .chip.vector {
+      background: rgba(42, 63, 74, 0.8);
       color: #8dc1e3;
       border-color: #3a5f7a;
-      background: rgba(42, 63, 74, 0.8);
     }
 
-    .debug-chip.struct {
+    .chip.struct {
+      background: rgba(58, 42, 74, 0.8);
       color: #c18de3;
       border-color: #5f3a7a;
-      background: rgba(58, 42, 74, 0.8);
+    }
+
+    .chip.midi {
+      background: rgba(74, 58, 42, 0.8);
+      color: #e3c18d;
+      border-color: #7a5f3a;
+    }
+
+    .chip.midi-stream {
+      background: rgba(42, 74, 58, 0.8);
+      color: #8de3c1;
+      border-color: #3a7a5f;
+    }
+
+    .chip.sequence {
+      background: rgba(50, 50, 50, 0.8);
+      color: #aaa;
+      border-color: #555;
     }
   `];
 
@@ -325,41 +350,29 @@ export class GraphNode extends MobxLitElement {
     if (!output) return null;
 
     let value: any = undefined;
+    let type: any = undefined;
+
+    // Get Node Type for metadata
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
 
     // Check fields first
     if (output.fields && portName in output.fields) {
       value = output.fields[portName];
+      if (nodeType && nodeType.outputs) {
+        const port = nodeType.outputs.find(p => p.name === portName);
+        if (port) type = port.type;
+      }
     }
     // Then check untagged if it's the default output (empty string name)
     else if (portName === '' && output.untagged && output.untagged.length > 0) {
       value = output.untagged[0];
+      // Type for untagged?
     }
 
     if (value === undefined) return null;
 
-    let displayValue = '';
-    let isStruct = false;
-    let isVector = false;
-
-    if (typeof value === 'number') {
-      displayValue = value.toFixed(2);
-    } else if (typeof value === 'string') {
-      displayValue = `"${value.length > 10 ? value.substring(0, 8) + '..' : value}"`;
-    } else if (Array.isArray(value)) {
-      displayValue = `vec(${value.length})`;
-      isVector = true;
-    } else if (typeof value === 'object' && value !== null) {
-      displayValue = 'struct';
-      isStruct = true;
-    } else {
-      displayValue = String(value);
-    }
-
-    const classes = ['debug-chip'];
-    if (isVector) classes.push('vector');
-    if (isStruct) classes.push('struct');
-
-    return html`<div class="${classes.join(' ')}">${displayValue}</div>`;
+    // Use shared formatter
+    return html`<div class="debug-chip-wrapper">${formatValue(value, type)}</div>`;
   }
 
   private handlePointerDown(e: PointerEvent) {

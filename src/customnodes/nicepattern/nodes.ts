@@ -110,7 +110,7 @@ defaultNodeRepository.register({
   outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
-      targetNote: uiConfig?.targetNote ?? 0,
+      targetNote: uiConfig?.targetNote ?? 60,
       density: uiConfig?.density ?? 0.5,
     },
     untagged: [],
@@ -152,8 +152,8 @@ defaultNodeRepository.register({
   outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
-      minNote: uiConfig?.minNote ?? 0,
-      maxNote: uiConfig?.maxNote ?? 12,
+      minNote: uiConfig?.minNote ?? 60,
+      maxNote: uiConfig?.maxNote ?? 72,
       density: uiConfig?.density ?? 0.5,
     },
     untagged: [],
@@ -335,7 +335,7 @@ function createLayerNode(
     outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],
     compileConfig: (uiConfig) => ({
       fields: {
-        targetNote: uiConfig?.targetNote ?? 0,
+        targetNote: uiConfig?.targetNote ?? 60,
       },
       untagged: [],
     }),
@@ -426,7 +426,7 @@ defaultNodeRepository.register({
   outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],
   compileConfig: (uiConfig) => ({
     fields: {
-      targetNote: uiConfig?.targetNote ?? 0,
+      targetNote: uiConfig?.targetNote ?? 60,
     },
     untagged: [],
   }),

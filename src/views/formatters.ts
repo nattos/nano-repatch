@@ -64,7 +64,19 @@ export function formatValue(value: any, type?: StructorType): TemplateResult {
   return html`<span class="chip">${String(value)}</span>`;
 }
 
-function formatMidiEvent(event: { status: number, data1: number, data2: number }): string {
+function unwrap(value: any): any {
+  if (value && typeof value === 'object' && 'fields' in value) {
+    const result: any = {};
+    for (const [k, v] of Object.entries(value.fields)) {
+      result[k] = unwrap(v);
+    }
+    return result;
+  }
+  return value;
+}
+
+function formatMidiEvent(rawEvent: any): string {
+  const event = unwrap(rawEvent);
   const status = event.status & 0xF0;
 
   if (status === 0xB0) { // CC
@@ -83,7 +95,7 @@ function formatMidiEvent(event: { status: number, data1: number, data2: number }
     return `${midiNoteName(event.data1)}:off`;
   }
 
-  return `midi(${status.toString(16)})`;
+  return `midi(${status ? status.toString(16) : '?'})`;
 }
 
 function midiNoteName(note: number): string {
@@ -109,7 +121,8 @@ function formatStepSequence(sequence: any[]): TemplateResult {
   }
 
   // Visualize as bars: ▮ for active, ▯ for inactive
-  const bars = sequence.map(step => {
+  const bars = sequence.map(rawStep => {
+    const step = unwrap(rawStep);
     if (step.noteIndex !== null && step.noteIndex !== undefined) {
       return '▮';
     } else {

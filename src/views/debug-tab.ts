@@ -203,12 +203,14 @@ export class DebugTab extends MobxLitElement {
           <span class="node-name">${displayName}${suffix}</span>
           <span class="node-type">${typeName}</span>
         </div>
-        ${this.renderValues(output, repoEntry)}
+        ${this.renderValues(output, repoEntry, nodeId)}
       </div>
     `;
   }
 
-  private renderValues(output: any, repoEntry?: any) {
+  private midiCache = new Map<string, any[]>();
+
+  private renderValues(output: any, repoEntry?: any, nodeId?: string) {
     if (!output) return html`<div class="value-row"><span class="chip">null</span></div>`;
 
     const elements = [];
@@ -223,11 +225,31 @@ export class DebugTab extends MobxLitElement {
           if (port) type = port.type;
         }
 
+        let valueToRender = val;
+        let isCached = false;
+
+        // Cache MIDI streams
+        if (type?.kind === 'array' && type.hint === 'midi-stream' && nodeId) {
+          const cacheKey = `${nodeId}:${key}`;
+          const currentStream = val as any[];
+
+          if (currentStream && currentStream.length > 0) {
+            this.midiCache.set(cacheKey, currentStream);
+          } else {
+            const cached = this.midiCache.get(cacheKey);
+            if (cached) {
+              valueToRender = cached;
+              isCached = true;
+            }
+          }
+        }
+
         elements.push(html`
           <div class="value-row">
             <span class="field-name">${key}:</span>
             <span class="type-hint">${formatType(type)}</span>
-            ${formatValue(val, type)}
+            ${formatValue(valueToRender, type)}
+            ${isCached ? html`<span style="font-size: 9px; color: #666; margin-left: 4px;">(cached)</span>` : ''}
           </div>
         `);
       }
