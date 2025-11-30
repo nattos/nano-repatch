@@ -26,6 +26,14 @@ import {
   NoiseLayer,
   ToneSynthLayer,
 } from "./layers";
+
+export {
+  GateLayer,
+  ExponentialLayer,
+  PWMLayer,
+  NoiseLayer,
+  ToneSynthLayer,
+};
 import { AbstractLayer, LayerConfig } from "./abstract-layer";
 
 // --- Real-time State Management ---
@@ -258,7 +266,9 @@ defaultNodeRepository.register({
 
 // --- Layer Nodes ---
 
-function createLayerNode(
+// --- Layer Nodes ---
+
+export function createLayerNode(
   id: string,
   displayName: string,
   LayerClass: new (config: LayerConfig) => AbstractLayer
@@ -348,7 +358,7 @@ defaultNodeRepository.register(createLayerNode("nicepattern:pwm_layer", "PWM Lay
 defaultNodeRepository.register(createLayerNode("nicepattern:noise_layer", "Noise Layer", NoiseLayer));
 
 // ToneSynthLayer is special as it takes audio context
-const toneSynthPrimitive = definePrimitiveNode({
+export const toneSynthPrimitive = definePrimitiveNode({
   id: "nicepattern:tone_synth_layer",
   metadata: {
     category: 'NicePattern',
