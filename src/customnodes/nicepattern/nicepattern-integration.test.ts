@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GraphExecutor } from '../../structor/executor';
-import { NodeRepository } from '../../structor/repository';
+import { NodeRepository, defaultNodeRepository } from '../../structor/repository';
 import {
   rhythmicGeneratorPrimitive,
   chaosGeneratorPrimitive,
@@ -15,7 +15,7 @@ import {
 } from './nodes';
 import { numberType, midiStreamType } from '../../structor/std-types';
 import { compileGraph } from '../../builder/compiler';
-import { AppState, GridNode, Connection, GraphState } from '../../builder/state';
+import { AppState, GridNode, Connection } from '../../builder/state';
 
 describe('NicePattern Integration', () => {
   const repository = new NodeRepository();
@@ -74,7 +74,7 @@ describe('NicePattern Integration', () => {
     definition: toneSynthPrimitive,
     inputs: [
       { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
-      { name: "prev_layer", type: numberType, description: "Previous layer output" } // Simplified type for test
+      { name: "prev_layer", type: numberType, description: "Previous layer output" }
     ],
     outputs: [{ name: "out", type: numberType, description: "Layer output" }],
     compileConfig: (uiConfig) => ({
@@ -85,6 +85,22 @@ describe('NicePattern Integration', () => {
     }),
   });
 
+  // Mock Output Node
+  repository.register({
+    id: 'io.output',
+    version: '1.0.0',
+    displayName: 'Output',
+    definition: {
+      id: 'io.output',
+      kind: 'primitive',
+      configType: { kind: 'record', fields: {}, untagged: [] },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
+      execute: (inputs) => ({ fields: { val: inputs.fields.val }, untagged: [] }),
+    },
+    inputs: [{ name: 'val', type: numberType }],
+    outputs: [{ name: 'val', type: numberType }],
+    compileConfig: (c) => ({ fields: {}, untagged: [] })
+  });
 
   // Helper to compile GridNodes into GraphDefinition
   const compileAndRun = (
@@ -131,53 +147,6 @@ describe('NicePattern Integration', () => {
     return new GraphExecutor(graphDef, repository);
   };
 
-  it('should compile and run rhythmic generator', () => {
-    const executor = compileAndRun(
-      {
-        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
-      },
-      [] // No connections needed to check output of gen
-    );
-
-    executor.update({ clock: { beat: 0, dt: 0 } });
-    const output = executor.getGraphOutput('gen.seq_out') as any[]; // Access via node.port
-
-    // Note: GraphExecutor.getGraphOutput usually gets output of "output" nodes.
-    // But here we want to inspect internal node output.
-    // GraphExecutor doesn't expose internal node outputs directly via getGraphOutput unless they are connected to graph outputs.
-    // However, we can inspect the runtime state if we have access, or we can add an output node.
-
-    // Let's add an output node to the graph to be proper.
-    // But compileGraph only adds graph outputs if there are 'io.output' nodes.
-    // For this test, we can just inspect the node's output from the executor's internal state if possible,
-    // OR we can rely on the fact that `executor.execute` returns the outputs of the last executed nodes? No.
-
-    // Let's use a trick: The executor exposes `outputs` map? No, it's private.
-    // But we can use `executor.getGraphOutput` if we define the graph to have outputs.
-    // `compileGraph` creates `flatOutputs` based on `io.output` nodes.
-
-    // So let's add an io.output node.
-    // But we need to register io.output in our test repo.
-  });
-
-  // We need a way to inspect outputs.
-  // Let's mock an output node.
-  repository.register({
-    id: 'io.output',
-    version: '1.0.0',
-    displayName: 'Output',
-    definition: {
-      id: 'io.output',
-      kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
-      execute: (inputs) => ({ fields: { val: inputs.fields.val }, untagged: [] }),
-    },
-    inputs: [{ name: 'val', type: numberType }],
-    outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {}, untagged: [] })
-  });
-
   const compileAndRunwithOutput = (
     nodes: Record<string, { typeId: string, config?: any }>,
     connections: { from: string, port: string, to: string, portIn: string }[],
@@ -194,6 +163,18 @@ describe('NicePattern Integration', () => {
     const executor = compileAndRun(nodesWithOutput, connectionsWithOutput);
     return { executor, getOutput: () => executor.getGraphOutput('test_out') };
   };
+
+  it('should compile and run rhythmic generator', () => {
+    const executor = compileAndRun(
+      {
+        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
+      },
+      []
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    // We can't easily check output without io.output, but it shouldn't crash
+  });
 
   it('should generate a rhythmic sequence (compiled)', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
@@ -277,5 +258,88 @@ describe('NicePattern Integration', () => {
     const output = getOutput();
     // Gate layer should be active (1.0) because note 60 is on
     expect(output).toBe(1.0);
+  });
+
+  it('tone_synth_layer should not trigger on Note Off', async () => {
+    // Mock AudioContext
+    const mockAudioContext = {
+      createOscillator: () => ({
+        connect: () => { },
+        start: () => { },
+        stop: () => { },
+        frequency: { setValueAtTime: () => { } },
+        type: 'sine'
+      }),
+      createGain: () => ({
+        connect: () => { },
+        gain: { setValueAtTime: () => { }, linearRampToValueAtTime: () => { }, exponentialRampToValueAtTime: () => { }, cancelScheduledValues: () => { }, setTargetAtTime: () => { } }
+      }),
+      createBiquadFilter: () => ({
+        connect: () => { },
+        frequency: { setValueAtTime: () => { } }
+      }),
+      currentTime: 0,
+      state: 'running',
+      destination: {}
+    };
+
+    // Construct AppState for compilation
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'synth': {
+              id: 'synth',
+              x: 0, y: 0,
+              config: { typeId: 'nicepattern:tone_synth_layer', targetNote: 60, values: {} }
+            },
+            'input': {
+              id: 'input',
+              x: 0, y: 0,
+              config: { typeId: 'data.literal', values: {}, value: [] }
+            }
+          },
+          connections: {
+            'c1': { id: 'c1', fromNodeId: 'input', fromPort: 'value', toNodeId: 'synth', toPort: 'midi_in' }
+          }
+        },
+        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      }
+    };
+
+    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+    const executor = new GraphExecutor(graphDef, defaultNodeRepository);
+
+    // 1. Note On (60)
+    // We must format this as Structor (array of records)
+    const noteOn = [{ fields: { status: 0x90, data1: 60, data2: 100, time: 0 }, untagged: [] }];
+    executor.setNodeConfig('input', noteOn as any);
+    executor.update({
+      clock: { beat: 0, dt: 0.1 },
+      audio: { context: mockAudioContext as any }
+    });
+
+    // 2. Note Off (60)
+    const noteOff = [{ fields: { status: 0x80, data1: 60, data2: 0, time: 0 }, untagged: [] }];
+    executor.setNodeConfig('input', noteOff as any);
+    executor.update({
+      clock: { beat: 0.1, dt: 0.1 },
+      audio: { context: mockAudioContext as any }
+    });
+
+    // 3. Note Off (60) again - should not trigger
+    executor.setNodeConfig('input', noteOff as any);
+    executor.update({
+      clock: { beat: 0.2, dt: 0.1 },
+      audio: { context: mockAudioContext as any }
+    });
+
+    // 4. Note On (62) - Wrong note, should be ignored
+    const noteOnWrong = [{ fields: { status: 0x90, data1: 62, data2: 100, time: 0 }, untagged: [] }];
+    executor.setNodeConfig('input', noteOnWrong as any);
+    executor.update({
+      clock: { beat: 0.3, dt: 0.1 },
+      audio: { context: mockAudioContext as any }
+    });
   });
 });

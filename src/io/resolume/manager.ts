@@ -10,7 +10,47 @@ export class ResolumeManager {
   ws: ResolumeWebSocket | null = null;
 
   private parameterMap: Map<string, ResolumeParameter> = new Map();
-  private subscriptions: Map<string, Set<(value: any) => void>> = new Map();
+  private subscriptions: Map<string, Map<any, ((value: any) => void) | undefined>> = new Map();
+
+  subscribe(path: string, subscriber: any, callback?: (value: any) => void) {
+    if (!this.subscriptions.has(path)) {
+      this.subscriptions.set(path, new Map());
+    }
+    this.subscriptions.get(path)!.set(subscriber, callback);
+
+    // If we are connected and the parameter exists, send subscribe message.
+    // If not connected, we will send it when we connect/receive initial state.
+    // If parameter doesn't exist yet, we will send it when we rebuild the map.
+    const param = this.getParameter(path);
+    if (param && this.ws) {
+      this.sendSubscription(param);
+      // Immediate callback with current value
+      if (callback) callback(param.value);
+    } else {
+      console.log(`[ResolumeManager] Queued subscription for ${path} (Connected: ${!!this.ws}, Param found: ${!!param})`);
+    }
+  }
+
+  private sendSubscription(param: ResolumeParameter) {
+    if (this.ws) {
+      this.ws.send({
+        action: 'subscribe',
+        parameter: `/parameter/by-id/${param.id}`
+      });
+    }
+  }
+
+  unsubscribe(path: string, subscriber: any) {
+    const subs = this.subscriptions.get(path);
+    if (subs) {
+      subs.delete(subscriber);
+
+      if (subs.size === 0) {
+        this.subscriptions.delete(path);
+        // Ideally send unsubscribe to Resolume
+      }
+    }
+  }
 
   constructor(init?: { client: ResolumeClient; }) {
     this.client = init?.client ?? new FakeResolumeApiClient();
@@ -63,7 +103,9 @@ export class ResolumeManager {
         // Notify subscribers
         const subs = this.subscriptions.get(param.path);
         if (subs) {
-          subs.forEach(cb => cb(data.value));
+          subs.forEach(cb => {
+            if (cb) cb(data.value);
+          });
         }
       }
     }
@@ -102,7 +144,9 @@ export class ResolumeManager {
         console.log(`[ResolumeManager] Resubscribing to ${path}`);
         this.sendSubscription(param);
         // Notify with current value
-        subs.forEach(cb => cb(param.value));
+        subs.forEach(cb => {
+          if (cb) cb(param.value);
+        });
       }
     }
   }
@@ -117,45 +161,6 @@ export class ResolumeManager {
 
   getParameter(path: string): ResolumeParameter | undefined {
     return this.parameterMap.get(path);
-  }
-
-  subscribe(path: string, callback: (value: any) => void) {
-    if (!this.subscriptions.has(path)) {
-      this.subscriptions.set(path, new Set());
-    }
-    this.subscriptions.get(path)!.add(callback);
-
-    // If we are connected and the parameter exists, send subscribe message.
-    // If not connected, we will send it when we connect/receive initial state.
-    // If parameter doesn't exist yet, we will send it when we rebuild the map.
-    const param = this.getParameter(path);
-    if (param && this.ws) {
-      this.sendSubscription(param);
-      // Immediate callback with current value
-      callback(param.value);
-    } else {
-      console.log(`[ResolumeManager] Queued subscription for ${path} (Connected: ${!!this.ws}, Param found: ${!!param})`);
-    }
-  }
-
-  private sendSubscription(param: ResolumeParameter) {
-    if (this.ws) {
-      this.ws.send({
-        action: 'subscribe',
-        parameter: `/parameter/by-id/${param.id}`
-      });
-    }
-  }
-
-  unsubscribe(path: string, callback: (value: any) => void) {
-    const subs = this.subscriptions.get(path);
-    if (subs) {
-      subs.delete(callback);
-      if (subs.size === 0) {
-        this.subscriptions.delete(path);
-        // Ideally send unsubscribe to Resolume
-      }
-    }
   }
 
   setValue(path: string, value: any) {

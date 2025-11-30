@@ -28,30 +28,6 @@ export class ResolumeParameter {
   update(value: any) {
     this.value = value;
   }
-
-  renderInspector() {
-    return html`
-      <div
-        class="parameter-row"
-        draggable="true"
-        @dragstart=${(e: DragEvent) => handleDragStart(e, this)}
-      >
-        <span class="label" title="${this.path}">${this.name}</span>
-        <span class="value">${this.value}</span>
-      </div>
-    `;
-  }
-}
-
-function handleDragStart(e: DragEvent, param: ResolumeParameter) {
-  if (e.dataTransfer) {
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      type: 'resolume:parameter',
-      path: param.path,
-      name: param.name
-    }));
-    e.dataTransfer.effectAllowed = 'copy';
-  }
 }
 
 export class ResolumeEffect {
@@ -84,17 +60,6 @@ export class ResolumeEffect {
         this.params.push(new ResolumeParameter(value, this.path, key));
       }
     }
-  }
-
-  renderInspectorContent(): HTMLTemplateResult {
-    return html`
-      <div class="inspector-section">
-        <h3>${this.name} (Effect)</h3>
-        <div class="parameters">
-          ${this.params.map(p => p.renderInspector())}
-        </div>
-      </div>
-    `;
   }
 }
 
@@ -140,34 +105,6 @@ export class ResolumeClip {
 
     processObject(data, this.path);
   }
-
-  renderInspectorContent(): HTMLTemplateResult {
-    return html`
-      <div class="inspector-section">
-        <h3>${this.name} (Clip)</h3>
-        ${this.thumbnail ? html`<img src="http://127.0.0.1:8080${this.thumbnail}" style="max-width: 100%; margin-bottom: 10px;">` : ''}
-
-        <div class="parameters">
-          <h4>Parameters</h4>
-          ${this.params.map(p => p.renderInspector())}
-        </div>
-
-        ${this.effects.length > 0 ? html`
-          <div class="effects">
-            <h4>Effects</h4>
-            ${this.effects.map(e => html`
-              <details>
-                <summary>${e.name}</summary>
-                <div style="padding-left: 10px;">
-                  ${e.params.map(p => p.renderInspector())}
-                </div>
-              </details>
-            `)}
-          </div>
-        ` : ''}
-      </div>
-    `;
-  }
 }
 
 export class ResolumeLayer {
@@ -209,33 +146,6 @@ export class ResolumeLayer {
     };
 
     processObject(data, this.path);
-  }
-
-  renderInspectorContent(): HTMLTemplateResult {
-    return html`
-      <div class="inspector-section">
-        <h3>${this.name} (Layer)</h3>
-
-        <div class="parameters">
-          <h4>Parameters</h4>
-          ${this.params.map(p => p.renderInspector())}
-        </div>
-
-        ${this.effects.length > 0 ? html`
-          <div class="effects">
-            <h4>Effects</h4>
-            ${this.effects.map(e => html`
-              <details>
-                <summary>${e.name}</summary>
-                <div style="padding-left: 10px;">
-                  ${e.params.map(p => p.renderInspector())}
-                </div>
-              </details>
-            `)}
-          </div>
-        ` : ''}
-      </div>
-    `;
   }
 }
 
@@ -279,33 +189,6 @@ export class ResolumeComposition {
     };
 
     processObject(data, this.path);
-  }
-
-  renderInspectorContent(): HTMLTemplateResult {
-    return html`
-      <div class="inspector-section">
-        <h3>Composition</h3>
-
-        <div class="parameters">
-          <h4>Parameters</h4>
-          ${this.params.map(p => p.renderInspector())}
-        </div>
-
-        ${this.effects.length > 0 ? html`
-          <div class="effects">
-            <h4>Effects</h4>
-            ${this.effects.map(e => html`
-              <details>
-                <summary>${e.name}</summary>
-                <div style="padding-left: 10px;">
-                  ${e.params.map(p => p.renderInspector())}
-                </div>
-              </details>
-            `)}
-          </div>
-        ` : ''}
-      </div>
-    `;
   }
 }
 

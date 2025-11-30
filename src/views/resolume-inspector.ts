@@ -1,8 +1,9 @@
-import { html, css, HTMLTemplateResult } from 'lit';
+import { html, css, HTMLTemplateResult, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { Selectable } from '../builder/state';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeEffect, ResolumeParameter } from '../io/resolume/state';
+import { resolumeManager } from '../io/resolume/manager';
 
 @customElement('resolume-inspector')
 export class ResolumeInspector extends MobxLitElement {
@@ -218,6 +219,63 @@ export class ResolumeInspector extends MobxLitElement {
 
   @property({ attribute: false })
   target: ResolumeComposition | ResolumeLayer | ResolumeClip | ResolumeEffect | null = null;
+
+  private activeSubscriptions: Set<string> = new Set();
+
+  updated(changedProperties: PropertyValues) {
+    if (changedProperties.has('target')) {
+      this.updateSubscriptions();
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.clearSubscriptions();
+  }
+
+  private clearSubscriptions() {
+    for (const path of this.activeSubscriptions) {
+      resolumeManager.unsubscribe(path, this);
+    }
+    this.activeSubscriptions.clear();
+  }
+
+  private updateSubscriptions() {
+    this.clearSubscriptions();
+
+    if (!this.target) return;
+
+    const params: ResolumeParameter[] = [];
+    this.collectParameters(this.target, params);
+
+    for (const param of params) {
+      resolumeManager.subscribe(param.path, this, this.handleParameterUpdate);
+      this.activeSubscriptions.add(param.path);
+    }
+  }
+
+  private handleParameterUpdate = (value: any) => {
+    // MobX handles the state update, so we might not need to do anything here.
+    // However, the manager requires a callback.
+    // We could trigger a requestUpdate() if needed, but MobXLitElement should handle it if the observable changes.
+  };
+
+  private collectParameters(obj: any, params: ResolumeParameter[]) {
+    if (obj instanceof ResolumeParameter) {
+      params.push(obj);
+      return;
+    }
+
+    if (obj.params && Array.isArray(obj.params)) {
+      obj.params.forEach((p: any) => this.collectParameters(p, params));
+    }
+
+    if (obj.effects && Array.isArray(obj.effects)) {
+      obj.effects.forEach((e: any) => this.collectParameters(e, params));
+    }
+
+    // Handle other structures if necessary (e.g. clips in layers if we were inspecting a layer deeply, but usually we only inspect the layer itself)
+  }
 
   render() {
     if (!this.target) return html``;

@@ -1,16 +1,5 @@
 {
   "nodes": {
-    "node-dde307ca-5530-4a5b-aded-929cb0b600c2": {
-      "id": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
-      "x": 2,
-      "y": 1,
-      "config": {
-        "typeId": "nicepattern:chaos_generator",
-        "values": {},
-        "density": 0.4,
-        "maxNote": 0
-      }
-    },
     "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
       "id": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "x": 4,
@@ -39,7 +28,17 @@
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
         "values": {},
-        "density": 0.1
+        "density": 0.05
+      }
+    },
+    "node-cf68da5f-291e-47a8-b3fe-dc95720ad062": {
+      "id": "node-cf68da5f-291e-47a8-b3fe-dc95720ad062",
+      "x": 2,
+      "y": 1,
+      "config": {
+        "typeId": "nicepattern:chaos_generator",
+        "values": {},
+        "density": 0.15
       }
     }
   },
@@ -51,16 +50,16 @@
       "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
       "toPort": "midi_in"
     },
-    "conn-ff7fea30-c3ef-40de-976a-5b19009e6f40": {
-      "id": "conn-ff7fea30-c3ef-40de-976a-5b19009e6f40",
+    "conn-5361a709-3c26-49fa-a789-c561a3c521d6": {
+      "id": "conn-5361a709-3c26-49fa-a789-c561a3c521d6",
       "fromNodeId": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"
     },
-    "conn-2817dd9d-e2ff-43b7-8523-f2694a113d38": {
-      "id": "conn-2817dd9d-e2ff-43b7-8523-f2694a113d38",
-      "fromNodeId": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
+    "conn-03d8f1bf-6147-4da1-a1d4-d08dbb1a45fd": {
+      "id": "conn-03d8f1bf-6147-4da1-a1d4-d08dbb1a45fd",
+      "fromNodeId": "node-cf68da5f-291e-47a8-b3fe-dc95720ad062",
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"

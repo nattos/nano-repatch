@@ -363,7 +363,7 @@ export const toneSynthPrimitive = definePrimitiveNode({
   isRealtime: () => true,
   createState: (config, context) => {
     return {
-      layer: new ToneSynthLayer({}),
+      layer: new ToneSynthLayer({ targetNoteIndex: config.targetNote }),
       lastActive: false,
       lastActiveNote: null as number | null,
       activeVelocity: 0
@@ -372,6 +372,7 @@ export const toneSynthPrimitive = definePrimitiveNode({
   execute: (inputs, config, context, state) => {
     const activeLayer = state.layer;
     const stream = inputs.midi_in || [];
+    const targetNote = config.targetNote;
 
     let hasNoteOn = false;
 
@@ -379,12 +380,14 @@ export const toneSynthPrimitive = definePrimitiveNode({
     for (const event of stream) {
       const status = event.status & 0xF0;
       if (status === 0x90 && event.data2 > 0) { // Note On
-        state.lastActive = true;
-        state.lastActiveNote = event.data1;
-        state.activeVelocity = event.data2 / 127;
-        hasNoteOn = true;
+        if (event.data1 === targetNote) {
+          state.lastActive = true;
+          state.lastActiveNote = event.data1;
+          state.activeVelocity = event.data2 / 127;
+          hasNoteOn = true;
+        }
       } else if (status === 0x80 || (status === 0x90 && event.data2 === 0)) { // Note Off
-        if (event.data1 === state.lastActiveNote) {
+        if (event.data1 === targetNote) {
           state.lastActive = false;
           state.lastActiveNote = null;
         }
