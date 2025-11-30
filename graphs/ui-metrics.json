@@ -37,6 +37,24 @@
         "typeId": "math.map",
         "values": {}
       }
+    },
+    "node-16b9104a-01af-4589-8664-53288cb6d070": {
+      "id": "node-16b9104a-01af-4589-8664-53288cb6d070",
+      "x": 6,
+      "y": 2,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
+    },
+    "node-030628c6-555d-4e85-ada4-7e961f007d3b": {
+      "id": "node-030628c6-555d-4e85-ada4-7e961f007d3b",
+      "x": 4,
+      "y": 2,
+      "config": {
+        "typeId": "data.literal",
+        "values": {}
+      }
     }
   },
   "connections": {
@@ -46,6 +64,20 @@
       "fromPort": "value",
       "toNodeId": "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd",
       "toPort": "dividend"
+    },
+    "conn-60240df7-6c80-4d26-9765-d5b5dce4e47d": {
+      "id": "conn-60240df7-6c80-4d26-9765-d5b5dce4e47d",
+      "fromNodeId": "node-030628c6-555d-4e85-ada4-7e961f007d3b",
+      "fromPort": "",
+      "toNodeId": "node-16b9104a-01af-4589-8664-53288cb6d070",
+      "toPort": "a"
+    },
+    "conn-60718f28-971c-4193-be9b-37810f9e94f1": {
+      "id": "conn-60718f28-971c-4193-be9b-37810f9e94f1",
+      "fromNodeId": "node-030628c6-555d-4e85-ada4-7e961f007d3b",
+      "fromPort": "",
+      "toNodeId": "node-16b9104a-01af-4589-8664-53288cb6d070",
+      "toPort": "b"
     }
   }
 }

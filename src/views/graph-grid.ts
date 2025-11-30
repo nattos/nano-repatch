@@ -8,10 +8,13 @@ import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
 import { defaultNodeRepository } from '../structor/repository';
+import { globalStyles } from '../styles';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
-  static readonly styles = css`
+  static readonly styles = [
+    ...globalStyles,
+    css`
     :host {
       display: block;
       width: 100%;
@@ -35,13 +38,13 @@ export class GraphGrid extends MobxLitElement {
       */
       grid-template-columns:
         [input] minmax(120px, auto)
-        [gap-start] 10px
-        repeat(12, [node] auto [gap] 10px)
+        [gap-start] var(--grid-gap, 16px)
+        repeat(12, [node] auto [gap] var(--grid-gap, 16px))
         [output] minmax(120px, auto);
 
       grid-template-rows:
-        [gap-top] 10px
-        repeat(12, [node] auto [gap] 10px);
+        [gap-top] var(--grid-gap, 16px)
+        repeat(12, [node] auto [gap] var(--grid-gap, 16px));
 
       min-width: 100%;
       min-height: 100%;
@@ -51,7 +54,7 @@ export class GraphGrid extends MobxLitElement {
 
     .selection-box {
       position: absolute;
-      background-color: rgba(0, 170, 255, 0.2);
+      background-color: var(--selection-color);
       border: 1px solid rgba(0, 170, 255, 0.5);
       pointer-events: none;
       z-index: 100;
@@ -113,7 +116,7 @@ export class GraphGrid extends MobxLitElement {
         border-radius: 4px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-  `;
+  `];
 
   @property({ attribute: false })
   selectionBox: { x: number, y: number, w: number, h: number } | null = null;

@@ -11,6 +11,19 @@ import { parseFloatOr } from '../utils/utils';
 import '../components/smart-input';
 import { NodeCatalog } from '../structor/node-catalog';
 import './graph-port';
+import { globalStyles } from '../styles';
+import {
+  NODE_WIDTH_NORMAL,
+  NODE_WIDTH_COMPRESSED,
+  NODE_WIDTH_MINIMAL,
+  ROW_HEIGHT,
+  HEADER_HEIGHT,
+  NODE_PADDING,
+  SLIDER_LABEL_WIDTH,
+  SLIDER_HEIGHT,
+  PIP_OFFSET_X,
+  LABEL_PADDING_X
+} from '../constants';
 
 
 @customElement('graph-node')
@@ -48,7 +61,9 @@ export class GraphNode extends MobxLitElement {
 
 
 
-  static readonly styles = css`
+  static readonly styles = [
+    ...globalStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
@@ -70,18 +85,18 @@ export class GraphNode extends MobxLitElement {
 
 
     :host([data-state="normal"]) {
-      width: 240px;
+      width: ${NODE_WIDTH_NORMAL}px;
     }
 
     :host([data-state="compressed"]) {
-      width: 100px;
+      width: ${NODE_WIDTH_COMPRESSED}px;
     }
 
     :host([data-state="minimal"]) {
-      width: 80px;
-      height: 80px;
+      width: ${NODE_WIDTH_MINIMAL}px;
+      height: ${NODE_WIDTH_MINIMAL}px;
       border-radius: 50%;
-      min-height: 80px;
+      min-height: ${NODE_WIDTH_MINIMAL}px;
     }
 
     :host([data-state="minimal"]) .node {
@@ -198,14 +213,14 @@ export class GraphNode extends MobxLitElement {
     .inputs {
       align-items: flex-start;
       position: relative;
-      left: -9px; /* Move pips out to hang off node */
+      left: ${PIP_OFFSET_X}px; /* Move pips out to hang off node */
       top: 2px; /* Adjust vertical alignment */
     }
 
     .outputs {
       align-items: flex-end;
       position: relative;
-      right: -9px; /* Move pips out */
+      right: ${PIP_OFFSET_X}px; /* Move pips out */
       top: 2px; /* Adjust vertical alignment */
     }
 
@@ -231,7 +246,7 @@ export class GraphNode extends MobxLitElement {
     }
 
     .slider-label {
-      width: 38px;
+      width: ${SLIDER_LABEL_WIDTH}px;
       font-size: 0.7em;
       color: var(--text-muted);
       white-space: nowrap;
@@ -243,20 +258,20 @@ export class GraphNode extends MobxLitElement {
 
     .slider-label:first-child {
       text-align: left;
-      padding-left: 5px;
+      padding-left: ${LABEL_PADDING_X}px;
     }
 
     .slider-label:last-child {
       text-align: right;
-      padding-right: 5px;
+      padding-right: ${LABEL_PADDING_X}px;
     }
 
     .virtual-input-field {
       flex-grow: 1; /* Fill remaining space */
       width: auto; /* Let flex handle width */
       padding: 0;
-      margin: 0 5px;
-      height: 16px; /* Standard slider height */
+      margin: 0 ${LABEL_PADDING_X}px;
+      height: ${SLIDER_HEIGHT}px; /* Standard slider height */
       /* border-radius: 3px; */
       /* border: 1px solid var(--border-color); */
       /* background-color: var(--input-bg); */
@@ -296,7 +311,7 @@ export class GraphNode extends MobxLitElement {
       border-color: #5f3a7a;
       background: rgba(58, 42, 74, 0.8);
     }
-  `;
+  `];
 
   private renderDebugValue(portName: string) {
     if (!localController.observableState.showDebugValues) return null;
@@ -529,9 +544,7 @@ export class GraphNode extends MobxLitElement {
       this.dataset.state = state;
 
       // Compute Height
-      const ROW_HEIGHT = 24;
-      const HEADER_HEIGHT = 25;
-      const PADDING = 7;
+      // Constants imported from ../constants
 
       let totalInputHeight = 0;
       inputs.forEach(input => {
@@ -552,7 +565,7 @@ export class GraphNode extends MobxLitElement {
       // Ensure at least one row height if no ports
       const portsHeight = Math.max(totalInputHeight, totalOutputHeight, ROW_HEIGHT);
 
-      let computedHeight = HEADER_HEIGHT + portsHeight + PADDING + bodyHeight;
+      let computedHeight = HEADER_HEIGHT + portsHeight + NODE_PADDING + bodyHeight;
 
       // For minimal state, force 80px
       if (state === 'minimal') {
@@ -632,8 +645,7 @@ export class GraphNode extends MobxLitElement {
     }
 
     // Compute Layout
-    const ROW_HEIGHT = 24;
-    const HEADER_HEIGHT = 25;
+    // Constants imported from ../constants
 
     let currentInputY = HEADER_HEIGHT;
     const inputElements: any[] = [];

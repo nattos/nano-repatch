@@ -47,6 +47,13 @@ export const globalStyles = [
     --button-hover: #444;
     --button-active: #222;
 
+    /* Grid Layout Variables */
+    --grid-unit: 80px;
+    --grid-gap: 16px;
+    --row-height: 24px;
+    --header-height: 24px;
+    --node-padding: 8px;
+
     color: var(--app-text-color2);
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
