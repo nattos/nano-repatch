@@ -3,6 +3,7 @@ import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { localController, appController } from '../builder/controllers';
 import { reaction } from 'mobx';
+import { PORT_LABEL_PADDING } from '../constants';
 
 @customElement('graph-port')
 export class GraphPort extends MobxLitElement {
@@ -49,7 +50,7 @@ export class GraphPort extends MobxLitElement {
       font-size: 0.7em;
       white-space: nowrap;
       color: var(--text-muted);
-      padding: 0 5px;
+      padding: 0 ${PORT_LABEL_PADDING}px;
     }
   `;
 

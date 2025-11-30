@@ -17,7 +17,7 @@ This document defines the exact pixel metrics for custom UI editors to ensure co
 | **`NODE_WIDTH`** | **`272px`** | Total width of the node (Border Box). |
 | **`NODE_PADDING`** | **`8px`** | Internal padding of the node (effective content offset). |
 | **`HEADER_HEIGHT`** | **`24px`** | Effective visual height of the header (top of first port row). |
-| **`CONTENT_WIDTH`** | **`256px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING`). |
+| **`CONTENT_WIDTH`** | **`252px`** | Available width for content (`NODE_WIDTH` - 2 * `NODE_PADDING` - 4px). |
 | **`PIP_OFFSET_X`** | **`-9px`** | Horizontal offset from the **Main Content Left Edge** to the **Center** of the input pip. |
 | **`PIP_OFFSET_Y`** | **`12px`** | Vertical offset from the top of the port row to the center of the pip. |
 

@@ -14,15 +14,18 @@ import './graph-port';
 import { globalStyles } from '../styles';
 import {
   NODE_WIDTH_NORMAL,
+  NODE_CONTENT_WIDTH,
   NODE_WIDTH_COMPRESSED,
   NODE_WIDTH_MINIMAL,
   ROW_HEIGHT,
   HEADER_HEIGHT,
-  NODE_PADDING,
+  NODE_PADDING_X,
+  NODE_PADDING_Y,
   SLIDER_LABEL_WIDTH,
   SLIDER_HEIGHT,
   PIP_OFFSET_X,
-  LABEL_PADDING_X
+  LABEL_PADDING_X,
+  NODE_BORDER_WIDTH
 } from '../constants';
 
 
@@ -77,7 +80,7 @@ export class GraphNode extends MobxLitElement {
       border: 2px solid transparent;
       transition: border-color 0.2s;
       box-sizing: border-box;
-      align-self: center;
+      place-self: center;
       /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
     }
@@ -122,7 +125,7 @@ export class GraphNode extends MobxLitElement {
       /* overflow: hidden; */
       user-select: none;
       border: 1px solid var(--node-border);
-      border-left: 4px solid var(--node-accent-color, var(--node-border));
+      border-left: ${NODE_BORDER_WIDTH}px solid var(--node-accent-color, var(--node-border));
       transition: box-shadow 0.2s, border-color 0.2s;
       box-sizing: border-box; /* Ensure borders are included in width */
     }
@@ -151,8 +154,10 @@ export class GraphNode extends MobxLitElement {
       align-items: baseline;
       gap: 6px;
       white-space: nowrap;
+      white-space: nowrap;
+      white-space: nowrap;
       overflow: hidden;
-      padding: 0 17px; /* Align with port labels */
+      padding: 0 var(--node-padding-x); /* Align with port labels */
     }
 
     .node-title.editing {
@@ -227,8 +232,8 @@ export class GraphNode extends MobxLitElement {
     .virtual-inputs-container {
       position: absolute;
       top: 0;
-      left: 6px;
-      width: 220px;
+      left: calc(var(--node-padding-x) - ${NODE_BORDER_WIDTH}px - 1px);
+      width: ${NODE_CONTENT_WIDTH}px;
       display: flex;
       flex-direction: column;
       pointer-events: none;
@@ -240,7 +245,7 @@ export class GraphNode extends MobxLitElement {
       flex-direction: row; /* Horizontal layout for labels + slider */
       align-items: center;
       width: 100%;
-      height: 24px; /* Match port height */
+      height: var(--row-height); /* Match port height */
       justify-content: space-between;
       pointer-events: auto;
     }
@@ -565,7 +570,7 @@ export class GraphNode extends MobxLitElement {
       // Ensure at least one row height if no ports
       const portsHeight = Math.max(totalInputHeight, totalOutputHeight, ROW_HEIGHT);
 
-      let computedHeight = HEADER_HEIGHT + portsHeight + NODE_PADDING + bodyHeight;
+      let computedHeight = HEADER_HEIGHT + portsHeight + NODE_PADDING_Y + bodyHeight;
 
       // For minimal state, force 80px
       if (state === 'minimal') {
@@ -724,7 +729,7 @@ export class GraphNode extends MobxLitElement {
           const outputName = outputs[index]?.name || '';
 
           editorContent = html`
-                <div class="virtual-input-field-wrapper" style="height: 24px;">
+                <div class="virtual-input-field-wrapper" style="height: var(--row-height);">
                   <div class="slider-label" title="${input.name}">${input.name}</div>
                   <input
                     id="${this.node.id}-${input.name}-virtual-input"
