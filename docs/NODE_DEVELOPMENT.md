@@ -92,3 +92,8 @@ export const integratorNode = definePrimitiveNode({
 
 ### 4. Structor Types
 *   Always use the constants (`NumberType`, `AnyType`) or `defineType` helper. Do not write raw JSON objects for types if possible, to ensure consistency.
+
+### 5. Worker Compatibility
+*   **Mistake:** Importing UI libraries (like `lit`, `react`) or accessing `window`/`document` in node definitions or state classes.
+*   **Symptom:** The graph executor (which runs in a Web Worker) will crash with `ReferenceError: window is not defined`.
+*   **Fix:** Keep node logic pure. If you need UI-specific rendering (like inspectors), keep that code in separate files (e.g., `src/views/`) and do not import it into the node definition or state files.

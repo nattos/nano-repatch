@@ -3,6 +3,38 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Resolume Inspector Refactor (As of 2025-12-01)
+
+This entry documents the refactoring of the Resolume Inspector into a dedicated LitElement component and the resolution of a critical worker crash.
+
+### Features Implemented
+
+1.  **Resolume Inspector Component:**
+    *   Refactored the inspector UI into a reusable `<resolume-inspector>` LitElement component.
+    *   Implemented rich parameter controls (sliders, toggles, dropdowns, color pickers) matching Resolume's aesthetic.
+    *   Added drag-and-drop support for creating parameter nodes from the inspector.
+
+2.  **Robust Subscription Management:**
+    *   Implemented automatic subscription/unsubscription to Resolume parameters when the inspector target changes.
+    *   Refactored `ResolumeManager` to require a subscriber key for subscriptions, ensuring that the inspector can cleanly unsubscribe from all its parameters without affecting other parts of the system.
+    *   Updated `ResolumeManager` to use a `Map<string, Map<any, callback>>` structure to support multiple subscribers per parameter.
+
+### Bug Fixes
+
+1.  **Worker Crash (ReferenceError: window is not defined):**
+    *   **Issue:** The `executor.worker.ts` imported `resolumeManager`, which imported `state.ts`. `state.ts` contained `lit` imports and `renderInspectorContent` methods, causing the worker to try and load DOM-related code in a non-DOM environment.
+    *   **Fix:** Removed all `lit` imports and rendering logic from `src/io/resolume/state.ts`. The rendering logic is now fully encapsulated within `src/views/resolume-inspector.ts`.
+
+2.  **Stale Config:**
+    *   Confirmed that `chaos_generator` and other NicePattern nodes correctly default to Middle C (60) for their root/target notes. Previous reports of "wrong root note" were due to stale configuration in existing nodes.
+
+3.  **ToneSynth Triggering:**
+    *   **Issue:** `toneSynthPrimitive` was ignoring its `targetNote` configuration, causing it to trigger on ANY note event (behaving like an "Any Note" layer). This led to unexpected triggering when multiple notes were played or when releasing other notes.
+    *   **Fix:** Updated `toneSynthPrimitive` in `src/customnodes/nicepattern/nodes.ts` to:
+        *   Pass `targetNote` to the `ToneSynthLayer` constructor in `createState`.
+        *   Filter incoming MIDI events in `execute` to only process events matching the `targetNote`.
+    *   **Verification:** Added a regression test in `src/customnodes/nicepattern/nicepattern-integration.test.ts` ensuring it ignores Note Off events and events for non-target notes.
+
 ## Primitive Node Integration Tests (As of 2025-11-30)
 
 This entry documents the creation of integration tests for primitive nodes and the resolution of a critical bug in node registration.
