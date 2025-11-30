@@ -80,8 +80,8 @@ export function broadcast(config: BroadcastConfig, inputs: StructorRecord): Broa
 
 
   // 2. Construct result
-  if (!hasVector) {
-    // Scalar case
+  if (!hasVector || config.reshape === 'none') {
+    // Scalar case (or explicitly no reshape)
     const data: Record<string, any> = {};
     for (const [key, value] of Object.entries(collectedInputs)) {
       data[key] = value;

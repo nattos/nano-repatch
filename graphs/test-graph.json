@@ -42,26 +42,26 @@
     }
   },
   "connections": {
-    "conn-6483b52e-8ed1-4cb3-821c-d68f225a8bf7": {
-      "id": "conn-6483b52e-8ed1-4cb3-821c-d68f225a8bf7",
+    "conn-6b7927f5-eb6b-4eaf-ad15-0e1b73e383b3": {
+      "id": "conn-6b7927f5-eb6b-4eaf-ad15-0e1b73e383b3",
       "fromNodeId": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"
     },
-    "conn-52ac4e4f-6537-4887-8d5b-504fbbfbe487": {
-      "id": "conn-52ac4e4f-6537-4887-8d5b-504fbbfbe487",
-      "fromNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
-      "fromPort": "event_out",
-      "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
-      "toPort": "event_in"
-    },
-    "conn-2b72fd7c-7ec1-408c-8ad1-8b8f933a2cb2": {
-      "id": "conn-2b72fd7c-7ec1-408c-8ad1-8b8f933a2cb2",
+    "conn-cb183991-3e59-4e69-9be3-75071b5e6a79": {
+      "id": "conn-cb183991-3e59-4e69-9be3-75071b5e6a79",
       "fromNodeId": "node-dde307ca-5530-4a5b-aded-929cb0b600c2",
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"
+    },
+    "conn-3860a1e5-e706-4c30-aeef-9e86ef069eb0": {
+      "id": "conn-3860a1e5-e706-4c30-aeef-9e86ef069eb0",
+      "fromNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
+      "fromPort": "midi_out",
+      "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
+      "toPort": "midi_in"
     }
   }
 }

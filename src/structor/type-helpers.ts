@@ -89,14 +89,18 @@ function fromStructor(value: Structor, type: StructorType): any {
 }
 
 function toStructor(value: any, type: StructorType): Structor {
+  // console.error('toStructor', value, type.kind);
   if (value === undefined || value === null) return value; // Or throw?
 
   if (type.kind === 'atomic') return value;
 
   if (type.kind === 'array') {
     if (Array.isArray(value)) {
-      return value.map(v => toStructor(v, type.element));
+      const res = value.map(v => toStructor(v, type.element));
+      // console.error('toStructor array res', res);
+      return res;
     }
+    console.error('toStructor array fail: not array', value);
     return [];
   }
 

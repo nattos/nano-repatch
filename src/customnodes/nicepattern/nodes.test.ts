@@ -104,9 +104,13 @@ describe('NicePattern Nodes', () => {
       context.clock.beat = 0;
       const result = patternPrimitive.execute(input, config, context);
 
-      const event = result.fields.event_out as StructorRecord;
-      expect(event.fields.onNote).toBeDefined();
-      expect((event.fields.onNote as StructorRecord).fields.note).toBe(60);
+      const stream = result.fields.midi_out as any[];
+      expect(stream).toBeDefined();
+      expect(Array.isArray(stream)).toBe(true);
+
+      const noteOn = stream.find(e => (e.fields.status & 0xF0) === 0x90 && e.fields.data2 > 0);
+      expect(noteOn).toBeDefined();
+      expect(noteOn.fields.data1).toBe(60);
     });
   });
 });

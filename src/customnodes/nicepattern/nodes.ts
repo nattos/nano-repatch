@@ -17,7 +17,7 @@ import {
   GraphNodeRenderHandlers,
 } from "../../structor/repository";
 import { defineType, definePrimitiveNode, typedBroadcast, NumberType, AnyType } from "../../structor/type-helpers";
-import { numberType, booleanType, anyType } from "../../structor/std-types";
+import { numberType, booleanType, anyType, midiStreamType } from "../../structor/std-types";
 import { Step, Sequence } from "./envelope-generator";
 import {
   GateLayer,
@@ -47,6 +47,7 @@ export const sequenceStructorType = defineType({
   kind: "array",
   size: "dynamic",
   element: stepStructorType,
+  hint: 'step-sequence'
 });
 
 export const layerOutputStructorType = defineType({ kind: "atomic", type: "number" });
@@ -165,24 +166,14 @@ export const patternPrimitive = definePrimitiveNode({
   metadata: {
     category: 'NicePattern',
     keywords: ['pattern', 'sequencer', 'combiner', 'event'],
-    description: 'Combines multiple sequences into note events.'
+    description: 'Combines multiple sequences into a MIDI stream.'
   },
   config: {},
   inputs: {}, // We handle inputs manually via typedBroadcast
-  outputs: { event_out: noteEventStructorType },
+  outputs: { midi_out: midiStreamType },
   isRealtime: () => true,
-  createState: () => ({ lastStepIndex: -1 }),
+  createState: () => ({ lastStepIndex: -1, activeNotes: new Map<number, number>() }), // activeNotes: note -> velocity
   execute: (inputs, config, context, state) => {
-    // Note: inputs here is empty because we didn't define inputs in options.
-    // We access the raw inputs via context.broadcast (wrapped in typedBroadcast)
-    // But wait, definePrimitiveNode passes 'inputs' which is InferRecord<TInputs>.
-    // If TInputs is empty, inputs is empty.
-    // But we need access to the raw inputs to pass to typedBroadcast!
-    // definePrimitiveNode implementation passes 'processedInput' to execute.
-    // If autoBroadcast is false (default), processedInput is rawInput (StructorRecord).
-    // But the type signature says 'inputs' is InferRecord<...>.
-    // So we need to cast 'inputs' to 'StructorRecord' to use it with typedBroadcast.
-
     const rawInputs = inputs as unknown as StructorRecord;
 
     const { seqs } = typedBroadcast(context, {
@@ -199,8 +190,9 @@ export const patternPrimitive = definePrimitiveNode({
       let step: Step = { noteIndex: null, velocity: 0, hold: false };
       for (const seq of (seqs || [])) {
         if (seq?.[i]?.noteIndex !== null && seq?.[i]?.noteIndex !== undefined) {
-          step = seq[i];
-          break;
+          step.noteIndex = seq[i].noteIndex;
+          step.velocity = seq[i].velocity;
+          step.hold = seq[i].hold;
         }
       }
       combinedSequence.push(step);
@@ -210,13 +202,11 @@ export const patternPrimitive = definePrimitiveNode({
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
     const currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
 
-    let noteEvent: { onNote?: any, offNote?: any, hold: boolean } = { hold: false };
+    const stream: any[] = [];
 
     if (currentStepIndex !== state.lastStepIndex) {
       const lastStep = combinedSequence[state.lastStepIndex] ?? { noteIndex: null };
       const currentStep = combinedSequence[currentStepIndex];
-
-      noteEvent.hold = currentStep.hold; // Set hold from currentStep
 
       // Determine if we need to trigger a note
       // 1. Note changed (different pitch or went from null to note)
@@ -225,19 +215,33 @@ export const patternPrimitive = definePrimitiveNode({
       const isSameNote = isNoteActive && currentStep.noteIndex === lastStep.noteIndex;
       const shouldTrigger = isNoteActive && (!isSameNote || !lastStep.hold);
 
-      if (currentStep.noteIndex !== lastStep.noteIndex) {
-        if (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) {
-          noteEvent.offNote = { note: lastStep.noteIndex, velocity: 0 };
-        }
+      const shouldRelease = (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) &&
+        (currentStep.noteIndex !== lastStep.noteIndex || (isSameNote && !lastStep.hold));
+
+      if (shouldRelease) {
+        stream.push({
+          status: 0x80, // Note Off
+          data1: lastStep.noteIndex!,
+          data2: 0,
+          time: 0
+        });
+        state.activeNotes.delete(lastStep.noteIndex!);
       }
 
       if (shouldTrigger) {
-        noteEvent.onNote = { note: currentStep.noteIndex!, velocity: currentStep.velocity };
+        stream.push({
+          status: 0x90, // Note On
+          data1: currentStep.noteIndex!,
+          data2: Math.floor(currentStep.velocity * 127),
+          time: 0
+        });
+        state.activeNotes.set(currentStep.noteIndex!, currentStep.velocity);
       }
+
       state.lastStepIndex = currentStepIndex;
     }
 
-    return { event_out: noteEvent };
+    return { midi_out: stream };
   },
 });
 
@@ -247,8 +251,10 @@ defaultNodeRepository.register({
   displayName: "Pattern",
   definition: patternPrimitive,
   inputs: [{ name: "seq_in", type: sequenceStructorType, description: "Input sequence(s)", redirect: 'untagged' }],
-  outputs: [{ name: "event_out", type: noteEventStructorType, description: "Real-time note events" }],
+  outputs: [{ name: "midi_out", type: midiStreamType, description: "Real-time MIDI stream" }],
 });
+
+// --- Layer Nodes ---
 
 // --- Layer Nodes ---
 
@@ -265,7 +271,7 @@ function createLayerNode(
       description: `Layer node: ${displayName}`
     },
     config: { targetNote: numberType },
-    inputs: { event_in: noteEventStructorType, prev_layer: layerOutputStructorType },
+    inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
     outputs: { out: layerOutputStructorType },
     autoBroadcast: true,
     isRealtime: () => true,
@@ -273,40 +279,42 @@ function createLayerNode(
       return {
         layer: new LayerClass({ targetNoteIndex: config.targetNote }),
         lastActive: false,
-        lastEvent: null as any
+        activeVelocity: 0
       };
     },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
-      const layer = state.layer as AbstractLayer;
-
-      const noteEvent = inputs.event_in;
-      const isNewStep = noteEvent !== state.lastEvent;
-      state.lastEvent = noteEvent;
-
-      const onNote = noteEvent?.onNote;
-      const offNote = noteEvent?.offNote;
+      const stream = inputs.midi_in || [];
       const targetNote = config.targetNote;
 
-      let noteIndexForUpdate: number | null = state.lastActive ? targetNote : null;
-      let velocityForUpdate = 0;
-
-      if (onNote) {
-        noteIndexForUpdate = targetNote;
-        velocityForUpdate = onNote.velocity;
-        state.lastActive = true;
-      } else if (offNote) {
-        noteIndexForUpdate = null;
-        state.lastActive = false;
+      // Process MIDI stream
+      for (const event of stream) {
+        const status = event.status & 0xF0;
+        if (status === 0x90 && event.data2 > 0) { // Note On
+          if (event.data1 === targetNote) {
+            state.lastActive = true;
+            state.activeVelocity = event.data2 / 127;
+          }
+        } else if (status === 0x80 || (status === 0x90 && event.data2 === 0)) { // Note Off
+          if (event.data1 === targetNote) {
+            state.lastActive = false;
+          }
+        }
       }
 
       const syntheticStep: Step = {
-        noteIndex: noteIndexForUpdate,
-        velocity: velocityForUpdate,
-        hold: noteEvent?.hold ?? false,
+        noteIndex: state.lastActive ? targetNote : null,
+        velocity: state.activeVelocity,
+        hold: false, // We don't easily track hold from stream without more state
       };
 
-      activeLayer.update(syntheticStep, context.clock.dt, isNewStep);
+      // We assume isNewStep is true if we processed any relevant events?
+      // Or we rely on the layer's internal logic.
+      // The original code passed 'isNewStep' if the event object changed reference.
+      // Here, we should probably pass true if we received a Note On for our target.
+      const hasNoteOn = stream.some((e: any) => (e.status & 0xF0) === 0x90 && e.data2 > 0 && e.data1 === targetNote);
+
+      activeLayer.update(syntheticStep, context.clock.dt, hasNoteOn);
       const result = activeLayer.getValue();
 
       return { out: result };
@@ -319,7 +327,7 @@ function createLayerNode(
     displayName,
     definition: primitive,
     inputs: [
-      { name: "event_in", type: noteEventStructorType, description: "Input note event" },
+      { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
       { name: "prev_layer", type: layerOutputStructorType, description: "Previous layer output" }
     ],
     outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],
@@ -338,7 +346,6 @@ defaultNodeRepository.register(createLayerNode("nicepattern:pwm_layer", "PWM Lay
 defaultNodeRepository.register(createLayerNode("nicepattern:noise_layer", "Noise Layer", NoiseLayer));
 
 // ToneSynthLayer is special as it takes audio context
-// ToneSynthLayer is special as it takes audio context
 const toneSynthPrimitive = definePrimitiveNode({
   id: "nicepattern:tone_synth_layer",
   metadata: {
@@ -347,7 +354,7 @@ const toneSynthPrimitive = definePrimitiveNode({
     description: 'Simple synthesizer layer using Tone.js.'
   },
   config: { targetNote: numberType },
-  inputs: { event_in: noteEventStructorType, prev_layer: layerOutputStructorType },
+  inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
   outputs: { out: layerOutputStructorType },
   autoBroadcast: true,
   isRealtime: () => true,
@@ -356,55 +363,47 @@ const toneSynthPrimitive = definePrimitiveNode({
       layer: new ToneSynthLayer({}),
       lastActive: false,
       lastActiveNote: null as number | null,
-      lastEvent: null as any
+      activeVelocity: 0
     };
   },
   execute: (inputs, config, context, state) => {
     const activeLayer = state.layer;
+    const stream = inputs.midi_in || [];
 
-    const noteEvent = inputs.event_in;
-    const isNewStep = noteEvent !== state.lastEvent;
-    state.lastEvent = noteEvent;
+    let hasNoteOn = false;
 
-    const onNote = noteEvent?.onNote;
-    const offNote = noteEvent?.offNote;
-
-    let noteIndexForUpdate: number | null = (state.lastActive ? state.lastActiveNote : null) ?? null;
-    let velocityForUpdate = 0;
-
-    let isEvent = false;
-    if (onNote) {
-      isEvent = true;
-      noteIndexForUpdate = onNote.note;
-      velocityForUpdate = onNote.velocity;
-      state.lastActive = true;
-      state.lastActiveNote = noteIndexForUpdate;
-    } else if (offNote) {
-      isEvent = true;
-      noteIndexForUpdate = null;
-      state.lastActive = false;
+    // Process MIDI stream
+    for (const event of stream) {
+      const status = event.status & 0xF0;
+      if (status === 0x90 && event.data2 > 0) { // Note On
+        state.lastActive = true;
+        state.lastActiveNote = event.data1;
+        state.activeVelocity = event.data2 / 127;
+        hasNoteOn = true;
+      } else if (status === 0x80 || (status === 0x90 && event.data2 === 0)) { // Note Off
+        if (event.data1 === state.lastActiveNote) {
+          state.lastActive = false;
+          state.lastActiveNote = null;
+        }
+      }
     }
 
     const syntheticStep: Step = {
-      noteIndex: isEvent ? noteIndexForUpdate : null,
-      velocity: velocityForUpdate,
-      hold: noteEvent?.hold ?? false,
+      noteIndex: state.lastActive ? state.lastActiveNote : null,
+      velocity: state.activeVelocity,
+      hold: false,
     };
 
     // Use the provided audio context from execution context
-    // We fallback to creating one only if not provided (e.g. in tests without mock audio)
-    // Safe for workers: check if window exists
     if (!activeLayer.audioContext) {
       if (context.audio?.context) {
         activeLayer.audioContext = context.audio.context;
       } else if (typeof window !== 'undefined') {
         activeLayer.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
-      // If in worker and no context provided, audioContext remains undefined/null.
-      // ToneSynthLayer should handle this or it won't produce sound.
     }
 
-    activeLayer.update(syntheticStep, context.clock.dt, isNewStep);
+    activeLayer.update(syntheticStep, context.clock.dt, hasNoteOn);
     const result = activeLayer.getValue();
 
     return { out: result };
@@ -417,7 +416,7 @@ defaultNodeRepository.register({
   displayName: "Tone Synth Layer",
   definition: toneSynthPrimitive,
   inputs: [
-    { name: "event_in", type: noteEventStructorType, description: "Input note event" },
+    { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
     { name: "prev_layer", type: layerOutputStructorType, description: "Previous layer output" }
   ],
   outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],

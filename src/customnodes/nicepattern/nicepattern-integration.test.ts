@@ -4,7 +4,7 @@ import { GraphExecutor } from '../../structor/executor';
 import { NodeRepository } from '../../structor/repository';
 import { rhythmicGeneratorPrimitive, patternPrimitive, sequenceStructorType, noteEventStructorType } from './nodes';
 import { GraphDefinition, StructorRecord } from '../../structor/structor';
-import { NumberType } from '../../structor/std-types';
+import { NumberType, midiStreamType } from '../../structor/std-types';
 
 describe('NicePattern Integration', () => {
   const repository = new NodeRepository();
@@ -26,7 +26,7 @@ describe('NicePattern Integration', () => {
     displayName: 'Pattern',
     definition: patternPrimitive,
     inputs: [{ name: 'seq_in', type: sequenceStructorType, description: 'Input sequence(s)', redirect: 'untagged' }],
-    outputs: [{ name: 'event_out', type: noteEventStructorType, description: 'Real-time note events' }],
+    outputs: [{ name: 'midi_out', type: midiStreamType, description: 'Real-time MIDI stream' }],
     compileConfig: (uiConfig) => ({ fields: {}, untagged: [] }),
   });
 
@@ -72,7 +72,7 @@ describe('NicePattern Integration', () => {
         { fromNode: 'gen', fromPort: 'seq_out', toNode: 'pat', toPort: 'seq_in' }
       ],
       {},
-      { 'event': { nodeId: 'pat', port: 'event_out' } }
+      { 'midi': { nodeId: 'pat', port: 'midi_out' } }
     );
 
     const executor = new GraphExecutor(graph, repository);
@@ -80,44 +80,28 @@ describe('NicePattern Integration', () => {
     // Initial update (beat 0)
     executor.update({ clock: { beat: 0, dt: 0.1 } });
 
-    let event = executor.getGraphOutput('event') as any;
-    // At beat 0, step 0. If density 0.5, step 0 usually has a note (Euclidean-ish distribution).
-    // The implementation: if ((i * numEvents) % SEQUENCE_LENGTH < numEvents)
-    // 0.5 * 16 = 8 events.
-    // i=0: 0 < 8 -> True.
+    let stream = executor.getGraphOutput('midi') as any[];
 
-    // Note: event is a StructorRecord { fields: { onNote: ..., hold: ... } }
-    // But wait, `patternPrimitive` returns `{ event_out: noteEvent }`.
-    // `noteEvent` is a JS object.
-    // `definePrimitiveNode` wraps it into StructorRecord.
-    // So `event` should be a StructorRecord.
+    // At beat 0, step 0. If density 0.5, step 0 usually has a note.
+    // We expect a Note On event.
 
-    // Let's check the structure
-    // console.log('Event Output:', JSON.stringify(event, null, 2));
+    expect(stream).toBeDefined();
+    expect(Array.isArray(stream)).toBe(true);
 
-    expect(event).toBeDefined();
-    expect(event.fields.hold).toBe(false);
-    // Wait, hold is false in generator.
+    const noteOn = stream.find(e => (e.fields.status & 0xF0) === 0x90 && e.fields.data2 > 0);
+    expect(noteOn).toBeDefined();
+    expect(noteOn.fields.data1).toBe(60);
 
-    // Check onNote
-    if (event.fields.onNote) {
-      expect(event.fields.onNote.fields.note).toBe(60);
-    }
-
-    // Advance clock to beat 0.25 (next step, since 4 steps per beat)
+    // Advance clock to beat 0.25 (next step)
     // beat = 0.25 -> step = 1.
     // i=1: (1*8)%16 = 8. 8 < 8 -> False. So step 1 is empty.
+    // We expect a Note Off for the previous note.
 
     executor.update({ clock: { beat: 0.25, dt: 0.1 } });
-    event = executor.getGraphOutput('event') as any;
+    stream = executor.getGraphOutput('midi') as any[];
 
-    // Should be note off or nothing?
-    // Pattern logic:
-    // if (currentStep.noteIndex !== lastStep.noteIndex)
-    // lastStep (60) != currentStep (null).
-    // -> offNote = lastStep.noteIndex (60).
-
-    expect(event.fields.offNote).toBeDefined();
-    expect(event.fields.offNote.fields.note).toBe(60);
+    const noteOff = stream.find(e => (e.fields.status & 0xF0) === 0x80 || ((e.fields.status & 0xF0) === 0x90 && e.fields.data2 === 0));
+    expect(noteOff).toBeDefined();
+    expect(noteOff.fields.data1).toBe(60);
   });
 });

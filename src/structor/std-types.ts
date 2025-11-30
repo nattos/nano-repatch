@@ -11,7 +11,7 @@ export const midiEventType = defineType({
     status: numberType,
     data1: numberType,
     data2: numberType,
-    time: numberType,
+    time: { ...numberType, optional: true }
   },
   untagged: [],
   hint: 'midi'

@@ -41,6 +41,10 @@ export function formatValue(value: any, type?: StructorType): TemplateResult {
     return formatMidiStream(value);
   }
 
+  if (type?.kind === 'array' && type.hint === 'step-sequence') {
+    return formatStepSequence(value);
+  }
+
   if (typeof value === 'number') {
     return html`<span class="chip">${value.toFixed(4)}</span>`;
   }
@@ -97,4 +101,21 @@ function formatMidiStream(stream: any[]): TemplateResult {
   // Show last few events
   const events = stream.slice(-3).map(formatMidiEvent).join(', ');
   return html`<span class="chip midi-stream">[${events}]</span>`;
+}
+
+function formatStepSequence(sequence: any[]): TemplateResult {
+  if (!sequence || !Array.isArray(sequence)) {
+    return html`<span class="chip">invalid seq</span>`;
+  }
+
+  // Visualize as bars: ▮ for active, ▯ for inactive
+  const bars = sequence.map(step => {
+    if (step.noteIndex !== null && step.noteIndex !== undefined) {
+      return '▮';
+    } else {
+      return '▯';
+    }
+  }).join('');
+
+  return html`<span class="chip sequence" style="font-family: 'Menlo', monospace; letter-spacing: 1px;">${bars}</span>`;
 }
