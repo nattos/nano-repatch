@@ -56,7 +56,7 @@ export class GraphGrid extends MobxLitElement {
     .selection-box {
       position: absolute;
       background-color: var(--selection-color);
-      border: 1px solid rgba(0, 170, 255, 0.5);
+      border: 1px solid var(--selection-border);
       pointer-events: none;
       z-index: 100;
     }

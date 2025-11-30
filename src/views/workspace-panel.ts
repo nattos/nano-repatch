@@ -37,7 +37,8 @@ export class WorkspacePanel extends MobxLitElement {
 
       .file-item.selected {
         background-color: var(--selection-color);
-        color: white;
+        border: 1px solid var(--selection-border);
+        color: var(--text-color);
       }
 
       .file-icon {

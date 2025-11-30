@@ -481,3 +481,8 @@ Structor comes with a comprehensive set of primitive nodes:
 *   **IO:** `input`, `output`, `midi`.
 
 For a full list of available nodes, see [PRIMITIVES.md](src/structor/PRIMITIVES.md).
+
+## Documentation
+
+*   **[UI_METRICS.md](UI_METRICS.md):** Detailed specifications for the graph editor's layout, grid system, and node metrics. Essential for implementing custom editors.
+*   **[GEMINI.md](GEMINI.md):** The development log, tracking architectural decisions, system analysis, and future plans.

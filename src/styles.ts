@@ -38,7 +38,8 @@ export const globalStyles = [
     --text-muted: #aaa;
     --border-color: #555;
     --accent-color: #00aaff;
-    --selection-color: rgba(0, 170, 255, 0.5);
+    --selection-color: rgba(0, 170, 255, 0.1);
+    --selection-border: rgba(0, 170, 255, 0.5);
     --port-color: #555;
     --port-hover: #777;
     --port-connected: #00ff00;

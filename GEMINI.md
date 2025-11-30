@@ -116,9 +116,27 @@ This entry documents the implementation of the graph composition features and th
 ### Future Work
 
 *   **Subgraph Execution:** The current implementation focuses on the *structure* and *editor UI*. The actual runtime execution of nested subgraphs (recursion in `GraphExecutor`) is the next major step.
-## Type Safety and State Management Improvements (As of 2025-11-25)
 
-This entry documents the enhancements to the Structor system's type safety and node state management.
+## Principled Layout System (As of 2025-11-30)
+
+This entry documents the implementation of the "Perfect Alignment" grid system and the subsequent styling refinements.
+
+### Features Implemented
+
+1.  **Principled Grid Metrics:**
+    *   Established a strict grid system based on an **80px** base unit and **16px** gap.
+    *   Defined **24px** row heights, ensuring that all node sizes (Single: 80px, Double: 176px, Triple: 272px) are integer multiples of the row height + padding.
+    *   See **[UI_METRICS.md](UI_METRICS.md)** for the definitive specification.
+
+2.  **Visual Refinements:**
+    *   **Architectural Draft Style:** Replaced solid grid cell backgrounds with dashed lines drawn *through* the gaps (horizontal, vertical, and cross intersections).
+    *   **Dark Mode Optimization:** Reduced the brightness of selection indicators (transparent blue backgrounds with borders) to eliminate the "flashlight effect" in dark venues.
+    *   **Inline Graph Creation:** Replaced the flaky `prompt()` dialog with a robust inline input field in the Workspace panel.
+
+### Documentation
+
+*   **[UI_METRICS.md](UI_METRICS.md)** has been updated with "Vertical Rhythm" and "Grid Fit Verification" sections to guide custom editor implementation.
+
 
 ### Features Implemented
 
