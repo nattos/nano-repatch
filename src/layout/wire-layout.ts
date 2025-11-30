@@ -129,10 +129,10 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
 
           // Penalize moving along Node Lanes (Even Coordinates)
           if (isVertical && neighbor.x % 2 === 0) {
-            moveCost += 10;
+            moveCost += 0.01;
           }
           if (isHorizontal && neighbor.y % 2 === 0) {
-            moveCost += 10;
+            moveCost += 0.01;
           }
 
           if (isVertical) {

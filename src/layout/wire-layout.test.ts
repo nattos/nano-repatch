@@ -234,5 +234,32 @@ describe('Wire Layout Engine', () => {
       }
     }
   });
+  it('should route straight through empty cells', () => {
+    // Node 1 at 0,0
+    // Node 2 at 3,0
+    // Wire from Node 1 to Node 2
+    // Empty cells at 1,0 and 2,0
+
+    const wire: WireDef = {
+      id: 'w1',
+      start: { x: 0, y: 0 },
+      end: { x: 3, y: 0 },
+      fromNodeId: 'n1', fromPort: 'out', toNodeId: 'n2', toPort: 'in'
+    };
+
+    const result = computeWireLayout([wire], {
+      obstacles: [
+        { x: 0, y: 0 },
+        { x: 3, y: 0 }
+      ]
+    });
+
+    const path = result.wires['w1'].path;
+
+    // Check if path stays on y=0
+    const deviations = path.filter(p => p.y !== 0);
+
+    expect(deviations.length).toBe(0);
+  });
 });
 
