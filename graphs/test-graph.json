@@ -7,7 +7,7 @@
       "config": {
         "typeId": "nicepattern:chaos_generator",
         "values": {},
-        "density": 0,
+        "density": 0.4,
         "maxNote": 0
       }
     },
@@ -39,7 +39,7 @@
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
         "values": {},
-        "density": 0
+        "density": 0.1
       }
     }
   },

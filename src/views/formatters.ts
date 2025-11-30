@@ -120,15 +120,61 @@ function formatStepSequence(sequence: any[]): TemplateResult {
     return html`<span class="chip">invalid seq</span>`;
   }
 
-  // Visualize as bars: ▮ for active, ▯ for inactive
-  const bars = sequence.map(rawStep => {
+  const steps = sequence.map((rawStep, index) => {
     const step = unwrap(rawStep);
-    if (step.noteIndex !== null && step.noteIndex !== undefined) {
-      return '▮';
-    } else {
-      return '▯';
-    }
-  }).join('');
+    const isActive = step.noteIndex !== null && step.noteIndex !== undefined;
+    const velocity = step.velocity ?? 0;
+    const isHold = step.hold;
 
-  return html`<span class="chip sequence" style="font-family: 'Menlo', monospace; letter-spacing: 1px;">${bars}</span>`;
+    // Calculate height based on velocity (min 20% for visibility)
+    const heightPercent = isActive ? Math.max(20, velocity * 100) : 100;
+
+    // Color
+    // Active: #4caf50 (Green) or #2196f3 (Blue) or #ff9800 (Orange)
+    // Inactive: #333
+    // We can use CSS variables or fixed colors.
+    const color = isActive ? '#4caf50' : '#333';
+    const opacity = isActive ? 1 : 0.3;
+
+    return html`
+      <div class="step ${isActive ? 'active' : ''} ${isHold ? 'hold' : ''}"
+           style="
+             height: ${isActive ? heightPercent : 20}%;
+             background-color: ${color};
+             opacity: ${isActive ? 1 : 0.5};
+           "
+           title="Step ${index}: ${isActive ? `Note ${step.noteIndex}, Vel ${velocity.toFixed(2)}` : 'Rest'}"
+      ></div>
+    `;
+  });
+
+  return html`
+    <style>
+      .step-seq-viz {
+        display: inline-flex;
+        gap: 1px;
+        height: 14px;
+        align-items: flex-end;
+        background: rgba(0,0,0,0.3);
+        padding: 2px;
+        border-radius: 3px;
+        vertical-align: middle;
+      }
+      .step-seq-viz .step {
+        width: 6px;
+        border-radius: 1px;
+        min-height: 2px;
+      }
+      .step-seq-viz .step.hold {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        margin-right: -1px; /* Connect visually */
+        padding-right: 1px;
+        z-index: 1;
+      }
+    </style>
+    <div class="step-seq-viz">
+      ${steps}
+    </div>
+  `;
 }
