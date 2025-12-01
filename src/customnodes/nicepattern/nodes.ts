@@ -253,10 +253,6 @@ defaultNodeRepository.register({
 
 // --- Layer Nodes ---
 
-// --- Layer Nodes ---
-
-// --- Layer Nodes ---
-
 export function createLayerNode(
   id: string,
   displayName: string,
@@ -363,7 +359,7 @@ export const toneSynthPrimitive = definePrimitiveNode({
   isRealtime: () => true,
   createState: (config, context) => {
     return {
-      layer: new ToneSynthLayer({ targetNoteIndex: config.targetNote }),
+      layer: new ToneSynthLayer({}),
       lastActive: false,
       lastActiveNote: null as number | null,
       activeVelocity: 0

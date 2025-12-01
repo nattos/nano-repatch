@@ -9,18 +9,6 @@
         "values": {}
       }
     },
-    "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
-      "id": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
-      "x": 6,
-      "y": 1,
-      "config": {
-        "typeId": "nicepattern:tone_synth_layer",
-        "values": {
-          "prev_layer": 1
-        },
-        "targetNote": 0
-      }
-    },
     "node-70a66d18-f570-4d0e-9571-6cef9e7703f7": {
       "id": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
       "x": 2,
@@ -28,7 +16,7 @@
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
         "values": {},
-        "density": 0.05
+        "density": 0.2
       }
     },
     "node-cf68da5f-291e-47a8-b3fe-dc95720ad062": {
@@ -40,16 +28,21 @@
         "values": {},
         "density": 0.15
       }
+    },
+    "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
+      "id": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
+      "x": 6,
+      "y": 1,
+      "config": {
+        "typeId": "nicepattern:tone_synth_layer",
+        "values": {
+          "prev_layer": 1
+        },
+        "targetNote": 60
+      }
     }
   },
   "connections": {
-    "conn-bae13845-192d-4e39-a3d0-fd65697b56ef": {
-      "id": "conn-bae13845-192d-4e39-a3d0-fd65697b56ef",
-      "fromNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
-      "fromPort": "midi_out",
-      "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
-      "toPort": "midi_in"
-    },
     "conn-5361a709-3c26-49fa-a789-c561a3c521d6": {
       "id": "conn-5361a709-3c26-49fa-a789-c561a3c521d6",
       "fromNodeId": "node-70a66d18-f570-4d0e-9571-6cef9e7703f7",
@@ -63,6 +56,13 @@
       "fromPort": "seq_out",
       "toNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
       "toPort": "seq_in"
+    },
+    "conn-71d5fcb4-9c7e-43f5-a3ab-841a75b5c698": {
+      "id": "conn-71d5fcb4-9c7e-43f5-a3ab-841a75b5c698",
+      "fromNodeId": "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9",
+      "fromPort": "midi_out",
+      "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
+      "toPort": "midi_in"
     }
   }
 }
