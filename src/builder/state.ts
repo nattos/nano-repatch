@@ -537,7 +537,7 @@ export class AppController {
     }
     this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
 
-    this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
+
   }
 
   public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {

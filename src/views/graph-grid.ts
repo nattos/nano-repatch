@@ -1,5 +1,5 @@
 import './graph-node';
-import '../components/smart-input';
+import { SmartInput } from '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
@@ -173,7 +173,12 @@ export class GraphGrid extends MobxLitElement {
       const path = e.composedPath();
       const isPopup = path.some(el => (el as Element).classList?.contains('popup-container'));
       if (!isPopup) {
-        this.handlePopupCancel();
+        const smartInput = this.shadowRoot?.querySelector('smart-input') as SmartInput;
+        if (smartInput) {
+          smartInput.commit();
+        } else {
+          this.handlePopupCancel();
+        }
       }
     }
 

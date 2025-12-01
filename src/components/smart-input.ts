@@ -154,23 +154,24 @@ export class SmartInput extends LitElement {
 
           if (this.catalog) {
             // Live Preview Logic
-            const results = this.catalog.search(this.value);
-            if (results.length > 0) {
-              const top = results[0];
-              if (top.type === 'node' && top.id) {
-                this.lastPreviewedId = top.id;
-                this.dispatchEvent(new CustomEvent('preview-type', { detail: top.id }));
-              } else {
-                this.lastPreviewedId = null;
-              }
-            } else {
-              this.lastPreviewedId = null;
-            }
-
             // Only start completion if the change was caused by user input (typing/deleting)
             // This prevents the popup from opening when the value is updated programmatically (e.g. via Inspector selection)
             const isUserEvent = update.transactions.some(tr => tr.isUserEvent('input') || tr.isUserEvent('delete'));
+
             if (isUserEvent) {
+              const results = this.catalog.search(this.value);
+              if (results.length > 0) {
+                const top = results[0];
+                if (top.type === 'node' && top.id) {
+                  this.lastPreviewedId = top.id;
+                  this.dispatchEvent(new CustomEvent('preview-type', { detail: top.id }));
+                } else {
+                  this.lastPreviewedId = null;
+                }
+              } else {
+                this.lastPreviewedId = null;
+              }
+
               startCompletion(this.editorView!);
             }
           }
@@ -297,6 +298,10 @@ export class SmartInput extends LitElement {
     }
   }
 
+  public commit() {
+    this.dispatchCommit(this.editorView?.state.doc.toString() || this.value);
+  }
+
   private dispatchCommit(value: string) {
     if (this.editorView) {
       closeCompletion(this.editorView);
@@ -306,8 +311,6 @@ export class SmartInput extends LitElement {
     if (this.catalog) {
       if (this.lastPreviewedId) {
         value = this.lastPreviewedId;
-      } else {
-        value = this.originalValue;
       }
     }
 
