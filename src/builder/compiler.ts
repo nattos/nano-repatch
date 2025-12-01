@@ -76,15 +76,46 @@ export function compileGraph(
           }
         }
 
-        // Process Virtual Inputs (Configured Values)
-        if (node.config.values) {
-          for (const [portName, value] of Object.entries(node.config.values)) {
-            // Check if this port is already connected in the original graph
-            const isConnected = Object.values(graph.inner.connections).some(
-              c => c.toNodeId === node.id && c.toPort === portName
-            );
+        // Process Virtual Inputs (Configured Values & Defaults)
+        // We need to consider both explicitly configured values AND default values for unconnected ports.
 
-            if (!isConnected) {
+        // 1. Determine all potential input ports
+        let inputPorts: { name: string, defaultValue?: any }[] = [];
+        if (nodeType) {
+          if (nodeType.getPorts) {
+            const ports = nodeType.getPorts(node, loadedSubgraphs);
+            if (ports) inputPorts = ports.inputs;
+          } else {
+            inputPorts = nodeType.inputs || [];
+          }
+        }
+
+        // 2. Collect all port names to process (defined inputs + any extra keys in config.values)
+        const portsToProcess = new Set<string>(inputPorts.map(p => p.name));
+        if (node.config.values) {
+          Object.keys(node.config.values).forEach(k => portsToProcess.add(k));
+        }
+
+        for (const portName of portsToProcess) {
+          // Check if this port is already connected in the original graph
+          const isConnected = Object.values(graph.inner.connections).some(
+            c => c.toNodeId === node.id && c.toPort === portName
+          );
+
+          if (!isConnected) {
+            // Determine value: Config > Default > undefined
+            let value = node.config.values?.[portName];
+
+            if (value === undefined) {
+              const portDef = inputPorts.find(p => p.name === portName);
+              if (portDef && portDef.defaultValue !== undefined) {
+                value = portDef.defaultValue;
+              } else {
+                // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
+              }
+            }
+
+            if (value !== undefined) {
               const virtualNodeId = `${nodeId}-virtual-${portName}`;
 
               // Create Literal Node

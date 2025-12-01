@@ -29,7 +29,7 @@ export const primitive_clamp = {
     keywords: ['limit', 'range'],
     description: 'Clamps a value between a minimum and maximum.'
   },
-  inputs: { value: numberType, min: numberType, max: numberType },
+  inputs: { value: numberType, min: { ...numberType, defaultValue: 0 }, max: { ...numberType, defaultValue: 1 } },
   outputs: { value: numberType },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     const broadcastConfig: BroadcastConfig = {
