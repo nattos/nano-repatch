@@ -47,18 +47,28 @@ describe('NicePattern Nodes', () => {
       const seq = result.fields.seq_out as any[];
 
       expect(seq).toHaveLength(16);
-      // Check if we have some notes
-      // seq elements are StructorRecords, so we need to access fields
       const notes = seq.filter(s => s.fields.noteIndex !== null);
-      expect(notes.length).toBeGreaterThan(0);
+      expect(notes.length).toBe(8); // 0.5 * 16 = 8
       expect(notes[0].fields.noteIndex).toBe(60);
+    });
+
+    it('should use input density if provided', () => {
+      const context = createMockContext();
+      const config = { fields: { targetNote: 60, density: 0.1 }, untagged: [] };
+      const input = { fields: { density: 1.0 }, untagged: [] };
+
+      const result = rhythmicGeneratorPrimitive.execute(input, config, context);
+      const seq = result.fields.seq_out as any[];
+
+      const notes = seq.filter(s => s.fields.noteIndex !== null);
+      expect(notes.length).toBe(16); // Input density 1.0 overrides config 0.1
     });
   });
 
   describe('ChaosGenerator', () => {
     it('should generate random notes within range', () => {
       const context = createMockContext();
-      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0 }, untagged: [] };
+      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 123 }, untagged: [] };
       const input = { fields: {}, untagged: [] };
 
       const result = chaosGeneratorPrimitive.execute(input, config, context);
@@ -71,6 +81,48 @@ describe('NicePattern Nodes', () => {
           expect(step.fields.noteIndex).toBeLessThanOrEqual(72);
         }
       });
+    });
+
+    it('should produce deterministic output with same seed', () => {
+      const context = createMockContext();
+      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 999 }, untagged: [] };
+      const input = { fields: {}, untagged: [] };
+
+      const result1 = chaosGeneratorPrimitive.execute(input, config, context);
+      const seq1 = result1.fields.seq_out as any[];
+
+      const result2 = chaosGeneratorPrimitive.execute(input, config, context);
+      const seq2 = result2.fields.seq_out as any[];
+
+      expect(JSON.stringify(seq1)).toBe(JSON.stringify(seq2));
+    });
+
+    it('should produce different output with different seed', () => {
+      const context = createMockContext();
+      const input = { fields: {}, untagged: [] };
+
+      const config1 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 111 }, untagged: [] };
+      const result1 = chaosGeneratorPrimitive.execute(input, config1, context);
+      const seq1 = result1.fields.seq_out as any[];
+
+      const config2 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 222 }, untagged: [] };
+      const result2 = chaosGeneratorPrimitive.execute(input, config2, context);
+      const seq2 = result2.fields.seq_out as any[];
+
+      expect(JSON.stringify(seq1)).not.toBe(JSON.stringify(seq2));
+    });
+
+    it('should use input density if provided', () => {
+      const context = createMockContext();
+      const config = { fields: { minNote: 60, maxNote: 72, density: 0.1, seed: 123 }, untagged: [] };
+      const input = { fields: { density: 1.0 }, untagged: [] };
+
+      const result = chaosGeneratorPrimitive.execute(input, config, context);
+      const seq = result.fields.seq_out as any[];
+
+      const notes = seq.filter(s => s.fields.noteIndex !== null);
+      // With density 1.0, all steps should have notes
+      expect(notes.length).toBe(16);
     });
   });
 

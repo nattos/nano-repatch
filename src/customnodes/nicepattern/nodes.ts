@@ -8,6 +8,7 @@ import {
 import { defineType, definePrimitiveNode, typedBroadcast } from "../../structor/type-helpers";
 import { numberType, booleanType, anyType, midiStreamType, midiEventType } from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
+import { SeededRandom } from "./utils";
 import { Step } from "./envelope-generator";
 import {
   GateLayer,
@@ -82,10 +83,13 @@ export const rhythmicGeneratorPrimitive = definePrimitiveNode({
     description: 'Generates a rhythmic sequence based on density.'
   },
   config: { targetNote: numberType, density: numberType },
-  inputs: {},
+  inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
   execute: (inputs, config, context) => {
-    const { targetNote, density } = config;
+    const targetNote = config.targetNote;
+    // Use input density if available, otherwise config density
+    const density = (inputs.density !== undefined && inputs.density !== null) ? inputs.density : config.density;
+
     const sequence: Step[] = [];
     const numEvents = Math.round(density * SEQUENCE_LENGTH);
     for (let i = 0; i < SEQUENCE_LENGTH; i++) {
@@ -104,7 +108,7 @@ defaultNodeRepository.register({
   version: "1.0.0",
   displayName: "Rhythmic Generator",
   definition: rhythmicGeneratorPrimitive,
-  inputs: [],
+  inputs: [{ name: "density", type: numberType, description: "Density (0-1)" }],
   outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
@@ -123,16 +127,21 @@ export const chaosGeneratorPrimitive = definePrimitiveNode({
     keywords: ['chaos', 'random', 'generator', 'sequence', 'stochastic'],
     description: 'Generates a random sequence of notes.'
   },
-  config: { minNote: numberType, maxNote: numberType, density: numberType },
-  inputs: {},
+  config: { minNote: numberType, maxNote: numberType, density: numberType, seed: numberType },
+  inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
   execute: (inputs, config, context) => {
-    const { minNote, maxNote, density } = config;
+    const { minNote, maxNote, seed } = config;
+    // Use input density if available, otherwise config density
+    const density = (inputs.density !== undefined && inputs.density !== null) ? inputs.density : config.density;
+
+    const rng = new SeededRandom(seed ?? 12345); // Default seed if not provided
+
     const sequence: Step[] = [];
     for (let i = 0; i < SEQUENCE_LENGTH; i++) {
-      if (Math.random() < density) {
-        const note = Math.floor(Math.random() * (maxNote - minNote + 1)) + minNote;
-        sequence.push({ noteIndex: note, velocity: Math.random() * 0.5 + 0.5, hold: false });
+      if (rng.next() < density) {
+        const note = rng.nextRange(minNote, maxNote);
+        sequence.push({ noteIndex: note, velocity: rng.next() * 0.5 + 0.5, hold: false });
       } else {
         sequence.push({ noteIndex: null, velocity: 0, hold: false });
       }
@@ -146,13 +155,14 @@ defaultNodeRepository.register({
   version: "1.0.0",
   displayName: "Chaos Generator",
   definition: chaosGeneratorPrimitive,
-  inputs: [],
+  inputs: [{ name: "density", type: numberType, description: "Density (0-1)" }],
   outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
       minNote: uiConfig?.minNote ?? 60,
       maxNote: uiConfig?.maxNote ?? 72,
       density: uiConfig?.density ?? 0.5,
+      seed: uiConfig?.seed ?? 12345,
     },
     untagged: [],
   }),

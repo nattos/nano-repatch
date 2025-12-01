@@ -214,7 +214,8 @@ export class ToneSynthLayer extends AbstractLayer {
     // Envelope
     this.gain.gain.setValueAtTime(0, time);
     this.gain.gain.linearRampToValueAtTime(velocity, time + 0.005);
-    this.gain.gain.exponentialRampToValueAtTime(0.01, time + 0.3); // Short pluck
+    // Use setTargetAtTime for decay to avoid "pop to 100%" when cancelling ramps on release
+    this.gain.gain.setTargetAtTime(0, time + 0.005, 0.1); // Decay constant
 
     // Graph
     this.osc.connect(this.filter);
@@ -244,7 +245,13 @@ export class ToneSynthLayer extends AbstractLayer {
     if (this.gain) {
       // Fast release
       const currentTime = this.ctx?.currentTime ?? 0.0;
-      this.gain.gain.cancelScheduledValues(currentTime);
+      try {
+        // Modern browsers support cancelAndHoldAtTime which prevents jumps
+        (this.gain.gain as any).cancelAndHoldAtTime(currentTime);
+      } catch (e) {
+        // Fallback
+        this.gain.gain.cancelScheduledValues(currentTime);
+      }
       this.gain.gain.setTargetAtTime(0, currentTime, 0.05);
     }
   }

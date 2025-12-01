@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { GraphExecutor } from '../../structor/executor';
 import { NodeRepository, defaultNodeRepository } from '../../structor/repository';
 import {
@@ -42,7 +42,8 @@ describe('NicePattern Integration', () => {
       fields: {
         minNote: uiConfig?.minNote ?? 60,
         maxNote: uiConfig?.maxNote ?? 72,
-        density: uiConfig?.density ?? 0.5
+        density: uiConfig?.density ?? 0.5,
+        seed: uiConfig?.seed ?? 12345
       },
       untagged: []
     }),
@@ -224,7 +225,7 @@ describe('NicePattern Integration', () => {
   it('should generate chaos sequence', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'chaos': { typeId: 'nicepattern:chaos_generator', config: { minNote: 60, maxNote: 62, density: 1.0 } }
+        'chaos': { typeId: 'nicepattern:chaos_generator', config: { minNote: 60, maxNote: 62, density: 1.0, seed: 123 } }
       },
       [],
       'chaos', 'seq_out'
@@ -263,16 +264,23 @@ describe('NicePattern Integration', () => {
   it('tone_synth_layer should not trigger on Note Off', async () => {
     // Mock AudioContext
     const mockAudioContext = {
-      createOscillator: () => ({
+      createOscillator: vi.fn(() => ({
         connect: () => { },
         start: () => { },
         stop: () => { },
         frequency: { setValueAtTime: () => { } },
         type: 'sine'
-      }),
+      })),
       createGain: () => ({
         connect: () => { },
-        gain: { setValueAtTime: () => { }, linearRampToValueAtTime: () => { }, exponentialRampToValueAtTime: () => { }, cancelScheduledValues: () => { }, setTargetAtTime: () => { } }
+        gain: {
+          setValueAtTime: () => { },
+          linearRampToValueAtTime: () => { },
+          exponentialRampToValueAtTime: () => { },
+          cancelScheduledValues: () => { },
+          setTargetAtTime: () => { },
+          cancelAndHoldAtTime: () => { }
+        }
       }),
       createBiquadFilter: () => ({
         connect: () => { },
@@ -296,11 +304,11 @@ describe('NicePattern Integration', () => {
             'input': {
               id: 'input',
               x: 0, y: 0,
-              config: { typeId: 'data.literal', values: {}, value: [] }
+              config: { typeId: 'io.input', values: {}, value: [] }
             }
           },
           connections: {
-            'c1': { id: 'c1', fromNodeId: 'input', fromPort: 'value', toNodeId: 'synth', toPort: 'midi_in' }
+            'c1': { id: 'c1', fromNodeId: 'input', fromPort: 'val', toNodeId: 'synth', toPort: 'midi_in' }
           }
         },
         auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
@@ -319,6 +327,9 @@ describe('NicePattern Integration', () => {
       audio: { context: mockAudioContext as any }
     });
 
+
+    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Only for the first Note On
+
     // 2. Note Off (60)
     const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 }, untagged: [] }];
     executor.setNodeConfig('input', noteOff as any);
@@ -326,6 +337,7 @@ describe('NicePattern Integration', () => {
       clock: { beat: 0.1, dt: 0.1 },
       audio: { context: mockAudioContext as any }
     });
+    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
 
     // 3. Note Off (60) again - should not trigger
     executor.setNodeConfig('input', noteOff as any);
@@ -333,6 +345,7 @@ describe('NicePattern Integration', () => {
       clock: { beat: 0.2, dt: 0.1 },
       audio: { context: mockAudioContext as any }
     });
+    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
 
     // 4. Note On (62) - Wrong note, should be ignored
     const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
@@ -341,5 +354,6 @@ describe('NicePattern Integration', () => {
       clock: { beat: 0.3, dt: 0.1 },
       audio: { context: mockAudioContext as any }
     });
+    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
   });
 });
