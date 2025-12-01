@@ -51,6 +51,7 @@ export type ControlMessage = {
 export type MidiUpdateMessage = {
   type: 'MIDI_UPDATE';
   values: Map<string, number>;
+  events: any[]; // Typed as MidiEvent[] in implementation, but 'any' here to avoid circular deps or complex imports
 };
 
 export type ExecutorWorkerMessage =

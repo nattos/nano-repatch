@@ -5,6 +5,7 @@ import { NodeRepository } from '../../structor/repository';
 import { midiCcNode, midiNoteNode, midiToMonoNode } from './nodes';
 import { GraphDefinition, StructorRecord } from '../../structor/structor';
 import { midiStreamType } from '../../structor/std-types';
+import { MidiEvent } from '../../io/midi/types';
 
 describe('MIDI Integration', () => {
   const repository = new NodeRepository();
@@ -54,14 +55,31 @@ describe('MIDI Integration', () => {
     }
   });
 
-  const createMidiEvent = (status: number, data1: number, data2: number, time: number = 0): StructorRecord => ({
-    fields: {
-      status,
-      data1,
-      data2,
-      time
-    },
-    untagged: []
+  const createCcEvent = (channel: number, cc: number, value: number): MidiEvent => ({
+    deviceId: 'test',
+    channel,
+    type: 'cc',
+    cc,
+    value,
+    time: 0
+  });
+
+  const createNoteOnEvent = (channel: number, note: number, velocity: number): MidiEvent => ({
+    deviceId: 'test',
+    channel,
+    type: 'note_on',
+    note,
+    velocity,
+    time: 0
+  });
+
+  const createNoteOffEvent = (channel: number, note: number): MidiEvent => ({
+    deviceId: 'test',
+    channel,
+    type: 'note_off',
+    note,
+    velocity: 0,
+    time: 0
   });
 
   it('should process MIDI CC messages', () => {
@@ -82,18 +100,6 @@ describe('MIDI Integration', () => {
     // OR StructorRecords if coming from another node?
     // The executor.setInput puts the value directly into the input record.
     // If we pass StructorRecords here, the node will receive StructorRecords.
-    // The node implementation does `inputs.stream as unknown as Array<{ status: number... }>; `.
-    // If we pass StructorRecords, `event.status` will be undefined because it's `event.fields.status`.
-
-    // WAIT. The node implementation I wrote expects raw objects:
-    // `const stream = inputs.stream as unknown as Array<{ status: number... }>; `
-    // But the type system says `midiStreamType` is an array of records.
-    // If I pass raw objects here, it matches what the node expects, but violates the Structor type system?
-    // Actually, `Structor` includes `StructorRecord`.
-    // If I pass a raw object `{ status: ... } `, it is NOT a StructorRecord.
-    // However, `inputs` in `execute` is `StructorRecord`.
-    // `inputs.stream` is `StructorArray` (Array<Structor>).
-    // If I pass `[{ fields: { status: ... } }]`, then `inputs.stream[0]` is a StructorRecord.
     // So `event.status` would be undefined.
 
     // I should update the node implementation to handle StructorRecords!
@@ -101,22 +107,12 @@ describe('MIDI Integration', () => {
     // But "promoting to core" means doing it right.
     // The node should expect StructorRecords.
 
-    // Let's update the node implementation to handle StructorRecords.
-    // But for now, to make the test pass with the CURRENT node implementation,
-    // I should pass raw objects because that's what I cast it to.
-    // BUT the linter complained.
-
-    // Let's fix the node implementation to use Structor helpers or access fields.
-    // Actually, for performance, maybe we want raw objects?
-    // But `midiEventType` defines it as a record.
-    // So it SHOULD be a StructorRecord.
-
     // I will update the test to pass StructorRecords, AND update the node implementation to read from .fields.
 
     const stream = [
-      createMidiEvent(0xB0, 7, 64)
+      createCcEvent(1, 7, 64)
     ];
-    executor.setInput('midi_in', stream);
+    executor.setInput('midi_in', stream as any);
     executor.update({});
 
     // Wait, I need to update the node implementation first or this will fail.
@@ -128,9 +124,9 @@ describe('MIDI Integration', () => {
 
     // Send CC 7 on Channel 2 (should ignore)
     const stream2 = [
-      createMidiEvent(0xB1, 7, 127)
+      createCcEvent(2, 7, 127)
     ];
-    executor.setInput('midi_in', stream2);
+    executor.setInput('midi_in', stream2 as any);
     executor.update({});
 
     const output2 = executor.getGraphOutput('value') as number;
@@ -150,18 +146,18 @@ describe('MIDI Integration', () => {
     expect(executor.getGraphOutput('gate')).toBe(0);
 
     const stream = [
-      createMidiEvent(0x90, 60, 100)
+      createNoteOnEvent(1, 60, 100)
     ];
-    executor.setInput('midi_in', stream);
+    executor.setInput('midi_in', stream as any);
     executor.update({});
 
     expect(executor.getGraphOutput('gate')).toBe(1);
     expect(executor.getGraphOutput('velocity')).toBeCloseTo(100 / 127.0);
 
     const streamOff = [
-      createMidiEvent(0x80, 60, 0)
+      createNoteOffEvent(1, 60)
     ];
-    executor.setInput('midi_in', streamOff);
+    executor.setInput('midi_in', streamOff as any);
     executor.update({});
 
     expect(executor.getGraphOutput('gate')).toBe(0);
@@ -182,9 +178,9 @@ describe('MIDI Integration', () => {
 
     // Note On 60 (Middle C) -> Should be 0
     const stream = [
-      createMidiEvent(0x90, 60, 100)
+      createNoteOnEvent(1, 60, 100)
     ];
-    executor.setInput('midi_in', stream);
+    executor.setInput('midi_in', stream as any);
     executor.update({});
 
     expect(executor.getGraphOutput('gate')).toBe(1);
@@ -193,18 +189,18 @@ describe('MIDI Integration', () => {
 
     // Note On 72 (+1 octave) -> Should be 12
     const stream2 = [
-      createMidiEvent(0x90, 72, 100)
+      createNoteOnEvent(1, 72, 100)
     ];
-    executor.setInput('midi_in', stream2);
+    executor.setInput('midi_in', stream2 as any);
     executor.update({});
 
     expect(executor.getGraphOutput('note')).toBe(12);
 
     // Note Off 72 -> Should go back to 60 (last note priority)
     const stream3 = [
-      createMidiEvent(0x80, 72, 0)
+      createNoteOffEvent(1, 72)
     ];
-    executor.setInput('midi_in', stream3);
+    executor.setInput('midi_in', stream3 as any);
     executor.update({});
 
     expect(executor.getGraphOutput('note')).toBe(0);
@@ -212,9 +208,9 @@ describe('MIDI Integration', () => {
 
     // Note Off 60 -> Gate 0
     const stream4 = [
-      createMidiEvent(0x80, 60, 0)
+      createNoteOffEvent(1, 60)
     ];
-    executor.setInput('midi_in', stream4);
+    executor.setInput('midi_in', stream4 as any);
     executor.update({});
 
     expect(executor.getGraphOutput('gate')).toBe(0);

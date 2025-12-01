@@ -72,13 +72,11 @@ export class RuntimeManager {
       () => {
         // Track changes in both maps
         return {
-          ccVersion: midiManager.state.ccValues.size + Array.from(midiManager.state.ccValues.values()).reduce((a, b) => a + b, 0), // Hack to track value changes?
-          // Better: just return shallow copy or keys/values?
-          // MobX maps are observable. Accessing them tracks.
-          // We want to trigger when any value changes.
-          // Iterating keys/values tracks.
+          ccVersion: midiManager.state.ccValues.size + Array.from(midiManager.state.ccValues.values()).reduce((a, b) => a + b, 0),
           cc: new Map(midiManager.state.ccValues),
-          notes: new Map(midiManager.state.activeNotes)
+          notes: new Map(midiManager.state.activeNotes),
+          // Also track recent events length/content to trigger updates
+          eventsVersion: midiManager.state.recentEvents.length > 0 ? midiManager.state.recentEvents[0] : null
         };
       },
       ({ cc, notes }) => {
@@ -86,15 +84,49 @@ export class RuntimeManager {
         for (const [k, v] of cc) values.set(k, v);
         for (const [k, v] of notes) values.set(k, v);
 
+        // Send all recent events?
+        // Ideally we only send *new* events.
+        // But since we throttle to 16ms, we might miss some if we just take "recent".
+        // However, `recentEvents` is a buffer.
+        // Let's send the whole buffer (max 20) and let the worker filter by time?
+        // Or just send them all. 20 events is small.
+        // The worker will process them.
+        // Wait, if we send duplicates, the worker might re-trigger.
+        // We should filter by time or ID.
+        // But the worker is stateless regarding "last received event" unless we persist it.
+        // Actually, `executor.worker` runs every tick.
+        // If we send events, they are "consumed" or "buffered"?
+        // If we send `MIDI_UPDATE`, it updates the context.
+        // If the context holds `events`, and the node reads them...
+        // If the node reads them every frame, it will re-trigger.
+        // So the worker needs to clear events after processing?
+        // Or the message should only contain *new* events, and the worker appends them to a queue for the *next* frame?
+
+        // Let's assume the worker treats `msg.events` as "events arrived since last update".
+        // So we need to track what we sent.
+
+        const events = midiManager.state.recentEvents; // These are sorted newest first?
+        // `unshift` puts newest at 0.
+        // So we want to send events that are newer than `lastSentEventTime`.
+
+        const newEvents = events.filter(e => (e.time ?? 0) > this.lastMidiEventTime).reverse(); // Oldest first
+
+        if (newEvents.length > 0) {
+          this.lastMidiEventTime = newEvents[newEvents.length - 1].time ?? Date.now();
+        }
+
         const msg: ExecutorWorkerMessage = {
           type: 'MIDI_UPDATE',
-          values
+          values,
+          events: newEvents
         };
         this.executorWorker.postMessage(msg);
       },
       { delay: 16 } // Throttle to ~60fps
     );
   }
+
+  private lastMidiEventTime = 0;
 
   private setupWorkerListeners() {
     this.compilerWorker.onmessage = (event: MessageEvent<CompilerMainMessage>) => {

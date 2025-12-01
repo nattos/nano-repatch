@@ -20,6 +20,7 @@ let virtualAudioContext = new VirtualAudioContext();
 // Clock state
 let clock = { beat: 0 };
 let workerMidiValues = new Map<string, number>();
+let workerMidiEvents: any[] = [];
 
 self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
   const msg = event.data;
@@ -81,6 +82,9 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       // Update worker MIDI state
       // msg.values is a Map
       workerMidiValues = msg.values;
+      if (msg.events) {
+        workerMidiEvents = msg.events;
+      }
       break;
   }
 };
@@ -140,8 +144,16 @@ function runTick() {
     executor.update({
       clock: { beat: clock.beat, dt },
       audio: { context: virtualAudioContext },
-      midi: { values: workerMidiValues }
+      midi: { values: workerMidiValues, events: workerMidiEvents }
     });
+
+    // Clear events after processing (assuming they are consumed per tick or accumulated?)
+    // If we clear them here, and the next tick happens before a new message arrives, the events are gone.
+    // This is correct for a stream: events are processed once.
+    // However, if the frame rate is higher than MIDI update rate, we might process empty frames.
+    // If frame rate is lower, we process a batch.
+    // So clearing is correct.
+    workerMidiEvents = [];
   } catch (e) {
     console.error('Executor Worker: Error during update', e);
     return;

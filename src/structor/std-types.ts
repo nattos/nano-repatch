@@ -8,10 +8,15 @@ export const anyType = defineType({ kind: "atomic", type: "any" });
 export const midiEventType = defineType({
   kind: "record",
   fields: {
-    status: numberType,
-    data1: numberType,
-    data2: numberType,
-    time: { ...numberType, optional: true }
+    type: stringType,
+    channel: numberType,
+    deviceId: { ...stringType, optional: true },
+    time: { ...numberType, optional: true },
+    // Union fields
+    note: { ...numberType, optional: true },
+    velocity: { ...numberType, optional: true },
+    cc: { ...numberType, optional: true },
+    value: { ...numberType, optional: true }
   },
   untagged: [],
   hint: 'midi'

@@ -6,7 +6,8 @@ import {
   NodeType,
 } from "../../structor/repository";
 import { defineType, definePrimitiveNode, typedBroadcast } from "../../structor/type-helpers";
-import { numberType, booleanType, anyType, midiStreamType } from "../../structor/std-types";
+import { numberType, booleanType, anyType, midiStreamType, midiEventType } from "../../structor/std-types";
+import { MidiEvent } from "../../io/midi/types";
 import { Step } from "./envelope-generator";
 import {
   GateLayer,
@@ -217,9 +218,11 @@ export const patternPrimitive = definePrimitiveNode({
 
       if (shouldRelease) {
         stream.push({
-          status: 0x80, // Note Off
-          data1: lastStep.noteIndex!,
-          data2: 0,
+          type: 'note_off',
+          note: lastStep.noteIndex!,
+          velocity: 0,
+          channel: 1, // Default channel
+          deviceId: 'pattern',
           time: 0
         });
         state.activeNotes.delete(lastStep.noteIndex!);
@@ -227,9 +230,11 @@ export const patternPrimitive = definePrimitiveNode({
 
       if (shouldTrigger) {
         stream.push({
-          status: 0x90, // Note On
-          data1: currentStep.noteIndex!,
-          data2: Math.floor(currentStep.velocity * 127),
+          type: 'note_on',
+          note: currentStep.noteIndex!,
+          velocity: currentStep.velocity,
+          channel: 1, // Default channel
+          deviceId: 'pattern',
           time: 0
         });
         state.activeNotes.set(currentStep.noteIndex!, currentStep.velocity);
@@ -281,19 +286,18 @@ export function createLayerNode(
     },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
-      const stream = inputs.midi_in || [];
+      const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
       const targetNote = config.targetNote;
 
       // Process MIDI stream
       for (const event of stream) {
-        const status = event.status & 0xF0;
-        if (status === 0x90 && event.data2 > 0) { // Note On
-          if (event.data1 === targetNote) {
+        if (event.type === 'note_on') {
+          if (event.note === targetNote) {
             state.lastActive = true;
-            state.activeVelocity = event.data2 / 127;
+            state.activeVelocity = event.velocity;
           }
-        } else if (status === 0x80 || (status === 0x90 && event.data2 === 0)) { // Note Off
-          if (event.data1 === targetNote) {
+        } else if (event.type === 'note_off') {
+          if (event.note === targetNote) {
             state.lastActive = false;
           }
         }
@@ -309,7 +313,7 @@ export function createLayerNode(
       // Or we rely on the layer's internal logic.
       // The original code passed 'isNewStep' if the event object changed reference.
       // Here, we should probably pass true if we received a Note On for our target.
-      const hasNoteOn = stream.some((e: any) => (e.status & 0xF0) === 0x90 && e.data2 > 0 && e.data1 === targetNote);
+      const hasNoteOn = stream.some((e: MidiEvent) => e.type === 'note_on' && e.note === targetNote);
 
       activeLayer.update(syntheticStep, context.clock.dt, hasNoteOn);
       const result = activeLayer.getValue();
@@ -367,23 +371,22 @@ export const toneSynthPrimitive = definePrimitiveNode({
   },
   execute: (inputs, config, context, state) => {
     const activeLayer = state.layer;
-    const stream = inputs.midi_in || [];
+    const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
     const targetNote = config.targetNote;
 
     let hasNoteOn = false;
 
     // Process MIDI stream
     for (const event of stream) {
-      const status = event.status & 0xF0;
-      if (status === 0x90 && event.data2 > 0) { // Note On
-        if (event.data1 === targetNote) {
+      if (event.type === 'note_on') {
+        if (event.note === targetNote) {
           state.lastActive = true;
-          state.lastActiveNote = event.data1;
-          state.activeVelocity = event.data2 / 127;
+          state.lastActiveNote = event.note;
+          state.activeVelocity = event.velocity;
           hasNoteOn = true;
         }
-      } else if (status === 0x80 || (status === 0x90 && event.data2 === 0)) { // Note Off
-        if (event.data1 === targetNote) {
+      } else if (event.type === 'note_off') {
+        if (event.note === targetNote) {
           state.lastActive = false;
           state.lastActiveNote = null;
         }

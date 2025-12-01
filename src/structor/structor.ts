@@ -99,6 +99,7 @@ export interface ExecutionContext {
   nodeId?: string;
   midi?: {
     values: Map<string, number>;
+    events?: any[]; // Typed as MidiEvent[] in implementation
   };
 };
 

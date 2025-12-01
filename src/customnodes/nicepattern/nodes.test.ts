@@ -107,9 +107,9 @@ describe('NicePattern Nodes', () => {
       expect(stream).toBeDefined();
       expect(Array.isArray(stream)).toBe(true);
 
-      const noteOn = stream.find(e => (e.fields.status & 0xF0) === 0x90 && e.fields.data2 > 0);
+      const noteOn = stream.find(e => e.fields.type === 'note_on');
       expect(noteOn).toBeDefined();
-      expect(noteOn.fields.data1).toBe(60);
+      expect(noteOn.fields.note).toBe(60);
     });
   });
 });

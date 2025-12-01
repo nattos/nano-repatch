@@ -210,15 +210,15 @@ describe('NicePattern Integration', () => {
     let stream = getOutput() as any[];
 
     expect(stream).toBeDefined();
-    const noteOn = stream.find(e => (e.fields.status & 0xF0) === 0x90 && e.fields.data2 > 0);
+    const noteOn = stream.find(e => e.fields.type === 'note_on');
     expect(noteOn).toBeDefined();
-    expect(noteOn.fields.data1).toBe(60);
+    expect(noteOn.fields.note).toBe(60);
 
     executor.update({ clock: { beat: 0.25, dt: 0.1 } });
     stream = getOutput() as any[];
-    const noteOff = stream.find(e => (e.fields.status & 0xF0) === 0x80 || ((e.fields.status & 0xF0) === 0x90 && e.fields.data2 === 0));
+    const noteOff = stream.find(e => e.fields.type === 'note_off');
     expect(noteOff).toBeDefined();
-    expect(noteOff.fields.data1).toBe(60);
+    expect(noteOff.fields.note).toBe(60);
   });
 
   it('should generate chaos sequence', () => {
@@ -312,7 +312,7 @@ describe('NicePattern Integration', () => {
 
     // 1. Note On (60)
     // We must format this as Structor (array of records)
-    const noteOn = [{ fields: { status: 0x90, data1: 60, data2: 100, time: 0 }, untagged: [] }];
+    const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
     executor.setNodeConfig('input', noteOn as any);
     executor.update({
       clock: { beat: 0, dt: 0.1 },
@@ -320,7 +320,7 @@ describe('NicePattern Integration', () => {
     });
 
     // 2. Note Off (60)
-    const noteOff = [{ fields: { status: 0x80, data1: 60, data2: 0, time: 0 }, untagged: [] }];
+    const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 }, untagged: [] }];
     executor.setNodeConfig('input', noteOff as any);
     executor.update({
       clock: { beat: 0.1, dt: 0.1 },
@@ -335,7 +335,7 @@ describe('NicePattern Integration', () => {
     });
 
     // 4. Note On (62) - Wrong note, should be ignored
-    const noteOnWrong = [{ fields: { status: 0x90, data1: 62, data2: 100, time: 0 }, untagged: [] }];
+    const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
     executor.setNodeConfig('input', noteOnWrong as any);
     executor.update({
       clock: { beat: 0.3, dt: 0.1 },

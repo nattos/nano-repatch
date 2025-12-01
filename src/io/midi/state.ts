@@ -8,15 +8,7 @@ export interface MidiDevice {
   connection: 'open' | 'closed' | 'pending';
 }
 
-export interface MidiEvent {
-  id: string; // Unique ID for UI keys
-  type: 'cc' | 'note_on' | 'note_off';
-  channel: number;
-  target: number; // CC number or Note number
-  value: number; // Velocity or CC value
-  timestamp: number;
-  deviceId: string;
-}
+import { MidiEvent } from './types';
 
 export class MidiState {
   devices = new Map<string, MidiDevice>();
@@ -60,11 +52,11 @@ export class MidiState {
     // Update current state
     const keyPrefix = `${event.deviceId}:${event.channel}`;
     if (event.type === 'note_on') {
-      this.activeNotes.set(`${keyPrefix}:${event.target}`, event.value);
+      this.activeNotes.set(`${keyPrefix}:${event.note}`, event.velocity);
     } else if (event.type === 'note_off') {
-      this.activeNotes.delete(`${keyPrefix}:${event.target}`);
+      this.activeNotes.delete(`${keyPrefix}:${event.note}`);
     } else if (event.type === 'cc') {
-      this.ccValues.set(`${keyPrefix}:${event.target}`, event.value);
+      this.ccValues.set(`${keyPrefix}:${event.cc}`, event.value);
     }
   }
 }

@@ -94,49 +94,45 @@ export class MidiManager {
       const velocity = data2;
       if (velocity > 0) {
         this.state.addEvent({
-          id: `${Date.now()}-${Math.random()}`,
-          type: 'note_on',
+          deviceId,
           channel,
-          target: data1,
-          value: velocity,
-          timestamp: Date.now(),
-          deviceId
+          type: 'note_on',
+          note: data1,
+          velocity: velocity,
+          time: Date.now()
         });
       } else {
         // Velocity 0 is Note Off
         this.state.addEvent({
-          id: `${Date.now()}-${Math.random()}`,
-          type: 'note_off',
+          deviceId,
           channel,
-          target: data1,
-          value: 0,
-          timestamp: Date.now(),
-          deviceId
+          type: 'note_off',
+          note: data1,
+          velocity: 0,
+          time: Date.now()
         });
       }
     }
     // Note Off (0x8)
     else if (command === 0x8) {
       this.state.addEvent({
-        id: `${Date.now()}-${Math.random()}`,
-        type: 'note_off',
+        deviceId,
         channel,
-        target: data1,
-        value: 0,
-        timestamp: Date.now(),
-        deviceId
+        type: 'note_off',
+        note: data1,
+        velocity: 0,
+        time: Date.now()
       });
     }
     // Control Change (0xB)
     else if (command === 0xB) {
       this.state.addEvent({
-        id: `${Date.now()}-${Math.random()}`,
-        type: 'cc',
+        deviceId,
         channel,
-        target: data1,
+        type: 'cc',
+        cc: data1,
         value: data2,
-        timestamp: Date.now(),
-        deviceId
+        time: Date.now()
       });
     }
   }
