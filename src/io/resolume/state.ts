@@ -1,6 +1,6 @@
 import { makeAutoObservable } from 'mobx';
 import { html, HTMLTemplateResult } from 'lit';
-import { Selectable } from '../../builder/state';
+import { Selectable } from '../../builder/local-state';
 
 
 export class ResolumeParameter {

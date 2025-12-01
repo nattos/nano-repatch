@@ -1,7 +1,8 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { GridNode } from '../builder/state';
+import { reaction } from 'mobx';
+import { GridNode, LongEdit, AppController } from '../builder/state';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
@@ -19,6 +20,7 @@ import {
   NODE_WIDTH_MINIMAL,
   ROW_HEIGHT,
   HEADER_HEIGHT,
+  NODE_PADDING_X,
   NODE_PADDING_Y,
   SLIDER_LABEL_WIDTH,
   SLIDER_HEIGHT,
@@ -60,6 +62,10 @@ export class GraphNode extends MobxLitElement {
 
   @state()
   private editingField: 'name' | 'type' | null = null;
+
+  private typeLongEdit: LongEdit | null = null;
+  private sliderLongEdit: LongEdit | null = null;
+  private activeSliderPort: string | null = null;
 
 
 
@@ -454,7 +460,40 @@ export class GraphNode extends MobxLitElement {
 
   private handleSmartTypeChange(e: CustomEvent) {
     const typeId = e.detail;
-    appController.setNodeConfig(this.node.id, { typeId });
+
+    if (this.typeLongEdit) {
+      this.typeLongEdit.accept();
+      this.typeLongEdit = null;
+    } else {
+      appController.setNodeConfig(this.node.id, { typeId });
+    }
+  }
+
+  private handleSmartTypePreview(e: CustomEvent) {
+    const typeId = e.detail;
+
+    if (!this.typeLongEdit) {
+      this.typeLongEdit = appController.beginLongEdit({
+        apply: (c: AppController) => {
+          c.setNodeConfig(this.node.id, { typeId });
+        },
+        cancel: () => {
+          this.typeLongEdit = null;
+        }
+      });
+    } else {
+      this.typeLongEdit.applyAgain((c: AppController) => {
+        c.setNodeConfig(this.node.id, { typeId });
+      });
+    }
+  }
+
+  private handleSmartTypeCancel(e: CustomEvent) {
+    if (this.typeLongEdit) {
+      this.typeLongEdit.cancel();
+      this.typeLongEdit = null;
+    }
+    this.editingField = null;
   }
 
   private handleNameChange(e: Event) {
@@ -465,8 +504,37 @@ export class GraphNode extends MobxLitElement {
   private handleVirtualInputChange(e: Event, portName: string) {
     const target = e.target as HTMLInputElement;
     const value = parseFloatOr(target.value) ?? 0;
-    // Store virtual input values in a dedicated 'values' config object
-    appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+
+    if (e.type === 'input') {
+      if (!this.sliderLongEdit || this.activeSliderPort !== portName) {
+        if (this.sliderLongEdit) this.sliderLongEdit.cancel(); // Cancel previous if switching ports (unlikely)
+
+        this.activeSliderPort = portName;
+        this.sliderLongEdit = appController.beginLongEdit({
+          apply: (c: AppController) => {
+            c.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+          },
+          cancel: () => {
+            this.sliderLongEdit = null;
+            this.activeSliderPort = null;
+          }
+        });
+      } else {
+        this.sliderLongEdit.applyAgain((c: AppController) => {
+          c.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+        });
+      }
+    } else if (e.type === 'change') {
+      // Commit
+      if (this.sliderLongEdit) {
+        this.sliderLongEdit.accept();
+        this.sliderLongEdit = null;
+        this.activeSliderPort = null;
+      } else {
+        // Direct set if no long edit active (e.g. clicked, not dragged)
+        appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+      }
+    }
   }
 
   private handleDoubleClick(field: 'name' | 'type', e: MouseEvent) {
@@ -508,6 +576,8 @@ export class GraphNode extends MobxLitElement {
             .catalog=${this.catalog}
             .value=${this.node.config.typeId}
             @commit=${this.handleSmartTypeChange.bind(this)}
+            @preview-type=${this.handleSmartTypePreview.bind(this)}
+            @cancel=${this.handleSmartTypeCancel.bind(this)}
         ></smart-input>
       </div>
       ${nodeType?.renderInspector ? nodeType.renderInspector(this.node, onchange) : ''}
@@ -756,6 +826,7 @@ export class GraphNode extends MobxLitElement {
                     .max=${input.range?.[1]?.toString() || '1'}
                     .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
                     @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
+                    @change=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
                     class="virtual-input-field"
                     title="${input.description}"
                   />

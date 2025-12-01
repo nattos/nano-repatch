@@ -1,4 +1,5 @@
-import { AppController, LocalController } from './state';
+import { AppController } from './state';
+import { LocalController } from './local-state';
 import { RuntimeManager } from '../runtime/manager';
 import { WorkspaceController } from './workspace-controller';
 

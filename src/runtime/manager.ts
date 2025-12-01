@@ -5,7 +5,8 @@ import {
   runInAction,
   toJS,
 } from 'mobx';
-import { AppController, AppState, LocalController } from '../builder/state';
+import { AppController, AppState } from '../builder/state';
+import { LocalController } from '../builder/local-state';
 import { defaultNodeRepository } from '../structor/repository';
 import { PrimitiveNodeDefinition } from '../structor/structor';
 import {

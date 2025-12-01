@@ -4,6 +4,7 @@ import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { appController, localController } from '../builder/controllers';
+import { LongEdit } from '../builder/state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
@@ -162,6 +163,8 @@ export class GraphGrid extends MobxLitElement {
   @state()
   popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string } | null = null;
 
+  private popupLongEdit: LongEdit | null = null;
+
   private catalog = new NodeCatalog(defaultNodeRepository);
 
   private handlePointerDown(e: PointerEvent) {
@@ -170,7 +173,7 @@ export class GraphGrid extends MobxLitElement {
       const path = e.composedPath();
       const isPopup = path.some(el => (el as Element).classList?.contains('popup-container'));
       if (!isPopup) {
-        this.popup = null;
+        this.handlePopupCancel();
       }
     }
 
@@ -421,7 +424,12 @@ export class GraphGrid extends MobxLitElement {
 
     // If we have a nodeId, update it.
     if (this.popup.nodeId) {
-      appController.setNodeConfig(this.popup.nodeId, { typeId });
+      if (this.popupLongEdit) {
+        this.popupLongEdit.accept();
+        this.popupLongEdit = null;
+      } else {
+        appController.setNodeConfig(this.popup.nodeId, { typeId });
+      }
     } else {
       // Fallback if somehow nodeId is missing (shouldn't happen with new flow)
       const { gridX, gridY } = this.popup;
@@ -442,10 +450,29 @@ export class GraphGrid extends MobxLitElement {
   private handlePopupPreview(e: CustomEvent) {
     if (!this.popup || !this.popup.nodeId) return;
     const typeId = e.detail;
-    appController.setNodeConfig(this.popup.nodeId, { typeId });
+
+    if (!this.popupLongEdit) {
+      this.popupLongEdit = appController.beginLongEdit({
+        apply: (c) => {
+          c.setNodeConfig(this.popup!.nodeId!, { typeId });
+        },
+        cancel: () => {
+          this.popupLongEdit = null;
+        }
+      });
+    } else {
+      this.popupLongEdit.applyAgain((c) => {
+        c.setNodeConfig(this.popup!.nodeId!, { typeId });
+      });
+    }
   }
 
   private handlePopupCancel() {
+    if (this.popupLongEdit) {
+      this.popupLongEdit.cancel();
+      this.popupLongEdit = null;
+    }
+
     if (this.popup && this.popup.nodeId) {
       // User cancelled creation, delete the temp node
       appController.deleteNode(this.popup.nodeId);

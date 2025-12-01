@@ -1,7 +1,7 @@
 import { html, css, HTMLTemplateResult, PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
-import { Selectable } from '../builder/state';
+import { Selectable } from '../builder/local-state';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeEffect, ResolumeParameter } from '../io/resolume/state';
 import { resolumeManager } from '../io/resolume/manager';
 
