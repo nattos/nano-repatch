@@ -78,7 +78,11 @@ export type AppMutation =
   | { type: 'connection.create', connection: Connection }
   | { type: 'connection.delete', connection: Connection }
   | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> }
-  | { type: 'connection.setPorts', connectionId: string, from: { fromPort?: string | number, toPort?: string | number }, to: { fromPort?: string | number, toPort?: string | number } };
+  | { type: 'connection.setPorts', connectionId: string, from: { fromPort?: string | number, toPort?: string | number }, to: { fromPort?: string | number, toPort?: string | number } }
+  | { type: 'graph.recompile' }
+  | { type: 'graph.recompile' }
+  | { type: 'graph.configUpdate', nodeIds: string[] }
+  | { type: 'graph.inputUpdate', nodeId: string, inputs: Record<string, any> };
 
 export interface LongEditCallbacks {
   apply: (controller: AppController) => void;
@@ -131,6 +135,10 @@ export class AppController {
   private longEditMutations: AppMutation[] = [];
   private isLongEditApplying: boolean = false;
 
+  private compiledGraphDirtyListeners: (() => void)[] = [];
+  private configChangeListeners: ((nodeIds: string[]) => void)[] = [];
+  private inputUpdateListeners: ((updates: { nodeId: string, inputs: Record<string, any> }[]) => void)[] = [];
+
   constructor(initialState?: GraphInnerState) {
     const graphState = initialState || { nodes: {}, connections: {} };
     this.currentState = {
@@ -163,6 +171,27 @@ export class AppController {
     return this.isTransactionActive && this.draftState ? this.draftState : this.currentState;
   }
 
+  public onCompiledGraphDirty(listener: () => void): () => void {
+    this.compiledGraphDirtyListeners.push(listener);
+    return () => {
+      this.compiledGraphDirtyListeners = this.compiledGraphDirtyListeners.filter(l => l !== listener);
+    };
+  }
+
+  public onConfigChange(listener: (nodeIds: string[]) => void): () => void {
+    this.configChangeListeners.push(listener);
+    return () => {
+      this.configChangeListeners = this.configChangeListeners.filter(l => l !== listener);
+    };
+  }
+
+  public onInputUpdate(listener: (updates: { nodeId: string, inputs: Record<string, any> }[]) => void): () => void {
+    this.inputUpdateListeners.push(listener);
+    return () => {
+      this.inputUpdateListeners = this.inputUpdateListeners.filter(l => l !== listener);
+    };
+  }
+
   public dispatch(mutations: AppMutation[], isUndoRedo: boolean = false): void {
     if (mutations.length === 0) return;
 
@@ -177,6 +206,8 @@ export class AppController {
       // Apply to observable state only.
       this.applyMutationsToObservable(mutations);
       this.longEditMutations.push(...mutations);
+      // Notify listeners even during long edit application so UI/Audio updates
+      this.notifyListeners(mutations);
       return;
     }
 
@@ -217,6 +248,9 @@ export class AppController {
         this.isLongEditApplying = false;
       }
 
+      // Always notify listeners, even if state didn't change (e.g. signals)
+      this.notifyListeners(mutations);
+
       return;
     }
 
@@ -234,6 +268,62 @@ export class AppController {
           this.undoStack.push(inverseMutations);
           this.redoStack = [];
         });
+      }
+    }
+
+    // Always notify listeners, even if state didn't change (e.g. signals)
+    this.notifyListeners(mutations);
+  }
+
+  private notifyListeners(mutations: AppMutation[]) {
+    let needsRecompile = false;
+    const configUpdateNodeIds = new Set<string>();
+    const inputUpdates: { nodeId: string, inputs: Record<string, any> }[] = [];
+
+    for (const mutation of mutations) {
+      switch (mutation.type) {
+        case 'node.create':
+        case 'node.delete':
+        case 'connection.create':
+        case 'connection.delete':
+        case 'connection.setPorts':
+        case 'graph.recompile':
+          needsRecompile = true;
+          break;
+        case 'graph.configUpdate':
+          mutation.nodeIds.forEach(id => configUpdateNodeIds.add(id));
+          break;
+        case 'graph.inputUpdate':
+          inputUpdates.push({ nodeId: mutation.nodeId, inputs: mutation.inputs });
+          break;
+        case 'node.setConfig':
+          // Check if only values changed
+          const keys = Object.keys(mutation.to);
+          if (keys.length === 1 && keys[0] === 'values' && mutation.to.values) {
+            inputUpdates.push({ nodeId: mutation.nodeId, inputs: mutation.to.values });
+          } else {
+            configUpdateNodeIds.add(mutation.nodeId);
+          }
+          break;
+      }
+    }
+
+    if (needsRecompile) {
+      for (const listener of this.compiledGraphDirtyListeners) {
+        try { listener(); } catch (e) { console.error(e); }
+      }
+    }
+
+    if (configUpdateNodeIds.size > 0) {
+      const nodeIds = Array.from(configUpdateNodeIds);
+      for (const listener of this.configChangeListeners) {
+        try { listener(nodeIds); } catch (e) { console.error(e); }
+      }
+    }
+
+    if (inputUpdates.length > 0) {
+      for (const listener of this.inputUpdateListeners) {
+        try { listener(inputUpdates); } catch (e) { console.error(e); }
       }
     }
   }
@@ -350,7 +440,7 @@ export class AppController {
       y,
       config: { typeId, values: {}, ...initialConfig },
     };
-    this.dispatch([{ type: 'node.create', node: newNode }]);
+    this.dispatch([{ type: 'node.create', node: newNode }, { type: 'graph.recompile' }]);
     return newNode;
   }
 
@@ -366,19 +456,20 @@ export class AppController {
       }
     }
     mutations.push({ type: 'node.delete', node: nodeToDelete });
+    mutations.push({ type: 'graph.recompile' });
     this.dispatch(mutations);
   }
 
   public createConnection(fromNodeId: string, fromPort: string | number, toNodeId: string, toPort: string | number): Connection {
     const newConnection: Connection = { id: generateId('conn'), fromNodeId, fromPort, toNodeId, toPort };
-    this.dispatch([{ type: 'connection.create', connection: newConnection }]);
+    this.dispatch([{ type: 'connection.create', connection: newConnection }, { type: 'graph.recompile' }]);
     return newConnection;
   }
 
   public deleteConnection(connectionId: string): void {
     const connToDelete = this.getState().graph.inner.connections[connectionId];
     if (connToDelete) {
-      this.dispatch([{ type: 'connection.delete', connection: connToDelete }]);
+      this.dispatch([{ type: 'connection.delete', connection: connToDelete }, { type: 'graph.recompile' }]);
     }
   }
 
@@ -445,6 +536,8 @@ export class AppController {
       }
     }
     this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
+
+    this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
   }
 
   public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {
@@ -455,7 +548,7 @@ export class AppController {
     const from = { fromPort: connection.fromPort, toPort: connection.toPort };
     const to = { fromPort: ports.fromPort ?? connection.fromPort, toPort: ports.toPort ?? connection.toPort };
 
-    this.dispatch([{ type: 'connection.setPorts', connectionId, from, to }]);
+    this.dispatch([{ type: 'connection.setPorts', connectionId, from, to }, { type: 'graph.recompile' }]);
   }
 
   public setConnectionConfig(connectionId: string, configUpdate: Partial<any>): void { }
@@ -474,6 +567,7 @@ export class AppController {
       mutations.push({ type: 'node.delete', node });
     }
 
+    mutations.push({ type: 'graph.recompile' });
     this.dispatch(mutations);
   }
 
@@ -492,6 +586,7 @@ export class AppController {
       mutations.push({ type: 'connection.create', connection: conn });
     }
 
+    mutations.push({ type: 'graph.recompile' });
     this.dispatch(mutations);
     // Clear undo stack after loading a new graph
     runInAction(() => {
@@ -604,6 +699,15 @@ export class AppController {
             }
           }
           break;
+        case 'graph.recompile':
+          // No state change, just a signal
+          break;
+        case 'graph.configUpdate':
+          // No state change, just a signal
+          break;
+        case 'graph.inputUpdate':
+          // No state change, just a signal
+          break;
       }
     }
   }
@@ -641,6 +745,103 @@ export class AppController {
           break;
         case 'connection.setConfig':
           inverse.push({ type: 'connection.setConfig', connectionId: m.connectionId, from: m.to, to: m.from });
+          break;
+        case 'graph.recompile':
+          inverse.push({ type: 'graph.recompile' });
+          break;
+        case 'graph.configUpdate':
+          inverse.push({ type: 'graph.configUpdate', nodeIds: m.nodeIds });
+          break;
+        case 'graph.inputUpdate':
+          // Inverse of input update is just another input update with old values?
+          // But we don't have old values here easily without tracking them.
+          // Actually, we do have `node.setConfig` which tracks old values.
+          // `graph.inputUpdate` is just a signal.
+          // So we can just emit it again?
+          // Wait, `createInverse` is for undoing.
+          // When we undo `node.setConfig`, we get the inverse `node.setConfig`.
+          // We should also append the corresponding signal.
+          // But `createInverse` returns `AppMutation[]`.
+          // The caller dispatches these.
+          // So we should return the signal mutation too.
+          // But wait, `node.setConfig` inverse will trigger `graph.configUpdate` or `graph.inputUpdate` automatically?
+          // NO, `dispatch` doesn't automatically append signals for UNDO operations unless we logic it there.
+          // Currently `dispatch` applies mutations.
+          // If we push `graph.configUpdate` to undo stack, it will be dispatched on undo.
+          // So we just need to preserve it.
+          // But `graph.inputUpdate` contains the NEW values.
+          // On undo, we want the OLD values.
+          // But `graph.inputUpdate` is just a signal saying "these inputs changed".
+          // The actual change is in `node.setConfig`.
+          // When `node.setConfig` is undone, the state is reverted.
+          // Then `graph.inputUpdate` signal tells the runtime to pick up the changes.
+          // But `graph.inputUpdate` payload has the values.
+          // If we use the payload to update the worker, we need the CORRECT values (the ones after undo).
+          // So we can't just copy the mutation.
+          // We need to construct the inverse signal.
+          // But `createInverse` processes mutations one by one.
+          // It doesn't know the "from" values of the *associated* `node.setConfig` easily if they are separate mutations in the list.
+          // However, `dispatch` groups them.
+          // If we just rely on `node.setConfig` inverse, does it trigger a signal?
+          // `dispatch` does NOT automatically append signals.
+          // So we MUST put the signal in the undo stack.
+          // But the signal in the undo stack must have the OLD values.
+          // This is tricky.
+          // Alternative: `dispatch` COULD append signals for undo/redo if we detect `node.setConfig`.
+          // But that logic is currently in `setNodeConfig`.
+          // Maybe we should move the signal generation to `dispatch` or `applyMutations`?
+          // No, `applyMutations` is pure state update.
+          // `dispatch` is the controller.
+          // If we just treat `graph.inputUpdate` as a signal that "inputs for node X need update", and let the listener read from state?
+          // But `graph.inputUpdate` payload is `inputs`.
+          // If we make the payload optional or just "nodeId", the listener has to read from state.
+          // That might be safer for undo/redo.
+          // BUT the user wanted `graph.inputUpdate` to be used for "UPDATE_INPUT" message.
+          // If we read from state, it's fine.
+          // Let's check `RuntimeManager` plan.
+          // "For each update, send UPDATE_CONFIG ... for the virtual nodes corresponding to the values."
+          // It reads from the mutation payload?
+          // "Implement handleInputUpdates: For each update..."
+          // If I change the mutation to NOT carry values, `RuntimeManager` has to look up the node.
+          // That is probably better for consistency.
+          // BUT `graph.inputUpdate` definition has `inputs`.
+          // Let's try to populate it correctly in `createInverse`.
+          // We can't easily.
+          // Let's change `graph.inputUpdate` to NOT carry values, or just carry keys?
+          // Or, we can rely on `node.setConfig` being present in the same batch.
+          // If we look at `createInverse`, we are iterating.
+          // If we see `graph.inputUpdate`, we don't know the values.
+          // UNLESS we look at the `node.setConfig` that preceded it (or succeeded it in reverse).
+          // This is getting complicated.
+          // SIMPLER APPROACH:
+          // Just use `graph.configUpdate` for undo/redo signals?
+          // Or `graph.recompile`.
+          // If we undo a slider move, we want it to be fast.
+          // So we want `graph.inputUpdate`.
+          // Let's make `graph.inputUpdate` carry the values, but in `createInverse`, we ignore it?
+          // And rely on `node.setConfig` inverse to generate a NEW signal?
+          // But `dispatch` doesn't generate signals for undo/redo (isUndoRedo=true).
+          // So we MUST have the signal in the stack.
+          //
+          // Okay, let's look at `setNodeConfig`.
+          // It dispatches `[node.setConfig, graph.inputUpdate]`.
+          // `createInverse` receives this list.
+          // It iterates.
+          // 1. `node.setConfig` -> inverse is `node.setConfig` (swapped from/to).
+          // 2. `graph.inputUpdate` -> inverse?
+          // We can find the corresponding `node.setConfig` in the `mutations` list!
+          // They are in the same batch.
+          // So when processing `graph.inputUpdate`, we can look for `node.setConfig` for the same node.
+          // And use its `from` values.
+
+          const configMutation = mutations.find(m => m.type === 'node.setConfig' && m.nodeId === m.nodeId) as any;
+          if (configMutation && configMutation.from && configMutation.from.values) {
+            inverse.push({ type: 'graph.inputUpdate', nodeId: m.nodeId, inputs: configMutation.from.values });
+          } else {
+            // Fallback or ignore?
+            // If we can't find values, maybe just `graph.configUpdate`?
+            inverse.push({ type: 'graph.configUpdate', nodeIds: [m.nodeId] });
+          }
           break;
         default:
           console.warn(`Inverse for mutation type ${(m as any).type} not implemented.`);

@@ -27,7 +27,19 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
   switch (msg.type) {
     case 'INIT_GRAPH':
       // console.log('Executor Worker: Initializing graph...');
-      executor = new GraphExecutor(msg.graph, defaultNodeRepository);
+      let initialStates;
+      let userNodeStates;
+
+      if (msg.isRecompilation && executor) {
+        initialStates = executor.getNodeStates();
+        userNodeStates = executor.getUserNodeStates();
+      }
+
+      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates);
+
+      if (userNodeStates) {
+        executor.setUserNodeStates(userNodeStates);
+      }
 
       // Lazy connect resolume
       resolumeManager.connect();
@@ -45,7 +57,12 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
 
     case 'UPDATE_INPUT':
       if (executor) {
-        executor.setInput(msg.name, msg.value);
+        // Check if it's a node (e.g. virtual literal node) that we can update config for
+        if (executor.getNodeConfig(msg.name) !== undefined) {
+          executor.setNodeConfig(msg.name, msg.value);
+        } else {
+          executor.setInput(msg.name, msg.value);
+        }
       }
       break;
 

@@ -36,6 +36,7 @@ export class RuntimeManager {
 
   private nodeRepository = defaultNodeRepository;
   private realtimeNodeCache = new Map<string, boolean>();
+  private hasLoadedGraph = false;
 
   private compilerWorker: Worker;
   private executorWorker: Worker;
@@ -53,37 +54,18 @@ export class RuntimeManager {
 
     this.setupWorkerListeners();
 
-    // This reaction will trigger a full recompile when the graph structure changes.
-    reaction(
-      () => this.getStructuralSignature(this.appController.observableState),
-      () => {
-        this.recompileAndRun();
-      },
-      { fireImmediately: true, delay: 50 } // Debounce structural changes
-    );
+    // Subscribe to graph changes
+    this.appController.onCompiledGraphDirty(() => {
+      this.recompileAndRun();
+    });
 
-    // This reaction handles configuration changes for existing nodes.
-    reaction(
-      () => this.getConfigSignature(this.appController.observableState),
-      () => {
-        this.updateNodeConfigsAndRealtimeStatus();
-      },
-      { delay: 50 } // Debounce config changes
-    );
+    this.appController.onConfigChange((nodeIds) => {
+      this.updateNodeConfigsAndRealtimeStatus(nodeIds);
+    });
 
-    // This reaction starts/stops the realtime loop based on the isRealtimeGraph flag.
-    reaction(
-      () => this.isRealtimeGraph,
-      (isRealtime) => {
-        const msg: ExecutorWorkerMessage = {
-          type: 'CONTROL',
-          action: isRealtime ? 'START' : 'STOP',
-          frameRate: FRAME_RATE
-        };
-        this.executorWorker.postMessage(msg);
-
-      }
-    );
+    this.appController.onInputUpdate((updates) => {
+      this.handleInputUpdates(updates);
+    });
 
     // Sync MIDI state to worker
     reaction(
@@ -134,8 +116,10 @@ export class RuntimeManager {
     // console.log('RuntimeManager: Graph compiled, initializing executor worker');
     const initMsg: ExecutorWorkerMessage = {
       type: 'INIT_GRAPH',
-      graph: msg.graph
+      graph: msg.graph,
+      isRecompilation: this.hasLoadedGraph
     };
+    this.hasLoadedGraph = true;
     this.executorWorker.postMessage(initMsg);
 
     // After init, we need to send current configs
@@ -180,11 +164,19 @@ export class RuntimeManager {
     }
   }
 
-  private updateNodeConfigsAndRealtimeStatus() {
+  private updateNodeConfigsAndRealtimeStatus(nodeIds?: string[]) {
     const state = this.appController.observableState;
     let anyRealtime = false;
 
-    for (const node of Object.values(state.graph.inner.nodes)) {
+    // If nodeIds provided, only update those configs.
+    // But we still need to check ALL nodes for realtime status to determine global `isRealtimeGraph`.
+    // Optimization: Track realtime status per node in a map, update only changed ones, then check if any are true.
+
+    const nodesToCheck = nodeIds
+      ? nodeIds.map(id => state.graph.inner.nodes[id]).filter(n => !!n)
+      : Object.values(state.graph.inner.nodes);
+
+    for (const node of nodesToCheck) {
       const { typeId } = node.config;
       const nodeType = this.nodeRepository.getNodeType(typeId);
       if (!nodeType) continue;
@@ -205,25 +197,16 @@ export class RuntimeManager {
       };
       this.executorWorker.postMessage(updateMsg);
 
-      // Update virtual literal nodes if they exist
-      if (node.config.values) {
-        for (const [portName, value] of Object.entries(node.config.values)) {
-          const virtualNodeId = `${node.id}-virtual-${portName}`;
-          const virtualMsg: ExecutorWorkerMessage = {
-            type: 'UPDATE_CONFIG',
-            nodeId: virtualNodeId,
-            config: toJS(value) as any,
-            isRealtime: false
-          };
-          this.executorWorker.postMessage(virtualMsg);
-        }
-      }
-
       // Check if node is realtime
       const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(finalConfig) ?? false;
       this.realtimeNodeCache.set(node.id, isRealtime);
+    }
+
+    // Recalculate global realtime status
+    for (const isRealtime of this.realtimeNodeCache.values()) {
       if (isRealtime) {
         anyRealtime = true;
+        break;
       }
     }
 
@@ -232,42 +215,53 @@ export class RuntimeManager {
       runInAction(() => {
         this.isRealtimeGraph = anyRealtime;
       });
+
+      // Send control message
+      const msg: ExecutorWorkerMessage = {
+        type: 'CONTROL',
+        action: anyRealtime ? 'START' : 'STOP',
+        frameRate: FRAME_RATE
+      };
+      this.executorWorker.postMessage(msg);
     }
 
     // If not realtime, we should trigger a single execution step to update outputs
     if (!this.isRealtimeGraph) {
-      // We need a way to trigger one frame.
-      // Let's send a special control message or just rely on the worker running one tick?
-      // The worker currently only runs on loop.
-      // I'll add a 'STEP' action to the worker in a moment.
       const stepMsg: ExecutorWorkerMessage = {
         type: 'CONTROL',
-        action: 'STEP' as any // We need to update types.ts
+        action: 'STEP'
       };
       this.executorWorker.postMessage(stepMsg);
     }
   }
 
-  private getStructuralSignature(state: AppState): string {
-    const nodeIds = Object.values(state.graph.inner.nodes)
-      .map(n => `${n.id}:${n.config.typeId}`)
-      .sort()
-      .join(',');
-    const connIds = Object.keys(state.graph.inner.connections)
-      .map(
-        (id) =>
-          `${state.graph.inner.connections[id].fromNodeId}->${state.graph.inner.connections[id].toNodeId}`
-      )
-      .sort()
-      .join(',');
-    return `${nodeIds}|${connIds}`;
+  private handleInputUpdates(updates: { nodeId: string, inputs: Record<string, any> }[]) {
+    // Optimized update for inputs (values)
+    for (const update of updates) {
+      for (const [portName, value] of Object.entries(update.inputs)) {
+        const virtualNodeId = `${update.nodeId}-virtual-${portName}`;
+        // We send UPDATE_CONFIG for the virtual node, as it's a literal node
+        const virtualMsg: ExecutorWorkerMessage = {
+          type: 'UPDATE_CONFIG',
+          nodeId: virtualNodeId,
+          config: toJS(value) as any,
+          isRealtime: false
+        };
+        this.executorWorker.postMessage(virtualMsg);
+      }
+    }
+
+    // Trigger step if not realtime
+    if (!this.isRealtimeGraph) {
+      const stepMsg: ExecutorWorkerMessage = {
+        type: 'CONTROL',
+        action: 'STEP'
+      };
+      this.executorWorker.postMessage(stepMsg);
+    }
   }
 
-  private getConfigSignature(state: AppState): string {
-    return JSON.stringify(
-      Object.values(state.graph.inner.nodes).map((n) => n.config)
-    );
-  }
+
 
   private recompileAndRun() {
     // console.log('RuntimeManager: Sending compile request...');

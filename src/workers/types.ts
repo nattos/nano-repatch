@@ -26,6 +26,7 @@ export type CompilerMainMessage = GraphCompiledMessage;
 export type InitGraphMessage = {
   type: 'INIT_GRAPH';
   graph: GraphDefinition;
+  isRecompilation?: boolean;
 };
 
 export type UpdateConfigMessage = {
