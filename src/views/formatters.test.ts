@@ -19,19 +19,23 @@ describe('Formatters', () => {
     // Note On: Channel 1, Note 60 (C4), Velocity 100
     const noteOn = { status: 0x90, data1: 60, data2: 100 };
     const resultOn = formatValue(noteOn, midiType);
-    // We expect a TemplateResult. We can check its values or string representation if possible.
-    // Lit TemplateResult is complex. We can check if it contains expected strings.
-    // But for unit testing Lit templates without DOM, we might just check values.
-    // Or we can rely on the function logic.
-
-    // Let's just check if it runs without error for now, as asserting TemplateResult content is tricky in pure Node test.
-    // Actually, we can check the `strings` and `values` of the TemplateResult.
     expect(resultOn).toBeDefined();
+
+    // New MidiEvent Note On
+    const noteOnEvent = { type: 'note_on', note: 60, velocity: 100 };
+    const resultOnEvent = formatValue(noteOnEvent, midiType);
+    expect(resultOnEvent).toBeDefined();
+    // Verify content if possible, or at least that it didn't crash
 
     // CC: Channel 1, CC 7, Value 64
     const cc = { status: 0xB0, data1: 7, data2: 64 };
     const resultCc = formatValue(cc, midiType);
     expect(resultCc).toBeDefined();
+
+    // New MidiEvent CC
+    const ccEvent = { type: 'cc', cc: 7, value: 64 };
+    const resultCcEvent = formatValue(ccEvent, midiType);
+    expect(resultCcEvent).toBeDefined();
   });
 
   it('should format MIDI streams', () => {

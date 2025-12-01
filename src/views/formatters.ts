@@ -77,6 +77,19 @@ function unwrap(value: any): any {
 
 function formatMidiEvent(rawEvent: any): string {
   const event = unwrap(rawEvent);
+
+  // Handle new MidiEvent structure
+  if (event.type === 'cc') {
+    return `cc${event.cc}:${(event.value / 127).toFixed(2)}`;
+  }
+  if (event.type === 'note_on') {
+    return `${midiNoteName(event.note)}:on`;
+  }
+  if (event.type === 'note_off') {
+    return `${midiNoteName(event.note)}:off`;
+  }
+
+  // Fallback for legacy or raw bytes if any
   const status = event.status & 0xF0;
 
   if (status === 0xB0) { // CC
@@ -95,7 +108,7 @@ function formatMidiEvent(rawEvent: any): string {
     return `${midiNoteName(event.data1)}:off`;
   }
 
-  return `midi(${status ? status.toString(16) : '?'})`;
+  return `midi(${event.type || (status ? status.toString(16) : '?')})`;
 }
 
 function midiNoteName(note: number): string {
