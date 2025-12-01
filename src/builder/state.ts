@@ -80,6 +80,39 @@ export type AppMutation =
   | { type: 'connection.setConfig', connectionId: string, from: Partial<any>, to: Partial<any> }
   | { type: 'connection.setPorts', connectionId: string, from: { fromPort?: string | number, toPort?: string | number }, to: { fromPort?: string | number, toPort?: string | number } };
 
+export interface LongEditCallbacks {
+  apply: (controller: AppController) => void;
+  cancel?: () => void;
+  accept?: () => void;
+  complete?: () => void;
+}
+
+export class LongEdit {
+  constructor(
+    private controller: AppController,
+    public callbacks: LongEditCallbacks
+  ) { }
+
+  public applyAgain(newApplyCallback?: (controller: AppController) => void) {
+    if (newApplyCallback) {
+      this.callbacks.apply = newApplyCallback;
+    }
+    this.controller.updateLongEdit(this);
+  }
+
+  public cancel() {
+    this.controller.cancelLongEdit(this);
+  }
+
+  public accept() {
+    this.controller.acceptLongEdit(this);
+  }
+
+  public get isActive() {
+    return this.controller.activeLongEdit === this;
+  }
+}
+
 // Part 3: The Controller
 export class AppController {
   private currentState: AppState;
@@ -92,6 +125,11 @@ export class AppController {
   private isTransactionActive: boolean = false;
   private bufferedMutations: AppMutation[] = [];
   private draftState: AppState | null = null;
+
+  // State for Long Edits
+  public activeLongEdit: LongEdit | null = null;
+  private longEditMutations: AppMutation[] = [];
+  private isLongEditApplying: boolean = false;
 
   constructor(initialState?: GraphInnerState) {
     const graphState = initialState || { nodes: {}, connections: {} };
@@ -131,6 +169,54 @@ export class AppController {
     if (this.isTransactionActive) {
       this.bufferedMutations.push(...mutations);
       this.applyMutations(this.draftState!, mutations);
+      return;
+    }
+
+    if (this.isLongEditApplying) {
+      // We are inside a long edit apply callback.
+      // Apply to observable state only.
+      this.applyMutationsToObservable(mutations);
+      this.longEditMutations.push(...mutations);
+      return;
+    }
+
+    // If we have an active long edit, we need to interleave.
+    if (this.activeLongEdit) {
+      // 1. Revert long edit from observable
+      if (this.longEditMutations.length > 0) {
+        const inverse = this.createInverse(this.longEditMutations);
+        this.applyMutationsToObservable(inverse);
+      }
+
+      // 2. Apply short edit to currentState (and observable)
+      const nextState = produce(this.currentState, draft => {
+        this.applyMutations(draft, mutations);
+      });
+
+      if (nextState !== this.currentState) {
+        this.currentState = nextState;
+        this.applyMutationsToObservable(mutations);
+
+        if (!isUndoRedo) {
+          const inverseMutations = this.createInverse(mutations);
+          runInAction(() => {
+            this.undoStack.push(inverseMutations);
+            this.redoStack = [];
+          });
+        }
+      }
+
+      // 3. Re-apply long edit
+      // We need to clear the old mutations list because we are going to regenerate them.
+      this.longEditMutations = [];
+
+      this.isLongEditApplying = true;
+      try {
+        this.activeLongEdit.callbacks.apply(this);
+      } finally {
+        this.isLongEditApplying = false;
+      }
+
       return;
     }
 
@@ -178,6 +264,83 @@ export class AppController {
       this.draftState = null;
       throw e;
     }
+  }
+
+  public beginLongEdit(callbacks: LongEditCallbacks): LongEdit {
+    if (this.activeLongEdit) {
+      this.activeLongEdit.cancel();
+    }
+
+    const edit = new LongEdit(this, callbacks);
+    this.activeLongEdit = edit;
+
+    // Initial apply
+    this.updateLongEdit(edit);
+
+    return edit;
+  }
+
+  public updateLongEdit(edit: LongEdit) {
+    if (this.activeLongEdit !== edit) return;
+
+    // Revert previous long edit mutations from observable state
+    if (this.longEditMutations.length > 0) {
+      const inverse = this.createInverse(this.longEditMutations);
+      this.applyMutationsToObservable(inverse);
+      this.longEditMutations = [];
+    }
+
+    // Apply new changes
+    this.isLongEditApplying = true;
+    try {
+      edit.callbacks.apply(this);
+    } finally {
+      this.isLongEditApplying = false;
+    }
+  }
+
+  public cancelLongEdit(edit: LongEdit) {
+    if (this.activeLongEdit !== edit) return;
+
+    // Revert mutations
+    if (this.longEditMutations.length > 0) {
+      const inverse = this.createInverse(this.longEditMutations);
+      this.applyMutationsToObservable(inverse);
+      this.longEditMutations = [];
+    }
+
+    this.activeLongEdit = null;
+    if (edit.callbacks.cancel) edit.callbacks.cancel();
+    if (edit.callbacks.complete) edit.callbacks.complete();
+  }
+
+  public acceptLongEdit(edit: LongEdit) {
+    if (this.activeLongEdit !== edit) return;
+
+    // We have the mutations in this.longEditMutations.
+    // They are already applied to observableState.
+    // We need to apply them to currentState and push to undoStack.
+
+    const mutations = [...this.longEditMutations];
+
+    // Apply to currentState
+    const nextState = produce(this.currentState, draft => {
+      this.applyMutations(draft, mutations);
+    });
+    this.currentState = nextState;
+
+    // Push to undo stack
+    const inverseMutations = this.createInverse(mutations);
+    runInAction(() => {
+      this.undoStack.push(inverseMutations);
+      this.redoStack = [];
+    });
+
+    this.activeLongEdit = null;
+    this.longEditMutations = [];
+
+    if (edit.callbacks.accept) edit.callbacks.accept();
+    if (edit.callbacks.complete) edit.callbacks.complete();
   }
 
   public createNode(typeId: string, x: number, y: number, initialConfig?: Partial<GridNode['config']>): GridNode {
@@ -475,6 +638,9 @@ export class AppController {
           break;
         case 'connection.setPorts':
           inverse.push({ type: 'connection.setPorts', connectionId: m.connectionId, from: m.to, to: m.from });
+          break;
+        case 'connection.setConfig':
+          inverse.push({ type: 'connection.setConfig', connectionId: m.connectionId, from: m.to, to: m.from });
           break;
         default:
           console.warn(`Inverse for mutation type ${(m as any).type} not implemented.`);
