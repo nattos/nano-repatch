@@ -59,6 +59,9 @@ export class ResolumeManager {
   }
 
   async connect() {
+    if (this.isConnected) {
+      return;
+    }
     console.log('[ResolumeManager] Connecting...');
     try {
       const info = await this.client.getProductInfo();
