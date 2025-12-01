@@ -348,7 +348,7 @@ export class GraphNode extends MobxLitElement {
   `];
 
   private renderDebugValue(portName: string) {
-    if (!localController.observableState.showDebugValues) return null;
+    if (!localController.observableState.localSettings.showDebugValues) return null;
 
     const output = runtimeManager.outputs.get(this.node.id);
     if (!output) return null;

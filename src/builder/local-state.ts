@@ -1,7 +1,8 @@
 import { HTMLTemplateResult } from 'lit';
-import { observable, makeObservable, action, runInAction } from 'mobx';
+import { observable, makeObservable, action, runInAction, toJS } from 'mobx';
 import { LayoutResult, WireDef, computeWireLayout } from '../layout/wire-layout';
 import { GraphState } from './state';
+import { settingsManager } from './settings-manager';
 
 // Part 4: Local Controller (UI State)
 
@@ -11,7 +12,15 @@ export interface LocalState {
   inflightPortConnectionOperation: { nodeId: string; port: string; type: 'in' | 'out'; } | null;
   loadedSubgraphs: Map<string, GraphState>;
   wireLayout: LayoutResult;
+
+  // Serialized settings.
+  localSettings: LocalSettings;
+}
+
+// Serialized settings.
+export interface LocalSettings {
   showDebugValues: boolean;
+  activeTab: string | null;
 }
 
 export interface Selectable {
@@ -26,6 +35,8 @@ export interface SelectableHandle {
 export class LocalController {
   public observableState: LocalState;
 
+  public settingsLoaded: Promise<void>;
+
   constructor() {
     this.observableState = observable({
       selection: new Map<string, Selectable>(),
@@ -33,10 +44,33 @@ export class LocalController {
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
       wireLayout: { wires: {} },
-      showDebugValues: false,
+      localSettings: {
+        showDebugValues: false,
+        activeTab: 'workspace',
+      },
     });
     makeObservable(this);
+
+    this.settingsLoaded = this.loadSettings();
   }
+
+  private async loadSettings() {
+    const loaded = await settingsManager.loadSettings();
+    if (loaded) {
+      runInAction(() => {
+        this.observableState.localSettings = {
+          ...this.observableState.localSettings,
+          ...loaded
+        };
+      });
+    }
+
+  }
+
+  private saveSettings() {
+    settingsManager.saveSettings(toJS(this.observableState.localSettings));
+  }
+
 
   @action
   public updateWireLayout(graph: GraphState): void {
@@ -163,6 +197,13 @@ export class LocalController {
 
   @action
   public setShowDebugValues(enabled: boolean): void {
-    this.observableState.showDebugValues = enabled;
+    this.observableState.localSettings.showDebugValues = enabled;
+    this.saveSettings();
+  }
+
+  @action
+  public setActiveTab(tab: string | null): void {
+    this.observableState.localSettings.activeTab = tab;
+    this.saveSettings();
   }
 }

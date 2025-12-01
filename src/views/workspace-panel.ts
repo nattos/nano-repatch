@@ -36,14 +36,12 @@ export class WorkspacePanel extends MobxLitElement {
         border-radius: 4px;
         min-width: 0;
       }
-    `,
-    css`
-    .empty-state {
-      padding: 20px;
-      text-align: center;
-      color: #888;
-      font-size: 12px;
-    }
+      .empty-state {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+        font-size: 12px;
+      }
   `];
 
   @state() isCreatingGraph = false;

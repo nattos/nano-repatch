@@ -6,6 +6,7 @@ import './workspace-panel';
 import './io-tab';
 import './debug-tab';
 import './graph-editor';
+import { localController } from '../builder/controllers';
 
 @customElement('workspace-layout')
 export class WorkspaceLayout extends MobxLitElement {
@@ -52,17 +53,23 @@ export class WorkspaceLayout extends MobxLitElement {
   `;
 
   @state()
-  activeTab: string | null = 'workspace';
+  activeTab: string | null = 'workspace'; // Fallback initial state, will be updated by reaction
+
+  connectedCallback() {
+    super.connectedCallback();
+    // Sync with local controller
+    this.activeTab = localController.observableState.localSettings.activeTab;
+  }
 
   render() {
     return html`
       <app-sidebar
-        .activeTab=${this.activeTab}
+        .activeTab=${localController.observableState.localSettings.activeTab}
         @switch-tab=${this.handleSwitchTab}
       ></app-sidebar>
 
       <div class="panels">
-        ${this.activeTab ? html`
+        ${localController.observableState.localSettings.activeTab ? html`
           <div class="sidebar-panel">
             ${this.renderActivePanel()}
           </div>
@@ -76,7 +83,7 @@ export class WorkspaceLayout extends MobxLitElement {
   }
 
   private renderActivePanel() {
-    switch (this.activeTab) {
+    switch (localController.observableState.localSettings.activeTab) {
       case 'workspace':
         return html`<workspace-panel></workspace-panel>`;
       case 'io':
@@ -90,10 +97,11 @@ export class WorkspaceLayout extends MobxLitElement {
 
   private handleSwitchTab(e: CustomEvent) {
     const tab = e.detail.tab;
-    if (this.activeTab === tab) {
-      this.activeTab = null; // Toggle off
+    const current = localController.observableState.localSettings.activeTab;
+    if (current === tab) {
+      localController.setActiveTab(null);
     } else {
-      this.activeTab = tab;
+      localController.setActiveTab(tab);
     }
   }
 }

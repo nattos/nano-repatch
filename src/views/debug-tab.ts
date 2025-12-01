@@ -144,7 +144,7 @@ export class DebugTab extends MobxLitElement {
         <label style="display: flex; align-items: center; cursor: pointer; font-size: 10px; text-transform: none; color: #888; user-select: none;">
           <input
             type="checkbox"
-            .checked=${localController.observableState.showDebugValues}
+            .checked=${localController.observableState.localSettings.showDebugValues}
             @change=${(e: Event) => localController.setShowDebugValues((e.target as HTMLInputElement).checked)}
             style="margin-right: 4px;"
           >
