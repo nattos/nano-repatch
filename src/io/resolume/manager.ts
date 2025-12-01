@@ -137,7 +137,6 @@ export class ResolumeManager {
     };
 
     visit(this.state);
-    visit(this.state);
     console.log(`[ResolumeManager] Indexed ${this.parameterMap.size} parameters`);
 
     // Re-apply subscriptions for found parameters
