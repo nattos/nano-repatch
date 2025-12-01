@@ -149,6 +149,7 @@ export interface TypedNodeOptions<
    * Can also be a record to override specific input broadcast settings.
    */
   autoBroadcast?: boolean | Record<string, Partial<TypedBroadcastChannel>>;
+  reshape?: 'none' | 'vector';
 
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
@@ -186,6 +187,7 @@ export function definePrimitiveNode<
     isRealtime: options.isRealtime,
     computeOutputTypes: () => outputType,
     execute: (rawInput, rawConfig, context) => {
+      // throw new Error('EXECUTION REACHED');
       // Unwrap config
       const processedConfig = fromStructor(rawConfig, configType);
 
@@ -205,7 +207,7 @@ export function definePrimitiveNode<
 
         const broadcastConfig: BroadcastConfig = {
           outputs: {},
-          reshape: 'none'
+          reshape: options.reshape ?? 'none'
         };
 
         const overrides = typeof options.autoBroadcast === 'object' ? options.autoBroadcast : {};
@@ -213,11 +215,13 @@ export function definePrimitiveNode<
         for (const [key, type] of Object.entries(options.inputs)) {
           const isArray = type.kind === 'array';
           const override = overrides[key];
+          const defaultCombine = isArray ? 'collect' : { reduce: 'first' } as const;
+          const combine = (override && 'combine' in override) ? override.combine : defaultCombine;
 
           broadcastConfig.outputs[key] = {
             fromFields: [key],
-            fromUntagged: false,
-            combine: override?.combine ?? (isArray ? 'collect' : { reduce: 'first' })
+            fromUntagged: override?.fromUntagged ?? false,
+            combine: combine ?? undefined
           };
         }
 
@@ -229,9 +233,12 @@ export function definePrimitiveNode<
           for (const [key, type] of Object.entries(options.inputs!)) {
             inputs[key] = fromStructor(args[key], type);
           }
+          // console.error('Execute Inputs:', JSON.stringify(inputs));
 
           // Execute
-          return options.execute(inputs, processedConfig, context, state);
+          const execResult = options.execute(inputs, processedConfig, context, state);
+          // console.error('Execute Result:', JSON.stringify(execResult));
+          return execResult;
         });
 
         // Transpose result if it's an array (vector broadcast)
@@ -311,7 +318,7 @@ export function definePrimitiveNode<
 export interface TypedBroadcastChannel {
   source?: string | string[]; // Default to channel name if omitted
   type?: StructorType; // Used for inference
-  combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' };
+  combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' } | null;
   fromUntagged?: boolean | number[];
 }
 

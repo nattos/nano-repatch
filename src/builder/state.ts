@@ -529,15 +529,15 @@ export class AppController {
   public setNodeConfig(nodeId: string, configUpdate: Partial<GridNode['config']>): void {
     const state = this.getState();
     const fromConfig: Partial<any> = {};
-    const currentNode = state.graph.inner.nodes[nodeId];
-    for (const key in configUpdate) {
-      if (Object.prototype.hasOwnProperty.call(configUpdate, key)) {
-        fromConfig[key] = currentNode.config[key];
+    const currentNode = state.graph.inner.nodes[nodeId] as GridNode | undefined;
+    if (currentNode) {
+      for (const key in configUpdate) {
+        if (Object.prototype.hasOwnProperty.call(configUpdate, key)) {
+          fromConfig[key] = currentNode.config[key];
+        }
       }
     }
     this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
-
-
   }
 
   public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {

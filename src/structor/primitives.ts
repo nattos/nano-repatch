@@ -21,9 +21,8 @@ export const primitive_add = defineMathNode(
   (a, b) => a + b
 );
 
-export const primitive_clamp = {
+export const primitive_clamp = definePrimitiveNode({
   id: 'math.clamp',
-  kind: 'primitive' as const,
   metadata: {
     category: NodeCategory.Math,
     keywords: ['limit', 'range'],
@@ -31,34 +30,17 @@ export const primitive_clamp = {
   },
   inputs: { value: numberType, min: { ...numberType, defaultValue: 0 }, max: { ...numberType, defaultValue: 1 } },
   outputs: { value: numberType },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-    const broadcastConfig: BroadcastConfig = {
-      outputs: {
-        'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
-        'min': { fromFields: ['min'], fromUntagged: false, combine: { reduce: 'min' } },
-        'max': { fromFields: ['max'], fromUntagged: false, combine: { reduce: 'max' } },
-      },
-      reshape: 'none',
-    };
-    const broadcastResultType = context.broadcast(broadcastConfig, inputType);
-    return { kind: 'record' as const, fields: { value: broadcastResultType.fields.value }, untagged: [] };
+  autoBroadcast: {
+    value: { combine: 'collect' },
+    min: { combine: 'collect' },
+    max: { combine: 'collect' }
   },
-  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    const broadcastConfig: BroadcastConfig = {
-      outputs: {
-        'value': { fromFields: ['value'], fromUntagged: true, combine: 'collect' },
-        'min': { fromFields: ['min'], fromUntagged: false, combine: { reduce: 'min' } },
-        'max': { fromFields: ['max'], fromUntagged: false, combine: { reduce: 'max' } },
-      },
-      reshape: 'none',
-    };
-    const broadcastResult = context.broadcast(broadcastConfig, input);
-    const clamped = broadcastResult.apply((args: any) =>
-      Math.max(args.min, Math.min(args.value, args.max))
-    );
-    return { fields: { value: clamped }, untagged: [] };
+  reshape: 'vector',
+  execute: (inputs) => {
+    const { value, min, max } = inputs as { value: number, min: number, max: number };
+    return { value: Math.max(min, Math.min(value, max)) };
   }
-};
+});
 
 export const primitive_fmod = definePrimitiveNode({
   id: 'math.fmod',
@@ -173,16 +155,7 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
   }
 };
 
-export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = [
-  primitive_add,
-  primitive_clamp,
-  primitive_fmod,
-  primitive_literal,
-  primitive_apply,
-  primitive_input,
-  primitive_output,
-  primitive_subgraph
-];
+
 
 // --- Math (Constants) ---
 
@@ -415,33 +388,51 @@ export const primitive_float = definePrimitiveNode({
   execute: (inputs) => ({ value: inputs.value })
 });
 
-ALL_PRIMITIVES.push(
-  primitive_subtract,
-  primitive_multiply,
-  primitive_divide,
-  primitive_pow,
-  primitive_min,
-  primitive_max,
-  primitive_abs,
-  primitive_negate,
-  primitive_ceil,
-  primitive_floor,
-  primitive_round,
-  primitive_sin,
-  primitive_cos,
-  primitive_tan,
-  primitive_sqrt,
-  primitive_and,
-  primitive_or,
-  primitive_xor,
-  primitive_equals,
-  primitive_greater_than,
-  primitive_less_than,
-  primitive_not,
-  primitive_pi,
-  primitive_e,
-  primitive_lerp,
-  primitive_map,
-  primitive_hub,
-  primitive_float
-);
+// Helper for "all" nodes
+const defineAllNode = (
+  id: string,
+  op: (a: number, b: number) => number,
+  category: NodeCategory = NodeCategory.Math
+) => {
+  return definePrimitiveNode({
+    id,
+    metadata: { category, description: `Apply ${id.split('.').pop()} to all inputs.` },
+    inputs: { values: { kind: 'array', element: numberType, size: 'dynamic' } },
+    outputs: { result: numberType },
+    autoBroadcast: { values: { combine: 'collect', fromUntagged: true } },
+    execute: (inputs) => {
+      const values = (inputs.values as any[]).flat();
+      if (values.length === 0) return { result: 0 };
+      return { result: values.reduce(op) };
+    }
+  });
+};
+
+export const primitive_all_add = defineAllNode('math.all.add', (a, b) => a + b);
+export const primitive_all_subtract = defineAllNode('math.all.subtract', (a, b) => a - b);
+export const primitive_all_multiply = defineAllNode('math.all.multiply', (a, b) => a * b);
+export const primitive_all_divide = defineAllNode('math.all.divide', (a, b) => a / b);
+export const primitive_all_pow = defineAllNode('math.all.pow', (a, b) => Math.pow(a, b));
+export const primitive_all_min = defineAllNode('math.all.min', (a, b) => Math.min(a, b));
+export const primitive_all_max = defineAllNode('math.all.max', (a, b) => Math.max(a, b));
+
+export const primitive_all_and = defineAllNode('logic.all.and', (a, b) => (a && b ? 1 : 0), NodeCategory.Logic);
+export const primitive_all_or = defineAllNode('logic.all.or', (a, b) => (a || b ? 1 : 0), NodeCategory.Logic);
+export const primitive_all_xor = defineAllNode('logic.all.xor', (a, b) => ((!!a !== !!b) ? 1 : 0), NodeCategory.Logic);
+export const primitive_all_equals = defineAllNode('logic.all.equals', (a, b) => (a === b ? 1 : 0), NodeCategory.Logic);
+export const primitive_all_greater_than = defineAllNode('logic.all.greater_than', (a, b) => (a > b ? 1 : 0), NodeCategory.Logic);
+export const primitive_all_less_than = defineAllNode('logic.all.less_than', (a, b) => (a < b ? 1 : 0), NodeCategory.Logic);
+
+export const ALL_PRIMITIVES = [
+  primitive_add, primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
+  primitive_clamp, primitive_fmod, primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round,
+  primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
+  primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
+  primitive_pi, primitive_e,
+  primitive_lerp, primitive_map, primitive_hub, primitive_float,
+  primitive_input, primitive_output, primitive_subgraph, primitive_literal, primitive_apply,
+
+  // All variants
+  primitive_all_add, primitive_all_subtract, primitive_all_multiply, primitive_all_divide, primitive_all_pow, primitive_all_min, primitive_all_max,
+  primitive_all_and, primitive_all_or, primitive_all_xor, primitive_all_equals, primitive_all_greater_than, primitive_all_less_than
+];

@@ -5,7 +5,9 @@ import {
   primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
   primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
   primitive_pi, primitive_e,
-  primitive_lerp, primitive_map, primitive_hub, primitive_float
+  primitive_lerp, primitive_map, primitive_hub, primitive_float,
+  primitive_all_add, primitive_all_subtract, primitive_all_multiply, primitive_all_divide, primitive_all_pow, primitive_all_min, primitive_all_max,
+  primitive_all_and, primitive_all_or, primitive_all_xor, primitive_all_equals, primitive_all_greater_than, primitive_all_less_than
 } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
@@ -33,6 +35,7 @@ export interface NodeType {
   id: string;
   version: string;
   displayName: string;
+  aliases?: string[];
   definition: NodeDefinition;
   inputs?: PortHint[];
   outputs?: PortHint[];
@@ -297,12 +300,12 @@ defaultNodeRepository.register({
   displayName: 'Clamp',
   definition: primitive_clamp,
   inputs: [
-    { name: '', type: NumberType, description: 'Value to clamp. Can receive multiple connections.' },
+    { name: 'value', type: NumberType, description: 'Value to clamp.' },
     { name: 'min', type: NumberType, description: 'Minimum value.', defaultValue: 0, range: [0, 1] },
     { name: 'max', type: NumberType, description: 'Maximum value.', defaultValue: 1, range: [0, 1] }
   ],
   outputs: [
-    { name: '', type: NumberType, description: 'The clamped value.' }
+    { name: 'value', type: NumberType, description: 'The clamped value.' }
   ]
 });
 
@@ -741,3 +744,35 @@ defaultNodeRepository.register({
     };
   },
 });
+
+// --- All Variants ---
+
+const registerAllNode = (id: string, displayName: string, def: any) => {
+  defaultNodeRepository.register({
+    id,
+    version: '1.0.0',
+    displayName,
+    definition: def,
+    inputs: [
+      { name: '', type: { kind: 'array', element: NumberType, size: 'dynamic' }, description: 'Values to process.', suppressInputEditor: true, suppressLabel: true }
+    ],
+    outputs: [
+      { name: 'result', type: NumberType, description: 'Result' }
+    ]
+  });
+};
+
+registerAllNode('math.all.add', 'Sum All', primitive_all_add);
+registerAllNode('math.all.subtract', 'Subtract All', primitive_all_subtract);
+registerAllNode('math.all.multiply', 'Multiply All', primitive_all_multiply);
+registerAllNode('math.all.divide', 'Divide All', primitive_all_divide);
+registerAllNode('math.all.pow', 'Power All', primitive_all_pow);
+registerAllNode('math.all.min', 'Min All', primitive_all_min);
+registerAllNode('math.all.max', 'Max All', primitive_all_max);
+
+registerAllNode('logic.all.and', 'AND All', primitive_all_and);
+registerAllNode('logic.all.or', 'OR All', primitive_all_or);
+registerAllNode('logic.all.xor', 'XOR All', primitive_all_xor);
+registerAllNode('logic.all.equals', 'Equals All', primitive_all_equals);
+registerAllNode('logic.all.greater_than', 'Greater Than All', primitive_all_greater_than);
+registerAllNode('logic.all.less_than', 'Less Than All', primitive_all_less_than);

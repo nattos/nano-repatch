@@ -6,7 +6,13 @@ import { compileGraph } from '../builder/compiler';
 import { AppState, GridNode, Connection } from '../builder/state';
 import { numberType } from './std-types';
 
-describe('Primitives Integration', () => {
+// Helper to compile GridNodes into GraphDefinition
+export const compileAndRun = (
+  nodes: Record<string, { typeId: string, config?: any }>,
+  connections: { from: string, port: string, to: string, portIn: string }[],
+  monitoredNode: string,
+  monitoredPort: string
+) => {
   const repository = new NodeRepository();
 
   // Register all primitives
@@ -52,74 +58,70 @@ describe('Primitives Integration', () => {
     compileConfig: (c) => ({ fields: {}, untagged: [] })
   });
 
-  // Helper to compile GridNodes into GraphDefinition
-  const compileAndRun = (
-    nodes: Record<string, { typeId: string, config?: any }>,
-    connections: { from: string, port: string, to: string, portIn: string }[],
-    monitoredNode: string,
-    monitoredPort: string
-  ) => {
-    const gridNodes: Record<string, GridNode> = {};
-    const gridConnections: Record<string, Connection> = {};
+  const gridNodes: Record<string, GridNode> = {};
+  const gridConnections: Record<string, Connection> = {};
 
-    let x = 0;
-    for (const [id, def] of Object.entries(nodes)) {
-      gridNodes[id] = {
-        id,
-        x: x++,
-        y: 0,
-        config: {
-          typeId: def.typeId,
-          values: {},
-          ...def.config
-        }
-      };
-    }
-
-    // Add output node
-    const outId = 'out_node';
-    gridNodes[outId] = {
-      id: outId,
+  let x = 0;
+  for (const [id, def] of Object.entries(nodes)) {
+    gridNodes[id] = {
+      id,
       x: x++,
       y: 0,
-      config: { typeId: 'io.output', name: 'test_out', values: {} }
-    };
-
-    let connId = 0;
-    for (const conn of connections) {
-      const id = `c${connId++}`;
-      gridConnections[id] = {
-        id,
-        fromNodeId: conn.from,
-        fromPort: conn.port,
-        toNodeId: conn.to,
-        toPort: conn.portIn
-      };
-    }
-
-    // Connect monitored node to output
-    const outConnId = `c${connId++}`;
-    gridConnections[outConnId] = {
-      id: outConnId,
-      fromNodeId: monitoredNode,
-      fromPort: monitoredPort,
-      toNodeId: outId,
-      toPort: 'val'
-    };
-
-    const appState: AppState = {
-      graph: {
-        inner: { nodes: gridNodes, connections: gridConnections },
-        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      config: {
+        typeId: def.typeId,
+        values: {},
+        ...def.config
       }
     };
+  }
 
-    const graphDef = compileGraph(appState, new Map(), repository);
-    const executor = new GraphExecutor(graphDef, repository);
-    // console.log('Execution Order:', (executor as any).executionOrder);
-    return { executor, getOutput: () => executor.getGraphOutput('test_out') };
+  // Add output node
+  const outId = 'out_node';
+  gridNodes[outId] = {
+    id: outId,
+    x: x++,
+    y: 0,
+    config: { typeId: 'io.output', name: 'test_out', values: {} }
   };
 
+  let connId = 0;
+  for (const conn of connections) {
+    const id = `c${connId++}`;
+    gridConnections[id] = {
+      id,
+      fromNodeId: conn.from,
+      fromPort: conn.port,
+      toNodeId: conn.to,
+      toPort: conn.portIn
+    };
+  }
+
+  // Connect monitored node to output
+  const outConnId = `c${connId++}`;
+  gridConnections[outConnId] = {
+    id: outConnId,
+    fromNodeId: monitoredNode,
+    fromPort: monitoredPort,
+    toNodeId: outId,
+    toPort: 'val'
+  };
+
+  const appState: AppState = {
+    graph: {
+      inner: { nodes: gridNodes, connections: gridConnections },
+      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+    }
+  };
+
+  const graphDef = compileGraph(appState, new Map(), repository);
+  const executor = new GraphExecutor(graphDef, repository);
+  // console.log('Execution Order:', (executor as any).executionOrder);
+  return { executor, getOutput: () => executor.getGraphOutput('test_out') };
+};
+
+
+
+describe('Primitives Integration', () => {
   it('should chain math operations: (5 + 3) * 2 = 16', () => {
     const { executor, getOutput } = compileAndRun(
       {
@@ -186,6 +188,22 @@ describe('Primitives Integration', () => {
 
     executor.update({ clock: { beat: 0, dt: 0 } });
     expect(getOutput()).toBe(10);
+  });
+
+  it('should clamp vector values', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'val': { typeId: 'data.literal', config: { value: [0.5, 1.5, -0.5] } },
+        'clamp': { typeId: 'math.clamp', config: { values: { min: 0, max: 1 } } }
+      },
+      [
+        { from: 'val', port: '', to: 'clamp', portIn: 'value' }
+      ],
+      'clamp', 'value'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toEqual([0.5, 1, 0]);
   });
 
   it('should lerp values', () => {
