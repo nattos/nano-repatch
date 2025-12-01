@@ -1,4 +1,5 @@
 import { MobxLitElement } from './views/mobx-lit-element';
+import { localController } from './builder/controllers';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
@@ -29,8 +30,19 @@ export class App extends MobxLitElement {
     }
 `];
 
+  @state()
+  isReady = false;
+
+  async connectedCallback() {
+    super.connectedCallback();
+    await localController.settingsLoaded;
+    this.isReady = true;
+  }
+
 
   render() {
+    if (!this.isReady) return null;
+
     return html`
       <workspace-layout></workspace-layout>
     `;
