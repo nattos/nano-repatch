@@ -420,14 +420,14 @@ export class IOTab extends MobxLitElement {
       nodeType = 'midi_cc';
       config = {
         channel: event.channel,
-        cc: event.target,
+        cc: event.cc,
         deviceId: event.deviceId
       };
     } else {
       nodeType = 'midi_note';
       config = {
         channel: event.channel,
-        note: event.target,
+        note: event.note,
         deviceId: event.deviceId
       };
     }

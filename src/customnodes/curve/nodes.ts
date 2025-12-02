@@ -1,84 +1,46 @@
-import { definePrimitiveNode } from "../../structor/type-helpers";
-import { numberType } from "../../structor/std-types";
-import { NodeCategory, RecordType } from "../../structor/structor";
-import { defaultNodeRepository } from "../../structor/repository";
+import { defineNode, registerNode } from "../../structor/node-helpers";
+import { NumberType } from "../../structor/type-helpers";
+import { NodeCategory } from "../../structor/structor";
+import { curveStructorType, GraphWidgetConfig } from "./types";
 
-// Define local interfaces to match GraphWidgetConfig structure
-// We don't import from views to avoid circular dependencies/browser-only code in workers
-type CurveType = 'exponential' | 'linear' | 'step' | 'sin' | 'quad' | 'points';
-
-interface GraphSegment {
-  id: string;
-  weight: number;
-  curve: {
-    type: CurveType;
-    value?: number;
-    points?: { x: number, y: number }[];
-  };
-}
-
-interface GraphWidgetConfig {
-  domain: [number, number];
-  range: [number, number];
-  segments: GraphSegment[];
-}
-
-const curveStructorType: RecordType = {
-  kind: 'record',
-  fields: {
-    domain: { kind: 'array', element: numberType, size: 2 },
-    range: { kind: 'array', element: numberType, size: 2 },
-    segments: {
-      kind: 'array',
-      element: {
-        kind: 'record',
-        fields: {
-          id: { kind: 'atomic', type: 'string' },
-          weight: numberType,
-          curve: {
-            kind: 'record',
-            fields: {
-              type: { kind: 'atomic', type: 'string' },
-              value: { ...numberType, optional: true },
-              points: {
-                kind: 'array',
-                element: {
-                  kind: 'record',
-                  fields: { x: numberType, y: numberType },
-                  untagged: []
-                },
-                optional: true,
-                size: 'dynamic'
-              }
-            },
-            untagged: []
-          }
-        },
-        untagged: []
-      },
-      size: 'dynamic'
-    }
-  },
-  untagged: [],
-  hint: 'curve'
-};
-
-export const curve_ease = definePrimitiveNode({
+export const curve_ease = defineNode({
   id: 'curve.ease',
+  version: '1.0.0',
+  displayName: 'Curve Ease',
   metadata: {
-    category: NodeCategory.Math, // Or a new 'Curve' category if available
+    category: NodeCategory.Math,
     keywords: ['curve', 'ease', 'envelope', 'shape'],
     description: 'Applies a custom curve easing to the input value.'
   },
   inputs: {
-    value: numberType,
-    easing: { ...curveStructorType, optional: true }
+    value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 },
+    easing: {
+      type: { ...curveStructorType, optional: true },
+      description: 'Easing Curve Configuration',
+      suppressInputEditor: true
+    }
   },
-  config: {},
   outputs: {
-    result: numberType
+    result: NumberType
   },
   autoBroadcast: true,
+  /* UI registered in register-ui.ts */
+  compileConfig: (uiConfig) => {
+    return {
+      fields: {
+        easing: uiConfig?.easing ?? {
+          domain: [0, 1],
+          range: [0, 1],
+          segments: [{
+            id: 's1',
+            weight: 1,
+            curve: { type: 'exponential', value: 0 }
+          }]
+        }
+      },
+      untagged: []
+    };
+  },
   execute: (inputs, config) => {
     const value = inputs.value as number;
     // Use input easing if provided
@@ -183,33 +145,4 @@ export const curve_ease = definePrimitiveNode({
   }
 });
 
-defaultNodeRepository.register({
-  id: "curve.ease",
-  version: "1.0.0",
-  displayName: "Curve Ease",
-  definition: curve_ease,
-  inputs: [
-    { name: "value", type: numberType, description: "Input value (0-1)" },
-    { name: "easing", type: curveStructorType, description: "Easing Curve Configuration", suppressInputEditor: true }
-  ],
-  outputs: [{ name: "result", type: numberType, description: "Eased value" }],
-  compileConfig: (uiConfig) => {
-    // If uiConfig has easing, use it. Otherwise use default.
-    // The definePrimitiveNode handles defaultValue, but here we map UI config to runtime config.
-    // If uiConfig is just the raw object from the widget, we pass it through.
-    return {
-      fields: {
-        easing: uiConfig?.easing ?? {
-          domain: [0, 1],
-          range: [0, 1],
-          segments: [{
-            id: 's1',
-            weight: 1,
-            curve: { type: 'exponential', value: 0 }
-          }]
-        }
-      },
-      untagged: []
-    };
-  }
-});
+registerNode(curve_ease);

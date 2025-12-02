@@ -1,6 +1,5 @@
 import './nodes';
 import { html } from 'lit';
-import { defaultNodeRepository } from '../../structor/repository';
 import '../../views/graph-widget';
 import { GraphWidgetConfig } from '../../views/graph-widget';
 
@@ -10,6 +9,7 @@ import { toJS } from 'mobx';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from '../../views/mobx-lit-element';
 import { GridNode } from '../../builder/state';
+import { GraphNodeRenderHandlers, InspectorChangeHandler } from '../../structor/repository';
 
 @customElement('curve-inspector')
 export class CurveInspector extends MobxLitElement {
@@ -94,12 +94,11 @@ export class CurveInspector extends MobxLitElement {
   }
 }
 
-const curveEase = defaultNodeRepository.getNodeType('curve.ease');
+export const CurveBodyRenderer = (node: GridNode, handlers: GraphNodeRenderHandlers) => {
+  return html`<curve-inspector .node=${node}></curve-inspector>`;
+};
 
-if (curveEase) {
-  curveEase.renderBody = (node) => {
-    return html`<curve-inspector .node=${node}></curve-inspector>`;
-  };
-
-  curveEase.getBodyHeight = () => 96;
-}
+export const CurveInspectorRenderer = (node: GridNode, onchange: InspectorChangeHandler) => {
+  // We can reuse the same component or a different one for inspector
+  return html`<div>Curve Inspector Placeholder</div>`;
+};

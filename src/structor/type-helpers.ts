@@ -12,7 +12,8 @@ import {
   NodeMetadata
 } from './structor';
 
-export const NumberType: StructorType = { kind: 'atomic', type: 'number', defaultValue: 0 };
+export const NumberType = { kind: 'atomic' as const, type: 'number' as const, defaultValue: 0 };
+export const StringType = { kind: 'atomic' as const, type: 'string' as const, defaultValue: '' };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
 
 // --- Type Inference Helpers ---
@@ -34,7 +35,7 @@ type InferAtomic<T extends AtomicType> =
   T['type'] extends 'boolean' ? boolean :
   any;
 
-type InferRecord<T extends RecordType> =
+export type InferRecord<T extends RecordType> =
   { [K in keyof T['fields']as T['fields'][K] extends { optional: true } ? K : never]?: InferStructorType<T['fields'][K]> } &
   { [K in keyof T['fields']as T['fields'][K] extends { optional: true } ? never : K]: InferStructorType<T['fields'][K]> };
 
@@ -42,6 +43,28 @@ type InferRecord<T extends RecordType> =
 export function defineType<T extends StructorType>(t: T): T {
   return t;
 }
+
+// --- Type Enforcement Helpers ---
+
+export type TypedStructorType<T> =
+  T extends number ? { kind: 'atomic', type: 'number' } & Partial<AtomicType> :
+  T extends string ? { kind: 'atomic', type: 'string' } & Partial<AtomicType> :
+  T extends boolean ? { kind: 'atomic', type: 'boolean' } & Partial<AtomicType> :
+  T extends (infer U)[] ? { kind: 'array', element: TypedStructorType<U> } & Partial<ArrayType> :
+  T extends Record<string, any> ? TypedRecordType<T> :
+  StructorType;
+
+export type TypedRecordType<T> = {
+  kind: 'record';
+  fields: {
+    [K in keyof T]-?: TypedStructorType<NonNullable<T[K]>> & (undefined extends T[K] ? { optional: true } : unknown)
+  };
+} & Partial<Omit<RecordType, 'fields'>>;
+
+export function defineRecordType<T>(def: TypedRecordType<T>): RecordType {
+  return def as unknown as RecordType;
+}
+
 
 // --- Marshalling Helpers ---
 
