@@ -52,10 +52,10 @@
     </style>
     <script type="module">
         import { LitElement, html, css } from 'lit';
-        import { makeAutoObservable } from 'mobx';
+        import { makeAutoObservable, observable } from 'mobx';
         import '../views/graph-widget.ts';
 
-        // Mock Config for Single Segment
+        // 1. Single Segment Config
         class DebugConfig {
             constructor() {
                 this.domain = [0, 1];
@@ -69,30 +69,20 @@
                 return [{
                     id: 'seg1',
                     weight: 1,
-                    curve: {
-                        type: 'exponential',
-                        value: this.value
-                    }
+                    curve: { type: 'exponential', value: this.value }
                 }];
             }
 
             onSegmentChange(id, param, value) {
                 if (param === 'value') {
                     this.value = value;
-                    // Update UI
                     document.getElementById('exponent').value = value;
                     document.getElementById('exponent-val').textContent = value.toFixed(2);
                 }
             }
         }
 
-        const config = new DebugConfig();
-        const widget = document.createElement('graph-widget');
-        widget.config = config;
-
-        document.querySelector('.widget-area').appendChild(widget);
-
-        // Multi-Segment Example
+        // 2. Multi-Segment Config
         class MultiSegmentConfig {
             constructor() {
                 this.domain = [0, 1];
@@ -117,27 +107,120 @@
 
             onSegmentChange(id, param, value) {
                 const segment = this.segmentsData.find(s => s.id === id);
-                if (segment && param === 'value') {
-                    segment.value = value;
-                }
+                if (segment && param === 'value') segment.value = value;
             }
 
             onSegmentResize(index, newWeight) {
-                // Resize segment at index
-                if (this.segmentsData[index]) {
-                    this.segmentsData[index].weight = newWeight;
-                }
+                if (this.segmentsData[index]) this.segmentsData[index].weight = newWeight;
             }
         }
 
-        const multiConfig = new MultiSegmentConfig();
-        const multiWidget = document.createElement('graph-widget');
-        multiWidget.config = multiConfig;
+        // 3. Mixed Types Config
+        class MixedTypesConfig {
+            constructor() {
+                this.domain = [0, 1];
+                this.range = [-1, 1];
+                this.interactive = true;
+                this.segmentsData = [
+                    { id: 's1', weight: 1, type: 'linear', value: 0 },
+                    { id: 's2', weight: 1, type: 'step', value: 4 },
+                    { id: 's3', weight: 1, type: 'sin', value: 0 },
+                    { id: 's4', weight: 1, type: 'quad', value: 0 },
+                    {
+                        id: 's5', weight: 1, type: 'points', points: [{ x: 0, y: 0 }, { x: 0.2, y: 0.8 }, { x: 0.5, y: -0.5 }, { x: 0.8, y: 0.2 }, {
+                            x: 1,
+                            y: 0
+                        }]
+                    }
+                ];
+                makeAutoObservable(this);
+            }
 
-        const multiContainer = document.createElement('div');
-        multiContainer.innerHTML = '<h3>Multi-Segment</h3>';
-        multiContainer.appendChild(multiWidget);
-        document.querySelector('.widget-area').appendChild(multiContainer);
+            get segments() {
+                return this.segmentsData.map(s => ({
+                    id: s.id,
+                    weight: s.weight,
+                    curve: { type: s.type, value: s.value, points: s.points }
+                }));
+            }
+        }
+
+        // 4. Step Sequencer Config
+        class StepSequencerConfig {
+            constructor() {
+                this.domain = [0, 1];
+                this.range = [0, 1];
+                this.interactive = true;
+                this.segmentsData = Array.from({ length: 8 }, (_, i) => ({
+                    id: `s${i}`, weight: 1, type: 'step', value: Math.floor(Math.random() * 4) + 2
+                }));
+                makeAutoObservable(this);
+            }
+
+            get segments() {
+                return this.segmentsData.map(s => ({
+                    id: s.id, weight: s.weight, curve: { type: s.type, value: s.value }
+                }));
+            }
+        }
+
+        // 5. ADSR Config
+        class ADSRConfig {
+            constructor() {
+                this.domain = [0, 1];
+                this.range = [0, 1];
+                this.interactive = true;
+                this.segmentsData = [
+                    { id: 'a', weight: 1, type: 'linear', value: 0 },
+                    { id: 'd', weight: 1, type: 'exponential', value: 0.5 },
+                    { id: 's', weight: 2, type: 'step', value: 1 },
+                    { id: 'r', weight: 1, type: 'exponential', value: -0.5 }
+                ];
+                makeAutoObservable(this);
+            }
+
+            get segments() {
+                return this.segmentsData.map(s => ({
+                    id: s.id, weight: s.weight, curve: { type: s.type, value: s.value }
+                }));
+            }
+        }
+
+        // Render Helper
+        function renderWidget(title, config) {
+            const container = document.createElement('div');
+            container.style.marginBottom = '20px';
+
+            const label = document.createElement('div');
+            label.textContent = title;
+            label.style.marginBottom = '5px';
+            label.style.color = '#aaa';
+            label.style.fontSize = '12px';
+
+            const widget = document.createElement('graph-widget');
+            widget.config = config;
+
+            container.appendChild(label);
+            container.appendChild(widget);
+            document.querySelector('.widget-area').appendChild(container);
+            return config;
+        }
+
+        // Initialize
+        const config = new DebugConfig();
+        renderWidget('Interactive (Exponential)', config);
+
+        const multiConfig = new MultiSegmentConfig();
+        renderWidget('Multi-Segment', multiConfig);
+
+        const mixedConfig = new MixedTypesConfig();
+        renderWidget('Mixed Curve Types', mixedConfig);
+
+        const stepConfig = new StepSequencerConfig();
+        renderWidget('Step Sequencer', stepConfig);
+
+        const adsrConfig = new ADSRConfig();
+        renderWidget('ADSR Envelope', adsrConfig);
 
 
         // Controls
@@ -153,7 +236,6 @@
         interactiveCheck.addEventListener('change', (e) => {
             config.interactive = e.target.checked;
         });
-
     </script>
 </head>
 

@@ -4,12 +4,15 @@ import { MobxLitElement } from './mobx-lit-element';
 import { computed, makeObservable, observable } from 'mobx';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 
+export type CurveType = 'exponential' | 'linear' | 'step' | 'sin' | 'quad' | 'points';
+
 export interface GraphSegment {
   id: string;
   weight: number;
   curve: {
-    type: 'exponential';
-    value: number; // -1.0 to 1.0
+    type: CurveType;
+    value?: number; // For exponential (exponent), step (count)
+    points?: { x: number, y: number }[]; // For points type (normalized 0-1)
   };
 }
 
@@ -137,23 +140,64 @@ export class GraphWidget extends MobxLitElement {
     this.segmentLayout.forEach(layout => {
       const { segment, startX, endX } = layout;
 
-      // Map value (-1 to 1) to exponent
-      // 1 -> 0.1 (10^-1)
-      // 0 -> 1.0 (10^0)
-      // -1 -> 10.0 (10^1)
-      // exponent = 10^(-value)
-      const exponent = Math.pow(10, -segment.curve.value);
+      // Pre-calculate parameters based on type
+      let exponent = 1;
+      if (segment.curve.type === 'exponential') {
+        exponent = Math.pow(10, -(segment.curve.value ?? 0));
+      }
 
+      const steps = segment.curve.type === 'step' ? (segment.curve.value ?? 2) : 1;
+
+      // For 'points', we just iterate through the provided points
+      if (segment.curve.type === 'points' && segment.curve.points) {
+        segment.curve.points.forEach(p => {
+          const t = p.x; // Normalized x within segment
+          const yVal = minY + p.y * (maxY - minY); // Map normalized y to value range
+
+          const svgX = startX + t * (endX - startX);
+          const svgY = height - (normalize(yVal, minY, maxY) * height);
+          points.push([svgX, svgY]);
+        });
+        return;
+      }
+
+      // For analytical curves
       for (let i = 0; i <= stepsPerSegment; i++) {
         const t = i / stepsPerSegment;
         // x within segment (0 to 1)
 
-        let yVal = 0;
-        if (segment.curve.type === 'exponential') {
-          const normY = Math.pow(t, exponent);
-          yVal = minY + normY * (maxY - minY);
+        let normY = 0;
+
+        switch (segment.curve.type) {
+          case 'exponential':
+            normY = Math.pow(t, exponent);
+            break;
+          case 'linear':
+            normY = t;
+            break;
+          case 'step':
+            // Steps: 0 to 1
+            // e.g. 2 steps: 0-0.5 -> 0, 0.5-1 -> 1? Or 0, 0.5, 1?
+            // "Step" usually means discrete levels.
+            // Let's implement floor(t * steps) / (steps - 1)
+            if (steps <= 1) normY = 0;
+            else normY = Math.floor(t * steps) / (steps - 1);
+            // Fix last point to be 1
+            if (t >= 0.999) normY = 1;
+            break;
+          case 'sin':
+            // EaseInOutSine: -(cos(PI * x) - 1) / 2
+            normY = -(Math.cos(Math.PI * t) - 1) / 2;
+            break;
+          case 'quad':
+            // EaseInQuad: t * t
+            normY = t * t;
+            break;
+          default:
+            normY = t;
         }
 
+        const yVal = minY + normY * (maxY - minY);
         const svgX = startX + t * (endX - startX);
         const svgY = height - (normalize(yVal, minY, maxY) * height);
         points.push([svgX, svgY]);
@@ -190,16 +234,6 @@ export class GraphWidget extends MobxLitElement {
 
       new PointerDragOp(e, this, {
         move: (_e, delta) => {
-          // delta[0] is change in pixels
-          // newWidth = startSegmentWidth + delta[0]
-          // newWeight = (newWidth / startSegmentWidth) * startWeight
-          // This is an approximation assuming linear relation locally
-          // Better: newWeight = ((startSegmentWidth + delta[0]) / width) * totalWeight
-          // But totalWeight changes if we change one weight?
-          // Let's stick to the previous logic:
-          // newWidth = currentX - startX_of_segment
-          // But here we have delta.
-
           const newWidth = startSegmentWidth + delta[0];
           const pixelToWeightRatio = this.totalWeight / width;
           const newWeight = newWidth * pixelToWeightRatio;
@@ -215,7 +249,7 @@ export class GraphWidget extends MobxLitElement {
     // Parameter Change Mode
     if (this.config.onSegmentChange) {
       const targetSegment = layout.find(l => startX >= l.startX && startX <= l.endX);
-      if (targetSegment) {
+      if (targetSegment && targetSegment.segment.curve.type === 'exponential') {
         new PointerDragOp(e, this, {
           move: (e, _delta) => {
             // For parameter, we want absolute position
@@ -314,14 +348,17 @@ export class GraphWidget extends MobxLitElement {
       const isHovered = l.index === this.hoveredSegmentIndex;
       const isSplitHovered = l.index === this.hoveredSplitIndex;
 
-      // value = 1 - 2*t
-      // 2*t = 1 - value
-      // t = (1 - value) / 2
-      // y = t * height
+      // Only calculate handle for exponential curves
+      let handleY = 0;
+      let centerX = 0;
+      let showHandle = false;
 
-      const tHandle = (1 - segment.curve.value) / 2;
-      const handleY = tHandle * height;
-      const centerX = startX + (endX - startX) / 2;
+      if (segment.curve.type === 'exponential') {
+        const tHandle = (1 - (segment.curve.value ?? 0)) / 2;
+        handleY = tHandle * height;
+        centerX = startX + (endX - startX) / 2;
+        showHandle = true;
+      }
 
       return svg`
                         <!-- Hover Highlight -->
@@ -339,7 +376,7 @@ export class GraphWidget extends MobxLitElement {
                         ` : ''}
 
                         <!-- Parameter Handle -->
-                        ${this.config?.interactive ? svg`
+                        ${this.config?.interactive && showHandle ? svg`
                             <line class="handle-line" x1="${startX}" y1="${handleY}" x2="${endX}" y2="${handleY}"
                                 style="${isHovered ? 'opacity: 1; stroke-width: 2;' : ''}" />
                             <circle class="handle-circle" cx="${centerX}" cy="${handleY}" r="${isHovered ? 6 : 4}" />
