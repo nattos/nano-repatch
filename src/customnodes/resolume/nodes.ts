@@ -38,7 +38,7 @@ export const resolumeInputNode = definePrimitiveNode({
     };
 
     if (config.path) {
-      resolumeManager.subscribe(config.path, state.callback);
+      resolumeManager.subscribe(config.path, state.callback, state.callback);
       state.unsubscribe = () => resolumeManager.unsubscribe(config.path, state.callback);
     }
 
