@@ -132,7 +132,9 @@ export class SmartInput extends LitElement {
         {
           key: 'Enter',
           run: (view) => {
-            acceptCompletion(view);
+            if (acceptCompletion(view)) {
+              return true;
+            }
             this.dispatchCommit(view.state.doc.toString());
             return true;
           }
@@ -262,24 +264,8 @@ export class SmartInput extends LitElement {
             // 1. If current text is NOT the canonical ID, replace text with ID, select all, and KEEP OPEN.
             // 2. If current text IS the canonical ID (already replaced), then commit.
 
-            const currentDoc = view.state.doc.toString();
             const canonicalId = item.id!;
-
-            if (currentDoc !== canonicalId) {
-              // Step 1: Replace and Select
-              view.dispatch({
-                changes: { from: 0, to: view.state.doc.length, insert: canonicalId },
-                selection: { anchor: 0, head: canonicalId.length }
-              });
-
-              // Trigger completion again immediately to show the node as selected top option
-              setTimeout(() => {
-                startCompletion(view);
-              }, 0);
-            } else {
-              // Step 2: Already matches, so Commit
-              this.dispatchCommit(canonicalId);
-            }
+            this.dispatchCommit(canonicalId);
           } else {
             // Drill down (Category/Namespace)
             view.dispatch({
