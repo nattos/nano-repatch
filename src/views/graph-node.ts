@@ -512,7 +512,9 @@ export class GraphNode extends MobxLitElement {
         this.activeSliderPort = portName;
         this.sliderLongEdit = appController.beginLongEdit({
           apply: (c: AppController) => {
-            c.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+            const latestNode = c.getState().graph.inner.nodes[this.node.id];
+            if (!latestNode) return;
+            c.setNodeConfig(this.node.id, { values: { ...(latestNode.config.values || {}), [portName]: value } });
           },
           cancel: () => {
             this.sliderLongEdit = null;
@@ -521,7 +523,9 @@ export class GraphNode extends MobxLitElement {
         });
       } else {
         this.sliderLongEdit.applyAgain((c: AppController) => {
-          c.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+          const latestNode = c.getState().graph.inner.nodes[this.node.id];
+          if (!latestNode) return;
+          c.setNodeConfig(this.node.id, { values: { ...(latestNode.config.values || {}), [portName]: value } });
         });
       }
     } else if (e.type === 'change') {
@@ -532,7 +536,10 @@ export class GraphNode extends MobxLitElement {
         this.activeSliderPort = null;
       } else {
         // Direct set if no long edit active (e.g. clicked, not dragged)
-        appController.setNodeConfig(this.node.id, { values: { ...(this.node.config.values || {}), [portName]: value } });
+        const latestNode = appController.getState().graph.inner.nodes[this.node.id];
+        if (latestNode) {
+          appController.setNodeConfig(this.node.id, { values: { ...(latestNode.config.values || {}), [portName]: value } });
+        }
       }
     }
   }
