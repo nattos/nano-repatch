@@ -80,4 +80,37 @@ describe('Node Initialization and Updates', () => {
     const output = executor.getNodeOutput('node-1');
     expect(output?.fields['value']).toBe(1.23);
   });
+
+  it('should initialize math.add with default inputs 0', () => {
+    // 1. Create AppState with a single add node
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'node-add': {
+              id: 'node-add',
+              x: 0,
+              y: 0,
+              config: { typeId: 'math.add', values: {} }
+            }
+          },
+          connections: {}
+        },
+        auxiliary: {
+          outgoingConnections: new Map(),
+          incomingConnections: new Map()
+        }
+      }
+    };
+
+    // 2. Compile & Execute
+    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+    const executor = new GraphExecutor(graphDef, defaultNodeRepository);
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    // 3. Verify Output
+    const output = executor.getNodeOutput('node-add');
+    expect(output).toBeDefined();
+    expect(output?.fields['result']).toBe(0); // 0 + 0 = 0
+  });
 });

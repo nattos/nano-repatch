@@ -301,6 +301,9 @@ export class AppController {
           const keys = Object.keys(mutation.to);
           if (keys.length === 1 && keys[0] === 'values' && mutation.to.values) {
             inputUpdates.push({ nodeId: mutation.nodeId, inputs: mutation.to.values });
+          } else if (mutation.to.typeId) {
+            // If typeId changed, we MUST recompile because the node definition changed
+            needsRecompile = true;
           } else {
             configUpdateNodeIds.add(mutation.nodeId);
           }

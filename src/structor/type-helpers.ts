@@ -12,7 +12,7 @@ import {
   NodeMetadata
 } from './structor';
 
-export const NumberType: StructorType = { kind: 'atomic', type: 'number' };
+export const NumberType: StructorType = { kind: 'atomic', type: 'number', defaultValue: 0 };
 export const AnyType: StructorType = { kind: 'atomic', type: 'any' };
 
 // --- Type Inference Helpers ---

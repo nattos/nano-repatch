@@ -807,7 +807,7 @@ export class GraphNode extends MobxLitElement {
         if (!editorContent) {
           const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
             ? this.node.config.values[input.name]
-            : input.defaultValue || '';
+            : (input.defaultValue !== undefined ? input.defaultValue : ((input.type as any).defaultValue !== undefined ? (input.type as any).defaultValue : ''));
 
           // Always show default editor if no custom editor is provided
           const isNumber = input.type.kind === 'atomic' && input.type.type === 'number';

@@ -185,7 +185,7 @@ defaultNodeRepository.register({
   outputs: [
     { name: 'value', type: NumberType, description: 'Value' }
   ],
-  compileConfig: (uiConfig) => ({ fields: { value: uiConfig.value ?? 0.0 }, untagged: [] }),
+  compileConfig: (uiConfig) => ({ values: { value: uiConfig.value ?? 0.0 }, fields: {}, untagged: [] }),
 });
 
 defaultNodeRepository.register({

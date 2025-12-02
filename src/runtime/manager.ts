@@ -155,7 +155,9 @@ export class RuntimeManager {
     this.executorWorker.postMessage(initMsg);
 
     // After init, we need to send current configs
-    this.updateNodeConfigsAndRealtimeStatus();
+    // But we SKIP sending UPDATE_CONFIG because INIT_GRAPH already has the correct (compiled) config
+    // which includes injected defaults that AppState might miss.
+    this.updateNodeConfigsAndRealtimeStatus(undefined, true);
 
     // If not realtime, we might want to trigger a single frame?
     // The executor worker doesn't have a "step" command yet, but we can START/STOP or just rely on updates triggering it?
@@ -196,7 +198,7 @@ export class RuntimeManager {
     }
   }
 
-  private updateNodeConfigsAndRealtimeStatus(nodeIds?: string[]) {
+  private updateNodeConfigsAndRealtimeStatus(nodeIds?: string[], skipUpdateConfig = false) {
     const state = this.appController.observableState;
     let anyRealtime = false;
 
@@ -221,13 +223,15 @@ export class RuntimeManager {
       const finalConfig = (instanceConfig ?? emptyConfig) as any;
 
       // Send config update to worker
-      const updateMsg: ExecutorWorkerMessage = {
-        type: 'UPDATE_CONFIG',
-        nodeId: node.id,
-        config: toJS(finalConfig),
-        isRealtime: false // Placeholder, logic below
-      };
-      this.executorWorker.postMessage(updateMsg);
+      if (!skipUpdateConfig) {
+        const updateMsg: ExecutorWorkerMessage = {
+          type: 'UPDATE_CONFIG',
+          nodeId: node.id,
+          config: toJS(finalConfig),
+          isRealtime: false // Placeholder, logic below
+        };
+        this.executorWorker.postMessage(updateMsg);
+      }
 
       // Check if node is realtime
       const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(finalConfig) ?? false;

@@ -110,6 +110,8 @@ export function compileGraph(
               const portDef = inputPorts.find(p => p.name === portName);
               if (portDef && portDef.defaultValue !== undefined) {
                 value = portDef.defaultValue;
+              } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
+                value = ((portDef as any).type as any).defaultValue;
               } else {
                 // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
               }

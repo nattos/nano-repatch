@@ -8,6 +8,7 @@ export interface AtomicType {
   kind: 'atomic';
   type: 'number' | 'string' | 'boolean' | 'any';
   optional?: boolean;
+  defaultValue?: any;
 }
 
 export interface FunctorType {
