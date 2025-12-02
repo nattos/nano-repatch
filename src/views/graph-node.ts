@@ -805,8 +805,15 @@ export class GraphNode extends MobxLitElement {
 
         // Fallback to default editor if no custom editor or it returned nothing
         if (!editorContent) {
-          const currentValue = (this.node.config.values && this.node.config.values[input.name]) !== undefined
-            ? this.node.config.values[input.name]
+          let configValue = this.node.config.values && this.node.config.values[input.name];
+
+          // Fallback: Check top-level config for legacy/misconfigured nodes (e.g. data.float might have 'value' at top level)
+          if (configValue === undefined && (this.node.config as any)[input.name] !== undefined) {
+            configValue = (this.node.config as any)[input.name];
+          }
+
+          const currentValue = configValue !== undefined
+            ? configValue
             : (input.defaultValue !== undefined ? input.defaultValue : ((input.type as any).defaultValue !== undefined ? (input.type as any).defaultValue : ''));
 
           // Always show default editor if no custom editor is provided
