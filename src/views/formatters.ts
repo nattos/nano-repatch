@@ -162,30 +162,6 @@ function formatStepSequence(sequence: any[]): TemplateResult {
   });
 
   return html`
-    <style>
-      .step-seq-viz {
-        display: inline-flex;
-        gap: 1px;
-        height: 14px;
-        align-items: flex-end;
-        background: rgba(0,0,0,0.3);
-        padding: 2px;
-        border-radius: 3px;
-        vertical-align: middle;
-      }
-      .step-seq-viz .step {
-        width: 6px;
-        border-radius: 1px;
-        min-height: 2px;
-      }
-      .step-seq-viz .step.hold {
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        margin-right: -1px; /* Connect visually */
-        padding-right: 1px;
-        z-index: 1;
-      }
-    </style>
     <div class="step-seq-viz">
       ${steps}
     </div>
