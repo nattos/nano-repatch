@@ -137,31 +137,16 @@ describe('Graph Compiler', () => {
 
       const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
-      // Should have: n1, n1-virtual-min, n1-virtual-max
-      expect(Object.keys(compiled.nodes)).toHaveLength(3);
+      // Should have: n1 only (virtual inputs are injected into config)
+      expect(Object.keys(compiled.nodes)).toHaveLength(1);
 
-      // Check Virtual Min
-      const minNodeId = 'n1-virtual-min';
-      expect(compiled.nodes[minNodeId]).toBeDefined();
-      expect(compiled.nodes[minNodeId].definitionId).toBe('data.literal');
-      expect(compiled.nodes[minNodeId].defaultConfig).toBe(0.5);
+      // Check Config Injection
+      const n1 = compiled.nodes['n1'];
+      expect(n1).toBeDefined();
+      expect((n1.defaultConfig as any).values).toEqual({ 'min': 0.5, 'max': 1.0, 'value': 0 });
 
-      // Check Virtual Max
-      const maxNodeId = 'n1-virtual-max';
-      expect(compiled.nodes[maxNodeId]).toBeDefined();
-      expect(compiled.nodes[maxNodeId].definitionId).toBe('data.literal');
-      expect(compiled.nodes[maxNodeId].defaultConfig).toBe(1.0);
-
-      // Check Connections
-      expect(compiled.connections).toHaveLength(2);
-      expect(compiled.connections).toContainEqual({
-        fromNode: minNodeId, fromPort: '', // Literal output is untagged/default
-        toNode: 'n1', toPort: 'min'
-      });
-      expect(compiled.connections).toContainEqual({
-        fromNode: maxNodeId, fromPort: '',
-        toNode: 'n1', toPort: 'max'
-      });
+      // Check Connections (Should be empty as no literal nodes are created)
+      expect(compiled.connections).toHaveLength(0);
     });
 
     it('should NOT generate literal nodes if port is connected', () => {

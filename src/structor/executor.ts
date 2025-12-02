@@ -194,7 +194,13 @@ export class GraphExecutor {
             } else if (typeof toPort === 'string' && toPort) {
               inputRecord.fields[toPort] = value;
             } else if (typeof toPort === 'number') {
-              inputRecord.untagged[toPort] = value;
+              // Try to map to named port
+              const namedPort = nodeType?.inputs?.[toPort];
+              if (namedPort && namedPort.name) {
+                inputRecord.fields[namedPort.name] = value;
+              } else {
+                inputRecord.untagged[toPort] = value;
+              }
             } else {
               inputRecord.untagged.push(value);
             }
@@ -224,6 +230,16 @@ export class GraphExecutor {
             if (inputRecord.fields[portName] === undefined) {
               inputRecord.fields[portName] = value as Structor;
             }
+          }
+        }
+      }
+
+      // Apply default values from Node Definition
+      const nodeType = this.repository.getNodeType(instance.definitionId);
+      if (nodeType && nodeType.inputs) {
+        for (const input of nodeType.inputs) {
+          if (inputRecord.fields[input.name] === undefined && input.defaultValue !== undefined) {
+            inputRecord.fields[input.name] = input.defaultValue;
           }
         }
       }

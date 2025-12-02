@@ -113,7 +113,7 @@ export function compileGraph(
               } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
                 value = ((portDef as any).type as any).defaultValue;
               } else {
-                // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
+                 // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
               }
             }
 

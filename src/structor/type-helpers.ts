@@ -183,6 +183,7 @@ export function definePrimitiveNode<
     id: options.id,
     kind: 'primitive',
     metadata: options.metadata,
+    inputs: options.inputs, // Expose inputs for reflection
     configType,
     isRealtime: options.isRealtime,
     computeOutputTypes: () => outputType,

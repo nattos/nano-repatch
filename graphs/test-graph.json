@@ -15,8 +15,10 @@
       "y": 2,
       "config": {
         "typeId": "nicepattern:rhythmic_generator",
-        "values": {},
-        "density": 0.2
+        "values": {
+          "density": 0.26
+        },
+        "density": 0.4
       }
     },
     "node-cf68da5f-291e-47a8-b3fe-dc95720ad062": {
@@ -25,7 +27,9 @@
       "y": 1,
       "config": {
         "typeId": "nicepattern:chaos_generator",
-        "values": {},
+        "values": {
+          "density": 0
+        },
         "density": 0.15
       }
     },

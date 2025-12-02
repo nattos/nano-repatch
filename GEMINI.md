@@ -80,15 +80,25 @@ This entry documents the implementation of the "Perfect Alignment" grid system a
 
 *   **[docs/UI_METRICS.md](../UI_METRICS.md)** has been updated with "Vertical Rhythm" and "Grid Fit Verification" sections to guide custom editor implementation.
 
-## Final Polish & Cleanup (As of 2025-11-30)
+## Test Fixes & Systemic Improvements (As of 2025-12-01)
 
-This entry documents the final steps taken to ensure the codebase is clean and all tests are passing.
+This entry documents the resolution of several failing unit tests and the underlying systemic issues they revealed.
 
-### Test Fixes
+### Features Implemented
 
-1.  **Executor Tests:** Updated `src/structor/executor.test.ts` to align with the changes made to `primitive_clamp`. The test now correctly expects a named output `value` instead of an untagged array. This resolves the regression caused by the primitive library expansion.
+1.  **Robust Graph Execution:**
+    *   **Indexed Port Mapping:** Updated `GraphExecutor` to correctly map connections to indexed ports (e.g., `toPort: 0`) to their corresponding named inputs (e.g., `value`) based on the node definition. This ensures compatibility with tests and potential user actions that rely on index-based connections.
+    *   **Default Value Application:** Enhanced `GraphExecutor` to automatically apply `defaultValue` from `PortHint` (node definition) when an input is neither connected nor configured. This fixes issues where nodes like `math.clamp` would fail to use their default `min`/`max` values.
 
-### Code Hygiene
+2.  **Type Reflection:**
+    *   **Exposed Inputs:** Updated `definePrimitiveNode` and `PrimitiveNodeDefinition` to expose the `inputs` definition on the runtime object. This allows tests and other tools to reflect on the node's expected inputs and default values, which was critical for `virtual-inputs.test.ts`.
 
-1.  **Cleanup:** Performed a sweep of the codebase to remove unused imports, commented-out debug logs, and legacy code artifacts. Affected files include `compiler.ts`, `graph-node.ts`, `nodes.ts`, `type-helpers.ts`, and `executor.worker.ts`.
-2.  **Documentation:** Updated `GEMINI.md` (this document) and `walkthrough.md` to reflect the current state of the system and the successful resolution of all tasks.
+### Bug Fixes
+
+1.  **Curve Node Tests:** Updated `curve.ease` tests to correctly pass the `easing` configuration as a named input, matching the node's updated `execute` signature.
+2.  **Compiler Tests:** Updated `builder/compiler.test.ts` to reflect the optimized behavior where virtual inputs are injected into `node.config` rather than generating separate literal nodes.
+3.  **Graph Node Tests:** Updated `views/graph-node.test.ts` to expect the correct named output port (`value`) for `math.clamp`, aligning with its definition.
+
+### Verification
+
+*   **All Tests Passing:** Validated that all unit tests (`npm test`) are now passing, including the previously failing `compiler`, `executor`, `virtual-inputs`, and `graph-node` tests.

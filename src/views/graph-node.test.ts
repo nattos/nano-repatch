@@ -30,10 +30,10 @@ describe('GraphNode', () => {
     expect(outPorts.length).to.equal(1, 'Should have 1 output port');
 
     const inPortNames = Array.from(inPorts).map(p => p.getAttribute('name'));
-    expect(inPortNames).to.have.members(['', 'min', 'max']);
+    expect(inPortNames).to.have.members(['value', 'min', 'max']);
 
     const outPortNames = Array.from(outPorts).map(p => p.getAttribute('name'));
-    expect(outPortNames).to.have.members(['']);
+    expect(outPortNames).to.have.members(['value']);
 
     const virtualInputs = clampNode.shadowRoot!.querySelectorAll('.virtual-input-field');
     expect(virtualInputs.length).to.equal(3, 'Should have 3 virtual inputs');

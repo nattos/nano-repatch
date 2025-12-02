@@ -8,7 +8,8 @@
         "typeId": "math.clamp",
         "values": {
           "min": 0.02,
-          "max": 1
+          "max": 0.74,
+          "value": 0.42
         }
       }
     },
@@ -20,7 +21,7 @@
         "typeId": "math.subtract",
         "values": {
           "value": 0,
-          "a": 0,
+          "a": 1,
           "b": 1
         },
         "name": "Subtract"
@@ -55,13 +56,6 @@
     }
   },
   "connections": {
-    "conn-f8c2f837-3d2d-4cd5-b959-b62e4b0ceb5c": {
-      "id": "conn-f8c2f837-3d2d-4cd5-b959-b62e4b0ceb5c",
-      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
-      "fromPort": "result",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": ""
-    },
     "conn-d26cdfbd-b15c-43e4-8c84-38590a7ee01e": {
       "id": "conn-d26cdfbd-b15c-43e4-8c84-38590a7ee01e",
       "fromNodeId": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
@@ -75,6 +69,13 @@
       "fromPort": "",
       "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
       "toPort": ""
+    },
+    "conn-ad21c6c2-daaf-474f-910a-19b1cf84b812": {
+      "id": "conn-ad21c6c2-daaf-474f-910a-19b1cf84b812",
+      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
+      "fromPort": "result",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": "min"
     }
   }
 }

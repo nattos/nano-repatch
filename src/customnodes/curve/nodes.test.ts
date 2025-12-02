@@ -13,7 +13,7 @@ describe('curve.ease', () => {
     } as any;
 
     const execute = (value: number, config: any) => {
-        const output = curve_ease.execute({ value }, { easing: config }, mockContext);
+        const output = curve_ease.execute({ value, easing: config }, {}, mockContext);
         // console.log('Full Output:', JSON.stringify(output, null, 2));
         if (!output || !output.fields) {
              console.error('Output or fields is undefined:', output);
