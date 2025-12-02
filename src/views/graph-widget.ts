@@ -1,7 +1,7 @@
 import { html, css, svg } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
-import { computed, makeObservable, observable } from 'mobx';
+import { action, computed, makeObservable, observable } from 'mobx';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 
 export type CurveType = 'exponential' | 'linear' | 'step' | 'sin' | 'quad' | 'points';
@@ -33,7 +33,7 @@ export class GraphWidget extends MobxLitElement {
   static styles = css`
         :host {
             display: block;
-            width: 220px;
+            width: 100%;
             height: 96px;
             background: var(--node-bg, #333);
             border: 1px solid var(--node-border, #444);
@@ -283,6 +283,7 @@ export class GraphWidget extends MobxLitElement {
   @observable
   hoveredSplitIndex = -1;
 
+  @action
   private handlePointerMove(e: PointerEvent) {
     const rect = this.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -309,6 +310,7 @@ export class GraphWidget extends MobxLitElement {
     }
   }
 
+  @action
   private handlePointerLeave() {
     this.hoveredSegmentIndex = -1;
     this.hoveredSplitIndex = -1;

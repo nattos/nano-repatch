@@ -1,6 +1,6 @@
 import '../customnodes/nicepattern/nodes';
-import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
+import '../customnodes/curve/nodes';
 import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
 import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';

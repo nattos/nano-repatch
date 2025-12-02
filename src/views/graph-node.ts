@@ -383,10 +383,10 @@ export class GraphNode extends MobxLitElement {
     // Ignore if clicking on a port or virtual input field
     // We need to check composed path because the target might be inside the shadow DOM of the input
     const path = e.composedPath();
-    const isInput = path.some(el => (el as HTMLElement).classList?.contains('virtual-input-field'));
     const isPort = path.some(el => (el as HTMLElement).tagName?.toLowerCase() === 'graph-port');
+    const isInteractiveContent = path.some(el => (el as HTMLElement).classList?.contains('virtual-inputs-container'));
 
-    if (isInput || isPort) {
+    if (isPort || isInteractiveContent) {
       return;
     }
 
@@ -932,7 +932,9 @@ export class GraphNode extends MobxLitElement {
           </div>
           <div class="virtual-inputs-container">
             ${virtualInputElements}
-            ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
+            <div style="top: ${currentInputY}px; position: absolute; width: 100%; height: 100px;">
+              ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
+            </div>
           </div>
         </div>
       </div>

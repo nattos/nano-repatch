@@ -211,13 +211,14 @@ export class RuntimeManager {
       : Object.values(state.graph.inner.nodes);
 
     for (const node of nodesToCheck) {
-      const { typeId } = node.config;
+      const nodeConfig = toJS(node.config);
+      const { typeId } = nodeConfig;
       const nodeType = this.nodeRepository.getNodeType(typeId);
       if (!nodeType) continue;
 
       const instanceConfig = nodeType.compileConfig
-        ? nodeType.compileConfig(node.config)
-        : node.config;
+        ? nodeType.compileConfig(nodeConfig)
+        : nodeConfig;
 
       const emptyConfig = { fields: {}, untagged: [] };
       const finalConfig = (instanceConfig ?? emptyConfig) as any;
