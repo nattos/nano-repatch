@@ -1,4 +1,5 @@
 import { makeAutoObservable } from 'mobx';
+import { MidiEvent } from './types';
 
 export interface MidiDevice {
   id: string;
@@ -7,8 +8,6 @@ export interface MidiDevice {
   state: 'connected' | 'disconnected';
   connection: 'open' | 'closed' | 'pending';
 }
-
-import { MidiEvent } from './types';
 
 export class MidiState {
   devices = new Map<string, MidiDevice>();

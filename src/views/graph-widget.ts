@@ -23,6 +23,8 @@ export interface GraphWidgetConfig {
   interactive?: boolean;
   onSegmentChange?: (segmentId: string, param: string, value: number) => void;
   onSegmentResize?: (segmentIndex: number, newWeight: number) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }
 
 @customElement('graph-widget')
@@ -232,6 +234,8 @@ export class GraphWidget extends MobxLitElement {
       // Resize Mode
       const startSegmentWidth = layout[resizeIndex].width;
 
+      if (this.config.onInteractionStart) this.config.onInteractionStart();
+
       new PointerDragOp(e, this, {
         move: (_e, delta) => {
           const newWidth = startSegmentWidth + delta[0];
@@ -241,6 +245,9 @@ export class GraphWidget extends MobxLitElement {
           if (newWeight > 0 && this.config?.onSegmentResize) {
             this.config.onSegmentResize(resizeIndex, newWeight);
           }
+        },
+        complete: () => {
+          if (this.config?.onInteractionEnd) this.config.onInteractionEnd();
         }
       });
       return;
@@ -250,6 +257,8 @@ export class GraphWidget extends MobxLitElement {
     if (this.config.onSegmentChange) {
       const targetSegment = layout.find(l => startX >= l.startX && startX <= l.endX);
       if (targetSegment && targetSegment.segment.curve.type === 'exponential') {
+        if (this.config.onInteractionStart) this.config.onInteractionStart();
+
         new PointerDragOp(e, this, {
           move: (e, _delta) => {
             // For parameter, we want absolute position
@@ -271,6 +280,9 @@ export class GraphWidget extends MobxLitElement {
             if (this.config?.onSegmentChange) {
               this.config.onSegmentChange(targetSegment.segment.id, 'value', newValue);
             }
+          },
+          complete: () => {
+            if (this.config?.onInteractionEnd) this.config.onInteractionEnd();
           }
         });
       }

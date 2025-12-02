@@ -1,15 +1,16 @@
+import './ui-button';
+import './ui-panel';
 import { html, css } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { resolumeManager } from '../io/resolume/manager';
-import { ResolumeComposition, ResolumeLayer, ResolumeClip } from '../io/resolume/state';
+import { ResolumeLayer, ResolumeClip } from '../io/resolume/state';
 import { ResolumeInspectorWrapper } from './resolume-inspector';
 import { midiManager } from '../io/midi/manager';
-import { MidiDevice, MidiEvent } from '../io/midi/state';
+import { MidiDevice } from '../io/midi/state';
 import { globalStyles } from '../styles';
 import { localController } from '../builder/controllers';
-import './ui-button';
-import './ui-panel';
+import { MidiEvent } from '../io/midi/types';
 
 @customElement('io-tab')
 export class IOTab extends MobxLitElement {
@@ -391,8 +392,8 @@ export class IOTab extends MobxLitElement {
   }
 
   renderMidiEvent(event: MidiEvent) {
-    const label = event.type === 'cc' ? `CC ${event.target}` : `Note ${event.target}`;
-    const value = event.type === 'note_off' ? 'Off' : event.value;
+    const label = event.type === 'cc' ? `CC ${event.cc}` : `Note ${event.note}`;
+    const value = event.type === 'note_off' ? 'Off' : event.type === 'note_on' ? 'On' : event.value;
 
     return html`
       <div

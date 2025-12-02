@@ -7,11 +7,21 @@ import { GraphWidgetConfig } from '../../views/graph-widget';
 import { appController } from '../../builder/controllers';
 import { toJS } from 'mobx';
 
-const curveEase = defaultNodeRepository.getNodeType('curve.ease');
+import { customElement, property } from 'lit/decorators.js';
+import { MobxLitElement } from '../../views/mobx-lit-element';
+import { GridNode } from '../../builder/state';
 
-if (curveEase) {
-  curveEase.renderBody = (node) => {
-    const easingConfig = (node.config.values?.easing as any as GraphWidgetConfig | undefined) ?? {
+@customElement('curve-inspector')
+export class CurveInspector extends MobxLitElement {
+  @property({ attribute: false })
+  node!: GridNode;
+
+  private longEdit: any = null;
+
+  render() {
+    if (!this.node) return html``;
+
+    const easingConfig = (this.node.config.values?.easing as any as GraphWidgetConfig | undefined) ?? {
       domain: [0, 1],
       range: [0, 1],
       segments: [{
@@ -26,26 +36,54 @@ if (curveEase) {
       range: easingConfig.range,
       segments: easingConfig.segments,
       interactive: true,
-      onSegmentChange: (segmentId, param, value) => {
-        const innerEasingConfig = toJS(easingConfig);
-        const nodeConfig = toJS(node.config);
-        const newSegments = innerEasingConfig.segments.map((s: any) => {
-          if (s.id === segmentId) {
-            if (param === 'value') {
-              return { ...s, curve: { ...s.curve, value: value } };
-            }
-          }
-          return s;
+      onInteractionStart: () => {
+        this.longEdit = appController.beginLongEdit({
+          apply: () => { },
+          cancel: () => { this.longEdit = null; }
         });
-        appController.setNodeConfig(node.id, { values: { ...nodeConfig.values, easing: { ...innerEasingConfig, segments: newSegments } as any } });
+      },
+      onInteractionEnd: () => {
+        if (this.longEdit) {
+          this.longEdit.accept();
+          this.longEdit = null;
+        }
+      },
+      onSegmentChange: (segmentId, param, value) => {
+        const update = (c: any) => {
+          const innerEasingConfig = toJS(easingConfig);
+          const nodeConfig = toJS(this.node.config);
+          const newSegments = innerEasingConfig.segments.map((s: any) => {
+            if (s.id === segmentId) {
+              if (param === 'value') {
+                return { ...s, curve: { ...s.curve, value: value } };
+              }
+            }
+            return s;
+          });
+          c.setNodeConfig(this.node.id, { values: { ...nodeConfig.values, easing: { ...innerEasingConfig, segments: newSegments } as any } });
+        };
+
+        if (this.longEdit) {
+          this.longEdit.applyAgain(update);
+        } else {
+          update(appController);
+        }
       },
       onSegmentResize: (segmentIndex, newWeight) => {
-        const innerEasingConfig = toJS(easingConfig);
-        const nodeConfig = toJS(node.config);
-        const newSegments = [...innerEasingConfig.segments];
-        if (newSegments[segmentIndex]) {
-          newSegments[segmentIndex] = { ...newSegments[segmentIndex], weight: newWeight };
-          appController.setNodeConfig(node.id, { values: { ...nodeConfig.values, easing: { ...innerEasingConfig, segments: newSegments } as any } });
+        const update = (c: any) => {
+          const innerEasingConfig = toJS(easingConfig);
+          const nodeConfig = toJS(this.node.config);
+          const newSegments = [...innerEasingConfig.segments];
+          if (newSegments[segmentIndex]) {
+            newSegments[segmentIndex] = { ...newSegments[segmentIndex], weight: newWeight };
+            c.setNodeConfig(this.node.id, { values: { ...nodeConfig.values, easing: { ...innerEasingConfig, segments: newSegments } as any } });
+          }
+        };
+
+        if (this.longEdit) {
+          this.longEdit.applyAgain(update);
+        } else {
+          update(appController);
         }
       }
     };
@@ -53,6 +91,14 @@ if (curveEase) {
     return html`
       <graph-widget style="pointer-events: auto;" .config=${widgetConfig}></graph-widget>
     `;
+  }
+}
+
+const curveEase = defaultNodeRepository.getNodeType('curve.ease');
+
+if (curveEase) {
+  curveEase.renderBody = (node) => {
+    return html`<curve-inspector .node=${node}></curve-inspector>`;
   };
 
   curveEase.getBodyHeight = () => 96;
