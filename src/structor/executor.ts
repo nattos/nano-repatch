@@ -285,4 +285,8 @@ export class GraphExecutor {
   public setUserNodeStates(states: Map<string, any>) {
     this.userNodeStates = states;
   }
+
+  public getInputs(): Map<string, Structor> {
+    return this.graphInputs;
+  }
 }

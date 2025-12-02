@@ -30,16 +30,24 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       // console.log('Executor Worker: Initializing graph...');
       let initialStates;
       let userNodeStates;
+      let oldInputs;
 
       if (msg.isRecompilation && executor) {
         initialStates = executor.getNodeStates();
         userNodeStates = executor.getUserNodeStates();
+        oldInputs = executor.getInputs();
       }
 
       executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates);
 
       if (userNodeStates) {
         executor.setUserNodeStates(userNodeStates);
+      }
+
+      if (oldInputs) {
+        for (const [key, value] of oldInputs) {
+          executor.setInput(key, value);
+        }
       }
 
       // Lazy connect resolume
