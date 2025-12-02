@@ -116,21 +116,10 @@ export function compileGraph(
             }
 
             if (value !== undefined) {
-              const virtualNodeId = `${nodeId}-virtual-${portName}`;
-
-              // Create Literal Node
-              flatNodes[virtualNodeId] = {
-                definitionId: 'data.literal',
-                defaultConfig: value as Structor,
-              };
-
-              // Create Connection
-              flatConnections.push({
-                fromNode: virtualNodeId,
-                fromPort: '', // Literal output is untagged/default
-                toNode: nodeId,
-                toPort: portName
-              });
+              // Inject into defaultConfig.values so GraphExecutor can pick it up dynamically
+              if (!instance.defaultConfig) instance.defaultConfig = { fields: {}, untagged: [] };
+              if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
+              (instance.defaultConfig as any).values[portName] = value;
             }
           }
         }

@@ -180,7 +180,7 @@ defaultNodeRepository.register({
   displayName: 'Float',
   definition: primitive_float,
   inputs: [
-    { name: 'value', type: NumberType, description: 'Value' }
+    { name: 'value', type: NumberType, description: 'Value', defaultValue: 0 }
   ],
   outputs: [
     { name: 'value', type: NumberType, description: 'Value' }

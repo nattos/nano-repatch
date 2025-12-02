@@ -60,7 +60,13 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       if (executor) {
         // Check if it's a node (e.g. virtual literal node) that we can update config for
         if (executor.getNodeConfig(msg.name) !== undefined) {
-          executor.setNodeConfig(msg.name, msg.value);
+          const currentConfig = executor.getNodeConfig(msg.name) || { fields: {}, untagged: [] };
+          const currentValues = (currentConfig as any).values || {};
+          const newConfig = {
+            ...(currentConfig as any),
+            values: { ...currentValues, ...msg.value as any }
+          };
+          executor.setNodeConfig(msg.name, newConfig);
         } else {
           executor.setInput(msg.name, msg.value);
         }

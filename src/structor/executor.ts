@@ -144,6 +144,10 @@ export class GraphExecutor {
     return this.nodeStates.get(nodeId)?.config;
   }
 
+  public hasNode(nodeId: string): boolean {
+    return this.nodeStates.has(nodeId);
+  }
+
   public markDirty(nodeId: string): void {
     const state = this.nodeStates.get(nodeId);
     if (!state || state.isDirty) return;

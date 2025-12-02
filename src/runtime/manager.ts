@@ -270,17 +270,14 @@ export class RuntimeManager {
   private handleInputUpdates(updates: { nodeId: string, inputs: Record<string, any> }[]) {
     // Optimized update for inputs (values)
     for (const update of updates) {
-      for (const [portName, value] of Object.entries(update.inputs)) {
-        const virtualNodeId = `${update.nodeId}-virtual-${portName}`;
-        // We send UPDATE_CONFIG for the virtual node, as it's a literal node
-        const virtualMsg: ExecutorWorkerMessage = {
-          type: 'UPDATE_CONFIG',
-          nodeId: virtualNodeId,
-          config: toJS(value) as any,
-          isRealtime: false
-        };
-        this.executorWorker.postMessage(virtualMsg);
-      }
+      // Send UPDATE_INPUT to the worker
+      // The worker will merge these values into the node's config
+      const msg: ExecutorWorkerMessage = {
+        type: 'UPDATE_INPUT',
+        name: update.nodeId,
+        value: toJS(update.inputs) as any
+      };
+      this.executorWorker.postMessage(msg);
     }
 
     // Trigger step if not realtime
