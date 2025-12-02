@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Debugger</title>
+    <style>
+        body {
+            background-color: #222;
+            color: #ddd;
+            font-family: sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 300px;
+            background: #333;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .widget-area {
+            flex: 1;
+            background: #2a2a2a;
+            padding: 40px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+    </style>
+    <script type="module">
+        import { LitElement, html, css } from 'lit';
+        import { makeAutoObservable } from 'mobx';
+        import '../views/graph-widget.ts';
+
+        // Mock Config for Single Segment
+        class DebugConfig {
+            constructor() {
+                this.domain = [0, 1];
+                this.range = [0, 1];
+                this.value = 0; // Linear
+                this.interactive = true;
+                makeAutoObservable(this);
+            }
+
+            get segments() {
+                return [{
+                    id: 'seg1',
+                    weight: 1,
+                    curve: {
+                        type: 'exponential',
+                        value: this.value
+                    }
+                }];
+            }
+
+            onSegmentChange(id, param, value) {
+                if (param === 'value') {
+                    this.value = value;
+                    // Update UI
+                    document.getElementById('exponent').value = value;
+                    document.getElementById('exponent-val').textContent = value.toFixed(2);
+                }
+            }
+        }
+
+        const config = new DebugConfig();
+        const widget = document.createElement('graph-widget');
+        widget.config = config;
+
+        document.querySelector('.widget-area').appendChild(widget);
+
+        // Multi-Segment Example
+        class MultiSegmentConfig {
+            constructor() {
+                this.domain = [0, 1];
+                this.range = [0, 1];
+                this.segmentsData = [
+                    { id: 's1', weight: 1, value: 0.5 },
+                    { id: 's2', weight: 1, value: 0.0 },
+                    { id: 's3', weight: 1, value: -0.5 },
+                    { id: 's4', weight: 1, value: -1.0 }
+                ];
+                this.interactive = true;
+                makeAutoObservable(this);
+            }
+
+            get segments() {
+                return this.segmentsData.map(s => ({
+                    id: s.id,
+                    weight: s.weight,
+                    curve: { type: 'exponential', value: s.value }
+                }));
+            }
+
+            onSegmentChange(id, param, value) {
+                const segment = this.segmentsData.find(s => s.id === id);
+                if (segment && param === 'value') {
+                    segment.value = value;
+                }
+            }
+
+            onSegmentResize(index, newWeight) {
+                // Resize segment at index
+                if (this.segmentsData[index]) {
+                    this.segmentsData[index].weight = newWeight;
+                }
+            }
+        }
+
+        const multiConfig = new MultiSegmentConfig();
+        const multiWidget = document.createElement('graph-widget');
+        multiWidget.config = multiConfig;
+
+        const multiContainer = document.createElement('div');
+        multiContainer.innerHTML = '<h3>Multi-Segment</h3>';
+        multiContainer.appendChild(multiWidget);
+        document.querySelector('.widget-area').appendChild(multiContainer);
+
+
+        // Controls
+        const exponentInput = document.getElementById('exponent');
+        const exponentVal = document.getElementById('exponent-val');
+
+        exponentInput.addEventListener('input', (e) => {
+            config.value = parseFloat(e.target.value);
+            exponentVal.textContent = config.value.toFixed(2);
+        });
+
+        const interactiveCheck = document.getElementById('interactive');
+        interactiveCheck.addEventListener('change', (e) => {
+            config.interactive = e.target.checked;
+        });
+
+    </script>
+</head>
+
+<body>
+    <h1>Widget Debugger</h1>
+    <div class="container">
+        <div class="controls">
+            <h3>Graph Widget Controls</h3>
+            <label>
+                Exponent: <span id="exponent-val">2.00</span>
+            </label>
+            <input type="range" id="exponent" min="-1" max="1" step="0.01" value="0">
+
+            <label>
+                Interactive
+                <input type="checkbox" id="interactive" checked>
+            </label>
+        </div>
+        <div class="widget-area">
+            <!-- Widget will be injected here -->
+        </div>
+    </div>
+</body>
+
+</html>

@@ -307,6 +307,19 @@ export class GraphGrid extends MobxLitElement {
 
     // Check if we clicked on a node
     const targetNode = target as HTMLElement;
+
+    // Check if we clicked on a port or input inside the node
+    const isPortOrInput = path.some(el => {
+      const tag = (el as Element).tagName;
+      return tag === 'GRAPH-PORT' || tag === 'INPUT' || (el as Element).classList?.contains('virtual-input-field');
+    });
+
+    if (isPortOrInput) {
+      // If we double clicked a port, we might want to cancel connection mode if active?
+      // For now, just don't delete the node.
+      return;
+    }
+
     if (targetNode.tagName === 'GRAPH-NODE' && targetNode.dataset.id) {
       appController.deleteNode(targetNode.dataset.id);
       return;

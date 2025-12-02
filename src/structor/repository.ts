@@ -151,10 +151,10 @@ defaultNodeRepository.register({
   definition: primitive_map,
   inputs: [
     { name: 'value', type: NumberType, description: 'Input Value' },
-    { name: 'inMin', type: NumberType, description: 'Input Min' },
-    { name: 'inMax', type: NumberType, description: 'Input Max' },
-    { name: 'outMin', type: NumberType, description: 'Output Min' },
-    { name: 'outMax', type: NumberType, description: 'Output Max' }
+    { name: 'inMin', type: NumberType, description: 'Input Min', defaultValue: 0 },
+    { name: 'inMax', type: NumberType, description: 'Input Max', defaultValue: 1 },
+    { name: 'outMin', type: NumberType, description: 'Output Min', defaultValue: 0 },
+    { name: 'outMax', type: NumberType, description: 'Output Max', defaultValue: 1 }
   ],
   outputs: [
     { name: 'result', type: NumberType, description: 'Mapped Value' }
