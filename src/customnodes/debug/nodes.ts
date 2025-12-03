@@ -14,11 +14,13 @@ export const debugScopeNode = defineNode({
   inputs: {
     value: { type: numberType, suppressLabel: true, alwaysShowInputEditor: true }
   },
-  outputs: {},
+  outputs: {
+    value: numberType
+  },
   config: {},
   inspectInputs: true,
   execute: (inputs) => {
-    return {};
+    return { value: inputs.value };
   }
 });
 
