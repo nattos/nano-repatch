@@ -5,7 +5,7 @@
       "x": 4,
       "y": 1,
       "config": {
-        "typeId": "nicepattern:pattern",
+        "typeId": "nicepattern.pattern",
         "values": {}
       }
     },
@@ -14,7 +14,7 @@
       "x": 2,
       "y": 2,
       "config": {
-        "typeId": "nicepattern:rhythmic_generator",
+        "typeId": "nicepattern.rhythmic_generator",
         "values": {
           "density": 0.26
         },
@@ -26,9 +26,9 @@
       "x": 2,
       "y": 1,
       "config": {
-        "typeId": "nicepattern:chaos_generator",
+        "typeId": "nicepattern.chaos_generator",
         "values": {
-          "density": 0
+          "density": 0.34
         },
         "density": 0.15
       }
@@ -38,7 +38,7 @@
       "x": 6,
       "y": 1,
       "config": {
-        "typeId": "nicepattern:tone_synth_layer",
+        "typeId": "nicepattern.tone_synth_layer",
         "values": {
           "prev_layer": 1
         },

@@ -95,7 +95,7 @@ const LayerFields: InspectorFieldDef[] = [
 
 // RhythmicGenerator
 export const rhythmicGenerator = defineNode({
-  id: "nicepattern:rhythmic_generator",
+  id: "nicepattern.rhythmic_generator",
   version: "1.0.0",
   displayName: "Rhythmic Generator",
   metadata: {
@@ -134,7 +134,7 @@ export const rhythmicGenerator = defineNode({
 
 // ChaosGenerator
 export const chaosGenerator = defineNode({
-  id: "nicepattern:chaos_generator",
+  id: "nicepattern.chaos_generator",
   version: "1.0.0",
   displayName: "Chaos Generator",
   metadata: {
@@ -177,7 +177,7 @@ export const chaosGenerator = defineNode({
 
 // Pattern Node
 export const pattern = defineNode({
-  id: "nicepattern:pattern",
+  id: "nicepattern.pattern",
   version: "1.0.0",
   displayName: "Pattern",
   metadata: {
@@ -339,14 +339,14 @@ export function createLayerNode(
   });
 }
 
-export const gateLayer = createLayerNode("nicepattern:gate_layer", "Gate Layer", GateLayer);
-export const expLayer = createLayerNode("nicepattern:exp_layer", "Exponential Layer", ExponentialLayer);
-export const pwmLayer = createLayerNode("nicepattern:pwm_layer", "PWM Layer", PWMLayer);
-export const noiseLayer = createLayerNode("nicepattern:noise_layer", "Noise Layer", NoiseLayer);
+export const gateLayer = createLayerNode("nicepattern.gate_layer", "Gate Layer", GateLayer);
+export const expLayer = createLayerNode("nicepattern.exp_layer", "Exponential Layer", ExponentialLayer);
+export const pwmLayer = createLayerNode("nicepattern.pwm_layer", "PWM Layer", PWMLayer);
+export const noiseLayer = createLayerNode("nicepattern.noise_layer", "Noise Layer", NoiseLayer);
 
 // ToneSynthLayer is special as it takes audio context
 export const toneSynthLayer = defineNode({
-  id: "nicepattern:tone_synth_layer",
+  id: "nicepattern.tone_synth_layer",
   version: "1.0.0",
   displayName: "Tone Synth Layer",
   metadata: {

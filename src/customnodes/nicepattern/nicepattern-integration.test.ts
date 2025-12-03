@@ -24,7 +24,7 @@ describe('NicePattern Integration', () => {
 
   // Register nodes manually for the test repository
   repository.register({
-    id: 'nicepattern:rhythmic_generator',
+    id: 'nicepattern.rhythmic_generator',
     version: '1.0.0',
     displayName: 'Rhythmic Generator',
     definition: rhythmicGenerator,
@@ -34,7 +34,7 @@ describe('NicePattern Integration', () => {
   });
 
   repository.register({
-    id: 'nicepattern:chaos_generator',
+    id: 'nicepattern.chaos_generator',
     version: '1.0.0',
     displayName: 'Chaos Generator',
     definition: chaosGenerator,
@@ -52,7 +52,7 @@ describe('NicePattern Integration', () => {
   });
 
   repository.register({
-    id: 'nicepattern:pattern',
+    id: 'nicepattern.pattern',
     version: '1.0.0',
     displayName: 'Pattern',
     definition: pattern,
@@ -78,13 +78,13 @@ describe('NicePattern Integration', () => {
       compileConfig: def.compileConfig
     });
   };
-  registerLayer("nicepattern:gate_layer", "Gate Layer", GateLayer);
-  registerLayer("nicepattern:exp_layer", "Exponential Layer", ExponentialLayer);
-  registerLayer("nicepattern:pwm_layer", "PWM Layer", PWMLayer);
-  registerLayer("nicepattern:noise_layer", "Noise Layer", NoiseLayer);
+  registerLayer("nicepattern.gate_layer", "Gate Layer", GateLayer);
+  registerLayer("nicepattern.exp_layer", "Exponential Layer", ExponentialLayer);
+  registerLayer("nicepattern.pwm_layer", "PWM Layer", PWMLayer);
+  registerLayer("nicepattern.noise_layer", "Noise Layer", NoiseLayer);
 
   repository.register({
-    id: "nicepattern:tone_synth_layer",
+    id: "nicepattern.tone_synth_layer",
     version: "1.0.0",
     displayName: "Tone Synth Layer",
     definition: toneSynthLayer,
@@ -200,7 +200,7 @@ describe('NicePattern Integration', () => {
   it('should compile and run rhythmic generator', () => {
     const executor = compileAndRun(
       {
-        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
       },
       []
     );
@@ -212,7 +212,7 @@ describe('NicePattern Integration', () => {
   it('should generate a rhythmic sequence (compiled)', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
       },
       [],
       'gen', 'seq_out'
@@ -230,8 +230,8 @@ describe('NicePattern Integration', () => {
   it('should process pattern events from sequence (compiled)', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 0.5 } },
-        'pat': { typeId: 'nicepattern:pattern', config: {} }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 0.5 } },
+        'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
         { from: 'gen', port: 'seq_out', to: 'pat', portIn: 'seq_in' }
@@ -257,9 +257,9 @@ describe('NicePattern Integration', () => {
   it('should process multiple sequence inputs', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen1': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }, // Always note
-        'gen2': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 62, density: 1.0 } }, // Always note
-        'pat': { typeId: 'nicepattern:pattern', config: {} }
+        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }, // Always note
+        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, density: 1.0 } }, // Always note
+        'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
         { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 0 }, // Connect to untagged 0
@@ -283,9 +283,9 @@ describe('NicePattern Integration', () => {
   it('should process multiple sequence inputs on named port', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen1': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
-        'gen2': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 62, density: 1.0 } },
-        'pat': { typeId: 'nicepattern:pattern', config: {} }
+        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
+        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, density: 1.0 } },
+        'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
         { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
@@ -309,7 +309,7 @@ describe('NicePattern Integration', () => {
   it('should generate chaos sequence', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'chaos': { typeId: 'nicepattern:chaos_generator', config: { minNote: 60, maxNote: 62, density: 1.0, seed: 123 } }
+        'chaos': { typeId: 'nicepattern.chaos_generator', config: { minNote: 60, maxNote: 62, density: 1.0, seed: 123 } }
       },
       [],
       'chaos', 'seq_out'
@@ -328,9 +328,9 @@ describe('NicePattern Integration', () => {
     // Gen -> Pattern -> Gate Layer
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
-        'pat': { typeId: 'nicepattern:pattern', config: {} },
-        'gate': { typeId: 'nicepattern:gate_layer', config: { targetNote: 60 } }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
+        'pat': { typeId: 'nicepattern.pattern', config: {} },
+        'gate': { typeId: 'nicepattern.gate_layer', config: { targetNote: 60 } }
       },
       [
         { from: 'gen', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
@@ -383,7 +383,7 @@ describe('NicePattern Integration', () => {
             'synth': {
               id: 'synth',
               x: 0, y: 0,
-              config: { typeId: 'nicepattern:tone_synth_layer', targetNote: 60, values: {} }
+              config: { typeId: 'nicepattern.tone_synth_layer', targetNote: 60, values: {} }
             },
             'input': {
               id: 'input',
