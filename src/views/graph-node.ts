@@ -6,7 +6,7 @@ import { GridNode, LongEdit, AppController } from '../builder/state';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
-import { defaultNodeRepository, PortHint } from '../structor/repository'; // Import repository
+import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
 import '../components/smart-input';
 import { NodeCatalog } from '../structor/node-catalog';
@@ -59,6 +59,19 @@ export class GraphNode extends MobxLitElement {
   y = 0;
 
   private catalog = new NodeCatalog(defaultNodeRepository);
+
+  @state()
+  private loadedBodyRenderer: ((node: GridNode, handlers: GraphNodeRenderHandlers) => unknown) | null = null;
+
+  @state()
+  private loadedInspectorRenderer: ((node: GridNode, onchange: InspectorChangeHandler) => unknown) | null = null;
+
+  @state()
+  private loadedInputEditorRenderer: ((node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown) | null = null;
+
+  private hasRequestedBodyLoad = false;
+  private hasRequestedInspectorLoad = false;
+  private hasRequestedInputEditorLoad = false;
 
   @state()
   private editingField: 'name' | 'type' | null = null;
@@ -563,10 +576,6 @@ export class GraphNode extends MobxLitElement {
     this.editingField = null;
   }
 
-
-
-
-
   renderInspectorContent() {
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
     const onchange = (config: object) => appController.setNodeConfig(this.node.id, config);
@@ -597,7 +606,61 @@ export class GraphNode extends MobxLitElement {
     return true;
   }
 
-  updated() {
+  private currentTypeId: string | null = null;
+
+  private async loadUI() {
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    if (!nodeType || !nodeType.ui) return;
+
+    if (nodeType.ui.body && !this.loadedBodyRenderer && !this.hasRequestedBodyLoad) {
+      this.hasRequestedBodyLoad = true;
+      try {
+        const renderer = await nodeType.ui.body();
+        this.loadedBodyRenderer = renderer;
+        // Cache it on the nodeType so we don't reload for every instance?
+        // Ideally yes, but for now per-instance state is safer for HMR.
+        // Actually, we should cache it on the nodeType to avoid re-fetching.
+        if (!nodeType.renderBody) {
+          nodeType.renderBody = renderer;
+        }
+      } catch (e) {
+        console.error('Failed to load body renderer', e);
+      }
+    }
+
+    if (nodeType.ui.inspector && !this.loadedInspectorRenderer && !this.hasRequestedInspectorLoad) {
+      this.hasRequestedInspectorLoad = true;
+      try {
+        const renderer = await nodeType.ui.inspector();
+        this.loadedInspectorRenderer = renderer;
+        if (!nodeType.renderInspector) {
+            nodeType.renderInspector = renderer;
+        }
+      } catch (e) {
+        console.error('Failed to load inspector renderer', e);
+      }
+    }
+
+    // Input editor loading...
+
+    this.requestUpdate();
+  }
+
+  updated(changedProperties: Map<string, any>) {
+    if (this.node && this.node.config.typeId !== this.currentTypeId) {
+      this.currentTypeId = this.node.config.typeId;
+
+      // Reset loaded renderers
+      this.loadedBodyRenderer = null;
+      this.loadedInspectorRenderer = null;
+      this.loadedInputEditorRenderer = null;
+      this.hasRequestedBodyLoad = false;
+      this.hasRequestedInspectorLoad = false;
+      this.hasRequestedInputEditorLoad = false;
+
+      this.loadUI();
+    }
+
     if (this.node) {
       this.dataset.id = this.node.id;
 

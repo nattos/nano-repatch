@@ -89,6 +89,16 @@ export interface NodeType {
     outputs: PortHint[];
     displayName?: string;
   } | null;
+
+  /**
+   * Lazy-loaded UI components.
+   * If present, these functions return promises that resolve to the renderer functions.
+   */
+  ui?: {
+    body?: () => Promise<(node: GridNode, handlers: GraphNodeRenderHandlers) => unknown>;
+    inspector?: () => Promise<(node: GridNode, onchange: InspectorChangeHandler) => unknown>;
+    inputEditor?: () => Promise<(node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown>;
+  };
 }
 
 export class NodeRepository {
