@@ -141,7 +141,7 @@ function toStructor(value: any, type: StructorType): Structor {
 
 // --- Node Definition Helper ---
 
-export type NodeInputsDef = Record<string, StructorType>;
+export type NodeInputsDef = Record<string, StructorType & { redirect?: string }>;
 export type NodeConfigDef = Record<string, StructorType>;
 export type NodeOutputsDef = Record<string, StructorType>;
 

@@ -1,76 +1,21 @@
 import './nodes';
-import { html } from 'lit';
-import { GridNode } from '../../builder/state';
-import { InspectorChangeHandler } from '../../structor/repository';
+import { createGenericInspector } from '../../views/inspector/generic-inspector';
 
 // Rhythmic Generator
-export const RhythmicInspector = (node: GridNode, onchange: InspectorChangeHandler) => html`
-  <div class="field">
-    <label>Target Note:</label>
-    <input
-      type="number"
-      .value=${node.config?.targetNote ?? 0}
-      @input=${(e: Event) =>
-    onchange({ targetNote: parseInt((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-  <div class="field">
-    <label>Density:</label>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.05"
-      .value=${node.config?.density ?? 0.5}
-      @input=${(e: Event) =>
-    onchange({ density: parseFloat((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-`;
+export const RhythmicInspector = createGenericInspector([
+  { type: 'number', label: 'Target Note', path: 'targetNote' },
+  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 }
+]);
 
 // Chaos Generator
-export const ChaosInspector = (node: GridNode, onchange: InspectorChangeHandler) => html`
-  <div class="field">
-    <label>Min Note:</label>
-    <input
-      type="number"
-      .value=${node.config?.minNote ?? 0}
-      @input=${(e: Event) =>
-    onchange({ minNote: parseInt((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-  <div class="field">
-    <label>Max Note:</label>
-    <input
-      type="number"
-      .value=${node.config?.maxNote ?? 12}
-      @input=${(e: Event) =>
-    onchange({ maxNote: parseInt((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-  <div class="field">
-    <label>Density:</label>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.05"
-      .value=${node.config?.density ?? 0.5}
-      @input=${(e: Event) =>
-    onchange({ density: parseFloat((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-`;
+export const ChaosInspector = createGenericInspector([
+  { type: 'number', label: 'Min Note', path: 'minNote' },
+  { type: 'number', label: 'Max Note', path: 'maxNote' },
+  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 },
+  { type: 'number', label: 'Seed', path: 'seed' }
+]);
 
 // Layer Nodes
-export const LayerInspector = (node: GridNode, onchange: InspectorChangeHandler) => html`
-  <div class="field">
-    <label>Target Note:</label>
-    <input
-      type="number"
-      .value=${node.config?.targetNote ?? 0}
-      @input=${(e: Event) =>
-    onchange({ targetNote: parseInt((e.target as HTMLInputElement).value) })}
-    />
-  </div>
-`;
+export const LayerInspector = createGenericInspector([
+  { type: 'number', label: 'Target Note', path: 'targetNote' }
+]);
