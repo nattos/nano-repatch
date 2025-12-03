@@ -22,6 +22,10 @@ let clock = { beat: 0 };
 let workerMidiValues = new Map<string, number>();
 let workerMidiEvents: any[] = [];
 
+self.onerror = (e) => {
+  console.error('Executor Worker Error (Global):', e);
+};
+
 self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
   const msg = event.data;
 

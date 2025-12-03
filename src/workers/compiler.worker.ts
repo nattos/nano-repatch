@@ -5,6 +5,11 @@ import { GraphState } from '../builder/state';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
 
+self.onerror = (e) => {
+  console.error('Compiler Worker Error (Global):', e);
+  // Optional: Post error back to main thread if we had a message type for it
+};
+
 self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
   const { type, state, subgraphs } = event.data;
 
