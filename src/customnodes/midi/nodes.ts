@@ -1,14 +1,16 @@
-import { definePrimitiveNode, NumberType } from "../../structor/type-helpers";
-import { NodeCategory, StructorRecord } from "../../structor/structor";
-import { midiStreamType, midiEventType } from "../../structor/std-types";
+import { defineNode, registerNode } from "../../structor/node-helpers";
+import { NodeCategory } from "../../structor/structor";
+import { midiStreamType, numberType } from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
 
 // Helper to parse MIDI status
 const getStatusType = (status: number) => status & 0xF0;
 const getChannel = (status: number) => (status & 0x0F) + 1;
 
-export const midiInputNode = definePrimitiveNode({
+export const midiInputNode = defineNode({
   id: "midi.input",
+  version: "1.0.0",
+  displayName: "MIDI Input",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'input', 'source'],
@@ -34,13 +36,17 @@ export const midiInputNode = definePrimitiveNode({
     }
 
     return { stream: midiEvents || [] };
-
-
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { deviceId: uiConfig.deviceId },
+    untagged: []
+  }),
 });
 
-export const midiCcInputNode = definePrimitiveNode({
+export const midiCcInputNode = defineNode({
   id: "midi.cc.input",
+  version: "1.0.0",
+  displayName: "MIDI CC Input",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'cc', 'input'],
@@ -48,12 +54,12 @@ export const midiCcInputNode = definePrimitiveNode({
   },
   inputs: {},
   config: {
-    channel: NumberType,
-    cc: NumberType,
+    channel: numberType,
+    cc: numberType,
     deviceId: { kind: 'atomic', type: 'string', optional: true }
   },
   outputs: {
-    value: NumberType
+    value: numberType
   },
   isRealtime: () => true,
   execute: (inputs, config, context) => {
@@ -61,24 +67,22 @@ export const midiCcInputNode = definePrimitiveNode({
     const cc = (config.cc as number) || 0;
     const deviceId = config.deviceId as string;
 
-    // Construct key: "channel:cc" or similar?
-    // I need to know how `workerMidiState` keys were constructed.
-    // Assuming "channel:cc" or similar.
-    // Let's guess "ch:cc" based on common patterns or check if I can find previous code.
-    // Since I can't check deleted code easily, I'll assume a standard format or try to find it in `executor.worker.ts` (it just receives values).
-    // The main thread sends it.
-
-    // Let's assume the key is `${channel}:${cc}` for now.
     const key = `${channel}:${cc}`;
     const value = context.midi?.values.get(key) ?? 0;
 
     return { value };
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId },
+    untagged: []
+  }),
 });
 
 
-export const midiCcNode = definePrimitiveNode({
+export const midiCcNode = defineNode({
   id: "midi.cc",
+  version: "1.0.0",
+  displayName: "MIDI CC",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'cc', 'control change'],
@@ -88,22 +92,16 @@ export const midiCcNode = definePrimitiveNode({
     stream: midiStreamType
   },
   config: {
-    channel: NumberType,
-    cc: NumberType,
+    channel: numberType,
+    cc: numberType,
   },
   outputs: {
-    value: NumberType
+    value: numberType
   },
   createState: () => ({ value: 0 }),
   execute: (inputs, config, context, state) => {
     const channel = (config.channel as number) || 1;
     const targetCc = (config.cc as number) || 0;
-
-    // Cast inputs to access the stream
-    // The input name is 'stream', so it should be in inputs.stream
-    // But inputs is typed as InferRecord<TInputs>.
-    // TInputs is { stream: midiStreamType }.
-    // So inputs.stream is StructorArray (array of records).
 
     const stream = inputs.stream as unknown as MidiEvent[];
 
@@ -116,11 +114,17 @@ export const midiCcNode = definePrimitiveNode({
     }
 
     return { value: state.value };
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId },
+    untagged: []
+  }),
 });
 
-export const midiNoteNode = definePrimitiveNode({
+export const midiNoteNode = defineNode({
   id: "midi.note",
+  version: "1.0.0",
+  displayName: "MIDI Note",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'note', 'keyboard'],
@@ -130,13 +134,13 @@ export const midiNoteNode = definePrimitiveNode({
     stream: midiStreamType
   },
   config: {
-    channel: NumberType,
-    note: NumberType, // Optional: if 0 or undefined, maybe listen to all? For now, let's stick to specific note.
+    channel: numberType,
+    note: numberType, // Optional: if 0 or undefined, maybe listen to all? For now, let's stick to specific note.
   },
   outputs: {
     note: { kind: 'atomic', type: 'number', optional: true },
-    velocity: NumberType,
-    gate: NumberType
+    velocity: numberType,
+    gate: numberType
   },
   createState: () => ({ velocity: 0, gate: 0 }),
   execute: (inputs, config, context, state) => {
@@ -163,11 +167,17 @@ export const midiNoteNode = definePrimitiveNode({
       velocity: state.velocity,
       gate: state.gate
     };
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60, deviceId: uiConfig.deviceId },
+    untagged: []
+  }),
 });
 
-export const midiToMonoNode = definePrimitiveNode({
+export const midiToMonoNode = defineNode({
   id: "midi.to_mono",
+  version: "1.0.0",
+  displayName: "MIDI to Mono",
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'mono', 'converter'],
@@ -177,15 +187,15 @@ export const midiToMonoNode = definePrimitiveNode({
     stream: midiStreamType
   },
   config: {
-    channel: NumberType,
-    rootNote: NumberType, // Anchor note (default 60 for Middle C)
+    channel: numberType,
+    rootNote: numberType, // Anchor note (default 60 for Middle C)
     priority: { kind: 'atomic', type: 'string', optional: true } // 'last', 'low', 'high'
   },
   outputs: {
     note: { kind: 'atomic', type: 'number', optional: true },
-    velocity: NumberType,
-    gate: NumberType,
-    frequency: NumberType
+    velocity: numberType,
+    gate: numberType,
+    frequency: numberType
   },
   createState: () => ({
     activeNotes: [] as { note: number, velocity: number }[], // Stack for last-note priority
@@ -233,5 +243,15 @@ export const midiToMonoNode = definePrimitiveNode({
         frequency: 0
       };
     }
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { channel: uiConfig.channel ?? 1, rootNote: uiConfig.rootNote ?? 60, priority: uiConfig.priority ?? 'last' },
+    untagged: []
+  }),
 });
+
+registerNode(midiInputNode);
+registerNode(midiCcInputNode);
+registerNode(midiCcNode);
+registerNode(midiNoteNode);
+registerNode(midiToMonoNode);

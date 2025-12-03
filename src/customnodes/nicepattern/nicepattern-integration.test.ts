@@ -2,18 +2,20 @@ import { describe, it, expect, vi } from 'vitest';
 import { GraphExecutor } from '../../structor/executor';
 import { NodeRepository, defaultNodeRepository } from '../../structor/repository';
 import {
-  rhythmicGeneratorPrimitive,
-  chaosGeneratorPrimitive,
-  patternPrimitive,
+  rhythmicGenerator,
+  chaosGenerator,
+  pattern,
   sequenceStructorType,
   createLayerNode,
   GateLayer,
   ExponentialLayer,
   PWMLayer,
   NoiseLayer,
-  toneSynthPrimitive
+  toneSynthLayer,
 } from './nodes';
+
 import { numberType, midiStreamType } from '../../structor/std-types';
+import { AnyType as anyType } from '../../structor/type-helpers';
 import { compileGraph } from '../../builder/compiler';
 import { AppState, GridNode, Connection } from '../../builder/state';
 
@@ -25,7 +27,7 @@ describe('NicePattern Integration', () => {
     id: 'nicepattern:rhythmic_generator',
     version: '1.0.0',
     displayName: 'Rhythmic Generator',
-    definition: rhythmicGeneratorPrimitive,
+    definition: rhythmicGenerator,
     inputs: [],
     outputs: [{ name: 'seq_out', type: sequenceStructorType, description: 'Generated sequence' }],
     compileConfig: (uiConfig) => ({ fields: { targetNote: uiConfig?.targetNote ?? 60, density: uiConfig?.density ?? 0.5 }, untagged: [] }),
@@ -35,7 +37,7 @@ describe('NicePattern Integration', () => {
     id: 'nicepattern:chaos_generator',
     version: '1.0.0',
     displayName: 'Chaos Generator',
-    definition: chaosGeneratorPrimitive,
+    definition: chaosGenerator,
     inputs: [],
     outputs: [{ name: 'seq_out', type: sequenceStructorType, description: 'Generated sequence' }],
     compileConfig: (uiConfig) => ({
@@ -53,7 +55,7 @@ describe('NicePattern Integration', () => {
     id: 'nicepattern:pattern',
     version: '1.0.0',
     displayName: 'Pattern',
-    definition: patternPrimitive,
+    definition: pattern,
     inputs: [{ name: 'seq_in', type: sequenceStructorType, description: 'Input sequence(s)', redirect: 'untagged' }],
     outputs: [{ name: 'midi_out', type: midiStreamType, description: 'Real-time MIDI stream' }],
     compileConfig: (uiConfig) => ({ fields: {}, untagged: [] }),
@@ -61,7 +63,20 @@ describe('NicePattern Integration', () => {
 
   // Register Layers
   const registerLayer = (id: string, name: string, cls: any) => {
-    repository.register(createLayerNode(id, name, cls));
+    // createLayerNode returns EnhancedNodeDefinition which IS the definition
+    const def = createLayerNode(id, name, cls);
+    repository.register({
+      id: def.id,
+      version: def.version,
+      displayName: def.displayName,
+      definition: def,
+      inputs: [
+        { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
+        { name: "prev_layer", type: numberType, description: "Previous layer output" }
+      ],
+      outputs: [{ name: "out", type: numberType, description: "Layer output" }],
+      compileConfig: def.compileConfig
+    });
   };
   registerLayer("nicepattern:gate_layer", "Gate Layer", GateLayer);
   registerLayer("nicepattern:exp_layer", "Exponential Layer", ExponentialLayer);
@@ -72,7 +87,7 @@ describe('NicePattern Integration', () => {
     id: "nicepattern:tone_synth_layer",
     version: "1.0.0",
     displayName: "Tone Synth Layer",
-    definition: toneSynthPrimitive,
+    definition: toneSynthLayer,
     inputs: [
       { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
       { name: "prev_layer", type: numberType, description: "Previous layer output" }
@@ -98,9 +113,26 @@ describe('NicePattern Integration', () => {
       computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
       execute: (inputs) => ({ fields: { val: inputs.fields.val }, untagged: [] }),
     },
-    inputs: [{ name: 'val', type: numberType }],
-    outputs: [{ name: 'val', type: numberType }],
+    inputs: [{ name: 'val', type: anyType }],
+    outputs: [{ name: 'val', type: anyType }],
     compileConfig: (c) => ({ fields: {}, untagged: [] })
+  });
+
+  // Mock Input Node
+  repository.register({
+    id: 'io.input',
+    version: '1.0.0',
+    displayName: 'Input',
+    definition: {
+      id: 'io.input',
+      kind: 'primitive',
+      configType: { kind: 'record', fields: {}, untagged: [] },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, untagged: [] }),
+      execute: (inputs, config) => ({ fields: { val: config }, untagged: [] }),
+    },
+    inputs: [],
+    outputs: [{ name: 'val', type: anyType }],
+    compileConfig: (c) => c
   });
 
   // Helper to compile GridNodes into GraphDefinition
@@ -162,7 +194,7 @@ describe('NicePattern Integration', () => {
     ];
 
     const executor = compileAndRun(nodesWithOutput, connectionsWithOutput);
-    return { executor, getOutput: () => executor.getGraphOutput('test_out') };
+    return { executor, getOutput: () => executor.getNodeOutput('out_node')?.fields?.val };
   };
 
   it('should compile and run rhythmic generator', () => {
@@ -220,6 +252,32 @@ describe('NicePattern Integration', () => {
     const noteOff = stream.find(e => e.fields.type === 'note_off');
     expect(noteOff).toBeDefined();
     expect(noteOff.fields.note).toBe(60);
+  });
+
+  it('should process multiple sequence inputs', () => {
+    const { executor, getOutput } = compileAndRunwithOutput(
+      {
+        'gen1': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } }, // Always note
+        'gen2': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 62, density: 1.0 } }, // Always note
+        'pat': { typeId: 'nicepattern:pattern', config: {} }
+      },
+      [
+        { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 0 }, // Connect to untagged 0
+        { from: 'gen2', port: 'seq_out', to: 'pat', portIn: 1 }  // Connect to untagged 1
+      ],
+      'pat', 'midi_out'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0.1 } });
+    const stream = getOutput() as any[];
+
+    expect(stream).toBeDefined();
+    // Should have notes from both generators
+    const note60 = stream.find(e => e.fields.type === 'note_on' && e.fields.note === 60);
+    const note62 = stream.find(e => e.fields.type === 'note_on' && e.fields.note === 62);
+
+    expect(note60).toBeDefined();
+    expect(note62).toBeDefined();
   });
 
   it('should generate chaos sequence', () => {
@@ -315,8 +373,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
-    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
-    const executor = new GraphExecutor(graphDef, defaultNodeRepository);
+    const graphDef = compileGraph(appState, new Map(), repository);
+    const executor = new GraphExecutor(graphDef, repository);
 
     // 1. Note On (60)
     // We must format this as Structor (array of records)

@@ -1,6 +1,8 @@
-import { definePrimitiveNode, AnyType } from "../../structor/type-helpers";
+import { defineNode, registerNode } from "../../structor/node-helpers";
+import { AnyType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
-import { Structor, NodeCategory } from "../../structor/structor";
+import { NodeCategory } from "../../structor/structor";
+import { PortHint } from "../../structor/repository";
 
 // Singleton instances for compilation and execution
 const compiler = new GraphCompiler();
@@ -24,24 +26,16 @@ function getCompiledGraph(code: string): ExecutionGraph {
   }
 }
 
-export const expressionNode = definePrimitiveNode({
+export const expressionNode = defineNode({
   id: "logic.expression",
+  version: "1.0.0",
+  displayName: "Expression",
   metadata: {
     category: NodeCategory.Logic,
     keywords: ['expression', 'math', 'script', 'code'],
     description: 'Evaluates a mathematical expression.'
   },
-  inputs: {}, // Inputs are dynamic, but we can define a catch-all or let the executor handle it
-  // Actually, for the expression node, we want inputs to be dynamic based on the script.
-  // But definePrimitiveNode expects static inputs.
-  // However, we can use `redirect: 'untagged'` or just allow extra inputs if the system supports it.
-  // The system's `GraphExecutor` passes `inputRecord` to `execute`.
-  // If we want named inputs to show up in the UI, we need `getPorts`.
-  // But `definePrimitiveNode` doesn't support `getPorts` directly in its type definition yet?
-  // Wait, `NodeType` in repository supports `getPorts`. `PrimitiveNodeDefinition` does not.
-  // So we might need to wrap this or extend the definition.
-  // For now, let's define it as a primitive and rely on the repository registration to add `getPorts`.
-
+  inputs: {}, // Inputs are dynamic
   config: {
     code: { kind: 'atomic', type: 'string' }
   },
@@ -63,9 +57,6 @@ export const expressionNode = definePrimitiveNode({
     // Since `inputs` is inferred as `{}`, we cast it to `any` to access dynamic fields.
     const exprInputs: Record<string, any> = { ...(inputs as any) };
 
-    // Also provide global context if needed (e.g. Math is handled by parser fallback, but maybe others?)
-    // The parser handles Math via global fallback.
-
     try {
       const result = executor.execute(graph, exprInputs);
       return { result: result };
@@ -73,5 +64,41 @@ export const expressionNode = definePrimitiveNode({
       console.error("Execution failed:", e);
       return { result: null };
     }
+  },
+  compileConfig: (uiConfig) => ({ fields: { code: uiConfig.code || '' }, untagged: [] }),
+  // Dynamic ports based on code
+  getPorts: (node) => {
+    const code = node.config.code || '';
+    if (!code.trim()) {
+      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+    }
+
+    try {
+      // We need to parse the code to find external variables.
+      // The GraphCompiler produces an ExecutionGraph.
+      // Nodes with op='input' represent external variables.
+      const graph = compiler.compile(code);
+      const inputs: PortHint[] = [];
+
+      for (const node of Object.values(graph.nodes)) {
+        if (node.op === 'input') {
+          // Avoid duplicates
+          if (!inputs.find(i => i.name === node.params.key)) {
+            inputs.push({ name: node.params.key, type: AnyType, description: `Variable: ${node.params.key}` });
+          }
+        }
+      }
+
+      return {
+        inputs,
+        outputs: [{ name: 'result', type: AnyType }]
+      };
+    } catch (e) {
+      // If parsing fails, just return default ports or maybe show error?
+      // For now, return default.
+      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+    }
   }
 });
+
+registerNode(expressionNode);

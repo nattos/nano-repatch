@@ -45,6 +45,7 @@ export interface EnhancedNodeOptions<
   displayName?: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
+  getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -54,7 +55,8 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   extendedInputs?: ExtendedNodeInputsDef;
-  extendedOutputs?: NodeOutputsDef; // Outputs usually don't need extra metadata yet, but good to have
+  extendedOutputs?: NodeOutputsDef;
+  getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
 }
 
 export function defineNode<
@@ -68,12 +70,12 @@ export function defineNode<
   // 1. Strip down inputs to NodeInputsDef (just types) for definePrimitiveNode
   const simpleInputs: NodeInputsDef = {};
   for (const [key, val] of Object.entries(options.inputs || {})) {
-    if ('type' in val && 'kind' in (val as any).type) {
-       // It's ExtendedInputDef
-       simpleInputs[key] = (val as ExtendedInputDef).type;
-    } else {
+    if ('kind' in val) {
        // It's StructorType
        simpleInputs[key] = val as StructorType;
+    } else if ('type' in val) {
+       // It's ExtendedInputDef
+       simpleInputs[key] = (val as ExtendedInputDef).type;
     }
   }
 
@@ -90,7 +92,8 @@ export function defineNode<
     aliases: options.aliases,
     compileConfig: options.compileConfig,
     extendedInputs: options.inputs,
-    extendedOutputs: options.outputs
+    extendedOutputs: options.outputs,
+    getPorts: options.getPorts
   };
 }
 
@@ -98,7 +101,7 @@ export function defineNode<
 
 export function registerNode(def: EnhancedNodeDefinition) {
   const inputs: PortHint[] = Object.entries(def.extendedInputs || {}).map(([name, val]: [string, any]) => {
-    const isExtended = 'type' in val && 'kind' in val.type;
+    const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
     const type = isExtended ? val.type : val;
     return {
       name,
@@ -126,6 +129,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inputs,
     outputs,
     compileConfig: def.compileConfig,
+    getPorts: def.getPorts,
   };
 
   // If UI is provided, we need to hook it up.

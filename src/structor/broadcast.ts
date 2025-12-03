@@ -17,6 +17,10 @@ export class BroadcastResult {
 }
 
 export function broadcast(config: BroadcastConfig, inputs: StructorRecord): BroadcastResult {
+  // console.log('broadcast called', { config, inputs });
+  if (!inputs || !inputs.fields) {
+    console.error('broadcast: inputs or inputs.fields is undefined', inputs);
+  }
   // 1. Collect all inputs based on config
   const collectedInputs: Record<string, any[]> = {};
   let maxVectorSize = 0;

@@ -72,6 +72,7 @@ export class GraphExecutor {
 
       // Try to recover state if available and compatible
       let recoveredState: NodeState | undefined;
+      let state: NodeState;
       if (initialStates && initialStates.has(nodeId)) {
         const oldState = initialStates.get(nodeId)!;
         // Check if definition matches. If not, we cannot reuse state safely.
@@ -81,21 +82,23 @@ export class GraphExecutor {
       }
 
       if (recoveredState) {
-        this.nodeStates.set(nodeId, {
+        state = {
           ...recoveredState,
           // Always update config and realtime status from new graph definition
           config: instance.defaultConfig ?? null,
           isRealtime,
           definitionId: instance.definitionId
-        });
+        };
+        this.nodeStates.set(nodeId, state);
       } else {
-        this.nodeStates.set(nodeId, {
+        state = {
           output: { fields: {}, untagged: [] },
           config: instance.defaultConfig ?? null,
           isDirty: true,
           isRealtime,
           definitionId: instance.definitionId
-        });
+        };
+        this.nodeStates.set(nodeId, state);
       }
     }
   }
@@ -165,7 +168,7 @@ export class GraphExecutor {
         continue;
       }
 
-      // Collect inputs
+      // 2. Collect inputs
       const inputRecord: StructorRecord = { fields: {}, untagged: [] };
 
       for (const conn of this.graph.connections) {
@@ -260,8 +263,15 @@ export class GraphExecutor {
         nodeId: nodeId
       };
 
-      state.output = definition.execute(inputRecord, state.config as any, executionContext);
-      state.isDirty = false;
+      // Execute
+      try {
+        const result = definition.execute(inputRecord, state.config as any, executionContext);
+        state.output = result;
+        state.isDirty = false;
+      } catch (error) {
+        console.error(`Error executing node ${nodeId} (${definition.id}):`, error);
+        throw error; // Re-throw to stop execution or handle gracefully
+      }
     }
   }
 

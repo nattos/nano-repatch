@@ -1,11 +1,12 @@
 import {
+  ExecutionContext,
   StructorRecord,
 } from "../../structor/structor";
 import {
-  defaultNodeRepository,
   NodeType,
 } from "../../structor/repository";
-import { defineType, definePrimitiveNode, typedBroadcast } from "../../structor/type-helpers";
+import { defineType, typedBroadcast } from "../../structor/type-helpers";
+import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, booleanType, anyType, midiStreamType, midiEventType } from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
 import { SeededRandom } from "./utils";
@@ -75,8 +76,10 @@ const SEQUENCE_LENGTH = 16;
 // --- Node Implementations ---
 
 // RhythmicGenerator
-export const rhythmicGeneratorPrimitive = definePrimitiveNode({
+export const rhythmicGenerator = defineNode({
   id: "nicepattern:rhythmic_generator",
+  version: "1.0.0",
+  displayName: "Rhythmic Generator",
   metadata: {
     category: 'NicePattern',
     keywords: ['rhythm', 'generator', 'sequence', 'euclidean'],
@@ -85,6 +88,7 @@ export const rhythmicGeneratorPrimitive = definePrimitiveNode({
   config: { targetNote: numberType, density: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
+  /* UI registered in register-ui.ts */
   execute: (inputs, config, context) => {
     const targetNote = config.targetNote;
     // Use input density if available, otherwise config density
@@ -101,15 +105,6 @@ export const rhythmicGeneratorPrimitive = definePrimitiveNode({
     }
     return { seq_out: sequence };
   },
-});
-
-defaultNodeRepository.register({
-  id: "nicepattern:rhythmic_generator",
-  version: "1.0.0",
-  displayName: "Rhythmic Generator",
-  definition: rhythmicGeneratorPrimitive,
-  inputs: [{ name: "density", type: numberType, description: "Density (0-1)" }],
-  outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
       targetNote: uiConfig?.targetNote ?? 60,
@@ -120,8 +115,10 @@ defaultNodeRepository.register({
 });
 
 // ChaosGenerator
-export const chaosGeneratorPrimitive = definePrimitiveNode({
+export const chaosGenerator = defineNode({
   id: "nicepattern:chaos_generator",
+  version: "1.0.0",
+  displayName: "Chaos Generator",
   metadata: {
     category: 'NicePattern',
     keywords: ['chaos', 'random', 'generator', 'sequence', 'stochastic'],
@@ -130,6 +127,7 @@ export const chaosGeneratorPrimitive = definePrimitiveNode({
   config: { minNote: numberType, maxNote: numberType, density: numberType, seed: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
+  /* UI registered in register-ui.ts */
   execute: (inputs, config, context) => {
     const { minNote, maxNote, seed } = config;
     // Use input density if available, otherwise config density
@@ -148,15 +146,6 @@ export const chaosGeneratorPrimitive = definePrimitiveNode({
     }
     return { seq_out: sequence };
   },
-});
-
-defaultNodeRepository.register({
-  id: "nicepattern:chaos_generator",
-  version: "1.0.0",
-  displayName: "Chaos Generator",
-  definition: chaosGeneratorPrimitive,
-  inputs: [{ name: "density", type: numberType, description: "Density (0-1)" }],
-  outputs: [{ name: "seq_out", type: sequenceStructorType, description: "Generated sequence" }],
   compileConfig: (uiConfig) => ({
     fields: {
       minNote: uiConfig?.minNote ?? 60,
@@ -169,102 +158,91 @@ defaultNodeRepository.register({
 });
 
 // Pattern Node
-export const patternPrimitive = definePrimitiveNode({
+export const pattern = defineNode({
   id: "nicepattern:pattern",
+  version: "1.0.0",
+  displayName: "Pattern",
   metadata: {
     category: 'NicePattern',
     keywords: ['pattern', 'sequencer', 'combiner', 'event'],
     description: 'Combines multiple sequences into a MIDI stream.'
   },
   config: {},
-  inputs: {}, // We handle inputs manually via typedBroadcast
+  inputs: {
+    seq_in: { type: sequenceStructorType, description: "Input sequence(s)", redirect: 'untagged' }
+  },
   outputs: { midi_out: midiStreamType },
+  autoBroadcast: {
+    seq_in: { combine: 'collect', fromUntagged: true }
+  },
   isRealtime: () => true,
-  createState: () => ({ lastStepIndex: -1, activeNotes: new Map<number, number>() }), // activeNotes: note -> velocity
+  createState: () => ({
+    sequenceStates: new Map<number, { lastStepIndex: number, activeNotes: Map<number, number> }>()
+  }),
   execute: (inputs, config, context, state) => {
-    const rawInputs = inputs as unknown as StructorRecord;
-
-    const { seqs } = typedBroadcast(context, {
-      seqs: {
-        source: 'seq_in',
-        fromUntagged: true,
-        combine: 'collect',
-        type: sequenceStructorType
-      }
-    }, rawInputs);
-
-    const combinedSequence: Step[] = [];
-    for (let i = 0; i < SEQUENCE_LENGTH; i++) {
-      let step: Step = { noteIndex: null, velocity: 0, hold: false };
-      for (const seq of (seqs || [])) {
-        if (seq?.[i]?.noteIndex !== null && seq?.[i]?.noteIndex !== undefined) {
-          step.noteIndex = seq[i].noteIndex;
-          step.velocity = seq[i].velocity;
-          step.hold = seq[i].hold;
-        }
-      }
-      combinedSequence.push(step);
-    }
-
+    const seqs = inputs.seq_in as Step[][]; // Array of sequences
+    const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
     const currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
 
-    const stream: any[] = [];
+    // Process each sequence independently
+    if (Array.isArray(seqs)) {
+      seqs.forEach((seq, seqIndex) => {
+        // Initialize state for this sequence if missing
+        if (!state.sequenceStates.has(seqIndex)) {
+          state.sequenceStates.set(seqIndex, { lastStepIndex: -1, activeNotes: new Map<number, number>() });
+        }
+        const seqState = state.sequenceStates.get(seqIndex)!;
 
-    if (currentStepIndex !== state.lastStepIndex) {
-      const lastStep = combinedSequence[state.lastStepIndex] ?? { noteIndex: null };
-      const currentStep = combinedSequence[currentStepIndex];
+        if (currentStepIndex !== seqState.lastStepIndex) {
+          const lastStep = (seq && seq[seqState.lastStepIndex]) ? seq[seqState.lastStepIndex] : { noteIndex: null, velocity: 0, hold: false };
+          const currentStep = (seq && seq[currentStepIndex]) ? seq[currentStepIndex] : { noteIndex: null, velocity: 0, hold: false };
 
-      // Determine if we need to trigger a note
-      // 1. Note changed (different pitch or went from null to note)
-      // 2. Same note, but previous step didn't hold (Retrigger)
-      const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
-      const isSameNote = isNoteActive && currentStep.noteIndex === lastStep.noteIndex;
-      const shouldTrigger = isNoteActive && (!isSameNote || !lastStep.hold);
+          // Determine if we need to trigger a note
+          const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
+          const isSameNote = isNoteActive && currentStep.noteIndex === lastStep.noteIndex;
+          const shouldTrigger = isNoteActive && (!isSameNote || !lastStep.hold);
 
-      const shouldRelease = (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) &&
-        (currentStep.noteIndex !== lastStep.noteIndex || (isSameNote && !lastStep.hold));
+          const shouldRelease = (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) &&
+            (currentStep.noteIndex !== lastStep.noteIndex || (isSameNote && !lastStep.hold));
 
-      if (shouldRelease) {
-        stream.push({
-          type: 'note_off',
-          note: lastStep.noteIndex!,
-          velocity: 0,
-          channel: 1, // Default channel
-          deviceId: 'pattern',
-          time: 0
-        });
-        state.activeNotes.delete(lastStep.noteIndex!);
-      }
+          if (shouldRelease) {
+            stream.push({
+              type: 'note_off',
+              note: lastStep.noteIndex!,
+              velocity: 0,
+              channel: 1,
+              deviceId: 'pattern',
+              time: 0
+            });
+            seqState.activeNotes.delete(lastStep.noteIndex!);
+          }
 
-      if (shouldTrigger) {
-        stream.push({
-          type: 'note_on',
-          note: currentStep.noteIndex!,
-          velocity: currentStep.velocity,
-          channel: 1, // Default channel
-          deviceId: 'pattern',
-          time: 0
-        });
-        state.activeNotes.set(currentStep.noteIndex!, currentStep.velocity);
-      }
+          if (shouldTrigger) {
+            stream.push({
+              type: 'note_on',
+              note: currentStep.noteIndex!,
+              velocity: currentStep.velocity,
+              channel: 1,
+              deviceId: 'pattern',
+              time: 0
+            });
+            seqState.activeNotes.set(currentStep.noteIndex!, currentStep.velocity);
+          }
 
-      state.lastStepIndex = currentStepIndex;
+          seqState.lastStepIndex = currentStepIndex;
+        }
+      });
     }
 
     return { midi_out: stream };
   },
 });
 
-defaultNodeRepository.register({
-  id: "nicepattern:pattern",
-  version: "1.0.0",
-  displayName: "Pattern",
-  definition: patternPrimitive,
-  inputs: [{ name: "seq_in", type: sequenceStructorType, description: "Input sequence(s)", redirect: 'untagged' }],
-  outputs: [{ name: "midi_out", type: midiStreamType, description: "Real-time MIDI stream" }],
-});
+// ...
+
+
 
 // --- Layer Nodes ---
 
@@ -272,16 +250,21 @@ export function createLayerNode(
   id: string,
   displayName: string,
   LayerClass: new (config: LayerConfig) => AbstractLayer
-): NodeType {
-  const primitive = definePrimitiveNode({
+) {
+  return defineNode({
     id,
+    version: "1.0.0",
+    displayName,
     metadata: {
       category: 'NicePattern',
       keywords: ['layer', 'effect', 'modifier'],
       description: `Layer node: ${displayName}`
     },
     config: { targetNote: numberType },
-    inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
+    inputs: {
+      midi_in: { type: midiStreamType, description: "Input MIDI stream" },
+      prev_layer: { type: layerOutputStructorType, description: "Previous layer output" }
+    },
     outputs: { out: layerOutputStructorType },
     autoBroadcast: {
       midi_in: { combine: { reduce: 'first' } }
@@ -330,42 +313,35 @@ export function createLayerNode(
 
       return { out: result };
     },
-  });
-
-  return {
-    id,
-    version: "1.0.0",
-    displayName,
-    definition: primitive,
-    inputs: [
-      { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
-      { name: "prev_layer", type: layerOutputStructorType, description: "Previous layer output" }
-    ],
-    outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],
     compileConfig: (uiConfig) => ({
       fields: {
         targetNote: uiConfig?.targetNote ?? 60,
       },
       untagged: [],
     }),
-  };
+  });
 }
 
-defaultNodeRepository.register(createLayerNode("nicepattern:gate_layer", "Gate Layer", GateLayer));
-defaultNodeRepository.register(createLayerNode("nicepattern:exp_layer", "Exponential Layer", ExponentialLayer));
-defaultNodeRepository.register(createLayerNode("nicepattern:pwm_layer", "PWM Layer", PWMLayer));
-defaultNodeRepository.register(createLayerNode("nicepattern:noise_layer", "Noise Layer", NoiseLayer));
+export const gateLayer = createLayerNode("nicepattern:gate_layer", "Gate Layer", GateLayer);
+export const expLayer = createLayerNode("nicepattern:exp_layer", "Exponential Layer", ExponentialLayer);
+export const pwmLayer = createLayerNode("nicepattern:pwm_layer", "PWM Layer", PWMLayer);
+export const noiseLayer = createLayerNode("nicepattern:noise_layer", "Noise Layer", NoiseLayer);
 
 // ToneSynthLayer is special as it takes audio context
-export const toneSynthPrimitive = definePrimitiveNode({
+export const toneSynthLayer = defineNode({
   id: "nicepattern:tone_synth_layer",
+  version: "1.0.0",
+  displayName: "Tone Synth Layer",
   metadata: {
     category: 'NicePattern',
     keywords: ['synth', 'audio', 'sound', 'tone'],
     description: 'Simple synthesizer layer using Tone.js.'
   },
   config: { targetNote: numberType },
-  inputs: { midi_in: midiStreamType, prev_layer: layerOutputStructorType },
+  inputs: {
+    midi_in: { type: midiStreamType, description: "Input MIDI stream" },
+    prev_layer: { type: layerOutputStructorType, description: "Previous layer output" }
+  },
   outputs: { out: layerOutputStructorType },
   autoBroadcast: {
     midi_in: { combine: { reduce: 'first' } }
@@ -423,18 +399,6 @@ export const toneSynthPrimitive = definePrimitiveNode({
 
     return { out: result };
   },
-});
-
-defaultNodeRepository.register({
-  id: "nicepattern:tone_synth_layer",
-  version: "1.0.0",
-  displayName: "Tone Synth Layer",
-  definition: toneSynthPrimitive,
-  inputs: [
-    { name: "midi_in", type: midiStreamType, description: "Input MIDI stream" },
-    { name: "prev_layer", type: layerOutputStructorType, description: "Previous layer output" }
-  ],
-  outputs: [{ name: "out", type: layerOutputStructorType, description: "Layer output" }],
   compileConfig: (uiConfig) => ({
     fields: {
       targetNote: uiConfig?.targetNote ?? 60,
@@ -442,3 +406,13 @@ defaultNodeRepository.register({
     untagged: [],
   }),
 });
+
+// Register Nodes
+registerNode(rhythmicGenerator);
+registerNode(chaosGenerator);
+registerNode(pattern);
+registerNode(gateLayer);
+registerNode(expLayer);
+registerNode(pwmLayer);
+registerNode(noiseLayer);
+registerNode(toneSynthLayer);

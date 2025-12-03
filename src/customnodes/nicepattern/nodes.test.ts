@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  rhythmicGeneratorPrimitive,
-  chaosGeneratorPrimitive,
-  patternPrimitive
+  rhythmicGenerator,
+  chaosGenerator,
+  pattern
 } from './nodes';
 import { ExecutionContext } from '../../structor/structor';
 import { defaultNodeRepository } from '../../structor/repository';
@@ -12,22 +12,20 @@ const createMockContext = (): ExecutionContext => ({
   broadcast: vi.fn((config, inputs) => {
     // Simple mock for broadcast
     return {
-      apply: (fn: any) => {
-        // For generators with no inputs, just call fn with empty args
-        if (Object.keys(inputs.fields).length === 0 && inputs.untagged.length === 0) {
-          return fn({});
-        }
-        // For pattern node, it expects 'seqs' from untagged
-        if (config.outputs['seqs']) {
-          const seqs = inputs.untagged || [];
-          // typedBroadcast expects apply to return the data
-          // If we are simulating typedBroadcast's usage of broadcast:
-          // typedBroadcast calls apply(args => args).
-          // So we should return the data structure here.
-          return { seqs };
-        }
-        return fn({});
-      }
+          apply: (fn: any) => {
+            // Verify inputs are passed correctly
+            if (Object.keys(inputs.fields).length === 0 && inputs.untagged.length === 0) {
+              return fn({});
+            }
+            // For pattern node, it expects 'seq_in' from untagged
+            if (config.outputs['seq_in']) {
+              const seqs = inputs.fields.seq_in || [];
+              // definePrimitiveNode uses apply to execute the lambda.
+              // So we must call fn with the data.
+              return fn({ seq_in: [seqs] });
+            }
+            return fn({});
+          }
     } as any;
   }),
   repository: defaultNodeRepository,
@@ -43,7 +41,7 @@ describe('NicePattern Nodes', () => {
       const config = { fields: { targetNote: 60, density: 0.5 }, untagged: [] };
       const input = { fields: {}, untagged: [] };
 
-      const result = rhythmicGeneratorPrimitive.execute(input, config, context);
+      const result = rhythmicGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
 
       expect(seq).toHaveLength(16);
@@ -57,7 +55,7 @@ describe('NicePattern Nodes', () => {
       const config = { fields: { targetNote: 60, density: 0.1 }, untagged: [] };
       const input = { fields: { density: 1.0 }, untagged: [] };
 
-      const result = rhythmicGeneratorPrimitive.execute(input, config, context);
+      const result = rhythmicGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
 
       const notes = seq.filter(s => s.fields.noteIndex !== null);
@@ -71,7 +69,7 @@ describe('NicePattern Nodes', () => {
       const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 123 }, untagged: [] };
       const input = { fields: {}, untagged: [] };
 
-      const result = chaosGeneratorPrimitive.execute(input, config, context);
+      const result = chaosGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
 
       expect(seq).toHaveLength(16);
@@ -88,10 +86,10 @@ describe('NicePattern Nodes', () => {
       const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 999 }, untagged: [] };
       const input = { fields: {}, untagged: [] };
 
-      const result1 = chaosGeneratorPrimitive.execute(input, config, context);
+      const result1 = chaosGenerator.execute(input, config, context);
       const seq1 = result1.fields.seq_out as any[];
 
-      const result2 = chaosGeneratorPrimitive.execute(input, config, context);
+      const result2 = chaosGenerator.execute(input, config, context);
       const seq2 = result2.fields.seq_out as any[];
 
       expect(JSON.stringify(seq1)).toBe(JSON.stringify(seq2));
@@ -102,11 +100,11 @@ describe('NicePattern Nodes', () => {
       const input = { fields: {}, untagged: [] };
 
       const config1 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 111 }, untagged: [] };
-      const result1 = chaosGeneratorPrimitive.execute(input, config1, context);
+      const result1 = chaosGenerator.execute(input, config1, context);
       const seq1 = result1.fields.seq_out as any[];
 
       const config2 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 222 }, untagged: [] };
-      const result2 = chaosGeneratorPrimitive.execute(input, config2, context);
+      const result2 = chaosGenerator.execute(input, config2, context);
       const seq2 = result2.fields.seq_out as any[];
 
       expect(JSON.stringify(seq1)).not.toBe(JSON.stringify(seq2));
@@ -117,7 +115,7 @@ describe('NicePattern Nodes', () => {
       const config = { fields: { minNote: 60, maxNote: 72, density: 0.1, seed: 123 }, untagged: [] };
       const input = { fields: { density: 1.0 }, untagged: [] };
 
-      const result = chaosGeneratorPrimitive.execute(input, config, context);
+      const result = chaosGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
 
       const notes = seq.filter(s => s.fields.noteIndex !== null);
@@ -130,8 +128,8 @@ describe('NicePattern Nodes', () => {
     it('should combine sequences and generate events', () => {
       const context = createMockContext();
       // Mock broadcast to return a sequence
-      const mockSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
-      mockSeq[0] = { noteIndex: 60, velocity: 1, hold: false };
+      const mockSeq = Array(16).fill({ fields: { noteIndex: null, velocity: 0, hold: false }, untagged: [] });
+      mockSeq[0] = { fields: { noteIndex: 60, velocity: 1, hold: false }, untagged: [] };
 
       // We need to mock the typedBroadcast behavior which calls context.broadcast
       // The pattern node calls typedBroadcast which calls context.broadcast
@@ -142,19 +140,18 @@ describe('NicePattern Nodes', () => {
         return {
           apply: (fn: any) => {
             // Verify inputs are passed correctly
-            const seqs = inputs.untagged || [];
-            return { seqs };
+            const seqs = inputs.fields.seq_in || [];
+            return fn({ seq_in: [seqs] });
           }
         } as any;
       });
 
       const config = { fields: {}, untagged: [] };
-      const input = { fields: {}, untagged: [mockSeq] }; // Raw input
+      const input = { fields: { seq_in: mockSeq }, untagged: [] }; // Raw input
 
       // First call: initialize state and process step 0
       context.clock.beat = 0;
-      const result = patternPrimitive.execute(input, config, context);
-
+      const result = pattern.execute(input, config, context);
       const stream = result.fields.midi_out as any[];
       expect(stream).toBeDefined();
       expect(Array.isArray(stream)).toBe(true);

@@ -211,7 +211,6 @@ export function definePrimitiveNode<
     isRealtime: options.isRealtime,
     computeOutputTypes: () => outputType,
     execute: (rawInput, rawConfig, context) => {
-      // throw new Error('EXECUTION REACHED');
       // Unwrap config
       const processedConfig = fromStructor(rawConfig, configType);
 
@@ -248,14 +247,18 @@ export function definePrimitiveNode<
             combine: combine ?? undefined
           };
         }
-
         const broadcasted = context.broadcast(broadcastConfig, rawInput);
 
         const result = broadcasted.apply((args: any) => {
           // Unwrap inputs
           const inputs: any = {};
           for (const [key, type] of Object.entries(options.inputs!)) {
-            inputs[key] = fromStructor(args[key], type);
+            const isCollect = broadcastConfig.outputs[key]?.combine === 'collect';
+            if (isCollect && Array.isArray(args[key])) {
+              inputs[key] = args[key].map((v: any) => fromStructor(v, type));
+            } else {
+              inputs[key] = fromStructor(args[key], type);
+            }
           }
           // console.error('Execute Inputs:', JSON.stringify(inputs));
 

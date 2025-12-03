@@ -1,14 +1,16 @@
-import { definePrimitiveNode, defineType } from '../../structor/type-helpers';
+import { defineNode, registerNode } from '../../structor/node-helpers';
+import { defineType } from '../../structor/type-helpers';
 import { resolumeManager } from '../../io/resolume/manager';
-import { Structor, NodeCategory } from '../../structor/structor';
-import { defaultNodeRepository } from '../../structor/repository';
+import { NodeCategory } from '../../structor/structor';
 import { numberType } from '../../structor/std-types';
 
 const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
 
-export const resolumeInputNode = definePrimitiveNode({
+export const resolumeInputNode = defineNode({
   id: 'resolume.input',
+  version: '1.0.0',
+  displayName: 'Resolume Input',
   metadata: {
     category: NodeCategory.IO,
     keywords: ['resolume', 'arena', 'parameter', 'read'],
@@ -63,11 +65,19 @@ export const resolumeInputNode = definePrimitiveNode({
     }
 
     return { value: state?.value ?? 0 };
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: {
+      path: uiConfig?.path ?? '',
+    },
+    untagged: [],
+  }),
 });
 
-export const resolumeOutputNode = definePrimitiveNode({
+export const resolumeOutputNode = defineNode({
   id: 'resolume.output',
+  version: '1.0.0',
+  displayName: 'Resolume Output',
   metadata: {
     category: NodeCategory.IO,
     keywords: ['resolume', 'arena', 'parameter', 'write'],
@@ -107,16 +117,7 @@ export const resolumeOutputNode = definePrimitiveNode({
       }
     }
     return {};
-  }
-});
-
-defaultNodeRepository.register({
-  id: 'resolume.input',
-  version: '1.0.0',
-  displayName: 'Resolume Input',
-  definition: resolumeInputNode,
-  inputs: [],
-  outputs: [{ name: 'value', type: anyType, description: 'Parameter value' }],
+  },
   compileConfig: (uiConfig) => ({
     fields: {
       path: uiConfig?.path ?? '',
@@ -125,17 +126,5 @@ defaultNodeRepository.register({
   }),
 });
 
-defaultNodeRepository.register({
-  id: 'resolume.output',
-  version: '1.0.0',
-  displayName: 'Resolume Output',
-  definition: resolumeOutputNode,
-  inputs: [{ name: 'value', type: anyType, description: 'Value to send' }],
-  outputs: [],
-  compileConfig: (uiConfig) => ({
-    fields: {
-      path: uiConfig?.path ?? '',
-    },
-    untagged: [],
-  }),
-});
+registerNode(resolumeInputNode);
+registerNode(resolumeOutputNode);
