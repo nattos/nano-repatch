@@ -17,10 +17,6 @@ export const debugScopeNode = defineNode({
   outputs: {},
   config: {},
   inspectInputs: true,
-  ui: {
-    inputEditor: () => import('./nodes.ui').then(m => m.DebugScopeInputEditor),
-    getInputEditorHeight: () => Promise.resolve(() => 100)
-  },
   execute: (inputs) => {
     return {};
   }

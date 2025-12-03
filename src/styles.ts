@@ -113,3 +113,38 @@ export const globalStyles = [
     z-index: 1;
   }
 `];
+
+export const widgetStyles = css`
+  :host {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--node-bg, #222);
+    border: 1px solid var(--node-border, #444);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    user-select: none;
+  }
+
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  path {
+    vector-effect: non-scaling-stroke;
+  }
+
+  .grid-pattern, .grid {
+    stroke: var(--grid-color, rgba(255, 255, 255, 0.05));
+    stroke-width: 1;
+  }
+
+  .axis-line, .zero-line {
+    stroke: var(--border-color, rgba(255, 255, 255, 0.3));
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+`;

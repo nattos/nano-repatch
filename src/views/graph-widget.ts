@@ -3,6 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { action, computed, makeObservable, observable } from 'mobx';
 import { PointerDragOp } from '../utils/pointer-drag-op';
+import { widgetStyles } from '../styles';
 
 export type CurveType = 'exponential' | 'linear' | 'step' | 'sin' | 'quad' | 'points';
 
@@ -32,69 +33,49 @@ export class GraphWidget extends MobxLitElement {
   @property({ attribute: false })
   config?: GraphWidgetConfig;
 
-  static styles = css`
-        :host {
-            display: block;
-            width: 100%;
-            height: 96px;
-            background: var(--node-bg, #333);
-            border: 1px solid var(--node-border, #444);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-            user-select: none;
-            --grid-color: rgba(255, 255, 255, 0.05);
-            --grid-size: 24px;
-        }
-        svg {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        path.curve {
-            fill: url(#curveGradient);
-            stroke: var(--accent-color, #00aaff);
-            stroke-width: 2;
-            vector-effect: non-scaling-stroke;
-            pointer-events: none;
-        }
-        .grid-pattern {
-            stroke: var(--grid-color);
-            stroke-width: 1;
-        }
-        .axis-line {
-            stroke: var(--border-color, #555);
-            stroke-width: 1;
-            vector-effect: non-scaling-stroke;
-        }
-        .handle-line {
-            stroke: var(--accent-color, #00aaff);
-            stroke-width: 1;
-            stroke-dasharray: 4 4;
-            vector-effect: non-scaling-stroke;
-            opacity: 0.7;
-        }
-        .handle-circle {
-            fill: var(--accent-color, #00aaff);
-            stroke: var(--node-bg, #333);
-            stroke-width: 2;
-        }
-        .split-handle {
-            stroke: var(--text-muted, #aaa);
-            stroke-width: 1;
-            stroke-dasharray: 2 2;
-            vector-effect: non-scaling-stroke;
-            opacity: 0.5;
-            cursor: col-resize;
-        }
-        .split-handle-target {
-            fill: transparent;
-            cursor: col-resize;
-        }
-        .split-handle-target:hover {
-            fill: rgba(255, 255, 255, 0.1);
-        }
-    `;
+  static styles = [
+    widgetStyles,
+    css`
+      :host {
+        height: 96px;
+        --grid-color: rgba(255, 255, 255, 0.05);
+        --grid-size: 24px;
+      }
+      path.curve {
+        fill: url(#curveGradient);
+        stroke: var(--accent-color, #00aaff);
+        stroke-width: 2;
+        pointer-events: none;
+      }
+      .handle-line {
+        stroke: var(--accent-color, #00aaff);
+        stroke-width: 1;
+        stroke-dasharray: 4 4;
+        vector-effect: non-scaling-stroke;
+        opacity: 0.7;
+      }
+      .handle-circle {
+        fill: var(--accent-color, #00aaff);
+        stroke: var(--node-bg, #333);
+        stroke-width: 2;
+      }
+      .split-handle {
+        stroke: var(--text-muted, #aaa);
+        stroke-width: 1;
+        stroke-dasharray: 2 2;
+        vector-effect: non-scaling-stroke;
+        opacity: 0.5;
+        cursor: col-resize;
+      }
+      .split-handle-target {
+        fill: transparent;
+        cursor: col-resize;
+      }
+      .split-handle-target:hover {
+        fill: rgba(255, 255, 255, 0.1);
+      }
+    `
+  ];
 
   constructor() {
     super();
