@@ -2,7 +2,6 @@ import { html } from 'lit';
 import { GridNode } from '../../builder/state';
 import { GraphNodeRenderHandlers } from '../../structor/repository';
 import { runtimeManager } from '../../builder/controllers';
-import './scope-widget';
 
 export const DebugScopeInputEditor = (node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => {
   // Get input value from runtimeManager
@@ -35,11 +34,9 @@ export const DebugScopeInputEditor = (node: GridNode, portName: string, handlers
   // Let's look at `graph-widget` first.
 
   return html`
-    <scope-widget
+    <graph-widget
+      .config=${{ mode: 'scope', autoRange: true, showGrid: true, historySize: 100 }}
       .value=${value}
-      .min=${-1}
-      .max=${1}
-      .historySize=${100}
-    ></scope-widget>
+    ></graph-widget>
   `;
 };

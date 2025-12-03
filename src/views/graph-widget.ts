@@ -18,20 +18,37 @@ export interface GraphSegment {
 }
 
 export interface GraphWidgetConfig {
-  domain: [number, number];
-  range: [number, number];
-  segments: GraphSegment[];
+  mode?: 'curve' | 'scope';
+  // Curve Mode
+  domain?: [number, number];
+  range?: [number, number];
+  segments?: GraphSegment[];
   interactive?: boolean;
   onSegmentChange?: (segmentId: string, param: string, value: number) => void;
   onSegmentResize?: (segmentIndex: number, newWeight: number) => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
+
+  // Scope Mode
+  data?: number[]; // History
+  historySize?: number;
+  autoRange?: boolean;
+  showGrid?: boolean;
 }
 
 @customElement('graph-widget')
 export class GraphWidget extends MobxLitElement {
   @property({ attribute: false })
   config?: GraphWidgetConfig;
+
+  @property({ type: Number })
+  value?: number;
+
+  // Scope State
+  private history: number[] = [];
+  private smoothedRange = 1.0;
+  private smoothedAnchor = 0.0;
+  private isSigned = false;
 
   static styles = [
     widgetStyles,
@@ -82,14 +99,122 @@ export class GraphWidget extends MobxLitElement {
     makeObservable(this);
   }
 
+  updated(changedProperties: Map<string, any>) {
+    if (changedProperties.has('value') && this.value !== undefined) {
+      this.history.push(this.value);
+      const maxSize = this.config?.historySize || 100;
+      if (this.history.length > maxSize) this.history.shift();
+
+      if (this.config?.mode === 'scope' && this.config.autoRange) {
+        this.updateAdaptiveRange();
+      }
+      // Request update is automatic for property change, but we modified history which is private
+      this.requestUpdate();
+    }
+  }
+
+  private updateAdaptiveRange() {
+    if (this.history.length === 0) return;
+
+    const history = this.history;
+    let minV = history[0];
+    let maxV = history[0];
+    let hasNegative = false;
+
+    for (const v of history) {
+      if (v < minV) minV = v;
+      if (v > maxV) maxV = v;
+      if (v < 0) hasNegative = true;
+    }
+
+    // Latch signed mode
+    if (hasNegative) this.isSigned = true;
+
+    // Calculate required view
+    const padding = 1.2;
+    let targetRange = 1.0;
+    let targetAnchor = 0.0;
+
+    if (this.isSigned) {
+      const signalCenter = (minV + maxV) / 2;
+      const signalSpan = maxV - minV;
+      const requiredSpan = Math.max(signalSpan * padding, 0.001);
+      const quantizedRange = Math.pow(2, Math.ceil(Math.log2(requiredSpan)));
+      const anchorStep = quantizedRange;
+      const quantizedAnchor = Math.round(signalCenter / anchorStep) * anchorStep;
+
+      targetRange = quantizedRange;
+      targetAnchor = quantizedAnchor;
+
+      const viewMin = targetAnchor - targetRange / 2;
+      const viewMax = targetAnchor + targetRange / 2;
+
+      if (minV < viewMin || maxV > viewMax) {
+         targetRange *= 2;
+      }
+    } else {
+      const span = Math.max(maxV - minV, 0.001);
+      let qRange = Math.pow(2, Math.ceil(Math.log2(span * padding)));
+      let qAnchor = Math.floor(minV / qRange) * qRange;
+
+      if (qAnchor + qRange < maxV) {
+        qRange *= 2;
+        qAnchor = Math.floor(minV / qRange) * qRange;
+      }
+
+      targetRange = qRange;
+      targetAnchor = qAnchor;
+    }
+
+    // Range Smoothing
+    if (targetRange > this.smoothedRange) {
+      this.smoothedRange = targetRange;
+    } else {
+      this.smoothedRange = this.smoothedRange * 0.95 + targetRange * 0.05;
+      if (Math.abs(this.smoothedRange - targetRange) < 0.01) this.smoothedRange = targetRange;
+    }
+
+    // Anchor Smoothing
+    const currentDisplayAnchor = this.getDisplayAnchor();
+    const currentDisplayRange = this.getDisplayRange();
+
+    let fits = false;
+    if (this.isSigned) {
+       const safeZone = 0.9;
+       const safeMin = currentDisplayAnchor - (currentDisplayRange * safeZone) / 2;
+       const safeMax = currentDisplayAnchor + (currentDisplayRange * safeZone) / 2;
+       if (minV >= safeMin && maxV <= safeMax) fits = true;
+    } else {
+       const safeMin = currentDisplayAnchor;
+       const safeMax = currentDisplayAnchor + currentDisplayRange * 0.9;
+       if (minV >= safeMin && maxV <= safeMax) fits = true;
+    }
+
+    if (!fits) {
+       this.smoothedAnchor = this.smoothedAnchor * 0.8 + targetAnchor * 0.2;
+       if (Math.abs(this.smoothedAnchor - targetAnchor) < 0.01) this.smoothedAnchor = targetAnchor;
+    } else {
+       this.smoothedAnchor = this.smoothedAnchor * 0.99 + targetAnchor * 0.01;
+    }
+  }
+
+  private getDisplayRange() {
+     return Math.pow(2, Math.ceil(Math.log2(this.smoothedRange)));
+  }
+
+  private getDisplayAnchor() {
+     const r = this.getDisplayRange();
+     return Math.round(this.smoothedAnchor / r) * r;
+  }
+
   @computed
   get totalWeight() {
-    return this.config?.segments.reduce((sum, s) => sum + s.weight, 0) || 1;
+    return this.config?.segments?.reduce((sum, s) => sum + s.weight, 0) || 1;
   }
 
   @computed
   get segmentLayout() {
-    if (!this.config) return [];
+    if (!this.config || !this.config.segments) return [];
     const width = 220;
     let currentX = 0;
     const totalWeight = this.totalWeight;
@@ -112,7 +237,47 @@ export class GraphWidget extends MobxLitElement {
   get pathData() {
     if (!this.config) return '';
 
+    if (this.config.mode === 'scope') {
+        const history = this.history;
+        const width = 220;
+        const height = 96;
+        const historySize = this.config.historySize || 100;
+
+        const range = this.config.autoRange ? this.getDisplayRange() : ((this.config.range?.[1] ?? 1) - (this.config.range?.[0] ?? 0));
+        const anchor = this.config.autoRange ? this.getDisplayAnchor() : (this.config.range?.[0] ?? 0);
+
+        let renderMin: number, renderMax: number;
+        if (this.config.autoRange) {
+            if (this.isSigned) {
+                renderMin = anchor - range / 2;
+                renderMax = anchor + range / 2;
+            } else {
+                renderMin = anchor;
+                renderMax = anchor + range;
+            }
+        } else {
+            renderMin = this.config.range?.[0] ?? 0;
+            renderMax = this.config.range?.[1] ?? 1;
+        }
+
+        const normalizeY = (val: number) => {
+          const normalized = (val - renderMin) / (renderMax - renderMin);
+          return height - (Math.max(0, Math.min(1, normalized)) * height);
+        };
+
+        const points = history.map((val, i) => {
+          const x = (i / (historySize - 1)) * width;
+          const y = normalizeY(val);
+          return `${x},${y}`;
+        });
+
+        return points.length > 0 ? `M ${points.join(' L ')}` : '';
+    }
+
+    // Curve Mode
     const { domain, range } = this.config;
+    if (!domain || !range) return '';
+
     const [minY, maxY] = range;
     const height = 96;
     const normalize = (val: number, min: number, max: number) => (val - min) / (max - min);
@@ -159,21 +324,14 @@ export class GraphWidget extends MobxLitElement {
             normY = t;
             break;
           case 'step':
-            // Steps: 0 to 1
-            // e.g. 2 steps: 0-0.5 -> 0, 0.5-1 -> 1? Or 0, 0.5, 1?
-            // "Step" usually means discrete levels.
-            // Let's implement floor(t * steps) / (steps - 1)
             if (steps <= 1) normY = 0;
             else normY = Math.floor(t * steps) / (steps - 1);
-            // Fix last point to be 1
             if (t >= 0.999) normY = 1;
             break;
           case 'sin':
-            // EaseInOutSine: -(cos(PI * x) - 1) / 2
             normY = -(Math.cos(Math.PI * t) - 1) / 2;
             break;
           case 'quad':
-            // EaseInQuad: t * t
             normY = t * t;
             break;
           default:
@@ -313,6 +471,61 @@ export class GraphWidget extends MobxLitElement {
     if (!this.config) return html``;
 
     const height = 96;
+
+    if (this.config.mode === 'scope') {
+        const range = this.config.autoRange ? this.getDisplayRange() : ((this.config.range?.[1] ?? 1) - (this.config.range?.[0] ?? 0));
+        const anchor = this.config.autoRange ? this.getDisplayAnchor() : (this.config.range?.[0] ?? 0);
+
+        let renderMin: number, renderMax: number;
+        if (this.config.autoRange) {
+            if (this.isSigned) {
+                renderMin = anchor - range / 2;
+                renderMax = anchor + range / 2;
+            } else {
+                renderMin = anchor;
+                renderMax = anchor + range;
+            }
+        } else {
+            renderMin = this.config.range?.[0] ?? 0;
+            renderMax = this.config.range?.[1] ?? 1;
+        }
+
+        const normalizeY = (val: number) => {
+          const normalized = (val - renderMin) / (renderMax - renderMin);
+          return height - (Math.max(0, Math.min(1, normalized)) * height);
+        };
+
+        const zeroY = normalizeY(0);
+
+        // Grid Lines
+        const gridLines = [];
+        if (this.config.showGrid) {
+            const maxAbs = Math.max(Math.abs(renderMin), Math.abs(renderMax));
+            const maxPow = Math.ceil(Math.log2(maxAbs));
+            const minPow = Math.floor(Math.log2(range)) - 4;
+
+            for (let p = minPow; p <= maxPow; p++) {
+              const val = Math.pow(2, p);
+              if (val <= renderMax && val >= renderMin) gridLines.push(normalizeY(val));
+              if (-val <= renderMax && -val >= renderMin) gridLines.push(normalizeY(-val));
+            }
+        }
+
+        return html`
+          <svg viewBox="0 0 220 96" preserveAspectRatio="none">
+            <defs>
+              <pattern id="grid-x" width="24" height="96" patternUnits="userSpaceOnUse">
+                 <path d="M 0 0 L 0 96" fill="none" class="grid-pattern" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid-x)" />
+            ${gridLines.map(y => svg`<line class="grid" x1="0" y1="${y}" x2="220" y2="${y}" />`)}
+            <line class="zero-line" x1="0" y1="${zeroY}" x2="220" y2="${zeroY}" />
+            <path d="${this.pathData}" fill="none" stroke="#00ff88" stroke-width="2" vector-effect="non-scaling-stroke" />
+          </svg>
+        `;
+    }
+
     const layout = this.segmentLayout;
     const resizeThreshold = 10;
 

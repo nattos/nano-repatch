@@ -52,7 +52,7 @@ export class CurveInspector extends MobxLitElement {
         const update = (c: any) => {
           const innerEasingConfig = toJS(easingConfig);
           const nodeConfig = toJS(this.node.config);
-          const newSegments = innerEasingConfig.segments.map((s: any) => {
+          const newSegments = (innerEasingConfig.segments || []).map((s: any) => {
             if (s.id === segmentId) {
               if (param === 'value') {
                 return { ...s, curve: { ...s.curve, value: value } };
@@ -73,7 +73,7 @@ export class CurveInspector extends MobxLitElement {
         const update = (c: any) => {
           const innerEasingConfig = toJS(easingConfig);
           const nodeConfig = toJS(this.node.config);
-          const newSegments = [...innerEasingConfig.segments];
+          const newSegments = [...(innerEasingConfig.segments || [])];
           if (newSegments[segmentIndex]) {
             newSegments[segmentIndex] = { ...newSegments[segmentIndex], weight: newWeight };
             c.setNodeConfig(this.node.id, { values: { ...nodeConfig.values, easing: { ...innerEasingConfig, segments: newSegments } as any } });
