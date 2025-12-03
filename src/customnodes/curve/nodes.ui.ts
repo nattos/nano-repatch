@@ -102,3 +102,5 @@ export const CurveInspectorRenderer = (node: GridNode, onchange: InspectorChange
   // We can reuse the same component or a different one for inspector
   return html`<div>Curve Inspector Placeholder</div>`;
 };
+
+export const CurveBodyHeight = (node: GridNode) => 100;

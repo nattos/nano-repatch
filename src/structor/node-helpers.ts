@@ -18,6 +18,7 @@ import { defaultNodeRepository, PortHint, NodeType } from './repository';
 export interface NodeUI {
   inspector?: () => Promise<any>;
   body?: () => Promise<any>;
+  getBodyHeight?: () => Promise<any>;
   inputEditor?: () => Promise<any>;
 }
 

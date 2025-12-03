@@ -628,6 +628,28 @@ export class GraphNode extends MobxLitElement {
       }
     }
 
+    if (nodeType.ui.body && !this.loadedBodyRenderer && !this.hasRequestedBodyLoad) {
+      this.hasRequestedBodyLoad = true;
+      try {
+        const renderer = await nodeType.ui.body();
+        this.loadedBodyRenderer = renderer;
+        if (!nodeType.renderBody) {
+          nodeType.renderBody = renderer;
+        }
+      } catch (e) {
+        console.error('Failed to load body renderer', e);
+      }
+    }
+
+    if (nodeType.ui.getBodyHeight && !nodeType.getBodyHeight) {
+      try {
+        const getter = await nodeType.ui.getBodyHeight();
+        nodeType.getBodyHeight = getter;
+      } catch (e) {
+        console.error('Failed to load getBodyHeight', e);
+      }
+    }
+
     if (nodeType.ui.inspector && !this.loadedInspectorRenderer && !this.hasRequestedInspectorLoad) {
       this.hasRequestedInspectorLoad = true;
       try {

@@ -96,6 +96,7 @@ export interface NodeType {
    */
   ui?: {
     body?: () => Promise<(node: GridNode, handlers: GraphNodeRenderHandlers) => unknown>;
+    getBodyHeight?: () => Promise<(node: GridNode) => number>;
     inspector?: () => Promise<(node: GridNode, onchange: InspectorChangeHandler) => unknown>;
     inputEditor?: () => Promise<(node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown>;
   };
