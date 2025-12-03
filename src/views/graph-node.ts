@@ -925,16 +925,18 @@ export class GraphNode extends MobxLitElement {
           // Find corresponding output name for the right label
           const outputName = outputs[index]?.name || '';
 
+          // Note: Order matters. `.value` must be last, otherwise it will get the wrong
+          // min, max, and step clamping and quantization applied.
           editorContent = html`
                 <div class="virtual-input-field-wrapper" style="height: var(--row-height);">
                   <div class="slider-label" title="${input.name}">${input.name}</div>
                   <input
                     id="${this.node.id}-${input.name}-virtual-input"
                     type="${isNumber ? 'range' : 'text'}"
-                    .value=${currentValue.toString()}
                     .min=${input.range?.[0]?.toString() || '0'}
                     .max=${input.range?.[1]?.toString() || '1'}
                     .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
+                    .value=${currentValue.toString()}
                     @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
                     @change=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
                     class="virtual-input-field"
