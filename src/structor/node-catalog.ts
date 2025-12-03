@@ -70,6 +70,7 @@ export class NodeCatalog {
       let score = 0;
       const id = node.id.toLowerCase();
       const name = node.displayName.toLowerCase();
+      const aliases = (node.aliases || []).map(a => a.toLowerCase());
 
       if (id === normalizedQuery) score += 10;
       else if (id.startsWith(normalizedQuery)) score += 5;
@@ -78,6 +79,13 @@ export class NodeCatalog {
       if (name === normalizedQuery) score += 5;
       else if (name.startsWith(normalizedQuery)) score += 3;
       else if (name.includes(normalizedQuery)) score += 1;
+
+      // Check Aliases
+      for (const alias of aliases) {
+        if (alias === normalizedQuery) score += 5;
+        else if (alias.startsWith(normalizedQuery)) score += 3;
+        else if (alias.includes(normalizedQuery)) score += 1;
+      }
 
       if (score > 0) {
         results.push({
@@ -100,7 +108,7 @@ export class NodeCatalog {
   }
 
   private getDrillDownResults(prefix: string): CatalogItem[] {
-    // Prefix could be "math" or "resolume.IO"
+    // Prefix could be "math" or "resolume.IO" or "Logic"
     // We need to find nodes that match this prefix
     const nodes = Array.from(this.repository.getAllNodeTypes());
     const results: CatalogItem[] = [];
@@ -115,6 +123,7 @@ export class NodeCatalog {
       // Check if node belongs to this prefix path
       // Case 1: Prefix is namespace (e.g. "math") -> match "math.add"
       // Case 2: Prefix is namespace.category (e.g. "resolume.IO") -> match "resolume.input" (if category is IO)
+      // Case 3: Prefix is category (e.g. "Logic") -> match "core.and" (if category is Logic)
 
       let matches = false;
 
@@ -167,10 +176,7 @@ export class NodeCatalog {
 
         // Split prefix: "resolume" and "IO"
         const parts = normalizedPrefix.split('.');
-        // Assume last part is category if it matches a known category?
-        // Or just strictly follow the user's "namespace.category" logic?
 
-        // Let's try to match: ID starts with (parts[0] + '.') AND category == parts[1]
         if (parts.length === 2) {
           const ns = parts[0];
           const cat = parts[1];
@@ -185,6 +191,19 @@ export class NodeCatalog {
               boost: 1
             });
           }
+        } else if (parts.length === 1) {
+            // Handle Case 3: Prefix is just category name (e.g. "Logic")
+            // And node has that category
+            if (category.toLowerCase() === normalizedPrefix) {
+                 results.push({
+                  label: node.displayName,
+                  type: 'node',
+                  id: node.id,
+                  value: node.id,
+                  detail: node.id,
+                  boost: 1
+                });
+            }
         }
       }
     }
