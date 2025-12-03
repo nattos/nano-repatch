@@ -1,5 +1,6 @@
 
 import { html, TemplateResult } from 'lit';
+import { classMap } from 'lit/directives/class-map.js';
 import { StructorType } from '../structor/structor';
 
 export function formatType(type: StructorType | undefined): string {
@@ -28,40 +29,40 @@ export function formatType(type: StructorType | undefined): string {
   return type.kind;
 }
 
-export function formatValue(value: any, type?: StructorType): TemplateResult {
+export function formatValue(value: any, type?: StructorType, options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (value === undefined || value === null) {
-    return html`<span class="chip">null</span>`;
+    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>null</span>`;
   }
 
   if (type?.kind === 'record' && type.hint === 'midi') {
-    return html`<span class="chip midi">${formatMidiEvent(value)}</span>`;
+    return html`<span class=${classMap({'chip': true, 'midi': true, ...options?.extraClasses})}>${formatMidiEvent(value)}</span>`;
   }
 
   if (type?.kind === 'array' && type.hint === 'midi-stream') {
-    return formatMidiStream(value);
+    return formatMidiStream(value, options);
   }
 
   if (type?.kind === 'array' && type.hint === 'step-sequence') {
-    return formatStepSequence(value);
+    return formatStepSequence(value, options);
   }
 
   if (typeof value === 'number') {
-    return html`<span class="chip">${value.toFixed(4)}</span>`;
+    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>${value.toFixed(4)}</span>`;
   }
 
   if (typeof value === 'string') {
-    return html`<span class="chip">"${value}"</span>`;
+    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>"${value}"</span>`;
   }
 
   if (Array.isArray(value)) {
-    return html`<span class="chip vector">vector(${value.length})</span>`;
+    return html`<span class=${classMap({'chip': true, 'vector': true, ...options?.extraClasses})}>vector(${value.length})</span>`;
   }
 
   if (typeof value === 'object') {
-    return html`<span class="chip struct">struct</span>`;
+    return html`<span class=${classMap({'chip': true, 'struct': true, ...options?.extraClasses})}>struct</span>`;
   }
 
-  return html`<span class="chip">${String(value)}</span>`;
+  return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>${String(value)}</span>`;
 }
 
 function unwrap(value: any): any {
@@ -118,19 +119,19 @@ function midiNoteName(note: number): string {
   return `${name}${octave}`;
 }
 
-function formatMidiStream(stream: any[]): TemplateResult {
+function formatMidiStream(stream: any[], options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (!stream || stream.length === 0) {
-    return html`<span class="chip midi-stream empty">[]</span>`;
+    return html`<span class=${classMap({'chip': true, 'midi-stream': true, 'empty': true, ...options?.extraClasses})}>[]</span>`;
   }
 
   // Show last few events
   const events = stream.slice(-3).map(formatMidiEvent).join(', ');
-  return html`<span class="chip midi-stream">[${events}]</span>`;
+  return html`<span class=${classMap({'chip': true, 'midi-stream': true, ...options?.extraClasses})}>[${events}]</span>`;
 }
 
-function formatStepSequence(sequence: any[]): TemplateResult {
+function formatStepSequence(sequence: any[], options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (!sequence || !Array.isArray(sequence)) {
-    return html`<span class="chip">invalid seq</span>`;
+    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>invalid seq</span>`;
   }
 
   const steps = sequence.map((rawStep, index) => {

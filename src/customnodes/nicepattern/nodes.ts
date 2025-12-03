@@ -167,7 +167,7 @@ export const chaosGenerator = defineNode({
   compileConfig: (uiConfig) => ({
     fields: {
       minNote: uiConfig?.minNote ?? 60,
-      maxNote: uiConfig?.maxNote ?? 72,
+      maxNote: uiConfig?.maxNote ?? 60,
       density: uiConfig?.density ?? 0.5,
       seed: uiConfig?.seed ?? 12345,
     },

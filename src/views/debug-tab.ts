@@ -101,6 +101,10 @@ export class DebugTab extends MobxLitElement {
         border: 1px solid #444;
       }
 
+      .chip.cached {
+        border-style: dashed;
+      }
+
       .chip.vector {
         background: #2a3f4a;
         color: #8dc1e3;
@@ -246,8 +250,7 @@ export class DebugTab extends MobxLitElement {
           <div class="value-row">
             <span class="field-name">${key}:</span>
             <span class="type-hint">${formatType(type)}</span>
-            ${formatValue(valueToRender, type)}
-            ${isCached ? html`<span style="font-size: 9px; color: #666; margin-left: 4px;">(cached)</span>` : ''}
+            ${formatValue(valueToRender, type, { extraClasses: { 'cached': isCached } })}
           </div>
         `);
       }
