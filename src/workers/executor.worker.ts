@@ -1,3 +1,4 @@
+import '../customnodes/debug/nodes';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
 import '../customnodes/curve/nodes';
@@ -187,11 +188,18 @@ function runTick() {
     sanitizedOutputs.set(nodeId, sanitizeStructorRecord(output));
   }
 
+  const rawInputs = executor.getInspectedInputs();
+  const sanitizedInputs = new Map<string, StructorRecord>();
+  for (const [nodeId, input] of rawInputs.entries()) {
+    sanitizedInputs.set(nodeId, sanitizeStructorRecord(input));
+  }
+
   const audioCommands = virtualAudioContext.flushCommands();
 
   const updateMsg: ExecutionUpdateMessage = {
     type: 'EXECUTION_UPDATE',
     outputs: sanitizedOutputs,
+    inputs: sanitizedInputs,
     stats: {
       nodeCount: executor.graphNodeCount,
       executionTime: endTime - startTime

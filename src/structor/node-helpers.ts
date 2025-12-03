@@ -31,6 +31,7 @@ export interface NodeUI {
   body?: () => Promise<any>;
   getBodyHeight?: () => Promise<any>;
   inputEditor?: () => Promise<any>;
+  getInputEditorHeight?: () => Promise<any>;
 }
 
 export interface ExtendedInputDef {
@@ -39,6 +40,7 @@ export interface ExtendedInputDef {
   defaultValue?: any;
   range?: [number, number];
   suppressInputEditor?: boolean;
+  alwaysShowInputEditor?: boolean;
   suppressLabel?: boolean;
   redirect?: string;
 }
@@ -58,6 +60,7 @@ export interface EnhancedNodeOptions<
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+  inspectInputs?: boolean;
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -69,6 +72,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: NodeOutputsDef;
   getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+  inspectInputs?: boolean;
 }
 
 export function defineNode<
@@ -109,7 +113,8 @@ export function defineNode<
     compileConfig: options.compileConfig,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
-    getPorts: options.getPorts
+    getPorts: options.getPorts,
+    inspectInputs: options.inspectInputs
   };
 }
 
@@ -126,6 +131,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
       defaultValue: isExtended ? val.defaultValue : undefined,
       range: isExtended ? val.range : undefined,
       suppressInputEditor: isExtended ? val.suppressInputEditor : undefined,
+      alwaysShowInputEditor: isExtended ? val.alwaysShowInputEditor : undefined,
       suppressLabel: isExtended ? val.suppressLabel : undefined,
       redirect: isExtended ? val.redirect : undefined,
     };
@@ -147,6 +153,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     outputs,
     compileConfig: def.compileConfig,
     getPorts: def.getPorts,
+    inspectInputs: def.inspectInputs,
   };
 
   // If UI is provided, we need to hook it up.

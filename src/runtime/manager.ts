@@ -28,6 +28,7 @@ export class RuntimeManager {
   // @observable executor: GraphExecutor | null = null;
 
   @observable outputs = new Map<string, any>();
+  @observable inputs = new Map<string, any>();
   @observable stats = {
     nodeCount: 0,
     executionTime: 0,
@@ -188,6 +189,18 @@ export class RuntimeManager {
         // Fallback if it comes as object
         for (const [key, value] of Object.entries(msg.outputs)) {
           this.outputs.set(key, value);
+        }
+      }
+      this.inputs.clear();
+      if (msg.inputs) {
+        if (msg.inputs instanceof Map) {
+          for (const [key, value] of msg.inputs.entries()) {
+            this.inputs.set(key, value);
+          }
+        } else {
+          for (const [key, value] of Object.entries(msg.inputs)) {
+            this.inputs.set(key, value);
+          }
         }
       }
       this.stats = msg.stats;

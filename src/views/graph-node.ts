@@ -601,6 +601,7 @@ export class GraphNode extends MobxLitElement {
   }
 
   private shouldShowInputEditor(input: PortHint, isConnected: boolean): boolean {
+    if (input.alwaysShowInputEditor) return true;
     if (isConnected) return false;
     if (input.suppressInputEditor) return false;
     return true;
@@ -675,6 +676,25 @@ export class GraphNode extends MobxLitElement {
     }
 
     // Input editor loading...
+    if (nodeType.ui.inputEditor && !this.loadedInputEditorRenderer && !this.hasRequestedInputEditorLoad) {
+      this.hasRequestedInputEditorLoad = true;
+      try {
+        const renderer = await nodeType.ui.inputEditor();
+        this.loadedInputEditorRenderer = renderer;
+        if (!nodeType.renderInputEditor) {
+          nodeType.renderInputEditor = renderer;
+        }
+
+        if (nodeType.ui.getInputEditorHeight) {
+           const heightFn = await nodeType.ui.getInputEditorHeight();
+           if (!nodeType.getInputEditorHeight) {
+             nodeType.getInputEditorHeight = heightFn;
+           }
+        }
+      } catch (e) {
+        console.error('Failed to load input editor renderer', e);
+      }
+    }
 
     this.requestUpdate();
   }

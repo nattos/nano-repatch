@@ -17,6 +17,7 @@ export class GraphExecutor {
   private downstreamMap: Map<string, string[]> = new Map();
   private graphInputs: Map<string, Structor> = new Map();
   private userNodeStates: Map<string, any> = new Map();
+  private inspectedInputs: Map<string, StructorRecord> = new Map();
 
   get graphNodeCount() {
     return this.executionOrder.length;
@@ -270,6 +271,11 @@ export class GraphExecutor {
 
       // Execute
       try {
+        // Capture inputs if requested
+        if ((definition as any).inspectInputs) {
+           this.inspectedInputs.set(nodeId, inputRecord);
+        }
+
         const result = definition.execute(inputRecord, state.config as any, executionContext);
         state.output = result;
         state.isDirty = false;
@@ -319,5 +325,9 @@ export class GraphExecutor {
 
   public getInputs(): Map<string, Structor> {
     return this.graphInputs;
+  }
+
+  public getInspectedInputs(): Map<string, StructorRecord> {
+    return this.inspectedInputs;
   }
 }

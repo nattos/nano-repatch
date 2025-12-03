@@ -115,6 +115,7 @@ export enum NodeCategory {
   Core = 'Core',
   Custom = 'Custom',
   Utility = 'Utility',
+  Debug = 'Debug',
 }
 
 export interface NodeMetadata {

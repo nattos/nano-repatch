@@ -1,0 +1,29 @@
+import { defineNode, registerNode } from '../../structor/node-helpers';
+import { NodeCategory } from '../../structor/structor';
+import { numberType } from '../../structor/std-types';
+
+export const debugScopeNode = defineNode({
+  id: 'debug.scope',
+  version: '1.0.0',
+  displayName: 'Scope',
+  metadata: {
+    category: NodeCategory.Debug,
+    keywords: ['debug', 'scope', 'chart', 'visualize'],
+    description: 'Visualizes input values over time.'
+  },
+  inputs: {
+    value: { type: numberType, suppressLabel: true, alwaysShowInputEditor: true }
+  },
+  outputs: {},
+  config: {},
+  inspectInputs: true,
+  ui: {
+    inputEditor: () => import('./nodes.ui').then(m => m.DebugScopeInputEditor),
+    getInputEditorHeight: () => Promise.resolve(() => 100)
+  },
+  execute: (inputs) => {
+    return {};
+  }
+});
+
+registerNode(debugScopeNode);

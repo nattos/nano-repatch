@@ -23,6 +23,7 @@ export interface PortHint {
   range?: [number, number];
   redirect?: 'untagged';
   suppressInputEditor?: boolean;
+  alwaysShowInputEditor?: boolean;
   suppressLabel?: boolean;
 }
 
@@ -99,7 +100,13 @@ export interface NodeType {
     getBodyHeight?: () => Promise<(node: GridNode) => number>;
     inspector?: () => Promise<(node: GridNode, onchange: InspectorChangeHandler) => unknown>;
     inputEditor?: () => Promise<(node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown>;
+    getInputEditorHeight?: () => Promise<(node: GridNode, portName: string) => number>;
   };
+
+  /**
+   * Whether to capture inputs for this node type in the executor.
+   */
+  inspectInputs?: boolean;
 }
 
 export class NodeRepository {
