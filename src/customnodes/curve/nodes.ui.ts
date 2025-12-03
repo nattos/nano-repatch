@@ -3,7 +3,7 @@ import { html } from 'lit';
 import '../../views/graph-widget';
 import { GraphWidgetConfig } from '../../views/graph-widget';
 
-import { appController } from '../../builder/controllers';
+import { appController, runtimeManager } from '../../builder/controllers';
 import { toJS } from 'mobx';
 
 import { customElement, property } from 'lit/decorators.js';
@@ -87,6 +87,26 @@ export class CurveInspector extends MobxLitElement {
         }
       }
     };
+
+    // Get input value for cursor
+    const inputs = runtimeManager.inputs.get(this.node.id);
+    let cursorValue: number | undefined = undefined;
+    if (inputs) {
+        if (inputs.fields && inputs.fields['value'] !== undefined) {
+            cursorValue = inputs.fields['value'];
+        } else if (inputs.untagged && inputs.untagged.length > 0) {
+            cursorValue = inputs.untagged[0];
+        }
+    }
+
+    // Normalize cursor if domain is not 0-1
+    if (cursorValue !== undefined) {
+        const [minIn, maxIn] = widgetConfig.domain || [0, 1];
+        cursorValue = (cursorValue - minIn) / (maxIn - minIn);
+        cursorValue = Math.max(0, Math.min(1, cursorValue));
+    }
+
+    widgetConfig.cursor = cursorValue;
 
     return html`
       <graph-widget style="pointer-events: auto;" .config=${widgetConfig}></graph-widget>

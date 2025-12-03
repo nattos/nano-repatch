@@ -24,6 +24,7 @@ export const curve_ease = defineNode({
     result: NumberType
   },
   autoBroadcast: true,
+  inspectInputs: true,
   /* UI registered in register-ui.ts */
   compileConfig: (uiConfig) => {
     return {

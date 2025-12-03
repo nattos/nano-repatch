@@ -28,6 +28,7 @@ export interface GraphWidgetConfig {
   onSegmentResize?: (segmentIndex: number, newWeight: number) => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
+  cursor?: number; // Normalized 0-1
 
   // Scope Mode
   data?: number[]; // History
@@ -64,16 +65,26 @@ export class GraphWidget extends MobxLitElement {
         stroke-width: 2;
         pointer-events: none;
       }
-      .handle-line {
+      .parameter-control {
+        cursor: ns-resize;
+      }
+      .parameter-bg {
+        fill: var(--accent-color, #00aaff);
+        opacity: 0.05;
+        transition: opacity 0.2s;
+      }
+      .parameter-control:hover .parameter-bg {
+        opacity: 0.15;
+      }
+      .parameter-line {
         stroke: var(--accent-color, #00aaff);
         stroke-width: 1;
-        stroke-dasharray: 4 4;
         vector-effect: non-scaling-stroke;
-        opacity: 0.7;
+        opacity: 0.6;
+        transition: all 0.2s;
       }
-      .handle-circle {
-        fill: var(--accent-color, #00aaff);
-        stroke: var(--node-bg, #333);
+      .parameter-control:hover .parameter-line {
+        opacity: 1;
         stroke-width: 2;
       }
       .split-handle {
@@ -434,6 +445,84 @@ export class GraphWidget extends MobxLitElement {
   @observable
   hoveredSplitIndex = -1;
 
+  private evaluateCurve(t: number): number {
+    if (!this.config || !this.config.segments) return 0;
+
+    const { range, segments } = this.config;
+    const [minY, maxY] = range || [0, 1];
+
+    // Find segment
+    const totalWeight = this.totalWeight;
+    const targetWeight = t * totalWeight;
+
+    let currentWeight = 0;
+    let matchedSegment = segments[segments.length - 1];
+    let segmentStartWeight = 0;
+
+    for (const segment of segments) {
+        if (targetWeight >= currentWeight && targetWeight <= currentWeight + segment.weight) {
+            matchedSegment = segment;
+            segmentStartWeight = currentWeight;
+            break;
+        }
+        currentWeight += segment.weight;
+    }
+
+    // Local T
+    const segmentWidthWeight = matchedSegment.weight;
+    const localT = (targetWeight - segmentStartWeight) / segmentWidthWeight;
+
+    // Evaluate
+    let normY = 0;
+    const curve = matchedSegment.curve;
+    const steps = curve.type === 'step' ? (curve.value ?? 2) : 1;
+
+    switch (curve.type) {
+      case 'exponential':
+        const exponent = Math.pow(10, -(curve.value ?? 0));
+        normY = Math.pow(localT, exponent);
+        break;
+      case 'linear':
+        normY = localT;
+        break;
+      case 'step':
+        if (steps <= 1) normY = 0;
+        else normY = Math.floor(localT * steps) / (steps - 1);
+        if (localT >= 0.999) normY = 1;
+        break;
+      case 'sin':
+        normY = -(Math.cos(Math.PI * localT) - 1) / 2;
+        break;
+      case 'quad':
+        normY = localT * localT;
+        break;
+      case 'points':
+         if (curve.points && curve.points.length > 0) {
+             const points = curve.points;
+             if (localT <= points[0].x) normY = points[0].y;
+             else if (localT >= points[points.length - 1].x) normY = points[points.length - 1].y;
+             else {
+                 for (let i = 0; i < points.length - 1; i++) {
+                     const p1 = points[i];
+                     const p2 = points[i+1];
+                     if (localT >= p1.x && localT <= p2.x) {
+                         const lt = (localT - p1.x) / (p2.x - p1.x);
+                         normY = p1.y + lt * (p2.y - p1.y);
+                         break;
+                     }
+                 }
+             }
+         } else {
+             normY = localT;
+         }
+         break;
+      default:
+        normY = localT;
+    }
+
+    return minY + normY * (maxY - minY);
+  }
+
   @action
   private handlePointerMove(e: PointerEvent) {
     const rect = this.getBoundingClientRect();
@@ -513,15 +602,82 @@ export class GraphWidget extends MobxLitElement {
 
         return html`
           <svg viewBox="0 0 220 96" preserveAspectRatio="none">
-            <defs>
-              <pattern id="grid-x" width="24" height="96" patternUnits="userSpaceOnUse">
-                 <path d="M 0 0 L 0 96" fill="none" class="grid-pattern" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid-x)" />
-            ${gridLines.map(y => svg`<line class="grid" x1="0" y1="${y}" x2="220" y2="${y}" />`)}
-            <line class="zero-line" x1="0" y1="${zeroY}" x2="220" y2="${zeroY}" />
-            <path d="${this.pathData}" fill="none" stroke="#00ff88" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <defs>
+                    <pattern id="grid-x" width="24" height="96" patternUnits="userSpaceOnUse">
+                        <path d="M 0 0 L 0 96" fill="none" class="grid-pattern" />
+                    </pattern>
+                    <pattern id="hash-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <line x1="0" y1="0" x2="0" y2="8" stroke="var(--accent-color)" stroke-width="4" opacity="0.1" />
+                    </pattern>
+                    ${this.config?.cursor !== undefined ? svg`
+                        <clipPath id="clip-left">
+                            <rect x="0" y="0" width="${this.config.cursor * 220}" height="96" />
+                        </clipPath>
+                        <clipPath id="clip-right">
+                            <rect x="${this.config.cursor * 220}" y="0" width="${220 - (this.config.cursor * 220)}" height="96" />
+                        </clipPath>
+                    ` : ''}
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid-x)" />
+                ${gridLines.map(y => svg`<line class="grid" x1="0" y1="${y}" x2="220" y2="${y}" />`)}
+                <line class="zero-line" x1="0" y1="${zeroY}" x2="220" y2="${zeroY}" />
+
+                <!-- Curve Fills -->
+                ${this.config?.cursor !== undefined ? svg`
+                    <!-- Left (Solid) -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="var(--accent-color)" fill-opacity="0.2"
+                          clip-path="url(#clip-left)" />
+
+                    <!-- Right (Hashed) -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="url(#hash-pattern)"
+                          clip-path="url(#clip-right)" />
+                ` : svg`
+                    <!-- Default Fill if no cursor -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="var(--accent-color)" fill-opacity="0.1" />
+                `}
+
+                <!-- Curve Stroke -->
+                <path class="curve" d="${this.pathData}" fill="none" stroke="#00ff88" stroke-width="2" vector-effect="non-scaling-stroke" />
+
+                <!-- Parameter Handles -->
+                ${this.config?.segments?.map((segment, i) => {
+                    if (!this.config?.interactive) return '';
+
+                    const l = this.segmentLayout[i];
+                    if (!l) return '';
+
+                    const { startX, endX } = l;
+
+                    // Only calculate handle for exponential curves
+                    let handleY = 0;
+                    let showHandle = false;
+
+                    if (segment.curve.type === 'exponential') {
+                        // Map segment.curve.value [-1, 1] to SVG Y coordinate [0, height]
+                        // value = 1 - 2*t
+                        // 2*t = 1 - value
+                        // t = (1 - value) / 2
+                        const t = (1 - (segment.curve.value ?? 0)) / 2;
+                        handleY = t * height;
+                        showHandle = true;
+                    }
+
+                    return showHandle ? svg`
+                        <g class="parameter-control">
+                            <!-- Vertical Sheer Bar -->
+                            <rect class="parameter-bg" x="${startX}" y="0" width="${endX - startX}" height="${height}" />
+
+                            <!-- Horizontal Solid Line -->
+                            <line class="parameter-line" x1="${startX}" y1="${handleY}" x2="${endX}" y2="${handleY}" />
+
+                            <!-- Handle Circle -->
+                            <circle class="parameter-handle" cx="${startX + (endX - startX) / 2}" cy="${handleY}" r="4" />
+                        </g>
+                    ` : '';
+                })}
           </svg>
         `;
     }
@@ -539,6 +695,17 @@ export class GraphWidget extends MobxLitElement {
                     <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
                         <path d="M 24 0 L 0 0 0 24" fill="none" class="grid-pattern" />
                     </pattern>
+                    <pattern id="hash-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <line x1="0" y1="0" x2="0" y2="8" stroke="var(--accent-color)" stroke-width="4" opacity="0.1" />
+                    </pattern>
+                    ${this.config?.cursor !== undefined ? svg`
+                        <clipPath id="clip-left">
+                            <rect x="0" y="0" width="${this.config.cursor * 220}" height="96" />
+                        </clipPath>
+                        <clipPath id="clip-right">
+                            <rect x="${this.config.cursor * 220}" y="0" width="${220 - (this.config.cursor * 220)}" height="96" />
+                        </clipPath>
+                    ` : ''}
                     <linearGradient id="curveGradient" x1="0" x2="0" y1="0" y2="1">
                         <stop offset="0%" stop-color="var(--accent-color)" stop-opacity="0.2" />
                         <stop offset="100%" stop-color="var(--accent-color)" stop-opacity="0.0" />
@@ -585,14 +752,60 @@ export class GraphWidget extends MobxLitElement {
 
                         <!-- Parameter Handle -->
                         ${this.config?.interactive && showHandle ? svg`
-                            <line class="handle-line" x1="${startX}" y1="${handleY}" x2="${endX}" y2="${handleY}"
-                                style="${isHovered ? 'opacity: 1; stroke-width: 2;' : ''}" />
-                            <circle class="handle-circle" cx="${centerX}" cy="${handleY}" r="${isHovered ? 6 : 4}" />
+                            <g class="parameter-control">
+                                <!-- Vertical Sheer Bar (Fill from bottom) -->
+                                <rect class="parameter-bg" x="${startX}" y="${handleY}" width="${endX - startX}" height="${height - handleY}" />
+
+                                <!-- Horizontal Solid Line -->
+                                <line class="parameter-line" x1="${startX}" y1="${handleY}" x2="${endX}" y2="${handleY}" />
+                            </g>
                         ` : ''}
                     `;
     })}
 
-                <path class="curve" d="${this.pathData} L 220 ${height} L 0 ${height} Z" />
+                <!-- Curve Fills -->
+                ${this.config?.cursor !== undefined ? svg`
+                    <!-- Left (Solid) -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="var(--accent-color)" fill-opacity="0.2"
+                          clip-path="url(#clip-left)" />
+
+                    <!-- Right (Hashed) -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="url(#hash-pattern)"
+                          clip-path="url(#clip-right)" />
+                ` : svg`
+                    <!-- Default Fill if no cursor -->
+                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                          fill="var(--accent-color)" fill-opacity="0.1" />
+                `}
+
+                <!-- Curve Stroke -->
+                <path class="curve" d="${this.pathData}" fill="none" />
+
+                <!-- Cursor -->
+                ${this.config?.cursor !== undefined ? (() => {
+                    const cursorX = this.config.cursor * 220;
+                    const valY = this.evaluateCurve(this.config.cursor);
+
+                    // Normalize Y for SVG (0 at bottom? No, 0 at top in SVG usually, but we inverted it?)
+                    // In pathData: svgY = height - (normalize(yVal) * height)
+                    const [minY, maxY] = this.config.range || [0, 1];
+                    const normalizedY = (valY - minY) / (maxY - minY);
+                    const cursorY = height - (Math.max(0, Math.min(1, normalizedY)) * height);
+
+                    return svg`
+                        <!-- Vertical Line -->
+                        <line class="cursor-line"
+                            x1="${cursorX}" y1="0"
+                            x2="${cursorX}" y2="${height}"
+                            stroke="var(--accent-color)" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"
+                            style="pointer-events: none;"
+                        />
+                        <!-- Intersection Point -->
+                        <circle cx="${cursorX}" cy="${cursorY}" r="3" fill="var(--accent-color)" stroke="var(--node-bg)" stroke-width="1" style="pointer-events: none;" />
+                    `;
+                })() : ''}
             </svg>
         `;
   }
