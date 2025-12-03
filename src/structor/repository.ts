@@ -129,6 +129,7 @@ defaultNodeRepository.register({
   id: 'math.add',
   version: '1.0.0',
   displayName: 'Add',
+  aliases: ['plus', 'sum'],
   definition: primitive_add,
   inputs: [
     { name: 'a', type: NumberType, description: 'Value A' },
@@ -225,6 +226,7 @@ defaultNodeRepository.register({
   id: 'math.subtract',
   version: '1.0.0',
   displayName: 'Subtract',
+  aliases: ['minus', 'difference'],
   definition: primitive_subtract,
   inputs: [
     { name: 'a', type: NumberType, description: 'Minuend' },
@@ -239,6 +241,7 @@ defaultNodeRepository.register({
   id: 'math.multiply',
   version: '1.0.0',
   displayName: 'Multiply',
+  aliases: ['times', 'product'],
   definition: primitive_multiply,
   inputs: [
     { name: 'a', type: NumberType, description: 'Factor A' },
@@ -253,6 +256,7 @@ defaultNodeRepository.register({
   id: 'math.divide',
   version: '1.0.0',
   displayName: 'Divide',
+  aliases: ['div', 'quotient'],
   definition: primitive_divide,
   inputs: [
     { name: 'a', type: NumberType, description: 'Dividend' },
@@ -579,6 +583,7 @@ defaultNodeRepository.register({
   id: 'io.input',
   version: '1.0.0',
   displayName: 'Input',
+  aliases: ['in', 'source'],
   definition: primitive_input,
   inputs: [],
   outputs: [
@@ -591,6 +596,7 @@ defaultNodeRepository.register({
   id: 'io.output',
   version: '1.0.0',
   displayName: 'Output',
+  aliases: ['out', 'sink'],
   definition: primitive_output,
   inputs: [
     { name: '0', type: AnyType, description: 'The output value.', suppressInputEditor: true, suppressLabel: true }

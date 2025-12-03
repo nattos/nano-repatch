@@ -2,7 +2,7 @@ import { LitElement, html, css, PropertyValueMap } from 'lit';
 import { customElement, property, query } from 'lit/decorators.js';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import { EditorState, StateEffect } from '@codemirror/state';
-import { autocompletion, CompletionContext, CompletionResult, startCompletion, closeCompletion, acceptCompletion } from '@codemirror/autocomplete';
+import { autocompletion, CompletionContext, CompletionResult, startCompletion, closeCompletion, acceptCompletion, completionKeymap } from '@codemirror/autocomplete';
 import { standardKeymap } from '@codemirror/commands';
 import { NodeCatalog } from '../structor/node-catalog';
 
@@ -146,6 +146,7 @@ export class SmartInput extends LitElement {
             return true;
           }
         },
+        ...completionKeymap,
         ...standardKeymap
       ]),
       placeholder(this.placeholder),
