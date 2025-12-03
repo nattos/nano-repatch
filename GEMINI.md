@@ -3,6 +3,33 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Pattern Node Polyphony & GraphExecutor Fixes (As of 2025-12-03)
+
+This entry documents the resolution of a critical bug where the `pattern` node failed to process multiple sequence inputs, and the underlying `GraphExecutor` issue that caused it.
+
+### Bug Fixes
+
+1.  **Pattern Node Polyphony:**
+    *   **Issue:** The `pattern` node was not correctly aggregating multiple inputs connected to its named `seq_in` port. Only one input was being processed.
+    *   **Root Cause:** The `GraphExecutor`'s input redirection logic (mapping named ports to untagged inputs via `redirect: 'untagged'`) was failing because the `redirect` metadata was being stripped during node registration in `defineNode`.
+    *   **Fix:**
+        *   Updated `defineNode` and `registerNode` in `src/structor/node-helpers.ts` to preserve the `redirect` property in the `inputs` definition.
+        *   Updated `GraphExecutor` in `src/structor/executor.ts` to correctly look up and respect the `redirect` metadata, allowing it to collect multiple inputs into the `untagged` array as expected by the `pattern` node's `autoBroadcast` configuration.
+        *   Refactored `pattern` node execution to maintain separate state for each input sequence, enabling true polyphony.
+
+2.  **Integration Test Fixes:**
+    *   **Issue:** The integration test `should process multiple sequence inputs on named port` was failing with a syntax error (`port` instead of `portIn` for destination).
+    *   **Fix:** Corrected the test case in `src/customnodes/nicepattern/nicepattern-integration.test.ts` to use `portIn`.
+
+3.  **Missing Node Registrations:**
+    *   **Issue:** Custom nodes (NicePattern, MIDI, Expression, Resolume) were not being registered in the worker environment because their registration was tied to UI-specific files.
+    *   **Fix:** Added explicit `registerNode` calls in the respective `nodes.ts` files for each module, ensuring they are available for execution even without the UI.
+
+### Verification
+
+*   **Integration Tests:** Validated that `src/customnodes/nicepattern/nicepattern-integration.test.ts` passes, confirming that the `pattern` node now correctly handles multiple inputs and generates polyphonic MIDI output.
+*   **Unit Tests:** Verified that all other tests pass.
+
 ## Resolume Inspector Refactor (As of 2025-12-01)
 
 This entry documents the refactoring of the Resolume Inspector into a dedicated LitElement component and the resolution of a critical worker crash.

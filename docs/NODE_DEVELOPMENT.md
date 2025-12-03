@@ -98,7 +98,24 @@ export const integratorNode = definePrimitiveNode({
 *   **Symptom:** The graph executor (which runs in a Web Worker) will crash with `ReferenceError: window is not defined`.
 *   **Fix:** Keep node logic pure. If you need UI-specific rendering (like inspectors), keep that code in separate files (e.g., `src/views/`) and do not import it into the node definition or state files.
 
-## 6. Case Study: Developing the Curve Ease Node
+## 6. Advanced Input Handling: Redirection
+
+Sometimes you want a named input port in the UI (e.g., `seq_in`) to collect multiple connections into a single array in the `untagged` input list. This is useful for nodes that process variable numbers of inputs but want a labeled connection point.
+
+```typescript
+inputs: {
+  seq_in: {
+    type: sequenceStructorType,
+    description: 'Input sequence(s)',
+    redirect: 'untagged' // <--- The magic property
+  }
+}
+```
+
+*   **Effect:** Connections to `seq_in` are routed to the `untagged` array in the `inputs` record passed to `execute`.
+*   **Usage:** Combine this with `autoBroadcast: { seq_in: { combine: 'collect', fromUntagged: true } }` to automatically aggregate these inputs.
+
+## 7. Case Study: Developing the Curve Ease Node
 
 This section journals the development of the `curve.ease` node to illustrate real-world challenges and solutions.
 
