@@ -132,7 +132,7 @@ export interface PrimitiveNodeDefinition {
   kind: 'primitive';
   metadata?: NodeMetadata;
   configType?: StructorType;
-  inputs?: Record<string, StructorType>; // Exposed for reflection (e.g. tests)
+  inputs?: Record<string, StructorType & { redirect?: string }>; // Exposed for reflection (e.g. tests)
 
   /** Static analysis function: computes output types from input types. */
   computeOutputTypes: (

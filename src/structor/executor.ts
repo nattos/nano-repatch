@@ -180,7 +180,12 @@ export class GraphExecutor {
 
             // Check for port redirection (e.g. named port -> untagged)
             const nodeType = this.repository.getNodeType(instance.definitionId);
-            const portHint = nodeType?.inputs?.find(p => p.name === toPort);
+            let portHint;
+            if (typeof toPort === 'string') {
+              portHint = nodeType?.inputs?.find(p => p.name === toPort);
+            } else if (typeof toPort === 'number') {
+              portHint = nodeType?.inputs?.[toPort];
+            }
             const redirect = portHint?.redirect;
 
             let value: Structor;

@@ -29,6 +29,7 @@ export interface ExtendedInputDef {
   range?: [number, number];
   suppressInputEditor?: boolean;
   suppressLabel?: boolean;
+  redirect?: string;
 }
 
 export type ExtendedNodeInputsDef = Record<string, StructorType | ExtendedInputDef>;
@@ -75,7 +76,11 @@ export function defineNode<
        simpleInputs[key] = val as StructorType;
     } else if ('type' in val) {
        // It's ExtendedInputDef
-       simpleInputs[key] = (val as ExtendedInputDef).type;
+       // We need to preserve redirect info on the type object itself if possible,
+       // or we need to change how simpleInputs is constructed.
+       // Since StructorType is an object, we can mix in the redirect property.
+       const type = (val as ExtendedInputDef).type;
+       simpleInputs[key] = { ...type, redirect: (val as ExtendedInputDef).redirect };
     }
   }
 
@@ -111,6 +116,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
       range: isExtended ? val.range : undefined,
       suppressInputEditor: isExtended ? val.suppressInputEditor : undefined,
       suppressLabel: isExtended ? val.suppressLabel : undefined,
+      redirect: isExtended ? val.redirect : undefined,
     };
   });
 

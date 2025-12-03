@@ -280,6 +280,32 @@ describe('NicePattern Integration', () => {
     expect(note62).toBeDefined();
   });
 
+  it('should process multiple sequence inputs on named port', () => {
+    const { executor, getOutput } = compileAndRunwithOutput(
+      {
+        'gen1': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
+        'gen2': { typeId: 'nicepattern:rhythmic_generator', config: { targetNote: 62, density: 1.0 } },
+        'pat': { typeId: 'nicepattern:pattern', config: {} }
+      },
+      [
+        { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
+        { from: 'gen2', port: 'seq_out', to: 'pat', portIn: 'seq_in' }
+      ],
+      'pat', 'midi_out'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0.1 } });
+    const stream = getOutput() as any[];
+
+    expect(stream).toBeDefined();
+    // Should have notes from both generators
+    const note60 = stream.find(e => e.fields.type === 'note_on' && e.fields.note === 60);
+    const note62 = stream.find(e => e.fields.type === 'note_on' && e.fields.note === 62);
+
+    expect(note60).toBeDefined();
+    expect(note62).toBeDefined();
+  });
+
   it('should generate chaos sequence', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
