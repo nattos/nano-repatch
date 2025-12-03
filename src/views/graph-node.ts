@@ -653,10 +653,21 @@ export class GraphNode extends MobxLitElement {
     if (nodeType.ui.inspector && !this.loadedInspectorRenderer && !this.hasRequestedInspectorLoad) {
       this.hasRequestedInspectorLoad = true;
       try {
-        const renderer = await nodeType.ui.inspector();
-        this.loadedInspectorRenderer = renderer;
-        if (!nodeType.renderInspector) {
+        if (typeof nodeType.ui.inspector === 'function') {
+          const renderer = await nodeType.ui.inspector();
+          this.loadedInspectorRenderer = renderer;
+          if (!nodeType.renderInspector) {
             nodeType.renderInspector = renderer;
+          }
+        } else {
+          // It's a GenericInspector config object
+          const { createGenericInspector } = await import('./inspector/generic-inspector');
+          const inspectorConfig = nodeType.ui.inspector as any;
+          const renderer = createGenericInspector(inspectorConfig.fields);
+          this.loadedInspectorRenderer = renderer;
+          if (!nodeType.renderInspector) {
+            nodeType.renderInspector = renderer;
+          }
         }
       } catch (e) {
         console.error('Failed to load inspector renderer', e);

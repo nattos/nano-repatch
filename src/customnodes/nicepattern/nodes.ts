@@ -6,7 +6,7 @@ import {
   NodeType,
 } from "../../structor/repository";
 import { defineType, typedBroadcast } from "../../structor/type-helpers";
-import { defineNode, registerNode } from "../../structor/node-helpers";
+import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { numberType, booleanType, anyType, midiStreamType, midiEventType } from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
 import { SeededRandom } from "./utils";
@@ -73,6 +73,24 @@ const noteEventStructorType = defineType({
 
 const SEQUENCE_LENGTH = 16;
 
+// --- UI Field Definitions ---
+
+const RhythmicFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Target Note', path: 'targetNote' },
+  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 }
+];
+
+const ChaosFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Min Note', path: 'minNote' },
+  { type: 'number', label: 'Max Note', path: 'maxNote' },
+  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 },
+  { type: 'number', label: 'Seed', path: 'seed' }
+];
+
+const LayerFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Target Note', path: 'targetNote' }
+];
+
 // --- Node Implementations ---
 
 // RhythmicGenerator
@@ -88,7 +106,7 @@ export const rhythmicGenerator = defineNode({
   config: { targetNote: numberType, density: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
-  /* UI registered in register-ui.ts */
+  ui: { inspector: { fields: RhythmicFields } },
   execute: (inputs, config, context) => {
     const targetNote = config.targetNote;
     // Use input density if available, otherwise config density
@@ -127,7 +145,7 @@ export const chaosGenerator = defineNode({
   config: { minNote: numberType, maxNote: numberType, density: numberType, seed: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
-  /* UI registered in register-ui.ts */
+  ui: { inspector: { fields: ChaosFields } },
   execute: (inputs, config, context) => {
     const { minNote, maxNote, seed } = config;
     // Use input density if available, otherwise config density
@@ -242,8 +260,6 @@ export const pattern = defineNode({
 
 // ...
 
-
-
 // --- Layer Nodes ---
 
 export function createLayerNode(
@@ -269,6 +285,7 @@ export function createLayerNode(
     autoBroadcast: {
       midi_in: { combine: { reduce: 'first' } }
     },
+    ui: { inspector: { fields: LayerFields } },
     isRealtime: () => true,
     createState: (config, context) => {
       return {
@@ -346,6 +363,7 @@ export const toneSynthLayer = defineNode({
   autoBroadcast: {
     midi_in: { combine: { reduce: 'first' } }
   },
+  ui: { inspector: { fields: LayerFields } },
   isRealtime: () => true,
   createState: (config, context) => {
     return {

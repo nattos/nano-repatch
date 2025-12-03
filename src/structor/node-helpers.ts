@@ -15,8 +15,19 @@ import { defaultNodeRepository, PortHint, NodeType } from './repository';
 
 // --- Enhanced Node Definition ---
 
+export type InspectorFieldDef =
+  | { type: 'string'; label: string; path: string; placeholder?: string }
+  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number }
+  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number }
+  | { type: 'boolean'; label: string; path: string }
+  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[] };
+
+export interface GenericInspector {
+  fields: InspectorFieldDef[];
+}
+
 export interface NodeUI {
-  inspector?: () => Promise<any>;
+  inspector?: (() => Promise<any>) | GenericInspector;
   body?: () => Promise<any>;
   getBodyHeight?: () => Promise<any>;
   inputEditor?: () => Promise<any>;

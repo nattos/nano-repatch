@@ -1,4 +1,4 @@
-import { defineNode, registerNode } from "../../structor/node-helpers";
+import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { AnyType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
 import { NodeCategory } from "../../structor/structor";
@@ -26,6 +26,10 @@ function getCompiledGraph(code: string): ExecutionGraph {
   }
 }
 
+const ExpressionFields: InspectorFieldDef[] = [
+  { type: 'string', label: 'Expression', path: 'code', placeholder: 'e.g. sin(time) * 0.5' }
+];
+
 export const expressionNode = defineNode({
   id: "logic.expression",
   version: "1.0.0",
@@ -43,6 +47,7 @@ export const expressionNode = defineNode({
     result: AnyType
   },
   autoBroadcast: false, // We handle raw inputs
+  ui: { inspector: { fields: ExpressionFields } },
   execute: (inputs, config, context) => {
     const code = config.code || "";
     if (!code.trim()) {

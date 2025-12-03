@@ -1,4 +1,4 @@
-import { defineNode, registerNode } from "../../structor/node-helpers";
+import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { NodeCategory } from "../../structor/structor";
 import { midiStreamType, numberType } from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
@@ -6,6 +6,40 @@ import { MidiEvent } from "../../io/midi/types";
 // Helper to parse MIDI status
 const getStatusType = (status: number) => status & 0xF0;
 const getChannel = (status: number) => (status & 0x0F) + 1;
+
+// --- UI Field Definitions ---
+
+const MidiInputFields: InspectorFieldDef[] = [
+  { type: 'string', label: 'Device ID', path: 'deviceId', placeholder: 'Optional Device ID' }
+];
+
+const MidiCcInputFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Channel', path: 'channel', min: 1, max: 16, step: 1 },
+  { type: 'number', label: 'CC', path: 'cc', min: 0, max: 127, step: 1 },
+  { type: 'string', label: 'Device ID', path: 'deviceId', placeholder: 'Optional Device ID' }
+];
+
+const MidiCcFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Channel', path: 'channel', min: 1, max: 16, step: 1 },
+  { type: 'number', label: 'CC', path: 'cc', min: 0, max: 127, step: 1 }
+];
+
+const MidiNoteFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Channel', path: 'channel', min: 1, max: 16, step: 1 },
+  { type: 'number', label: 'Note', path: 'note', min: 0, max: 127, step: 1 }
+];
+
+const MidiToMonoFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Channel', path: 'channel', min: 1, max: 16, step: 1 },
+  { type: 'number', label: 'Root Note', path: 'rootNote', min: 0, max: 127, step: 1 },
+  {
+    type: 'select', label: 'Priority', path: 'priority', options: [
+      { label: 'Last Note', value: 'last' },
+      { label: 'Low Note', value: 'low' },
+      { label: 'High Note', value: 'high' }
+    ]
+  }
+];
 
 export const midiInputNode = defineNode({
   id: "midi.input",
@@ -23,6 +57,7 @@ export const midiInputNode = defineNode({
   outputs: {
     stream: midiStreamType
   },
+  ui: { inspector: { fields: MidiInputFields } },
   isRealtime: () => true,
   execute: (inputs, config, context) => {
     // Access MIDI state from context
@@ -61,6 +96,7 @@ export const midiCcInputNode = defineNode({
   outputs: {
     value: numberType
   },
+  ui: { inspector: { fields: MidiCcInputFields } },
   isRealtime: () => true,
   execute: (inputs, config, context) => {
     const channel = (config.channel as number) || 1;
@@ -98,6 +134,7 @@ export const midiCcNode = defineNode({
   outputs: {
     value: numberType
   },
+  ui: { inspector: { fields: MidiCcFields } },
   createState: () => ({ value: 0 }),
   execute: (inputs, config, context, state) => {
     const channel = (config.channel as number) || 1;
@@ -142,6 +179,7 @@ export const midiNoteNode = defineNode({
     velocity: numberType,
     gate: numberType
   },
+  ui: { inspector: { fields: MidiNoteFields } },
   createState: () => ({ velocity: 0, gate: 0 }),
   execute: (inputs, config, context, state) => {
     const channel = (config.channel as number) || 1;
@@ -197,6 +235,7 @@ export const midiToMonoNode = defineNode({
     gate: numberType,
     frequency: numberType
   },
+  ui: { inspector: { fields: MidiToMonoFields } },
   createState: () => ({
     activeNotes: [] as { note: number, velocity: number }[], // Stack for last-note priority
     gate: 0

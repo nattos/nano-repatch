@@ -115,7 +115,36 @@ inputs: {
 *   **Effect:** Connections to `seq_in` are routed to the `untagged` array in the `inputs` record passed to `execute`.
 *   **Usage:** Combine this with `autoBroadcast: { seq_in: { combine: 'collect', fromUntagged: true } }` to automatically aggregate these inputs.
 
-## 7. Case Study: Developing the Curve Ease Node
+## 7. Generic Inspector Fields
+
+To simplify creating inspector panels, we provide a generic inspector factory. You can define the inspector directly in your node registration using a configuration object.
+
+```typescript
+import { registerNode, InspectorFieldDef } from '../../structor/node-helpers';
+
+const MyFields: InspectorFieldDef[] = [
+  { type: 'number', label: 'Frequency', path: 'freq', min: 20, max: 20000 },
+  { type: 'slider', label: 'Gain', path: 'gain', min: 0, max: 1, step: 0.01 },
+  { type: 'select', label: 'Type', path: 'type', options: [
+    { label: 'Sine', value: 'sine' },
+    { label: 'Square', value: 'square' }
+  ]}
+];
+
+registerNode({
+  ...myNodeDef,
+  ui: {
+    inspector: { fields: MyFields }
+  }
+});
+```
+
+This automatically handles:
+*   Rendering the UI with correct metrics (24px row height).
+*   Binding to `node.config[path]`.
+*   Calling `onchange` updates.
+
+## 8. Case Study: Developing the Curve Ease Node
 
 This section journals the development of the `curve.ease` node to illustrate real-world challenges and solutions.
 

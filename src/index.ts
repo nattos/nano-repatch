@@ -6,7 +6,7 @@ import { globalStyles } from './styles';
 import './structor/repository.ui';
 
 import './index.css';
-import './customnodes/nicepattern/register-ui';
+import './customnodes/nicepattern/nodes';
 import './customnodes/midi/register-ui';
 import './customnodes/expr/register-ui';
 import './customnodes/resolume/register-ui';

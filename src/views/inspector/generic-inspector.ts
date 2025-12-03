@@ -2,13 +2,7 @@ import { html, TemplateResult } from 'lit';
 import { GridNode } from '../../builder/state';
 import { InspectorChangeHandler } from '../../structor/repository';
 import { ROW_HEIGHT } from '../../constants';
-
-export type InspectorFieldDef =
-  | { type: 'string'; label: string; path: string; placeholder?: string }
-  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number }
-  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number }
-  | { type: 'boolean'; label: string; path: string }
-  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[] };
+import { InspectorFieldDef } from '../../structor/node-helpers';
 
 const getValue = (node: GridNode, path: string, defaultValue?: any) => {
   const val = node.config?.[path];

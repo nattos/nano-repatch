@@ -1,4 +1,4 @@
-import { defineNode, registerNode } from '../../structor/node-helpers';
+import { defineNode, registerNode, InspectorFieldDef } from '../../structor/node-helpers';
 import { defineType } from '../../structor/type-helpers';
 import { resolumeManager } from '../../io/resolume/manager';
 import { NodeCategory } from '../../structor/structor';
@@ -6,6 +6,10 @@ import { numberType } from '../../structor/std-types';
 
 const anyType = defineType({ kind: 'atomic', type: 'any' });
 const stringType = defineType({ kind: 'atomic', type: 'string' });
+
+const ResolumeFields: InspectorFieldDef[] = [
+  { type: 'string', label: 'Path', path: 'path', placeholder: '/composition/...' }
+];
 
 export const resolumeInputNode = defineNode({
   id: 'resolume.input',
@@ -25,6 +29,7 @@ export const resolumeInputNode = defineNode({
   },
   autoBroadcast: false,
   isRealtime: () => true, // Inputs change over time
+  ui: { inspector: { fields: ResolumeFields } },
 
   createState: (config, context) => {
     // Initial state
@@ -91,6 +96,7 @@ export const resolumeOutputNode = defineNode({
   },
   outputs: {},
   autoBroadcast: true,
+  ui: { inspector: { fields: ResolumeFields } },
 
   createState: (config, context) => {
     return { lastValue: undefined as any };
