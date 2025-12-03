@@ -747,8 +747,10 @@ export class GraphNode extends MobxLitElement {
         }
       });
 
+      const hasCustomBody = !!(nodeType?.renderBody || this.loadedBodyRenderer);
+
       let state = 'normal';
-      if (!hasVisibleSliders) {
+      if (!hasVisibleSliders && !hasCustomBody) {
         if (inputs.length <= 1 && outputs.length <= 1) {
           state = 'minimal';
         } else if (inputs.length <= 3 && outputs.length <= 3) {
