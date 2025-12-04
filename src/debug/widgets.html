@@ -54,6 +54,7 @@
         import { LitElement, html, css } from 'lit';
         import { makeAutoObservable, observable } from 'mobx';
         import '../views/graph-widget.ts';
+        import '../views/scalar-slider.ts';
 
         // 1. Single Segment Config
         class DebugConfig {
@@ -254,8 +255,31 @@
                 <input type="checkbox" id="interactive" checked>
             </label>
         </div>
-        <div class="widget-area">
+        <div class="widget-area" style="flex-direction: column; gap: 20px; align-items: stretch;">
             <!-- Widget will be injected here -->
+
+            <!-- Widget will be injected here -->
+
+            <div style="background: #333; padding: 20px; border-radius: 8px;">
+                <h3>Scalar Slider Examples</h3>
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                    <label style="width: 150px;">Default</label>
+                    <scalar-slider value="0" defaultValue="0" style="width: 220px;"></scalar-slider>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                    <label style="width: 150px;">Range (0-100)</label>
+                    <scalar-slider min="0" max="100" value="50" defaultValue="0" style="width: 220px;"></scalar-slider>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                    <label style="width: 150px;">Step (0.1)</label>
+                    <scalar-slider step="0.1" value="0.5" defaultValue="0.5" style="width: 220px;"></scalar-slider>
+                </div>
+                <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                    <label style="width: 150px;">Integer (Step 1)</label>
+                    <scalar-slider step="1" value="10" defaultValue="10" style="width: 220px;"></scalar-slider>
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 </body>

@@ -9,6 +9,7 @@ import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
 import { parseFloatOr } from '../utils/utils';
 import '../components/smart-input';
+import './scalar-slider';
 import { NodeCatalog } from '../structor/node-catalog';
 import './graph-port';
 import { globalStyles } from '../styles';
@@ -297,14 +298,7 @@ export class GraphNode extends MobxLitElement {
       width: auto; /* Let flex handle width */
       padding: 0;
       margin: 0 ${LABEL_PADDING_X}px;
-      height: ${SLIDER_HEIGHT}px; /* Standard slider height */
-      /* border-radius: 3px; */
-      /* border: 1px solid var(--border-color); */
-      /* background-color: var(--input-bg); */
-      /* color: var(--text-color); */
-      /* font-size: 0.8em; */
-      /* box-sizing: border-box; */
-      cursor: pointer;
+      /* height: ${ROW_HEIGHT}px; Removed to allow slider to be 22px */
     }
 
 
@@ -960,21 +954,32 @@ export class GraphNode extends MobxLitElement {
           editorContent = html`
                 <div class="virtual-input-field-wrapper" style="height: var(--row-height);">
                   <div class="slider-label" title="${input.name}">${input.name}</div>
-                  <input
-                    id="${this.node.id}-${input.name}-virtual-input"
-                    type="${isNumber ? 'range' : 'text'}"
-                    .min=${input.range?.[0]?.toString() || '0'}
-                    .max=${input.range?.[1]?.toString() || '1'}
-                    .step=${isNumber && input.range ? ((input.range[1] - input.range[0]) / 100).toString() : '0.01'}
-                    .value=${currentValue.toString()}
-                    @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
-                    @change=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
-                    class="virtual-input-field"
-                    title="${input.description}"
-                  />
-                  <div class="slider-label" title="${outputName}">${outputName}</div>
-                </div>
-             `;
+                  ${isNumber ? html`
+                          <scalar-slider
+                            .min=${input.range?.[0] ?? 0}
+                            .max=${input.range?.[1] ?? 1}
+                            .step=${input.range ? (input.range[1] - input.range[0]) / 100 : 0.01}
+                            .value=${currentValue}
+                            .defaultValue=${input.range?.[0] ?? 0}
+                            @change=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}
+                            class="virtual-input-field"
+                            title="${input.description}"
+                          ></scalar-slider>
+                        `
+                      : html`
+                          <input
+                            id="${this.node.id}-${input.name}-virtual-input"
+                            type="text"
+                            .value=${currentValue.toString()}
+                            @input=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
+                            @change=${(e: Event) => this.handleVirtualInputChange(e, input.name)}
+                            class="virtual-input-field"
+                            title="${input.description}"
+                          />
+                        `}
+                    <div class="slider-label" title="${outputName}">${outputName}</div>
+                  </div>
+          `;
         }
 
         if (editorContent) {

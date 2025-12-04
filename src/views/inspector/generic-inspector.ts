@@ -37,22 +37,20 @@ const renderNumberField = (node: GridNode, field: Extract<InspectorFieldDef, { t
   </div>
 `;
 
+import '../../views/scalar-slider';
+
 const renderSliderField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'slider' }>, onchange: InspectorChangeHandler) => html`
   <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
     <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
-    <div style="display: flex; align-items: center; gap: 4px; flex: 1; justify-content: flex-end;">
-      <input
-        type="range"
+    <div style="flex: 1; margin-left: 8px; max-width: 120px;">
+      <scalar-slider
         .value=${getValue(node, field.path, field.min)}
-        min=${field.min}
-        max=${field.max}
-        step=${field.step || 0.01}
-        @input=${(e: Event) => onchange({ [field.path]: parseFloat((e.target as HTMLInputElement).value) })}
-        style="flex: 1; max-width: 80px;"
-      />
-      <span style="font-size: 0.7em; width: 30px; text-align: right; color: var(--text-muted);">
-        ${Number(getValue(node, field.path, field.min)).toFixed(2)}
-      </span>
+        .min=${field.min}
+        .max=${field.max}
+        .step=${field.step || 0.01}
+        @change=${(e: CustomEvent) => onchange({ [field.path]: e.detail })}
+        style="width: 100%;"
+      ></scalar-slider>
     </div>
   </div>
 `;
