@@ -103,7 +103,9 @@ export class SmartInput extends LitElement {
       ".cm-tooltip": {
         backgroundColor: "#333",
         color: "#eee",
-        border: "1px solid #555"
+        border: "1px solid #555",
+        position: "fixed",
+        zIndex: "99999"
       },
       ".cm-tooltip-autocomplete": {
         "& > ul > li[aria-selected]": {
@@ -163,16 +165,22 @@ export class SmartInput extends LitElement {
 
             if (isUserEvent) {
               const results = this.catalog.search(this.value);
+              let previewId: string | null = null;
+
               if (results.length > 0) {
                 const top = results[0];
                 if (top.type === 'node' && top.id) {
-                  this.lastPreviewedId = top.id;
-                  this.dispatchEvent(new CustomEvent('preview-type', { detail: top.id }));
-                } else {
-                  this.lastPreviewedId = null;
+                  previewId = top.id;
                 }
+              }
+
+              if (previewId) {
+                this.lastPreviewedId = previewId;
+                this.dispatchEvent(new CustomEvent('preview-type', { detail: previewId }));
               } else {
                 this.lastPreviewedId = null;
+                // If no valid preview, revert to current value
+                this.dispatchEvent(new CustomEvent('preview-type', { detail: this.value }));
               }
 
               startCompletion(this.editorView!);
@@ -221,6 +229,13 @@ export class SmartInput extends LitElement {
 
   updated(changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>) {
     if (changedProperties.has('value') && this.editorView) {
+      // If the new value matches what we just previewed, and we are in the middle of typing,
+      // we do NOT want to replace the editor content with the full ID.
+      // The user is still typing "hu", we don't want to force "utils.hub".
+      if (this.lastPreviewedId && this.value === this.lastPreviewedId) {
+        return;
+      }
+
       const currentDoc = this.editorView.state.doc.toString();
       if (currentDoc !== this.value) {
         this.editorView.dispatch({

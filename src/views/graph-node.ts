@@ -478,6 +478,9 @@ export class GraphNode extends MobxLitElement {
     const typeId = e.detail;
 
     if (this.typeLongEdit) {
+      this.typeLongEdit.applyAgain((c: AppController) => {
+        c.setNodeConfig(this.node.id, { typeId });
+      });
       this.typeLongEdit.accept();
       this.typeLongEdit = null;
     } else {
@@ -1027,7 +1030,7 @@ export class GraphNode extends MobxLitElement {
                   .autofocus=${true}
                   @commit=${(e: CustomEvent) => this.handleEditCommit('name', e)}
                   @cancel=${this.handleEditCancel}
-                  style="position: absolute; top: -6px; left: -8px; width: calc(100% + 8px); height: calc(100% + 4px);"
+                  style="position: absolute; top: -6px; left: -8px; min-width: 150px; min-height: 24px; width: calc(100% + 8px); height: calc(100% + 4px); z-index: 100;"
                 ></smart-input>
               ` : ''}
             </div>
@@ -1046,8 +1049,9 @@ export class GraphNode extends MobxLitElement {
                   .value=${this.node.config.typeId}
                   .autofocus=${true}
                   @commit=${(e: CustomEvent) => this.handleEditCommit('type', e)}
+                  @preview-type=${this.handleSmartTypePreview.bind(this)}
                   @cancel=${this.handleEditCancel}
-                  style="position: absolute; top: -6px; left: -8px; width: calc(100% + 8px); height: calc(100% + 4px);"
+                  style="position: absolute; top: -6px; left: -8px; min-width: 150px; min-height: 24px; width: calc(100% + 8px); height: calc(100% + 4px); z-index: 100;"
                 ></smart-input>
               ` : ''}
             </div>
