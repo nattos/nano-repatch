@@ -10,6 +10,7 @@ import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
 import { defaultNodeRepository } from '../structor/repository';
 import { globalStyles } from '../styles';
+import { GRID_UNIT, GRID_GAP } from '../constants';
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -498,10 +499,179 @@ export class GraphGrid extends MobxLitElement {
     this.popup = null;
   }
 
-  render() {
-    const { nodes, connections } = appController.observableState.graph.inner;
+  private getNodeHeight(nodeId: string): number {
+    const node = appController.observableState.graph.inner.nodes[nodeId];
+    if (!node) return 80;
 
-    // Render Grid Cells
+    const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+    let inputs = nodeType?.inputs || [];
+    let outputs = nodeType?.outputs || [];
+
+    if (nodeType?.getPorts) {
+      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+      if (dynamicInfo) {
+        inputs = dynamicInfo.inputs;
+        outputs = dynamicInfo.outputs;
+      }
+    }
+
+    // Calculate ports height
+    // Reuse logic from GraphNode roughly
+    // We assume standard row height 24
+    // We don't easily know custom input editor heights here without instantiating them or duplicating logic.
+    // For now, assume standard 24px per port.
+
+    let totalInputHeight = 0;
+    inputs.forEach(input => {
+        // Check if input editor would be shown?
+        // GraphNode logic: if (alwaysShow || !connected && !suppress)
+        // We need connections to know if connected.
+        const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
+        const isConnected = incoming.some(cid => {
+            const c = appController.observableState.graph.inner.connections[cid];
+            return c && c.toPort === input.name;
+        });
+
+        let h = 24; // ROW_HEIGHT
+
+        // Check for custom input editor height
+        // We need to know if the editor is actually shown.
+        // Logic: if (alwaysShow || !connected && !suppress)
+
+        const showEditor = (input.alwaysShowInputEditor || (!isConnected && !input.suppressInputEditor));
+
+        if (showEditor) {
+             // Try to get custom height
+             if (nodeType?.getInputEditorHeight) {
+                 h = nodeType.getInputEditorHeight(node, input.name);
+             } else if (nodeType?.ui?.getInputEditorHeight) {
+                 // This is async/lazy, we can't await here easily.
+                 // But typically if it's loaded, we might have access?
+                 // For now, let's hardcode a check for known large inputs if needed,
+                 // or rely on the fact that we should have the height if it's registered.
+                 // Actually, `getInputEditorHeight` in `ui` returns a Promise of a function.
+                 // We can't use it synchronously.
+
+                 // HACK: For debug.scope, we know it's 96px.
+                 // We can check if the input has a specific tag or type?
+                 // Or just check if it's `debug.scope` and `value` port?
+                 if (node.config.typeId === 'debug.scope' && input.name === 'value') {
+                     h = 96;
+                 }
+             }
+        }
+
+        totalInputHeight += h;
+    });
+
+    const totalOutputHeight = outputs.length * 24;
+    const portsHeight = Math.max(totalInputHeight, totalOutputHeight, 24);
+
+    const bodyHeight = nodeType?.getBodyHeight?.(node) || 0;
+
+    // Check for custom body in UI definition
+    // If it has a custom body but no getBodyHeight, we should assume a standard large height?
+    // debug.scope is ~96px body.
+    // curve.ease is ~96px body.
+    // If we don't know, we might under-calculate.
+    // Let's assume if it has a custom body, it's at least 96px?
+    let estimatedBodyHeight = bodyHeight;
+    if (estimatedBodyHeight === 0 && (nodeType?.renderBody || nodeType?.ui?.body)) {
+        estimatedBodyHeight = 96;
+    }
+
+    // Check minimal state
+    // If <=1 ports and no body/sliders...
+    // We reused getNodeWidth logic for this check.
+    const width = this.getNodeWidth(nodeId);
+    if (width === 80) return 80; // Minimal
+
+    return 24 + portsHeight + 8 + estimatedBodyHeight; // Header + Ports + Padding + Body
+  }
+
+  private getRowHeight(gridY: number): number {
+    const nodes = Object.values(appController.observableState.graph.inner.nodes);
+    const rowNodes = nodes.filter(n => n.y === gridY);
+    if (rowNodes.length === 0) return 80; // Default
+
+    let maxH = 0;
+    for (const node of rowNodes) {
+        const h = this.getNodeHeight(node.id);
+        if (h > maxH) maxH = h;
+    }
+    return maxH;
+  }
+
+  private getNodeWidth(nodeId: string): number {
+    const node = appController.observableState.graph.inner.nodes[nodeId];
+    if (!node) return 272; // Default to normal
+
+    const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+    let inputs = nodeType?.inputs || [];
+    let outputs = nodeType?.outputs || [];
+
+    // Dynamic ports check
+    if (nodeType?.getPorts) {
+      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+      if (dynamicInfo) {
+        inputs = dynamicInfo.inputs;
+        outputs = dynamicInfo.outputs;
+      }
+    }
+
+    const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
+
+    // Check for visible sliders
+    // Logic must match GraphNode.render:
+    // hasVisibleSliders = inputs.some(i => shouldShowInputEditor(i, isConnected))
+
+    const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
+    const connectedPorts = new Set(incoming.map(cid => {
+        const c = appController.observableState.graph.inner.connections[cid];
+        return c ? c.toPort : null;
+    }));
+
+    const hasVisibleSliders = inputs.some(input => {
+        if (input.alwaysShowInputEditor) return true;
+        if (connectedPorts.has(input.name)) return false;
+        return input.defaultValue !== undefined;
+    });
+
+    if (hasCustomBody || hasVisibleSliders) return 272;
+
+    if (inputs.length <= 1 && outputs.length <= 1) return 80;
+    if (inputs.length <= 3 && outputs.length <= 3) return 176;
+    return 272;
+  }
+
+  private getNodePortY(nodeId: string, portName: string, isInput: boolean): number {
+    const node = appController.observableState.graph.inner.nodes[nodeId];
+    if (!node) return 40; // Default center-ish
+
+    const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+    let ports = isInput ? (nodeType?.inputs || []) : (nodeType?.outputs || []);
+
+    if (nodeType?.getPorts) {
+      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+      if (dynamicInfo) {
+        ports = isInput ? dynamicInfo.inputs : dynamicInfo.outputs;
+      }
+    }
+
+    const index = ports.findIndex(p => p.name === portName);
+    if (index === -1) return 40;
+
+    // Metric calculation:
+    // Header: 24
+    // Padding Y: 8
+    // Row Height: 24
+    // Pip Offset Y (from row top): 12
+    // Y = 24 + 8 + (index * 24) + 12
+    return 24 + 8 + (index * 24) + 12;
+  }
+
+  private renderGridCells() {
+    const { nodes } = appController.observableState.graph.inner;
     const cells = [];
 
     // Calculate dynamic grid size
@@ -518,7 +688,8 @@ export class GraphGrid extends MobxLitElement {
 
     // Input Column (x=0)
     for (let y = 0; y < rows; y++) {
-      cells.push(html`<div class="cell node-cell" data-x="0" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2};"></div>`);
+      const rowHeight = this.getRowHeight(y);
+      cells.push(html`<div class="cell node-cell" data-x="0" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
       // Gap below input?
       cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
     }
@@ -529,15 +700,16 @@ export class GraphGrid extends MobxLitElement {
 
       for (let y = 0; y < rows; y++) {
         const rowIdx = 2 * y + 2;
+        const rowHeight = this.getRowHeight(y);
 
         // Node Cell
-        cells.push(html`<div class="cell node-cell" data-x="${x}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx};"></div>`);
+        cells.push(html`<div class="cell node-cell" data-x="${x}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
 
         // Gap below Node (Row 2*y+3) -> Horizontal Line
         cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
 
         // Gap to the left (Col 2*x) -> Vertical Line
-        cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx};"></div>`);
+        cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
 
         // Corner (Gap left + Gap below) -> Cross
         cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx + 1};"></div>`);
@@ -547,12 +719,26 @@ export class GraphGrid extends MobxLitElement {
     // Output Column
     const outputCol = 2 * cols + 3;
     for (let y = 0; y < rows; y++) {
-      cells.push(html`<div class="cell node-cell" data-x="output" data-y="${y}" style="grid-column: ${outputCol}; grid-row: ${2 * y + 2};"></div>`);
+      const rowHeight = this.getRowHeight(y);
+      cells.push(html`<div class="cell node-cell" data-x="output" data-y="${y}" style="grid-column: ${outputCol}; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
       cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${outputCol}; grid-row: ${2 * y + 3};"></div>`);
       // Gap to left of output
-      cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 2};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
       cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 3};"></div>`);
     }
+    return cells;
+  }
+
+  render() {
+    const { nodes, connections } = appController.observableState.graph.inner;
+
+    // Output Column calculation for node placement
+    let maxNodeX = 0;
+    for (const node of Object.values(nodes)) {
+      if (node.x > maxNodeX) maxNodeX = node.x;
+    }
+    const cols = Math.max(maxNodeX + 3, 8);
+    const outputCol = 2 * cols + 3;
 
     return html`
       ${this.selectionBox ? html`
@@ -573,7 +759,7 @@ export class GraphGrid extends MobxLitElement {
       ` : ''}
 
       <div class="grid-container">
-        ${cells}
+        ${this.renderGridCells()}
 
         ${Object.values(connections).flatMap(conn => {
       const wireLayout = localController.observableState.wireLayout.wires[conn.id];
@@ -615,12 +801,21 @@ export class GraphGrid extends MobxLitElement {
       const elements = [];
 
       if (wireLayout && wireLayout.path.length > 0) {
-        for (let i = 1; i < wireLayout.path.length - 1; i++) {
+        // Iterate ALL points to include terminal segments inside nodes
+        for (let i = 0; i < wireLayout.path.length; i++) {
           const curr = wireLayout.path[i];
           const prev = i > 0 ? wireLayout.path[i - 1] : null;
           const next = i < wireLayout.path.length - 1 ? wireLayout.path[i + 1] : null;
           const col = Math.round(2 * curr.x + 1);
           const row = Math.round(2 * curr.y + 2);
+
+          // Determine Row Type and Metrics
+          const isNodeRow = (row % 2 === 0);
+          // For Node Rows, we use the actual row height for vertical segments,
+          // but we center horizontal lanes based on the standard node height (GRID_UNIT).
+          // This ensures wires pass through the "top" part of tall nodes, aligning with standard nodes.
+          const cellHeight = isNodeRow ? this.getRowHeight(curr.y) : GRID_GAP;
+          const cellCenterY = isNodeRow ? (GRID_UNIT / 2) : (GRID_GAP / 2);
 
           // Identify neighbors
           let leftNeighbor = null;
@@ -633,11 +828,6 @@ export class GraphGrid extends MobxLitElement {
             else if (prev.x > curr.x) rightNeighbor = prev;
             else if (prev.y < curr.y) topNeighbor = prev;
             else if (prev.y > curr.y) bottomNeighbor = prev;
-          } else {
-            // Start of wire (From Node)
-            // Assume standard flow: Output -> Input (Left -> Right)
-            // So From Node is on the Left.
-            leftNeighbor = { x: curr.x - 0.5, y: curr.y }; // Virtual neighbor
           }
 
           if (next) {
@@ -661,10 +851,6 @@ export class GraphGrid extends MobxLitElement {
             return 0;
           };
 
-          // Calculate Intersection Point (laneX, laneY)
-          // laneX comes from vertical neighbors (Top/Bottom)
-          // laneY comes from horizontal neighbors (Left/Right)
-
           let laneX = 0;
           let laneY = 0;
 
@@ -672,14 +858,8 @@ export class GraphGrid extends MobxLitElement {
           else if (bottomNeighbor) laneX = getLaneOffset(curr, bottomNeighbor);
 
           if (leftNeighbor) {
-            // Check if virtual
-            if (leftNeighbor === prev || leftNeighbor === next) {
-              laneY = getLaneOffset(curr, leftNeighbor);
-            } else {
-              // Virtual neighbor (start of wire). Use 0 or try to infer?
-              // Usually 0 for port connection.
-              laneY = 0;
-            }
+            if (leftNeighbor !== prev && leftNeighbor !== next) laneY = 0;
+            else laneY = getLaneOffset(curr, leftNeighbor);
           } else if (rightNeighbor) {
             laneY = getLaneOffset(curr, rightNeighbor);
           }
@@ -702,30 +882,140 @@ export class GraphGrid extends MobxLitElement {
             appController.deleteConnection(conn.id);
           };
 
-          // Render Segments meeting at (center + laneX, center + laneY)
+          // --- Port Alignment & Vertical Connector Logic ---
 
+          // Determine absolute Y positions for Left and Right connection points
+          // Default to Lane Y (relative to cell center)
+          let leftAbsY = cellCenterY + laneY;
+          let rightAbsY = cellCenterY + laneY;
+
+          // Override if connecting to Start Node (Left side of Gap 1)
+          if (i === 1 && leftNeighbor === prev) {
+             const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+             const rowHeight = this.getRowHeight(prev!.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+
+             const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+             leftAbsY = nodeOffsetY + startPortY - 6; // Bias up by half pip height (adjusted from 7)
+          }
+
+          // Override for Start Node (i=0) - Right connection
+          if (i === 0) {
+             const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+             const rowHeight = this.getRowHeight(curr.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+             const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+             rightAbsY = nodeOffsetY + startPortY - 6;
+          }
+
+          // Override if connecting to End Node (Right side of Gap last-1)
+          if (i === wireLayout.path.length - 2 && rightNeighbor === next) {
+             const nodeHeight = this.getNodeHeight(conn.toNodeId);
+             const rowHeight = this.getRowHeight(next!.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+
+             const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+             rightAbsY = nodeOffsetY + endPortY - 6; // Bias up by half pip height (adjusted from 7)
+          }
+
+          // Override for End Node (i=last) - Left connection
+          if (i === wireLayout.path.length - 1) {
+             const nodeHeight = this.getNodeHeight(conn.toNodeId);
+             const rowHeight = this.getRowHeight(curr.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+             const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+             leftAbsY = nodeOffsetY + endPortY - 6;
+          }
+
+          // Render Segments
+
+          // LEFT SEGMENT
           if (leftNeighbor) {
-            elements.push(html`<div class="wire-segment" style="${commonStyle} width: calc(50% + ${laneX}px); height: 2px; justify-self: start; align-self: center; transform: translateY(${laneY}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
-          }
-          if (rightNeighbor) {
-            elements.push(html`<div class="wire-segment" style="${commonStyle} width: calc(50% - ${laneX}px); height: 2px; justify-self: end; align-self: center; transform: translateY(${laneY}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
-          }
-          if (topNeighbor) {
-            elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: calc(50% + ${laneY}px); justify-self: center; align-self: start; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
-          }
-          if (bottomNeighbor) {
-            elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: calc(50% - ${laneY}px); justify-self: center; align-self: end; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+            let y = leftAbsY;
+            let style = `${commonStyle} width: calc(50% + ${laneX}px); height: 2px; justify-self: start; align-self: start; top: ${y}px;`;
+
+            // Special case: If i=last (End Node), left neighbor is the Gap.
+            // We draw the segment to the edge of the centered node.
+            if (i === wireLayout.path.length - 1) {
+               const nodeWidth = this.getNodeWidth(conn.toNodeId);
+               style = `${commonStyle} width: calc(50% - ${nodeWidth / 2}px); height: 2px; justify-self: start; align-self: start; top: ${y}px;`;
+            }
+
+            elements.push(html`<div class="wire-segment" style="${style}" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
           }
 
-          // Center Cap (Optional, but good for smooth corners if gaps exist due to rendering)
-          // With calc(), they should meet perfectly.
-          // But let's add a small square at the intersection to be safe and cover sub-pixel artifacts?
-          // elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: 2px; justify-self: center; align-self: center; transform: translate(${laneX}px, ${laneY}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          // RIGHT SEGMENT
+          if (rightNeighbor) {
+            let y = rightAbsY;
+            let style = `${commonStyle} width: calc(50% - ${laneX}px); height: 2px; justify-self: end; align-self: start; top: ${y}px;`;
+
+            // Special case: If i=0 (Start Node), right neighbor is Gap.
+            // We draw the segment from the edge of the centered node.
+            if (i === 0) {
+               const nodeWidth = this.getNodeWidth(conn.fromNodeId);
+               style = `${commonStyle} width: calc(50% - ${nodeWidth / 2}px); height: 2px; justify-self: end; align-self: start; top: ${y}px;`;
+            }
+
+            elements.push(html`<div class="wire-segment" style="${style}" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          // VERTICAL SEGMENTS (Turns)
+          // If topNeighbor, we draw line up.
+          if (topNeighbor) {
+             // From center(laneX, laneY) to top.
+             // top: 0. height: cellCenterY + laneY.
+             // align-self: start.
+
+             let h = cellCenterY + laneY;
+             let top = 0;
+
+             // Override if i=last (End Node) and wire comes from Top
+             if (i === wireLayout.path.length - 1) {
+                 const nodeHeight = this.getNodeHeight(conn.toNodeId);
+                 const rowHeight = this.getRowHeight(curr.y);
+                 const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+                 const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+                 h = nodeOffsetY + endPortY - 6;
+             }
+
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; transform: translateX(${laneX}px); top: ${top}px;" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          if (bottomNeighbor) {
+             // From center(laneX, laneY) to bottom.
+             // top: cellCenterY + laneY. height: remaining.
+             // align-self: start.
+
+             let top = cellCenterY + laneY;
+             let h = cellHeight - top;
+
+             // Override if i=0 (Start Node) and wire goes to Bottom
+             if (i === 0) {
+                 const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+                 const rowHeight = this.getRowHeight(curr.y);
+                 const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+                 const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+                 top = nodeOffsetY + startPortY - 6;
+                 h = cellHeight - top;
+             }
+
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; top: ${top}px; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          // VERTICAL CONNECTOR (Gap Adjustment)
+          // If leftAbsY != rightAbsY, and we have Left & Right neighbors (Straight-ish wire through cell)
+          if (leftNeighbor && rightNeighbor && Math.abs(leftAbsY - rightAbsY) > 1) {
+             const minY = Math.min(leftAbsY, rightAbsY);
+             const h = Math.abs(leftAbsY - rightAbsY) + 2; // +2 for overlap
+             // Position at center + laneX
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; top: ${minY - 1}px; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
         }
       }
 
       return elements;
     })}
+
 
         ${Object.values(nodes).map(node => {
       const isQueued = localController.observableState.queuedSelection.has(node.id);
