@@ -37,6 +37,7 @@ export const DebugScopeInputEditor = (node: GridNode, portName: string, handlers
     <graph-widget
       .config=${{ mode: 'scope', autoRange: true, showGrid: true, historySize: 100 }}
       .value=${value}
+      .tick=${runtimeManager.frame}
     ></graph-widget>
   `;
 };

@@ -24,4 +24,4 @@ export const debugScopeNode = defineNode({
   }
 });
 
-registerNode(debugScopeNode);
+// registerNode(debugScopeNode);

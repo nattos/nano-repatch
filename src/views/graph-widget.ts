@@ -45,6 +45,9 @@ export class GraphWidget extends MobxLitElement {
   @property({ type: Number })
   value?: number;
 
+  @property({ type: Number })
+  tick = 0;
+
   // Scope State
   private history: number[] = [];
   private smoothedRange = 1.0;
@@ -111,7 +114,7 @@ export class GraphWidget extends MobxLitElement {
   }
 
   updated(changedProperties: Map<string, any>) {
-    if (changedProperties.has('value') && this.value !== undefined) {
+    if ((changedProperties.has('value') || changedProperties.has('tick')) && this.value !== undefined) {
       this.history.push(this.value);
       const maxSize = this.config?.historySize || 100;
       if (this.history.length > maxSize) this.history.shift();

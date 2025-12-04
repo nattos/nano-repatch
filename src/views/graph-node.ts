@@ -687,6 +687,9 @@ export class GraphNode extends MobxLitElement {
       try {
         const renderer = await nodeType.ui.inputEditor();
         this.loadedInputEditorRenderer = renderer;
+        if (!nodeType.renderInputEditor) {
+          nodeType.renderInputEditor = renderer;
+        }
         if (nodeType.ui.getInputEditorHeight) {
            const heightFn = await nodeType.ui.getInputEditorHeight();
            if (!nodeType.getInputEditorHeight) {

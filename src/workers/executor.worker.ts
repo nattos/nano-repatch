@@ -1,4 +1,4 @@
-import '../customnodes/debug/nodes';
+import '../customnodes/debug/nodes.worker';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
 import '../customnodes/curve/nodes';

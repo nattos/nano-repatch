@@ -9,7 +9,7 @@ import { toJS } from 'mobx';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from '../../views/mobx-lit-element';
 import { GridNode } from '../../builder/state';
-import { GraphNodeRenderHandlers, InspectorChangeHandler } from '../../structor/repository';
+import { GraphNodeRenderHandlers, InspectorChangeHandler, defaultNodeRepository } from '../../structor/repository';
 
 @customElement('curve-inspector')
 export class CurveInspector extends MobxLitElement {
@@ -21,7 +21,8 @@ export class CurveInspector extends MobxLitElement {
   render() {
     if (!this.node) return html``;
 
-    const easingConfig = (this.node.config.values?.easing as any as GraphWidgetConfig | undefined) ?? {
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    let defaultEasing = {
       domain: [0, 1],
       range: [0, 1],
       segments: [{
@@ -31,10 +32,19 @@ export class CurveInspector extends MobxLitElement {
       }]
     };
 
+    if (nodeType && nodeType.inputs) {
+      const easingInput = nodeType.inputs.find(i => i.name === 'easing');
+      if (easingInput && easingInput.defaultValue) {
+        defaultEasing = easingInput.defaultValue;
+      }
+    }
+
+    const easingConfig = (this.node.config.values?.easing as any as GraphWidgetConfig | undefined) ?? defaultEasing;
+
     const widgetConfig: GraphWidgetConfig = {
-      domain: easingConfig.domain,
-      range: easingConfig.range,
-      segments: easingConfig.segments,
+      domain: easingConfig.domain as any,
+      range: easingConfig.range as any,
+      segments: easingConfig.segments as any,
       interactive: true,
       onInteractionStart: () => {
         this.longEdit = appController.beginLongEdit({

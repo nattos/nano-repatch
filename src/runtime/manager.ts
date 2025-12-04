@@ -34,6 +34,7 @@ export class RuntimeManager {
     executionTime: 0,
   };
   @observable isRealtimeGraph = false;
+  @observable frame = 0;
 
   private nodeRepository = defaultNodeRepository;
   private realtimeNodeCache = new Map<string, boolean>();
@@ -204,6 +205,7 @@ export class RuntimeManager {
         }
       }
       this.stats = msg.stats;
+      this.frame++;
     });
 
     if (msg.audioCommands) {

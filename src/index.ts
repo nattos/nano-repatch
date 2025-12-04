@@ -10,7 +10,7 @@ import './customnodes/nicepattern/nodes';
 import './customnodes/midi/nodes';
 import './customnodes/expr/nodes';
 import './customnodes/resolume/nodes';
-import './customnodes/debug/nodes';
+// import './customnodes/debug/nodes';
 import './customnodes/debug/register-ui';
 import './customnodes/curve/register-ui';
 import './views/workspace-layout';
