@@ -49,6 +49,9 @@ export class GraphNode extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
 
+  @property({ attribute: false })
+  incomingConnections: string[] = [];
+
   @property({ type: Boolean })
   isQueued = false;
 
@@ -681,10 +684,6 @@ export class GraphNode extends MobxLitElement {
       try {
         const renderer = await nodeType.ui.inputEditor();
         this.loadedInputEditorRenderer = renderer;
-        if (!nodeType.renderInputEditor) {
-          nodeType.renderInputEditor = renderer;
-        }
-
         if (nodeType.ui.getInputEditorHeight) {
            const heightFn = await nodeType.ui.getInputEditorHeight();
            if (!nodeType.getInputEditorHeight) {
@@ -698,6 +697,7 @@ export class GraphNode extends MobxLitElement {
 
     this.requestUpdate();
   }
+
 
   updated(changedProperties: Map<string, any>) {
     if (this.node && this.node.config.typeId !== this.currentTypeId) {
@@ -733,7 +733,9 @@ export class GraphNode extends MobxLitElement {
         }
       }
 
-      const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(this.node.id) || [];
+      // Use passed property or fallback to store (though prop should be primary)
+      const incomingConnections = this.incomingConnections || appController.observableState.graph.auxiliary.incomingConnections.get(this.node.id) || [];
+
       const connectedPorts = new Set(incomingConnections.map(connId => {
         const conn = appController.observableState.graph.inner.connections[connId];
         return conn ? conn.toPort : null;

@@ -634,7 +634,8 @@ export class GraphGrid extends MobxLitElement {
     const hasVisibleSliders = inputs.some(input => {
         if (input.alwaysShowInputEditor) return true;
         if (connectedPorts.has(input.name)) return false;
-        return input.defaultValue !== undefined;
+        if (input.suppressInputEditor) return false;
+        return true;
     });
 
     if (hasCustomBody || hasVisibleSliders) return 272;
@@ -966,7 +967,7 @@ export class GraphGrid extends MobxLitElement {
              // top: 0. height: cellCenterY + laneY.
              // align-self: start.
 
-             let h = cellCenterY + laneY;
+             let h = cellCenterY + laneY + 1;
              let top = 0;
 
              // Override if i=last (End Node) and wire comes from Top
@@ -1005,7 +1006,7 @@ export class GraphGrid extends MobxLitElement {
           // VERTICAL CONNECTOR (Gap Adjustment)
           // If leftAbsY != rightAbsY, and we have Left & Right neighbors (Straight-ish wire through cell)
           if (leftNeighbor && rightNeighbor && Math.abs(leftAbsY - rightAbsY) > 1) {
-             const minY = Math.min(leftAbsY, rightAbsY);
+             const minY = Math.min(leftAbsY, rightAbsY) + 1;
              const h = Math.abs(leftAbsY - rightAbsY) + 2; // +2 for overlap
              // Position at center + laneX
              elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; top: ${minY - 1}px; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
@@ -1019,6 +1020,7 @@ export class GraphGrid extends MobxLitElement {
 
         ${Object.values(nodes).map(node => {
       const isQueued = localController.observableState.queuedSelection.has(node.id);
+      const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(node.id) || [];
 
       // Calculate grid position
       let col = 0;
@@ -1031,6 +1033,7 @@ export class GraphGrid extends MobxLitElement {
       return html`
             <graph-node
               .node=${node}
+              .incomingConnections=${incomingConnections}
               .isQueued=${isQueued}
               .x=${node.x}
               .y=${node.y}
