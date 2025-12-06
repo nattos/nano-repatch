@@ -30,7 +30,7 @@ export class ScalarSlider extends LitElement {
       font-size: 12px;
       color: var(--text-color, #ccc);
       background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--selection-border, rgba(0, 170, 255, 0.5));
+      border: 1px solid var(--selection-border, rgba(255, 69, 0, 0.5));
       border-radius: 2px;
       box-sizing: border-box;
       touch-action: none;
@@ -38,18 +38,18 @@ export class ScalarSlider extends LitElement {
     }
 
     :host(:hover) {
-      border-color: var(--accent-color, #00aaff);
+      border-color: var(--accent-color, #ff4500);
       background: rgba(0, 0, 0, 0.3);
     }
 
     :host([dragging]) {
-      border-color: var(--accent-color, #00aaff);
-      color: var(--accent-color, #00aaff);
-      /* background: var(--selection-color, rgba(0, 170, 255, 0.1)); Remove full background on drag */
+      border-color: var(--accent-color, #ff4500);
+      color: var(--accent-color, #ff4500);
+      /* background: var(--selection-color, rgba(255, 69, 0, 0.1)); Remove full background on drag */
     }
 
     :host(:focus) {
-      border-color: var(--accent-color, #00aaff);
+      border-color: var(--accent-color, #ff4500);
       outline: none;
     }
 
@@ -63,19 +63,19 @@ export class ScalarSlider extends LitElement {
         45deg,
         transparent 0px,
         transparent 3px,
-        var(--selection-color, rgba(0, 170, 255, 0.1)) 3px,
-        var(--selection-color, rgba(0, 170, 255, 0.1)) 4px
+        var(--selection-color, rgba(255, 69, 0, 0.1)) 3px,
+        var(--selection-color, rgba(255, 69, 0, 0.1)) 4px
       );
       background-size: 22px 22px; /* Explicit size to ensure right-anchoring works */
       background-position: 100% 0; /* Anchor to right edge */
       pointer-events: none;
       z-index: 0;
-      border-right: 1px solid var(--accent-color, #00aaff); /* Vertical line */
+      border-right: 1px solid var(--accent-color, #ff4500); /* Vertical line */
       transition: border-right-width 0.1s ease-out;
     }
 
     :host([dragging]) .bar {
-      background-color: var(--selection-color, rgba(0, 170, 255, 0.1));
+      background-color: var(--selection-color, rgba(255, 69, 0, 0.1));
       border-right-width: 3px; /* Thicker on drag */
       opacity: 1;
     }

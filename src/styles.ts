@@ -25,22 +25,28 @@ export const globalStyles = [
     --app-hi-color4: #FFDA63;
     --app-text-color1: #DDDDDD;
     --app-text-color2: #AAAAAA;
-    --app-bg-color1: #222222;
-    --app-bg-color2: #313131;
+    /* Saturated Dark Blue-Grey Backgrounds */
+    --app-bg-color1: #16171a;
+    --app-bg-color2: #1f2228;
 
     /* Semantic Theme Variables */
-    --bg-color: #212020ff;
-    --panel-bg: #2a2a2aff;
-    --panel-header-bg: #2a2a2a;
-    --node-bg: #333;
-    --node-border: #444;
-    --text-color: #ddd;
-    --text-muted: #aaa;
+    --bg-color: var(--app-bg-color1);
+    /* Glassy Panels */
+    --panel-bg: rgba(31, 34, 40, 0.9);
+    --panel-header-bg: rgba(31, 34, 40, 0.95);
+
+    /* Glassy Nodes */
+    --node-bg: rgba(31, 34, 40, 0.85);
+    /* Subtle light border for glass effect */
+    --node-border: rgba(255, 255, 255, 0.1);
+
+    --text-color: var(--app-text-color1);
+    --text-muted: var(--app-text-color2);
     --border-color: #555;
-    --accent-color: #00aaff;
-    --selection-color: rgba(0, 170, 255, 0.1);
-    --selection-border: rgba(0, 170, 255, 0.5);
-    --port-color: #555;
+    --accent-color: var(--app-hi-color1);
+    --selection-color: rgba(255, 69, 0, 0.2); /* app-hi-color1 with opacity */
+    --selection-border: rgba(255, 69, 0, 0.6); /* app-hi-color1 with opacity */
+    --port-color: #666; /* Slightly lighter for visibility on dark BG */
     --port-hover: #777;
     --port-connected: #00ff00;
     --input-bg: #444;

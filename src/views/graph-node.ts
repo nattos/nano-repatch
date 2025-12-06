@@ -162,9 +162,11 @@ export class GraphNode extends MobxLitElement {
 
     .node {
       position: absolute;
-      background-color: var(--panel-bg);
+      background-color: var(--node-bg);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       display: flex;
       flex-direction: column;
       /* overflow: hidden; */

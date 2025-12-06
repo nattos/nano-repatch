@@ -64,7 +64,7 @@ export class GraphWidget extends MobxLitElement {
       }
       path.curve {
         fill: url(#curveGradient);
-        stroke: var(--accent-color, #00aaff);
+        stroke: var(--accent-color, #ff4500);
         stroke-width: 2;
         pointer-events: none;
       }
@@ -72,7 +72,7 @@ export class GraphWidget extends MobxLitElement {
         cursor: ns-resize;
       }
       .parameter-bg {
-        fill: var(--accent-color, #00aaff);
+        fill: var(--accent-color, #ff4500);
         opacity: 0.05;
         transition: opacity 0.2s;
       }
@@ -80,7 +80,7 @@ export class GraphWidget extends MobxLitElement {
         opacity: 0.15;
       }
       .parameter-line {
-        stroke: var(--accent-color, #00aaff);
+        stroke: var(--accent-color, #ff4500);
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
         opacity: 0.6;
