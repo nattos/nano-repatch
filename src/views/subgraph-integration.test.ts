@@ -81,6 +81,6 @@ describe('GraphNode Subgraph Integration', () => {
     // Find the min input
     const minInput = Array.from(virtualInputs).find(i => i.id.includes('min'));
     expect(minInput).to.exist;
-    expect((minInput as HTMLInputElement).value).to.equal('0.5');
+    expect((minInput as any).value).to.equal(0.5);
   });
 });

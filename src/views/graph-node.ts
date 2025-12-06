@@ -962,6 +962,7 @@ export class GraphNode extends MobxLitElement {
                             .value=${currentValue}
                             .defaultValue=${input.range?.[0] ?? 0}
                             @change=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}
+                            id="${this.node.id}-${input.name}-virtual-input"
                             class="virtual-input-field"
                             title="${input.description}"
                           ></scalar-slider>
