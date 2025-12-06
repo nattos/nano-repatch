@@ -1,12 +1,25 @@
 import { html, TemplateResult } from 'lit';
 import { GridNode } from '../../builder/state';
-import { InspectorChangeHandler } from '../../structor/repository';
+import { InspectorChangeHandler, defaultNodeRepository } from '../../structor/repository';
 import { ROW_HEIGHT } from '../../constants';
 import { InspectorFieldDef } from '../../structor/node-helpers';
 
-const getValue = (node: GridNode, path: string, defaultValue?: any) => {
+const getValue = (node: GridNode, path: string, fallback: any) => {
+  // 1. Try config value
   const val = node.config?.[path];
-  return val !== undefined ? val : defaultValue;
+  if (val !== undefined) return val;
+
+  // 2. Try input definition defaultValue
+  const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+  if (nodeType && nodeType.inputs) {
+    const input = nodeType.inputs.find(i => i.name === path);
+    if (input && input.defaultValue !== undefined) {
+      return input.defaultValue;
+    }
+  }
+
+  // 3. Fallback
+  return fallback;
 };
 
 const renderStringField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'string' }>, onchange: InspectorChangeHandler) => html`

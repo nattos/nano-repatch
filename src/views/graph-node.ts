@@ -999,7 +999,7 @@ export class GraphNode extends MobxLitElement {
                             .max=${input.range?.[1] ?? 1}
                             .step=${input.range ? (input.range[1] - input.range[0]) / 100 : 0.01}
                             .value=${currentValue}
-                            .defaultValue=${input.range?.[0] ?? 0}
+                            .defaultValue=${input.defaultValue ?? Math.max(input.range?.[0] ?? 0, Math.min(input.range?.[1] ?? 1, 0))}
                             @change=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}
                             id="${this.node.id}-${input.name}-virtual-input"
                             class="virtual-input-field"
