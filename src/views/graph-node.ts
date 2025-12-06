@@ -569,6 +569,23 @@ export class GraphNode extends MobxLitElement {
     appController.setNodeConfig(this.node.id, { name: target.value });
   }
 
+  /*
+   * Handles updates from virtual inputs (sliders/fields).
+   *
+   * @param e - The event (InputEvent or ChangeEvent).
+   * @param portName - The name of the input port.
+   *
+   * STRATEGY FOR UNDO HISTORY:
+   * 1. 'input' Event (Live update):
+   *    - Starts or continues a "Long Edit" transaction via `appController.beginLongEdit`.
+   *    - Updates the state but does NOT push to undo history stack yet.
+   *
+   * 2. 'change' Event (Commit):
+   *    - Ends the "Long Edit" transaction.
+   *    - Pushes the final state to the undo history stack.
+   *
+   * This prevents dragging a slider from creating hundreds of undo steps.
+   */
   private handleVirtualInputChange(e: Event, portName: string) {
     const target = e.target as HTMLInputElement;
     const value = parseFloatOr(target.value) ?? 0;
@@ -1018,6 +1035,7 @@ export class GraphNode extends MobxLitElement {
                             .step=${input.range ? (input.range[1] - input.range[0]) / 100 : 0.01}
                             .value=${currentValue}
                             .defaultValue=${input.defaultValue ?? Math.max(input.range?.[0] ?? 0, Math.min(input.range?.[1] ?? 1, 0))}
+                            @input=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}
                             @change=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}
                             id="${this.node.id}-${input.name}-virtual-input"
                             class="virtual-input-field"

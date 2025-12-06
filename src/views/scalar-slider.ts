@@ -237,16 +237,25 @@ export class ScalarSlider extends LitElement {
 
     if (newValue !== this.value) {
       this.value = newValue;
-      this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
+      // EMIT INPUT: Use for live preview (dragging).
+      // Does NOT trigger undo history in GraphNode because it starts a "Long Edit".
+      this.dispatchEvent(new CustomEvent('input', { detail: this.value }));
     }
   };
 
   private handlePointerUp = (e: PointerEvent) => {
+    const wasDragging = this.isDragging;
     this.cleanupDrag(e.pointerId);
 
-    if (!this.isDragging) {
-       this.focus();
+    if (wasDragging) {
+      // EMIT CHANGE: Use for commit (release).
+      // Triggers undo history in GraphNode by ending the "Long Edit" or direct commit.
+      this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
     }
+
+    // Only focus if we weren't dragging (i.e. it was a click) or if drag ended?
+    // Actually, always good to focus?
+    this.focus();
   };
 
   private handleLostPointerCapture = (e: PointerEvent) => {
