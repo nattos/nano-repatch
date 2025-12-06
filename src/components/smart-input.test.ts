@@ -123,4 +123,69 @@ describe('SmartInput', () => {
     const { detail } = await oneEvent(smartInput, 'commit');
     expect(detail).to.equal('math.abs');
   });
+  it('persists the last valid preview when typing invalid text', async () => {
+    // 1. Focus
+    const editor = smartInput.shadowRoot!.querySelector('.cm-content') as HTMLElement;
+    editor.focus();
+
+    const view = (smartInput as any).editorView;
+
+    // 2. Type "math.a" -> expect "math.abs"
+    view.dispatch({ changes: { from: 0, insert: 'math.a' }, userEvent: 'input.type' });
+    await smartInput.updateComplete;
+    await delay(50);
+    expect((smartInput as any).lastPreviewedId).to.equal('math.abs');
+
+    // 3. Type "math.az" (invalid) -> expect "math.abs" to persist
+    view.dispatch({ changes: { from: 6, insert: 'z' }, userEvent: 'input.type' });
+    await smartInput.updateComplete;
+    await delay(50);
+    expect((smartInput as any).lastPreviewedId).to.equal('math.abs');
+  });
+
+  it('reverts to the last valid preview on implicit commit (Blur/Enter)', async () => {
+     // 1. Focus
+    const editor = smartInput.shadowRoot!.querySelector('.cm-content') as HTMLElement;
+    editor.focus();
+
+    const view = (smartInput as any).editorView;
+
+    // 2. Type "math.a" -> expect "math.abs"
+    view.dispatch({ changes: { from: 0, insert: 'math.a' }, userEvent: 'input.type' });
+    await smartInput.updateComplete;
+    await delay(50);
+
+    // 3. Type "math.az" (invalid)
+    view.dispatch({ changes: { from: 6, insert: 'z' }, userEvent: 'input.type' });
+    await smartInput.updateComplete;
+    await delay(50);
+
+    // 4. Commit implicit
+    setTimeout(() => {
+        (smartInput as any).dispatchCommit(view.state.doc.toString());
+    });
+
+    const { detail } = await oneEvent(smartInput, 'commit');
+    expect(detail).to.equal('math.abs');
+  });
+  it('defaults to util.hub if committing with no valid preview', async () => {
+     // 1. Focus
+    const editor = smartInput.shadowRoot!.querySelector('.cm-content') as HTMLElement;
+    editor.focus();
+
+    const view = (smartInput as any).editorView;
+
+    // 2. Type "garbage" (invalid, never valid)
+    view.dispatch({ changes: { from: 0, insert: 'garbage' }, userEvent: 'input.type' });
+    await smartInput.updateComplete;
+    await delay(50);
+
+    // 3. Commit
+    setTimeout(() => {
+        (smartInput as any).dispatchCommit(view.state.doc.toString());
+    });
+
+    const { detail } = await oneEvent(smartInput, 'commit');
+    expect(detail).to.equal('util.hub');
+  });
 });

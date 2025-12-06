@@ -178,9 +178,17 @@ export class SmartInput extends LitElement {
                 this.lastPreviewedId = previewId;
                 this.dispatchEvent(new CustomEvent('preview-type', { detail: previewId }));
               } else {
-                this.lastPreviewedId = null;
-                // If no valid preview, revert to current value
-                this.dispatchEvent(new CustomEvent('preview-type', { detail: this.value }));
+                // If no valid preview, stick to last valid preview if possible
+                if (this.lastPreviewedId) {
+                   this.dispatchEvent(new CustomEvent('preview-type', { detail: this.lastPreviewedId }));
+                } else {
+                   // Only if we never had a valid preview, revert to value
+                   // But actually, for graph node typing, we probably want to avoid "partial" values as types.
+                   // So effectively, we just don't emit a new preview-type if it's invalid?
+                   // No, the requirement is "It should remain on the last valid previewed node type."
+                   // So if we have one, emit it. If not, maybe just emit value?
+                   this.dispatchEvent(new CustomEvent('preview-type', { detail: this.value }));
+                }
               }
 
               startCompletion(this.editorView!);
@@ -219,6 +227,14 @@ export class SmartInput extends LitElement {
       if (this.catalog) {
         startCompletion(this.editorView);
       }
+    }
+
+    // Initialize lastPreviewedId if the starting value is a valid node
+    if (this.catalog && this.value) {
+        const results = this.catalog.search(this.value);
+        if (results.length > 0 && results[0].type === 'node' && results[0].id === this.value) {
+            this.lastPreviewedId = this.value;
+        }
     }
 
     // Commit on blur
@@ -260,7 +276,11 @@ export class SmartInput extends LitElement {
         options: [{
           label: "No suggestions",
           type: "no-suggestion",
-          apply: () => { } // No-op
+          apply: (view) => {
+             // Treat selecting "No suggestions" (e.g. via Enter) as an implicit commit of the current text.
+             // This allows our dispatchCommit logic to catch it and revert to the last valid preview if needed.
+             this.dispatchCommit(view.state.doc.toString(), false);
+          }
         }],
         filter: false
       };
@@ -311,8 +331,20 @@ export class SmartInput extends LitElement {
     }
 
     if (!explicit && this.catalog) {
+      // If doing an implicit commit (Blur/Enter) and we have a valid previewed ID, use it.
+      // This covers the case where the user typed "math.a" (previewing math.abs), and hit Enter or Blurred.
+      // It also covers the case where they typed "math.abcd" (invalid), and we want to revert to "math.abs" (last valid).
       if (this.lastPreviewedId) {
         value = this.lastPreviewedId;
+      } else {
+        // Fallback: If no last valid preview, check if the value itself is valid.
+        // If NOT valid, default to 'util.hub' as the ultimate safety net.
+        const results = this.catalog.search(value);
+        const isValid = results.length > 0 && results[0].type === 'node' && results[0].id === value;
+
+        if (!isValid) {
+            value = 'util.hub';
+        }
       }
     }
 
@@ -323,3 +355,4 @@ export class SmartInput extends LitElement {
     return html`<div id="editor"></div>`;
   }
 }
+
