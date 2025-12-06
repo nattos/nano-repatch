@@ -281,7 +281,7 @@ export class SmartInput extends LitElement {
             // 2. If current text IS the canonical ID (already replaced), then commit.
 
             const canonicalId = item.id!;
-            this.dispatchCommit(canonicalId);
+            this.dispatchCommit(canonicalId, true);
           } else {
             // Drill down (Category/Namespace)
             view.dispatch({
@@ -304,13 +304,13 @@ export class SmartInput extends LitElement {
     this.dispatchCommit(this.editorView?.state.doc.toString() || this.value);
   }
 
-  private dispatchCommit(value: string) {
+  private dispatchCommit(value: string, explicit = false) {
     if (this.editorView) {
       closeCompletion(this.editorView);
       // this.editorView.contentDOM.blur(); // Don't blur manually, we might be here FROM a blur event
     }
 
-    if (this.catalog) {
+    if (!explicit && this.catalog) {
       if (this.lastPreviewedId) {
         value = this.lastPreviewedId;
       }
