@@ -15,6 +15,7 @@ import {
   ExecutorWorkerMessage,
   ExecutorMainMessage,
   GraphCompiledMessage,
+  ConfigsCompiledMessage,
   ExecutionUpdateMessage
 } from '../workers/types';
 import { AudioRenderer } from '../audio/audio-renderer';
@@ -135,6 +136,8 @@ export class RuntimeManager {
       const msg = event.data;
       if (msg.type === 'GRAPH_COMPILED') {
         this.handleGraphCompiled(msg);
+      } else if (msg.type === 'CONFIGS_COMPILED') {
+        this.handleConfigsCompiled(msg);
       }
     };
 
@@ -156,25 +159,48 @@ export class RuntimeManager {
     this.hasLoadedGraph = true;
     this.executorWorker.postMessage(initMsg);
 
-    // After init, we need to send current configs
-    // But we SKIP sending UPDATE_CONFIG because INIT_GRAPH already has the correct (compiled) config
-    // which includes injected defaults that AppState might miss.
-    this.updateNodeConfigsAndRealtimeStatus(undefined, true);
+    // Populate local cache with compiled configs from the graph
+    runInAction(() => {
+      for (const [nodeId, instance] of Object.entries(msg.graph.nodes)) {
+        if (instance.defaultConfig) {
+          // Extract original user-facing ID if possible?
+          // The graph compilation prefixes IDs (e.g. root node IDs might be same, but subgraphs have prefixes).
+          // We only care about root nodes for the LocalState cache usually (for the UI).
+          // If the node ID exists in our AppState, we cache it.
+          // Note: compileGraph logic: nodeId = idPrefix + node.id. Root prefix is empty string?
+          // processGraph(appState.graph, '', true); -> IDs are just 'n1', 'n2'.
+          // So they match AppState IDs.
+          this.localController.observableState.compiledNodeConfigs.set(nodeId, instance.defaultConfig);
+        }
+      }
+    });
 
-    // If not realtime, we might want to trigger a single frame?
-    // The executor worker doesn't have a "step" command yet, but we can START/STOP or just rely on updates triggering it?
-    // Actually, our executor worker only runs on loop or explicit update?
-    // In the worker implementation, it only runs in `runTick` called by `setInterval`.
-    // We might want a "STEP" action for non-realtime updates.
-    // For now, let's assume we only run if realtime OR if we want to force an update.
-    // But wait, if it's NOT realtime, we still want to see the output when we change a slider.
-    // So we should probably have a way to request a single frame.
-    // Let's add 'STEP' to ControlMessage later if needed.
-    // For now, if not realtime, we can just START and STOP immediately? No that's hacky.
-    // Let's modify the worker to run a tick on config update?
-    // Or add a STEP action.
-    // Let's add STEP to the worker logic in a follow-up if needed.
-    // For now, let's just ensure we send configs.
+    // Check realtime status using the freshly loaded configs
+    // We pass nodeIds=undefined to check ALL nodes.
+    // We pass loadedConfigs=true to indicate we already have them in cache/graph and don't need to re-compile.
+    this.checkRealtimeStatus();
+
+    this.updateLoopState();
+  }
+
+  private handleConfigsCompiled(msg: ConfigsCompiledMessage) {
+    runInAction(() => {
+      for (const [nodeId, config] of Object.entries(msg.configs)) {
+        this.localController.observableState.compiledNodeConfigs.set(nodeId, config);
+
+        // Forward to executor
+        const updateMsg: ExecutorWorkerMessage = {
+          type: 'UPDATE_CONFIG',
+          nodeId,
+          config,
+          isRealtime: false // We'll update loop state after
+        };
+        this.executorWorker.postMessage(updateMsg);
+      }
+    });
+
+    this.checkRealtimeStatus();
+    this.updateLoopState();
   }
 
   private handleExecutionUpdate(msg: ExecutionUpdateMessage) {
@@ -213,48 +239,45 @@ export class RuntimeManager {
     }
   }
 
-  private updateNodeConfigsAndRealtimeStatus(nodeIds?: string[], skipUpdateConfig = false) {
+  private updateNodeConfigsAndRealtimeStatus(nodeIds?: string[]) {
+    // Collect nodes that need compilation
     const state = this.appController.observableState;
-    let anyRealtime = false;
-
-    // If nodeIds provided, only update those configs.
-    // But we still need to check ALL nodes for realtime status to determine global `isRealtimeGraph`.
-    // Optimization: Track realtime status per node in a map, update only changed ones, then check if any are true.
+    const nodesToSend: { id: string; typeId: string; config: any }[] = [];
 
     const nodesToCheck = nodeIds
       ? nodeIds.map(id => state.graph.inner.nodes[id]).filter(n => !!n)
       : Object.values(state.graph.inner.nodes);
 
     for (const node of nodesToCheck) {
-      const nodeConfig = toJS(node.config);
-      const { typeId } = nodeConfig;
+      nodesToSend.push({ id: node.id, typeId: node.config.typeId, config: toJS(node.config) });
+    }
+
+    if (nodesToSend.length > 0) {
+      this.compilerWorker.postMessage({
+        type: 'COMPILE_CONFIGS',
+        nodes: nodesToSend
+      });
+    }
+  }
+
+  private checkRealtimeStatus() {
+    const state = this.appController.observableState;
+    const compiledConfigs = this.localController.observableState.compiledNodeConfigs;
+
+    for (const node of Object.values(state.graph.inner.nodes)) {
+      const nodeConfig = compiledConfigs.get(node.id) ?? toJS(node.config);
+      const { typeId } = node.config;
       const nodeType = this.nodeRepository.getNodeType(typeId);
       if (!nodeType) continue;
 
-      const instanceConfig = nodeType.compileConfig
-        ? nodeType.compileConfig(nodeConfig)
-        : nodeConfig;
-
-      const emptyConfig = { fields: {}, untagged: [] };
-      const finalConfig = (instanceConfig ?? emptyConfig) as any;
-
-      // Send config update to worker
-      if (!skipUpdateConfig) {
-        const updateMsg: ExecutorWorkerMessage = {
-          type: 'UPDATE_CONFIG',
-          nodeId: node.id,
-          config: toJS(finalConfig),
-          isRealtime: false // Placeholder, logic below
-        };
-        this.executorWorker.postMessage(updateMsg);
-      }
-
-      // Check if node is realtime
-      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(finalConfig) ?? false;
+      const isRealtime = (nodeType.definition as Partial<PrimitiveNodeDefinition>).isRealtime?.(nodeConfig) ?? false;
       this.realtimeNodeCache.set(node.id, isRealtime);
     }
+  }
 
+  private updateLoopState() {
     // Recalculate global realtime status
+    let anyRealtime = false;
     for (const isRealtime of this.realtimeNodeCache.values()) {
       if (isRealtime) {
         anyRealtime = true;

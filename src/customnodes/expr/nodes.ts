@@ -41,50 +41,74 @@ export const expressionNode = defineNode({
   },
   inputs: {}, // Inputs are dynamic
   config: {
-    code: { kind: 'atomic', type: 'string' }
+    code: { kind: 'atomic', type: 'string' },
+    graph: AnyType // Preserved for execution
   },
   outputs: {
     result: AnyType
   },
   autoBroadcast: false, // We handle raw inputs
   ui: { inspector: { fields: ExpressionFields } },
+  compileConfig: (uiConfig) => {
+    const code = uiConfig.code || '';
+    // Compile code to graph
+    const graph = getCompiledGraph(code);
+    return {
+      fields: {
+        code: code,
+        // Embed the graph in the config so the executor has it without recompiling
+        graph: graph as any
+      },
+      untagged: []
+    };
+  },
   execute: (inputs, config, context) => {
-    const code = config.code || "";
-    if (!code.trim()) {
-      return { result: 0 };
+    // The executor worker receives the Compiled config.
+    // So config.fields.graph should be present.
+    // We cast config to any because TypeScript thinks it's the raw config type, but compileConfig transformed it.
+    // AND definePrimitiveNode UNWRAPS the config before calling us. So we get the plain object.
+    const graph = (config as { graph: ExecutionGraph | undefined }).graph;
+
+    if (!graph || !graph.rootId) {
+       // Fallback or empty
+       return { result: 0 };
     }
 
-    const graph = getCompiledGraph(code);
-
-    // Prepare inputs for the expression executor
-    // The expression executor expects a dictionary of inputs.
-    // We map `inputs` to this dictionary.
-    // Since `inputs` is inferred as `{}`, we cast it to `any` to access dynamic fields.
+    // Prepare inputs
     const exprInputs: Record<string, any> = { ...(inputs as any) };
 
     try {
-      const result = executor.execute(graph, exprInputs.fields);
+      const result = executor.execute(graph, exprInputs.fields || exprInputs); // Handle both wrapped and raw?
       return { result: result };
     } catch (e) {
       console.error("Execution failed:", e);
       return { result: null };
     }
   },
-  compileConfig: (uiConfig) => ({ fields: { code: uiConfig.code || '' }, untagged: [] }),
-  // Dynamic ports based on code
-  getPorts: (node) => {
-    const code = node.config.code || '';
-    if (!code.trim()) {
-      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+  // Dynamic ports based on compiled graph
+  compilePorts: (node, context) => {
+    // Use the cached compiled config if available (from worker)
+    // Or fallback to parsing if necessary (but prefer cache)
+    const compiledConfig = context.compiledConfig;
+    let graph: ExecutionGraph | null = null;
+
+    if (compiledConfig && compiledConfig.fields && compiledConfig.fields.graph) {
+      graph = compiledConfig.fields.graph;
+    } else {
+      // Fallback: Check local cache or compile on the fly (main thread)
+      // This ensures ports (and wires) don't disappear before worker returns.
+      // But we rely on graphCache to make it fast if repeated.
+      const code = node.config.code || '';
+      if (!code.trim()) {
+        return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
+      }
+      graph = getCompiledGraph(code);
     }
 
-    try {
-      // We need to parse the code to find external variables.
-      // The GraphCompiler produces an ExecutionGraph.
-      // Nodes with op='input' represent external variables.
-      const graph = compiler.compile(code);
-      const inputs: PortHint[] = [];
+    if (!graph) return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
 
+    try {
+      const inputs: PortHint[] = [];
       for (const node of Object.values(graph.nodes)) {
         if (node.op === 'input') {
           // Avoid duplicates
@@ -99,8 +123,6 @@ export const expressionNode = defineNode({
         outputs: [{ name: 'result', type: AnyType }]
       };
     } catch (e) {
-      // If parsing fails, just return default ports or maybe show error?
-      // For now, return default.
       return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
     }
   }

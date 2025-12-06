@@ -59,7 +59,7 @@ export interface EnhancedNodeOptions<
   displayName?: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
-  getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+  compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
 }
 
@@ -71,7 +71,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   compileConfig?: (uiConfig: any) => any;
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: NodeOutputsDef;
-  getPorts?: (node: any, loadedSubgraphs?: Map<string, any>) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+  compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
 }
 
@@ -113,7 +113,7 @@ export function defineNode<
     compileConfig: options.compileConfig,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
-    getPorts: options.getPorts,
+    compilePorts: options.compilePorts,
     inspectInputs: options.inspectInputs
   };
 }
@@ -152,7 +152,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inputs,
     outputs,
     compileConfig: def.compileConfig,
-    getPorts: def.getPorts,
+    compilePorts: def.compilePorts,
     inspectInputs: def.inspectInputs,
   };
 

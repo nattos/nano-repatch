@@ -31,5 +31,26 @@ self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
       console.error('Compiler Worker Error:', error);
       // We might want an error message type, but for now just log
     }
+  } else if (type === 'COMPILE_CONFIGS') {
+    try {
+      const { nodes } = event.data;
+      const configs: Record<string, any> = {};
+
+      for (const node of nodes) {
+        const nodeType = defaultNodeRepository.getNodeType(node.typeId);
+        if (nodeType && nodeType.compileConfig) {
+          configs[node.id] = nodeType.compileConfig(node.config);
+        } else {
+          configs[node.id] = node.config; // Fallback to raw config
+        }
+      }
+
+      self.postMessage({
+        type: 'CONFIGS_COMPILED',
+        configs
+      });
+    } catch (error) {
+      console.error('Compiler Worker Error (Multi Config):', error);
+    }
   }
 };

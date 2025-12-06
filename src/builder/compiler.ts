@@ -89,8 +89,9 @@ export function compileGraph(
         // 1. Determine all potential input ports
         let inputPorts: { name: string, defaultValue?: any }[] = [];
         if (nodeType) {
-          if (nodeType.getPorts) {
-            const ports = nodeType.getPorts(node, loadedSubgraphs);
+          if (nodeType.compilePorts) {
+            // Pass the compiled config (instanceConfig) to compilePorts
+            const ports = nodeType.compilePorts(node, { loadedSubgraphs, compiledConfig: instanceConfig });
             if (ports) inputPorts = ports.inputs;
           } else {
             inputPorts = nodeType.inputs || [];

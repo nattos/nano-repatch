@@ -82,10 +82,10 @@ export interface NodeType {
   getInputEditorHeight?: (node: GridNode, portName: string) => number;
 
   /**
-   * A function to dynamically get the ports for a node.
-   * Used for nodes like subgraphs where ports depend on internal state.
+   * A function to dynamically get the ports for a node, possibly using a cached compiled config.
+   * Used for nodes like subgraphs or expressions where ports depend on internal state or code.
    */
-  getPorts?: (node: GridNode, loadedSubgraphs: Map<string, GraphState>) => {
+  compilePorts?: (node: GridNode, context: { loadedSubgraphs: Map<string, GraphState>, compiledConfig?: Structor }) => {
     inputs: PortHint[];
     outputs: PortHint[];
     displayName?: string;
@@ -618,7 +618,7 @@ defaultNodeRepository.register({
   definition: primitive_subgraph,
   inputs: [],
   outputs: [],
-  getPorts: (node, loadedSubgraphs) => {
+  compilePorts: (node, { loadedSubgraphs }) => {
     const subgraphId = node.config.subgraphId;
     const subgraph = loadedSubgraphs.get(subgraphId);
     if (subgraph) {

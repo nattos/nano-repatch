@@ -12,6 +12,7 @@ export interface LocalState {
   lastGroupSelection: Set<string> | null;
   inflightPortConnectionOperation: { nodeId: string; port: string; type: 'in' | 'out'; } | null;
   loadedSubgraphs: Map<string, GraphState>;
+  compiledNodeConfigs: Map<string, any>; // Cache for worker-compiled configs
   wireLayout: LayoutResult;
 
   // Serialized settings.
@@ -45,6 +46,7 @@ export class LocalController {
       lastGroupSelection: null,
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
+      compiledNodeConfigs: new Map<string, any>(),
       wireLayout: { wires: {} },
       localSettings: {
         showDebugValues: false,

@@ -18,8 +18,18 @@ export type GraphCompiledMessage = {
   graph: GraphDefinition;
 };
 
-export type CompilerWorkerMessage = CompileGraphMessage;
-export type CompilerMainMessage = GraphCompiledMessage;
+export type CompileConfigsMessage = {
+  type: 'COMPILE_CONFIGS';
+  nodes: { id: string; typeId: string; config: any }[];
+};
+
+export type ConfigsCompiledMessage = {
+  type: 'CONFIGS_COMPILED';
+  configs: Record<string, Structor>; // nodeId -> compiledConfig
+};
+
+export type CompilerWorkerMessage = CompileGraphMessage | CompileConfigsMessage;
+export type CompilerMainMessage = GraphCompiledMessage | ConfigsCompiledMessage;
 
 // --- Executor Worker Messages ---
 

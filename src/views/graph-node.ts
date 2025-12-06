@@ -762,7 +762,8 @@ export class GraphNode extends MobxLitElement {
       let outputs: PortHint[] = [];
 
       if (nodeType) {
-        const dynamicInfo = nodeType.getPorts?.(this.node, localController.observableState.loadedSubgraphs);
+        const compiledConfig = localController.observableState.compiledNodeConfigs.get(this.node.id);
+        const dynamicInfo = nodeType.compilePorts?.(this.node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
         if (dynamicInfo) {
           inputs = dynamicInfo.inputs;
           outputs = dynamicInfo.outputs;
@@ -862,7 +863,8 @@ export class GraphNode extends MobxLitElement {
     let displayName = this.node.config.typeId;
 
     if (nodeType) {
-      const dynamicInfo = nodeType.getPorts?.(this.node, localController.observableState.loadedSubgraphs);
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(this.node.id);
+      const dynamicInfo = nodeType.compilePorts?.(this.node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
       if (dynamicInfo) {
         inputs = dynamicInfo.inputs;
         outputs = dynamicInfo.outputs;
