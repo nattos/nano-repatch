@@ -30,7 +30,7 @@ describe('NicePattern Integration', () => {
     definition: rhythmicGenerator,
     inputs: [],
     outputs: [{ name: 'seq_out', type: sequenceStructorType, description: 'Generated sequence' }],
-    compileConfig: (uiConfig) => ({ fields: { targetNote: uiConfig?.targetNote ?? 60, density: uiConfig?.density ?? 0.5 }, untagged: [] }),
+    compileConfig: rhythmicGenerator.compileConfig!,
   });
 
   repository.register({
@@ -40,15 +40,7 @@ describe('NicePattern Integration', () => {
     definition: chaosGenerator,
     inputs: [],
     outputs: [{ name: 'seq_out', type: sequenceStructorType, description: 'Generated sequence' }],
-    compileConfig: (uiConfig) => ({
-      fields: {
-        minNote: uiConfig?.minNote ?? 60,
-        maxNote: uiConfig?.maxNote ?? 72,
-        density: uiConfig?.density ?? 0.5,
-        seed: uiConfig?.seed ?? 12345
-      },
-      untagged: []
-    }),
+    compileConfig: chaosGenerator.compileConfig!,
   });
 
   repository.register({
@@ -200,7 +192,7 @@ describe('NicePattern Integration', () => {
   it('should compile and run rhythmic generator', () => {
     const executor = compileAndRun(
       {
-        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } }
       },
       []
     );
@@ -212,7 +204,7 @@ describe('NicePattern Integration', () => {
   it('should generate a rhythmic sequence (compiled)', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } }
       },
       [],
       'gen', 'seq_out'
@@ -230,7 +222,7 @@ describe('NicePattern Integration', () => {
   it('should process pattern events from sequence (compiled)', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 0.5 } },
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 0.5 } } },
         'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
@@ -257,8 +249,8 @@ describe('NicePattern Integration', () => {
   it('should process multiple sequence inputs', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } }, // Always note
-        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, density: 1.0 } }, // Always note
+        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } }, // Always note
+        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, values: { density: 1.0 } } }, // Always note
         'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
@@ -283,8 +275,8 @@ describe('NicePattern Integration', () => {
   it('should process multiple sequence inputs on named port', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
-        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, density: 1.0 } },
+        'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
+        'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, values: { density: 1.0 } } },
         'pat': { typeId: 'nicepattern.pattern', config: {} }
       },
       [
@@ -309,7 +301,7 @@ describe('NicePattern Integration', () => {
   it('should generate chaos sequence', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'chaos': { typeId: 'nicepattern.chaos_generator', config: { minNote: 60, maxNote: 62, density: 1.0, seed: 123 } }
+        'chaos': { typeId: 'nicepattern.chaos_generator', config: { minNote: 60, maxNote: 62, seed: 123, values: { density: 1.0 } } }
       },
       [],
       'chaos', 'seq_out'
@@ -328,7 +320,7 @@ describe('NicePattern Integration', () => {
     // Gen -> Pattern -> Gate Layer
     const { executor, getOutput } = compileAndRunwithOutput(
       {
-        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, density: 1.0 } },
+        'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
         'pat': { typeId: 'nicepattern.pattern', config: {} },
         'gate': { typeId: 'nicepattern.gate_layer', config: { targetNote: 60 } }
       },

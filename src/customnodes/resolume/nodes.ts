@@ -89,7 +89,7 @@ export const resolumeOutputNode = defineNode({
     description: 'Writes a value to a Resolume Arena parameter.'
   },
   inputs: {
-    value: anyType
+    value: { type: anyType, suppressInputEditor: true, suppressLabel: true, }
   },
   config: {
     path: stringType

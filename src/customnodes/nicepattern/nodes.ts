@@ -76,14 +76,12 @@ const SEQUENCE_LENGTH = 16;
 // --- UI Field Definitions ---
 
 const RhythmicFields: InspectorFieldDef[] = [
-  { type: 'number', label: 'Target Note', path: 'targetNote' },
-  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 }
+  { type: 'number', label: 'Target Note', path: 'targetNote' }
 ];
 
 const ChaosFields: InspectorFieldDef[] = [
   { type: 'number', label: 'Min Note', path: 'minNote' },
   { type: 'number', label: 'Max Note', path: 'maxNote' },
-  { type: 'slider', label: 'Density', path: 'density', min: 0, max: 1, step: 0.05 },
   { type: 'number', label: 'Seed', path: 'seed' }
 ];
 
@@ -103,14 +101,13 @@ export const rhythmicGenerator = defineNode({
     keywords: ['rhythm', 'generator', 'sequence', 'euclidean'],
     description: 'Generates a rhythmic sequence based on density.'
   },
-  config: { targetNote: numberType, density: numberType },
+  config: { targetNote: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: RhythmicFields } },
   execute: (inputs, config, context) => {
     const targetNote = config.targetNote;
-    // Use input density if available, otherwise config density
-    const density = (inputs.density !== undefined && inputs.density !== null) ? inputs.density : config.density;
+    const density = inputs.density ?? 0.5;
 
     const sequence: Step[] = [];
     const numEvents = Math.round(density * SEQUENCE_LENGTH);
@@ -126,7 +123,6 @@ export const rhythmicGenerator = defineNode({
   compileConfig: (uiConfig) => ({
     fields: {
       targetNote: uiConfig?.targetNote ?? 60,
-      density: uiConfig?.density ?? 0.5,
     },
     untagged: [],
   }),
@@ -142,14 +138,13 @@ export const chaosGenerator = defineNode({
     keywords: ['chaos', 'random', 'generator', 'sequence', 'stochastic'],
     description: 'Generates a random sequence of notes.'
   },
-  config: { minNote: numberType, maxNote: numberType, density: numberType, seed: numberType },
+  config: { minNote: numberType, maxNote: numberType, seed: numberType },
   inputs: { density: numberType },
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: ChaosFields } },
   execute: (inputs, config, context) => {
     const { minNote, maxNote, seed } = config;
-    // Use input density if available, otherwise config density
-    const density = (inputs.density !== undefined && inputs.density !== null) ? inputs.density : config.density;
+    const density = inputs.density ?? 0.5;
 
     const rng = new SeededRandom(seed ?? 12345); // Default seed if not provided
 
@@ -168,7 +163,6 @@ export const chaosGenerator = defineNode({
     fields: {
       minNote: uiConfig?.minNote ?? 60,
       maxNote: uiConfig?.maxNote ?? 60,
-      density: uiConfig?.density ?? 0.5,
       seed: uiConfig?.seed ?? 12345,
     },
     untagged: [],
