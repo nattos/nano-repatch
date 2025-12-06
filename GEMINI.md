@@ -129,3 +129,30 @@ This entry documents the resolution of several failing unit tests and the underl
 ### Verification
 
 *   **All Tests Passing:** Validated that all unit tests (`npm test`) are now passing, including the previously failing `compiler`, `executor`, `virtual-inputs`, and `graph-node` tests.
+
+## Graph Editor QoL Improvements (As of 2025-12-06)
+
+This entry documents the implementation of several Quality-of-Life improvements for the graph editor.
+
+### Features Implemented
+
+1.  **Auto-Spacing Nodes ("Make Space"):**
+    *   **Functionality:** recursive collision detection in `AppController.moveNodes` pushes overlapping nodes during drag operations.
+    *   **Logic:** Updated `src/builder/state.ts` to propagate movement.
+
+2.  **Group Deletion:**
+    *   **Functionality:** Double-clicking any node within a multi-selection deletes the entire group.
+    *   **Logic:** `GraphNode` tracks group selection context; `GraphGrid` executes batched deletion via `AppController.transaction`.
+
+3.  **Port Drag-to-Connect:**
+    *   **Functionality:** Dragging from a port creates a ghost wire and allows connection release on target ports.
+    *   **Logic:** Implemented `pointerdown`/`pointerup` in `src/views/graph-port.ts` and ghost rendering in `src/views/graph-grid.ts`.
+
+4.  **Insert Node on Wire:**
+    *   **Functionality:** Selecting a wire and typing an alphanumeric key inserts a new node at that location and splits the connection.
+    *   **Logic:** `GraphGrid` tracks wire clicks and handles insertion via `handlePopupCommit`.
+
+### Verification
+
+*   **Test Suite:** All 202 tests passed, including new logic checks and regression tests.
+
