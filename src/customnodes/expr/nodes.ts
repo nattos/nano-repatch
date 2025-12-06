@@ -63,7 +63,7 @@ export const expressionNode = defineNode({
     const exprInputs: Record<string, any> = { ...(inputs as any) };
 
     try {
-      const result = executor.execute(graph, exprInputs);
+      const result = executor.execute(graph, exprInputs.fields);
       return { result: result };
     } catch (e) {
       console.error("Execution failed:", e);

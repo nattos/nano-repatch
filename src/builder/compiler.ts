@@ -1,3 +1,10 @@
+import '../customnodes/debug/nodes.worker';
+import '../customnodes/expr/nodes';
+import '../customnodes/osc/nodes';
+import '../customnodes/nicepattern/nodes';
+import '../customnodes/resolume/nodes';
+import '../customnodes/curve/nodes';
+import '../customnodes/midi/nodes';
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance, Structor } from '../structor/structor';
 import { NodeRepository } from '../structor/repository';
