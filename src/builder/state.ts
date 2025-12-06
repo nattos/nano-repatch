@@ -17,7 +17,7 @@ configure({
 });
 
 // Simple ID generator
-const generateId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+export const generateId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 // Part 1: Core Data Structures
 export interface GridNode {
@@ -436,12 +436,16 @@ export class AppController {
     if (edit.callbacks.complete) edit.callbacks.complete();
   }
 
-  public createNode(typeId: string, x: number, y: number, initialConfig?: Partial<GridNode['config']>): GridNode {
+  public createNode(typeId: string, x: number, y: number, initialConfig?: Partial<GridNode['config']> & { id?: string }): GridNode {
+    const id = initialConfig?.id || generateId('node');
+    // Remove id from config to avoid storing it twice if passed
+    const { id: _, ...restConfig } = initialConfig || {};
+
     const newNode: GridNode = {
-      id: generateId('node'),
+      id,
       x,
       y,
-      config: { typeId, values: {}, ...initialConfig },
+      config: { typeId, values: {}, ...restConfig },
     };
     this.dispatch([{ type: 'node.create', node: newNode }, { type: 'graph.recompile' }]);
     return newNode;
@@ -505,10 +509,82 @@ export class AppController {
 
   public moveNodes(nodeIds: string[], dx: number, dy: number): void {
     const state = this.getState();
-    const moves = nodeIds.map(id => {
-      const node = state.graph.inner.nodes[id];
-      return { nodeId: id, from: { x: node.x, y: node.y }, to: { x: node.x + dx, y: node.y + dy } };
-    });
+    const finalMoves = new Map<string, { from: { x: number, y: number }, to: { x: number, y: number } }>();
+    const processingQueue: { id: string, dx: number, dy: number }[] = [];
+
+    // Initial moves
+    for (const id of nodeIds) {
+      if (state.graph.inner.nodes[id]) {
+        processingQueue.push({ id, dx, dy });
+      }
+    }
+
+    // Process queue to propagate moves
+    // We limit iterations to avoid infinite loops in pathological cases
+    let iterations = 0;
+    while (processingQueue.length > 0 && iterations < 1000) {
+      const current = processingQueue.shift()!;
+      iterations++;
+
+      if (finalMoves.has(current.id)) continue; // Already moved this node in this batch?
+      // Actually, if a node is pushed multiple times, we should accumulate?
+      // Simpler approach: Calculate final position for everything.
+
+      const node = state.graph.inner.nodes[current.id];
+      if (!node) continue;
+
+      const from = { x: node.x, y: node.y };
+      const to = { x: node.x + current.dx, y: node.y + current.dy };
+
+      finalMoves.set(current.id, { nodeId: current.id, from, to } as any);
+
+      // Check for collisions at the new position
+      // For simplicity, we just check if any OTHER node is at 'to.x, to.y'
+      // This assumes 1x1 grid cells which simplifies things greatly.
+      // GraphGrid actually renders nodes larger, but let's see if we track grid occupation.
+      // The prompt implies we should "make space".
+      // If we move A to (1,1) and B is at (1,1), we should move B.
+
+      // Determine direction of push for chain reaction
+      // If we are moving X, push X. If Y, push Y.
+      // If both? prioritize dominant or just push same vector.
+
+      for (const otherNode of Object.values(state.graph.inner.nodes)) {
+        if (otherNode.id === current.id) continue;
+        if (finalMoves.has(otherNode.id)) {
+             // If the other node is ALSO moving efficiently, we check its DESTINATION?
+             // This gets complex.
+             // Let's rely on looking up current state + planned moves.
+             continue;
+        }
+
+        // Is otherNode at the target position?
+        // Note: We need to handle multi-cell nodes eventually, but GraphGrid logic suggests
+        // nodes have x,y integers.
+        if (otherNode.x === to.x && otherNode.y === to.y) {
+          // Collision! Push otherNode
+          // If we inserted `current` into `to`, `otherNode` needs to move.
+          // We move it by the same delta to preserve relative structure?
+          // Or just bump it by 1?
+          // "Make space" usually means shifting.
+          // Let's propagate the same dx, dy.
+
+          // But what if dx=0, dy=0? (Shouldn't happen in queue)
+          // What if we swap?
+
+          // Let's try pushing by the same amount.
+          processingQueue.push({ id: otherNode.id, dx: current.dx, dy: current.dy });
+        }
+      }
+    }
+
+    // Convert map to array
+    const moves = Array.from(finalMoves.values()).map((m: any) => ({
+        nodeId: m.nodeId,
+        from: m.from,
+        to: m.to
+    }));
+
     this.dispatch([{ type: 'node.move', moves }]);
   }
 

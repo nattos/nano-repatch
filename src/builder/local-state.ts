@@ -9,6 +9,7 @@ import { settingsManager } from './settings-manager';
 export interface LocalState {
   selection: Map<string, Selectable>;
   queuedSelection: Set<string>;
+  lastGroupSelection: Set<string> | null;
   inflightPortConnectionOperation: { nodeId: string; port: string; type: 'in' | 'out'; } | null;
   loadedSubgraphs: Map<string, GraphState>;
   wireLayout: LayoutResult;
@@ -41,6 +42,7 @@ export class LocalController {
     this.observableState = observable({
       selection: new Map<string, Selectable>(),
       queuedSelection: new Set<string>(),
+      lastGroupSelection: null,
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
       wireLayout: { wires: {} },
@@ -205,5 +207,10 @@ export class LocalController {
   public setActiveTab(tab: string | null): void {
     this.observableState.localSettings.activeTab = tab;
     this.saveSettings();
+  }
+
+  @action
+  public setLastGroupSelection(selection: Set<string> | null): void {
+    this.observableState.lastGroupSelection = selection;
   }
 }

@@ -448,6 +448,22 @@ export class GraphNode extends MobxLitElement {
     if (this.dataset.dragged) {
       return;
     }
+
+    // Check if this node is part of the current selection, and if that selection is a group
+    const currentSelection = localController.observableState.selection;
+    const isSelected = currentSelection.has(this.node.id);
+    const nodeSelectionCount = Array.from(currentSelection.keys()).filter(k => k.startsWith('node-')).length;
+
+    if (isSelected && nodeSelectionCount > 1) {
+        // We are clicking on a node that is part of a group selection.
+        // We want to narrow the selection to just this node (default behavior),
+        // BUT we want to remember the group selection for a potential double click.
+        localController.setLastGroupSelection(new Set(currentSelection.keys()));
+    } else if (e.detail === 1) { // Only clear on single click
+        // Clicking a single node or something else: clear the group memory.
+        localController.setLastGroupSelection(null);
+    }
+
     localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
   }
 

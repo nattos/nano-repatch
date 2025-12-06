@@ -54,50 +54,44 @@ export class GraphPort extends MobxLitElement {
     }
   `;
 
-  private handlePortClick(e: MouseEvent) {
-    e.stopPropagation(); // Prevent node drag/selection
+  private handlePointerDown(e: PointerEvent) {
+    if (e.button !== 0) return; // Left click only
+    e.stopPropagation(); // Prevent node drag
 
+    // Start connection or toggle if already active?
+    // For drag, we always start a new one if none exists.
     const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
-
     if (!currentInflightOp) {
-      // Start connection
-      localController.setInflightPortConnectionOperation({
+       localController.setInflightPortConnectionOperation({
         nodeId: this.nodeId,
         port: this.name,
         type: this.type
       });
+      // We don't need to select/watch connection if we rely on global pointer up to cancel.
+      // But preserving existing "click-click" behavior is nice.
+      // Let's rely on GraphGrid to clear if dropped on nothing.
+    }
+  }
 
-      // Select the port to allow cancellation
-      const portPath = `port://${this.nodeId}/${this.type}/${this.name}`;
-      const handle = localController.defineSelectable({
-        path: portPath,
-      });
-      handle.select();
+  private handlePointerUp(e: PointerEvent) {
+    e.stopPropagation();
+    const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
 
-      // Watch for deselection to cancel
-      const disposer = reaction(
-        () => localController.observableState.selection.has(portPath),
-        (isSelected) => {
-          if (!isSelected) {
-            const current = localController.observableState.inflightPortConnectionOperation;
-            if (current && current.nodeId === this.nodeId && current.port === this.name && current.type === this.type) {
-              localController.setInflightPortConnectionOperation(null);
-            }
-            disposer();
-          }
-        }
-      );
+    if (currentInflightOp) {
+       // Check if this is a valid completion
+       if (currentInflightOp.nodeId !== this.nodeId && currentInflightOp.type !== this.type) {
+         // Complete connection
+         const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
+         const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
 
-    } else {
-      // Complete connection
-      if (currentInflightOp.nodeId !== this.nodeId && currentInflightOp.type !== this.type) {
-        const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
-        const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
-
-        appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
-      }
-      localController.setInflightPortConnectionOperation(null);
-      localController.queueSelectPaths([]);
+         appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
+         localController.setInflightPortConnectionOperation(null);
+       } else if (currentInflightOp.nodeId === this.nodeId && currentInflightOp.port === this.name) {
+         // Released on self.
+         // If this was a pure click (no drag), we want to KEEP it open for click-click workflow.
+         // If it was a drag loopback, maybe cancel?
+         // For now, let's just keep it open.
+       }
     }
   }
 
@@ -117,7 +111,8 @@ export class GraphPort extends MobxLitElement {
       ${this.type === 'out' && this.name !== '0' && !this.hideLabel ? html`<div class="port-label">${this.name}</div>` : ''}
       <div
         class="port ${this.type}-port ${isConnecting ? 'connecting' : ''}"
-        @click=${this.handlePortClick}
+        @pointerdown=${this.handlePointerDown}
+        @pointerup=${this.handlePointerUp}
         title="${this.description}"
       ></div>
       ${this.type === 'in' && this.name && !this.hideLabel ? html`<div class="port-label">${this.name}</div>` : ''}
