@@ -15,19 +15,21 @@ export class DebugTab extends MobxLitElement {
         display: flex;
         flex-direction: column;
         height: 100%;
-        background-color: #252526;
-        color: #ccc;
+        background-color: var(--panel-bg);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        color: var(--text-color);
         font-family: 'Inter', sans-serif;
         overflow: hidden;
       }
 
       .header {
         padding: 10px;
-        background-color: #2d2d2d;
-        border-bottom: 1px solid #3d3d3d;
+        background-color: var(--panel-header-bg);
+        border-bottom: 1px solid var(--border-color);
         font-size: 12px;
         font-weight: 600;
-        color: #aaa;
+        color: var(--text-muted);
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
@@ -35,8 +37,8 @@ export class DebugTab extends MobxLitElement {
       .stats {
         padding: 10px;
         font-size: 12px;
-        color: #888;
-        border-bottom: 1px solid #3d3d3d;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-color);
       }
 
       .output-list {
@@ -92,7 +94,7 @@ export class DebugTab extends MobxLitElement {
       .chip {
         display: inline-flex;
         align-items: center;
-        background: #333;
+        background: rgba(0, 0, 0, 0.2);
         color: #ddd;
         padding: 2px 8px;
         border-radius: 12px;

@@ -13,8 +13,10 @@ export class AppSidebar extends MobxLitElement {
       display: flex;
       flex-direction: column;
       width: 50px;
-      background-color: #2d2d2d;
-      border-right: 1px solid #3d3d3d;
+      background-color: var(--panel-bg);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border-right: 1px solid var(--border-color);
       height: 100%;
       align-items: center;
       padding-top: 10px;
@@ -29,19 +31,19 @@ export class AppSidebar extends MobxLitElement {
       align-items: center;
       justify-content: center;
       border-radius: 4px;
-      color: #aaa;
+      color: var(--text-muted);
       transition: all 0.2s;
     }
 
     .icon:hover {
-      background-color: #3d3d3d;
-      color: #fff;
+      background-color: var(--button-hover);
+      color: var(--text-color);
     }
 
     .icon.active {
-      background-color: #4d4d4d;
-      color: #fff;
-      border-left: 3px solid #646cff;
+      background-color: var(--button-active);
+      color: var(--accent-color);
+      border-left: 3px solid var(--accent-color);
     }
 
     svg {

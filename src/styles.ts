@@ -23,22 +23,22 @@ export const globalStyles = [
     --app-hi-color2: #4169E1;
     --app-hi-color3: #FF8C00;
     --app-hi-color4: #FFDA63;
-    --app-text-color1: #DDDDDD;
-    --app-text-color2: #AAAAAA;
-    /* Saturated Dark Blue-Grey Backgrounds */
-    --app-bg-color1: #16171a;
-    --app-bg-color2: #1f2228;
+    --app-text-color1: #EAEAEA; /* Slightly brighter text for contrast */
+    --app-text-color2: #B0B0B0;
+    /* Saturated Dark Backgrounds (Deep Indigo/Slate) */
+    --app-bg-color1: #121418;
+    --app-bg-color2: #1a1d24;
 
     /* Semantic Theme Variables */
     --bg-color: var(--app-bg-color1);
-    /* Glassy Panels */
-    --panel-bg: rgba(31, 34, 40, 0.9);
-    --panel-header-bg: rgba(31, 34, 40, 0.95);
+    /* Gel Panels: Dark, tinted, semi-transparent */
+    --panel-bg: rgba(26, 29, 36, 0.85);
+    --panel-header-bg: rgba(26, 29, 36, 0.95);
 
-    /* Glassy Nodes */
-    --node-bg: rgba(31, 34, 40, 0.85);
-    /* Subtle light border for glass effect */
-    --node-border: rgba(255, 255, 255, 0.1);
+    /* Gel Nodes: More transparent, distinct tint akin to a neutral density gel */
+    --node-bg: rgba(20, 24, 30, 0.65);
+    /* Crisp, glass-edge border */
+    --node-border: rgba(255, 255, 255, 0.15);
 
     --text-color: var(--app-text-color1);
     --text-muted: var(--app-text-color2);
@@ -46,13 +46,13 @@ export const globalStyles = [
     --accent-color: var(--app-hi-color1);
     --selection-color: rgba(255, 69, 0, 0.2); /* app-hi-color1 with opacity */
     --selection-border: rgba(255, 69, 0, 0.6); /* app-hi-color1 with opacity */
-    --port-color: #666; /* Slightly lighter for visibility on dark BG */
+    --port-color: #777; /* Lighter for visibility on dark transparencies */
     --port-hover: #777;
     --port-connected: #00ff00;
     --input-bg: #444;
-    --button-bg: #333;
-    --button-hover: #444;
-    --button-active: #222;
+    --button-bg: rgba(0, 0, 0, 0.2); /* Darker transparent to sit on gels */
+    --button-hover: rgba(255, 255, 255, 0.05);
+    --button-active: rgba(255, 255, 255, 0.1);
 
     /* Grid Layout Variables */
     --grid-unit: 80px;

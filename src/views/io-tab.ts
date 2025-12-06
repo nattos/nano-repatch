@@ -21,6 +21,9 @@ export class IOTab extends MobxLitElement {
         display: flex;
         flex-direction: column;
         height: 100%;
+        background-color: var(--panel-bg);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
         overflow: hidden;
       }
 
@@ -90,12 +93,13 @@ export class IOTab extends MobxLitElement {
       }
 
       .list-item:hover {
-        background-color: var(--input-bg);
+        background-color: var(--button-hover);
       }
 
       .list-item.selected {
-        background-color: var(--accent-color);
-        color: var(--bg-color);
+        background-color: var(--selection-color);
+        border: 1px solid var(--selection-border);
+        color: var(--text-color);
       }
 
       .clip-card {
@@ -170,7 +174,7 @@ export class IOTab extends MobxLitElement {
 
       .chip {
         padding: 4px 8px;
-        background-color: var(--input-bg);
+        background-color: var(--button-bg);
         border-radius: 12px;
         font-size: 0.9em;
         cursor: pointer;

@@ -144,11 +144,9 @@ function formatStepSequence(sequence: any[], options?: { extraClasses: Record<st
     const heightPercent = isActive ? Math.max(20, velocity * 100) : 100;
 
     // Color
-    // Active: #4caf50 (Green) or #2196f3 (Blue) or #ff9800 (Orange)
-    // Inactive: #333
-    // We can use CSS variables or fixed colors.
-    const color = isActive ? '#4caf50' : '#333';
-    const opacity = isActive ? 1 : 0.3;
+    // Active: var(--accent-color)
+    // Inactive: var(--input-bg) or transparent
+    const color = isActive ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.1)';
 
     return html`
       <div class="step ${isActive ? 'active' : ''} ${isHold ? 'hold' : ''}"

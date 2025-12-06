@@ -163,10 +163,11 @@ export class GraphNode extends MobxLitElement {
     .node {
       position: absolute;
       background-color: var(--node-bg);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      /* "Clear Gel" shadow: darker, tighter drop shadow + subtle rim light */
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
       display: flex;
       flex-direction: column;
       /* overflow: hidden; */
