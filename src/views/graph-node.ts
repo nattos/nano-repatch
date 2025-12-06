@@ -468,6 +468,21 @@ export class GraphNode extends MobxLitElement {
 
 
   private handleClick(e: MouseEvent) {
+    // Check if we clicked on an interactive element (port, input, etc)
+    const path = e.composedPath();
+    const isInteractive = path.some(el => {
+      const element = el as HTMLElement;
+      if (!element.classList) return false;
+      return element.tagName?.toLowerCase() === 'graph-port' ||
+             element.classList.contains('virtual-inputs-container') ||
+             element.tagName?.toLowerCase() === 'input' ||
+             element.tagName?.toLowerCase() === 'select' ||
+             element.tagName?.toLowerCase() === 'smart-input' ||
+             element.tagName?.toLowerCase() === 'scalar-slider';
+    });
+
+    if (isInteractive) return;
+
     if (this.dataset.dragged) {
       return;
     }
