@@ -45,7 +45,7 @@ export class ScalarSlider extends LitElement {
     :host([dragging]) {
       border-color: var(--accent-color, #00aaff);
       color: var(--accent-color, #00aaff);
-      background: var(--selection-color, rgba(0, 170, 255, 0.1));
+      /* background: var(--selection-color, rgba(0, 170, 255, 0.1)); Remove full background on drag */
     }
 
     :host(:focus) {
@@ -66,6 +66,8 @@ export class ScalarSlider extends LitElement {
         var(--selection-color, rgba(0, 170, 255, 0.1)) 3px,
         var(--selection-color, rgba(0, 170, 255, 0.1)) 4px
       );
+      background-size: 22px 22px; /* Explicit size to ensure right-anchoring works */
+      background-position: 100% 0; /* Anchor to right edge */
       pointer-events: none;
       z-index: 0;
       border-right: 1px solid var(--accent-color, #00aaff); /* Vertical line */
