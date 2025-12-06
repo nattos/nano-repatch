@@ -14,8 +14,6 @@ export class UiPanel extends LitElement {
         flex-direction: column;
         height: 100%;
         background-color: var(--panel-bg);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
         color: var(--text-color);
         overflow: hidden;
       }

@@ -14,8 +14,6 @@ export class AppSidebar extends MobxLitElement {
       flex-direction: column;
       width: 50px;
       background-color: var(--panel-bg);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
       border-right: 1px solid var(--border-color);
       height: 100%;
       align-items: center;

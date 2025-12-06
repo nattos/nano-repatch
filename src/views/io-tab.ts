@@ -22,8 +22,6 @@ export class IOTab extends MobxLitElement {
         flex-direction: column;
         height: 100%;
         background-color: var(--panel-bg);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
         overflow: hidden;
       }
 
