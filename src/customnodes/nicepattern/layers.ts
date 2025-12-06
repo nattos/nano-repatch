@@ -224,15 +224,65 @@ export class ToneSynthLayer extends AbstractLayer {
     this.gain.connect(this.ctx.destination); // Or a master bus passed in constructor
 
     this.osc.start(time);
-    this.osc.stop(time + 0.35);
+    // Remove fixed duration to allow sustain
+    // this.osc.stop(time + 0.35);
+  }
+
+  /*
+   * Retires the previous voice by fading it out quickly rather than cutting it hard.
+   * This prevents clicks when retriggering notes while the previous one is still ringing.
+   */
+  private retirePreviousVoice(time: number) {
+    if (!this.osc || !this.gain || !this.filter) return;
+
+    const oldOsc = this.osc;
+    const oldGain = this.gain;
+    const oldFilter = this.filter;
+
+    // Detach from class state immediately so new voice can take over
+    this.osc = null;
+    this.gain = null;
+    this.filter = null;
+
+    try {
+      // 5ms rapid fade out for the old voice
+      const fadeTime = 0.005;
+
+      // Cancel any pending changes (e.g. long release tails)
+      try {
+        (oldGain.gain as any).cancelAndHoldAtTime(time);
+      } catch (e) {
+        oldGain.gain.cancelScheduledValues(time);
+        oldGain.gain.setValueAtTime(oldGain.gain.value, time);
+      }
+
+      oldGain.gain.linearRampToValueAtTime(0, time + fadeTime);
+
+      // Stop and disconnect after fade
+      const stopTime = time + fadeTime + 0.01;
+      oldOsc.stop(stopTime);
+
+      // Clean up graph when oscillator stops
+      oldOsc.onended = () => {
+        oldOsc.disconnect();
+        oldFilter.disconnect();
+        oldGain.disconnect();
+        (oldOsc as any).dispose?.();
+        (oldFilter as any).dispose?.();
+        (oldGain as any).dispose?.();
+      };
+
+    } catch (e) {
+      // Emergency cleanup if scheduling fails
+        oldOsc.disconnect();
+        oldFilter.disconnect();
+        oldGain.disconnect();
+    }
   }
 
   private cleanup() {
-    try {
-      if (this.osc) { this.osc.stop(); this.osc.disconnect(); (this.osc as any).dispose?.(); }
-      if (this.gain) { this.gain.disconnect(); (this.gain as any).dispose?.(); }
-      if (this.filter) { this.filter.disconnect(); (this.filter as any).dispose?.(); }
-    } catch (e) { /* ignore already stopped */ }
+      // Legacy cleanup if needed externally (e.g. node destroy), immediate kill
+      this.retirePreviousVoice(this.ctx?.currentTime ?? 0);
   }
 
   protected onTrigger(velocity: number, noteIndex?: number | null) {
@@ -251,7 +301,7 @@ export class ToneSynthLayer extends AbstractLayer {
 
   protected onRelease() {
     if (this.gain) {
-      // Fast release
+      // 5ms fade out
       const currentTime = this.ctx?.currentTime ?? 0.0;
       try {
         // Modern browsers support cancelAndHoldAtTime which prevents jumps
@@ -259,8 +309,17 @@ export class ToneSynthLayer extends AbstractLayer {
       } catch (e) {
         // Fallback
         this.gain.gain.cancelScheduledValues(currentTime);
+        this.gain.gain.setValueAtTime(this.gain.gain.value, currentTime);
       }
-      this.gain.gain.setTargetAtTime(0, currentTime, 0.05);
+      this.gain.gain.linearRampToValueAtTime(0, currentTime + 0.005);
+
+      // Stop oscillator after fade out to save resources
+      // We can schedule it.
+      if (this.osc) {
+          try {
+             this.osc.stop(currentTime + 0.010); // Stop slightly after fade
+          } catch(e) {}
+      }
     }
   }
 
