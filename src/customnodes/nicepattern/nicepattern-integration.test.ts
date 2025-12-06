@@ -423,13 +423,13 @@ describe('NicePattern Integration', () => {
     });
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
 
-    // 4. Note On (62) - Wrong note, should be ignored
+    // 4. Note On (62) - Should trigger (as we now trigger on ALL notes)
     const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
     executor.setNodeConfig('input', noteOnWrong as any);
     executor.update({
       clock: { beat: 0.3, dt: 0.1 },
       audio: { context: mockAudioContext as any }
     });
-    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
+    expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(2);
   });
 });

@@ -85,9 +85,7 @@ const ChaosFields: InspectorFieldDef[] = [
   { type: 'number', label: 'Seed', path: 'seed' }
 ];
 
-const LayerFields: InspectorFieldDef[] = [
-  { type: 'number', label: 'Target Note', path: 'targetNote' }
-];
+
 
 // --- Node Implementations ---
 
@@ -256,6 +254,8 @@ export const pattern = defineNode({
 
 // --- Layer Nodes ---
 
+// --- Layer Nodes ---
+
 export function createLayerNode(
   id: string,
   displayName: string,
@@ -270,7 +270,7 @@ export function createLayerNode(
       keywords: ['layer', 'effect', 'modifier'],
       description: `Layer node: ${displayName}`
     },
-    config: { targetNote: numberType },
+    config: {}, // Removed targetNote
     inputs: {
       midi_in: { type: midiStreamType, description: "Input MIDI stream" },
       prev_layer: { type: layerOutputStructorType, description: "Previous layer output" }
@@ -279,36 +279,39 @@ export function createLayerNode(
     autoBroadcast: {
       midi_in: { combine: { reduce: 'first' } }
     },
-    ui: { inspector: { fields: LayerFields } },
+    ui: { inspector: { fields: [] } }, // Removed LayerFields (targetNote)
     isRealtime: () => true,
     createState: (config, context) => {
       return {
-        layer: new LayerClass({ targetNoteIndex: config.targetNote }),
+        layer: new LayerClass({}),
         lastActive: false,
-        activeVelocity: 0
+        activeVelocity: 0,
+        activeNote: null as number | null
       };
     },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
       const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
-      const targetNote = config.targetNote;
+      // Removed targetNote
 
       // Process MIDI stream
       for (const event of stream) {
         if (event.type === 'note_on') {
-          if (event.note === targetNote) {
-            state.lastActive = true;
-            state.activeVelocity = event.velocity;
-          }
+          // Trigger on ANY note, track it as active
+          state.lastActive = true;
+          state.activeVelocity = event.velocity;
+          state.activeNote = event.note;
         } else if (event.type === 'note_off') {
-          if (event.note === targetNote) {
+          // Only release if the Off event matches our current active note
+          if (state.activeNote === event.note) {
             state.lastActive = false;
+            state.activeNote = null;
           }
         }
       }
 
       const syntheticStep: Step = {
-        noteIndex: state.lastActive ? targetNote : null,
+        noteIndex: state.lastActive ? (state.activeNote ?? 60) : null,
         velocity: state.activeVelocity,
         hold: false, // We don't easily track hold from stream without more state
       };
@@ -316,8 +319,8 @@ export function createLayerNode(
       // We assume isNewStep is true if we processed any relevant events?
       // Or we rely on the layer's internal logic.
       // The original code passed 'isNewStep' if the event object changed reference.
-      // Here, we should probably pass true if we received a Note On for our target.
-      const hasNoteOn = stream.some((e: MidiEvent) => e.type === 'note_on' && e.note === targetNote);
+      // Here, we should probably pass true if we received a Note On.
+      const hasNoteOn = stream.some((e: MidiEvent) => e.type === 'note_on');
 
       activeLayer.update(syntheticStep, context.clock.dt, hasNoteOn);
       const result = activeLayer.getValue();
@@ -325,9 +328,7 @@ export function createLayerNode(
       return { out: result };
     },
     compileConfig: (uiConfig) => ({
-      fields: {
-        targetNote: uiConfig?.targetNote ?? 60,
-      },
+      fields: {},
       untagged: [],
     }),
   });
@@ -348,7 +349,7 @@ export const toneSynthLayer = defineNode({
     keywords: ['synth', 'audio', 'sound', 'tone'],
     description: 'Simple synthesizer layer using Tone.js.'
   },
-  config: { targetNote: numberType },
+  config: {}, // Removed targetNote
   inputs: {
     midi_in: { type: midiStreamType, description: "Input MIDI stream" },
     prev_layer: { type: layerOutputStructorType, description: "Previous layer output" }
@@ -357,7 +358,7 @@ export const toneSynthLayer = defineNode({
   autoBroadcast: {
     midi_in: { combine: { reduce: 'first' } }
   },
-  ui: { inspector: { fields: LayerFields } },
+  ui: { inspector: { fields: [] } }, // Removed LayerFields
   isRealtime: () => true,
   createState: (config, context) => {
     return {
@@ -370,21 +371,21 @@ export const toneSynthLayer = defineNode({
   execute: (inputs, config, context, state) => {
     const activeLayer = state.layer;
     const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
-    const targetNote = config.targetNote;
+    // Removed targetNote
 
     let hasNoteOn = false;
 
     // Process MIDI stream
     for (const event of stream) {
       if (event.type === 'note_on') {
-        if (event.note === targetNote) {
-          state.lastActive = true;
-          state.lastActiveNote = event.note;
-          state.activeVelocity = event.velocity;
-          hasNoteOn = true;
-        }
+        // Trigger on ANY note
+        state.lastActive = true;
+        state.lastActiveNote = event.note;
+        state.activeVelocity = event.velocity;
+        hasNoteOn = true;
       } else if (event.type === 'note_off') {
-        if (event.note === targetNote) {
+        // Release only if matching
+        if (state.lastActiveNote === event.note) {
           state.lastActive = false;
           state.lastActiveNote = null;
         }
@@ -412,9 +413,7 @@ export const toneSynthLayer = defineNode({
     return { out: result };
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      targetNote: uiConfig?.targetNote ?? 60,
-    },
+    fields: {},
     untagged: [],
   }),
 });

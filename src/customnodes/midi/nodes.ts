@@ -294,3 +294,70 @@ registerNode(midiCcInputNode);
 registerNode(midiCcNode);
 registerNode(midiNoteNode);
 registerNode(midiToMonoNode);
+
+export const midiFilterNode = defineNode({
+  id: "midi.filter",
+  version: "1.0.0",
+  displayName: "MIDI Filter",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'filter', 'note'],
+    description: 'Filters MIDI events, allowing only specific Note On/Off messages through.'
+  },
+  inputs: {
+    stream: midiStreamType
+  },
+  config: {
+    channel: numberType,
+    note: numberType,
+  },
+  outputs: {
+    stream: midiStreamType
+  },
+  ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields (Channel, Note)
+  execute: (inputs, config, context) => {
+    const channel = (config.channel as number) || 1;
+    const targetNote = (config.note as number) || 60;
+    const stream = inputs.stream as unknown as MidiEvent[];
+
+    const filteredStream: MidiEvent[] = [];
+
+    if (stream && Array.isArray(stream)) {
+      for (const event of stream) {
+        // Pass non-note events? User said "Only lets notes that have the same note number through".
+        // Assuming strict filtering for Note events, passing others?
+        // Or strict filter for EVERYTHING?
+        // "It takes a midi stream input... It only lets notes that have the same note number through."
+        // Usually a filter node blocks everything else unless specified.
+        // Let's assume it passes matching Notes and BLOCKS other notes.
+        // What about CC? Clock?
+        // Let's stick to: If it's a Note event, it MUST match. If it's NOT a note event, pass it?
+        // Actually, "Only lets notes... through" usually implies purely filtering for that note.
+        // Let's implement strict filtering: Only Note On/Off with matching Channel & Note.
+
+        if (event.channel === channel) {
+          if (event.type === 'note_on' || event.type === 'note_off') {
+            if (event.note === targetNote) {
+              filteredStream.push(event);
+            }
+          } else {
+             // For now, let's BLOCK other events on this channel to be "strict" about only letting this note through.
+             // If the user wants other events, they can parallel path.
+          }
+        } else {
+           // Different channel? Block or pass?
+           // "note number" implies we are picking out a specific note.
+           // Let's block everything else for safety/clarity of "Filter".
+        }
+      }
+    }
+
+    return { stream: filteredStream };
+  },
+  compileConfig: (uiConfig) => ({
+    fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60 },
+    untagged: []
+  }),
+});
+
+registerNode(midiFilterNode);

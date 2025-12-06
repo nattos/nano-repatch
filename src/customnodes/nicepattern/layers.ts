@@ -2,7 +2,7 @@ import { AbstractLayer, LayerConfig } from "./abstract-layer";
 import { Step, Sequence } from "./envelope-generator";
 
 export class GateLayer extends AbstractLayer {
-  protected onTrigger(vel: number) { this.output = vel; }
+  protected onTrigger(vel: number, noteIndex?: number | null) { this.output = vel; }
   protected onRelease() { this.output = 0; }
   protected process(isActive: boolean) {
     // Hard gate, output stays high if active
@@ -10,7 +10,7 @@ export class GateLayer extends AbstractLayer {
   }
   public previewSequence(sequence: Sequence, prevLayerOutput: number[]): number[] {
     return sequence.map(step => {
-      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex !== null && step.noteIndex !== undefined);
       return isActive ? step.velocity : 0;
     });
   }
@@ -24,7 +24,7 @@ export class ExponentialLayer extends AbstractLayer {
     this.decayRate = decay;
   }
 
-  protected onTrigger(vel: number) {
+  protected onTrigger(vel: number, noteIndex?: number | null) {
     // Snap up
     this.output = vel;
   }
@@ -46,7 +46,7 @@ export class ExponentialLayer extends AbstractLayer {
     let lastActive = false;
 
     for (const step of sequence) {
-      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex !== null && step.noteIndex !== undefined);
 
       if (isActive && !lastActive) { // onTrigger
         output = step.velocity;
@@ -71,7 +71,7 @@ export class PWMLayer extends AbstractLayer {
   private duty: number = 0.5;
   private freq: number = 0.2;
 
-  protected onTrigger() {
+  protected onTrigger(vel: number, noteIndex?: number | null) {
     this.duty = 0.5; // Reset duty
   }
   protected onRelease() {
@@ -100,7 +100,7 @@ export class PWMLayer extends AbstractLayer {
     let lastActive = false;
 
     for (const step of sequence) {
-      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex !== null && step.noteIndex !== undefined);
 
       // onTrigger
       if (isActive && !lastActive) {
@@ -126,7 +126,7 @@ export class PWMLayer extends AbstractLayer {
 }
 
 export class NoiseLayer extends AbstractLayer {
-  protected onTrigger() { }
+  protected onTrigger(vel: number, noteIndex?: number | null) { }
   protected onRelease() { this.output *= 0.85; }
   protected process(isActive: boolean) {
     if (isActive) {
@@ -152,7 +152,7 @@ export class NoiseLayer extends AbstractLayer {
     const random = mulberry32(12345); // Fixed seed for reproducibility
 
     for (const step of sequence) {
-      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex !== null && step.noteIndex !== undefined);
 
       // onRelease
       if (!isActive && lastActive) {
@@ -205,8 +205,9 @@ export class ToneSynthLayer extends AbstractLayer {
     this.filter = this.ctx.createBiquadFilter();
 
     // Config
-    this.osc.type = 'triangle';
-    this.osc.frequency.setValueAtTime(this.frequency, time);
+    // Use calculated frequency if available, else default
+    const freq = (this.frequency > 0) ? this.frequency : 440;
+    this.osc.frequency.setValueAtTime(freq, time);
 
     this.filter.type = 'lowpass';
     this.filter.frequency.setValueAtTime(800 + (velocity * 2000), time);
@@ -234,10 +235,17 @@ export class ToneSynthLayer extends AbstractLayer {
     } catch (e) { /* ignore already stopped */ }
   }
 
-  protected onTrigger(velocity: number) {
+  protected onTrigger(velocity: number, noteIndex?: number | null) {
     // Monophonic synth logic
     // If holding, we might just pitch slide, but for this specific "Clicky" requirement:
     // We do trigger a new pluck on new note, but handle holds in process
+
+    // Calculate frequency from noteIndex if provided
+    if (noteIndex !== null && noteIndex !== undefined) {
+      // MIDI Note to Frequency: 440 * 2^((note - 69) / 12)
+      this.frequency = 440 * Math.pow(2, (noteIndex - 69) / 12);
+    }
+
     this.initVoice(this.ctx?.currentTime ?? 0.0, velocity);
   }
 
@@ -268,7 +276,7 @@ export class ToneSynthLayer extends AbstractLayer {
     const results: number[] = [];
     let lastActive = false;
     for (const step of sequence) {
-      const isActive = (step.noteIndex === this.config.targetNoteIndex);
+      const isActive = (step.noteIndex !== null && step.noteIndex !== undefined);
       if (isActive && !lastActive) {
         results.push(step.velocity);
       } else {

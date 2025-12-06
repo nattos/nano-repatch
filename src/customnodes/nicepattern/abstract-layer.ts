@@ -11,38 +11,29 @@ export abstract class AbstractLayer {
   constructor(protected config: LayerConfig) { }
 
   public update(step: Step, dt: number, isNewStep: boolean): void {
-    let isActive = this.lastActive;
-    const isEvent = step.noteIndex !== null;
-    const isAnyNote = this.config.targetNoteIndex === undefined;
+    const isEvent = step.noteIndex !== null && step.noteIndex !== undefined;
+    let isActive = isEvent;
 
-    if (isEvent) {
-      const isActiveFromEvent = isAnyNote || (step.noteIndex === this.config.targetNoteIndex);
-      if (isActiveFromEvent) {
-        let isReleased = false;
-        if (this.lastActive) {
-          // Only retrigger if it's a new step and hold is false
-          if (isNewStep && !step.hold) {
-            this.onRelease();
-            isReleased = true;
-          }
-        } else {
+    if (isActive) {
+      let isReleased = false;
+      if (this.lastActive) {
+        // Only retrigger if it's a new step and hold is false
+        if (isNewStep && !step.hold) {
+          this.onRelease();
           isReleased = true;
         }
-        if (isReleased) {
-          // Only trigger if released (new note or retrigger)
-          // For sustained notes (hold=true), isReleased is false, so we don't retrigger.
-          this.onTrigger(step.velocity);
-        }
-      } else if (!isActiveFromEvent && this.lastActive) {
-        this.onRelease();
+      } else {
+        isReleased = true;
       }
-      isActive = isActiveFromEvent;
+      if (isReleased) {
+        // Trigger on any note. Pass noteIndex for pitch-aware layers.
+        this.onTrigger(step.velocity, step.noteIndex);
+      }
     } else {
       // Empty step - release if active
       if (this.lastActive) {
         this.onRelease();
       }
-      isActive = false;
     }
 
     this.process(isActive, step, dt);
@@ -61,7 +52,7 @@ export abstract class AbstractLayer {
 
   public abstract previewSequence(sequence: Sequence, prevLayerOutput: number[]): number[];
 
-  protected abstract onTrigger(velocity: number): void;
+  protected abstract onTrigger(velocity: number, noteIndex?: number | null): void;
   protected abstract onRelease(): void;
   protected abstract process(isActive: boolean, step: Step, dt: number): void;
 }
