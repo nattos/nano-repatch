@@ -1,5 +1,5 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
-import { AnyType } from "../../structor/type-helpers";
+import { AnyType, NumberType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
 import { NodeCategory } from "../../structor/structor";
 import { PortHint } from "../../structor/repository";
@@ -113,7 +113,7 @@ export const expressionNode = defineNode({
         if (node.op === 'input') {
           // Avoid duplicates
           if (!inputs.find(i => i.name === node.params.key)) {
-            inputs.push({ name: node.params.key, type: AnyType, description: `Variable: ${node.params.key}` });
+            inputs.push({ name: node.params.key, type: NumberType, description: `Variable: ${node.params.key}` });
           }
         }
       }

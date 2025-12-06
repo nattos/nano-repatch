@@ -163,7 +163,7 @@ export class GraphGrid extends MobxLitElement {
   selectionBox: { x: number, y: number, w: number, h: number } | null = null;
 
   @state()
-  popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string } | null = null;
+  popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string, isNew?: boolean, connectionId?: string } | null = null;
 
   private popupLongEdit: LongEdit | null = null;
 
@@ -954,8 +954,9 @@ export class GraphGrid extends MobxLitElement {
     let inputs = nodeType?.inputs || [];
     let outputs = nodeType?.outputs || [];
 
-    if (nodeType?.getPorts) {
-      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
       if (dynamicInfo) {
         inputs = dynamicInfo.inputs;
         outputs = dynamicInfo.outputs;
@@ -1058,8 +1059,9 @@ export class GraphGrid extends MobxLitElement {
     let outputs = nodeType?.outputs || [];
 
     // Dynamic ports check
-    if (nodeType?.getPorts) {
-      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
       if (dynamicInfo) {
         inputs = dynamicInfo.inputs;
         outputs = dynamicInfo.outputs;
@@ -1099,8 +1101,9 @@ export class GraphGrid extends MobxLitElement {
     const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
     let ports = isInput ? (nodeType?.inputs || []) : (nodeType?.outputs || []);
 
-    if (nodeType?.getPorts) {
-      const dynamicInfo = nodeType.getPorts(node, localController.observableState.loadedSubgraphs);
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
       if (dynamicInfo) {
         ports = isInput ? dynamicInfo.inputs : dynamicInfo.outputs;
       }

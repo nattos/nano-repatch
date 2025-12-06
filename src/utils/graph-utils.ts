@@ -9,7 +9,8 @@ export function getPortPosition(
   nodeType: NodeType | undefined,
   loadedSubgraphs: Map<string, GraphState>,
   scrollLeft: number = 0,
-  clientWidth: number = 0
+  clientWidth: number = 0,
+  compiledConfig?: any
 ): { x: number, y: number } {
   if (!node) return { x: 0, y: 0 };
 
@@ -28,7 +29,7 @@ export function getPortPosition(
   let ports: any[] = [];
 
   if (nodeType) {
-    const dynamicInfo = nodeType.getPorts?.(node, loadedSubgraphs);
+    const dynamicInfo = nodeType.compilePorts?.(node, { loadedSubgraphs, compiledConfig });
     if (dynamicInfo) {
       ports = type === 'in' ? dynamicInfo.inputs : dynamicInfo.outputs;
     } else {

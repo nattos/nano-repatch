@@ -11,9 +11,10 @@ self.onerror = (e) => {
 };
 
 self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
-  const { type, state, subgraphs } = event.data;
+  const { type } = event.data;
 
   if (type === 'COMPILE_GRAPH') {
+    const { state, subgraphs } = event.data;
     try {
       // Convert subgraphs Record to Map
       const subgraphsMap = new Map<string, GraphState>(Object.entries(subgraphs));
