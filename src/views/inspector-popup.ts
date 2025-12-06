@@ -17,7 +17,7 @@ export class InspectorPopup extends MobxLitElement {
       right: 20px;
       width: 260px;
       max-height: 80vh;
-      background-color: var(--bg-color);
+      background-color: var(--panel-bg);
       color: var(--text-color);
       border: 1px solid var(--border-color);
       border-radius: 8px;

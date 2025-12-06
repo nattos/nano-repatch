@@ -13,7 +13,7 @@ export class ResolumeInspector extends MobxLitElement {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-size: 11px;
         color: #ddd;
-        background-color: #1a1a1a;
+        background-color: transparent;
         height: 100%;
         display: flex;
         flex-direction: column;
