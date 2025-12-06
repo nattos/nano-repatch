@@ -132,9 +132,32 @@ export class GraphNode extends MobxLitElement {
       font-size: 0.7em;
       text-align: center;
       width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      height: 100%;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+      overflow: visible; /* Allow edit box to show */
+      white-space: normal; /* Allow wrapping if needed, though usually short */
+    }
+
+    :host([data-state="minimal"]) smart-input {
+      text-align: left;
+      font-size: 14px;
+      font-weight: normal;
+    }
+
+    :host([data-state="minimal"]) .editable-label-wrapper.name {
+      font-weight: bold;
+      overflow: visible;
+      justify-content: center;
+    }
+
+    :host([data-state="minimal"]) .editable-label-wrapper.type {
+      font-size: 0.8em;
+      opacity: 0.7;
+      overflow: visible;
+      justify-content: center;
     }
 
     .node {
