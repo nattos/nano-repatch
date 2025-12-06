@@ -305,49 +305,32 @@ export const midiFilterNode = defineNode({
     description: 'Filters MIDI events, allowing only specific Note On/Off messages through.'
   },
   inputs: {
-    stream: midiStreamType
+    stream: midiStreamType,
+    channel: { type: numberType, description: 'MIDI Channel (1-16)', defaultValue: 1 },
+    note: { type: numberType, description: 'Note Number (0-127)', defaultValue: 60 }
   },
-  config: {
-    channel: numberType,
-    note: numberType,
-  },
+  config: {}, // Removed config params
   outputs: {
     stream: midiStreamType
   },
   ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields (Channel, Note)
   execute: (inputs, config, context) => {
-    const channel = (config.channel as number) || 1;
-    const targetNote = (config.note as number) || 60;
+    const channel = (inputs.channel as number) ?? 1;
+    const targetNote = (inputs.note as number) ?? 60;
     const stream = inputs.stream as unknown as MidiEvent[];
 
     const filteredStream: MidiEvent[] = [];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
-        // Pass non-note events? User said "Only lets notes that have the same note number through".
-        // Assuming strict filtering for Note events, passing others?
-        // Or strict filter for EVERYTHING?
-        // "It takes a midi stream input... It only lets notes that have the same note number through."
-        // Usually a filter node blocks everything else unless specified.
-        // Let's assume it passes matching Notes and BLOCKS other notes.
-        // What about CC? Clock?
-        // Let's stick to: If it's a Note event, it MUST match. If it's NOT a note event, pass it?
-        // Actually, "Only lets notes... through" usually implies purely filtering for that note.
-        // Let's implement strict filtering: Only Note On/Off with matching Channel & Note.
-
         if (event.channel === channel) {
           if (event.type === 'note_on' || event.type === 'note_off') {
             if (event.note === targetNote) {
               filteredStream.push(event);
             }
           } else {
-             // For now, let's BLOCK other events on this channel to be "strict" about only letting this note through.
-             // If the user wants other events, they can parallel path.
+             // Block non-note events for strict filtering consistency
           }
-        } else {
-           // Different channel? Block or pass?
-           // "note number" implies we are picking out a specific note.
-           // Let's block everything else for safety/clarity of "Filter".
         }
       }
     }
@@ -355,9 +338,52 @@ export const midiFilterNode = defineNode({
     return { stream: filteredStream };
   },
   compileConfig: (uiConfig) => ({
-    fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60 },
+    fields: {},
+    values: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60 },
     untagged: []
   }),
 });
 
-registerNode(midiFilterNode);
+
+export const midiPitchNode = defineNode({
+  id: "midi.pitch",
+  version: "1.0.0",
+  displayName: "MIDI Pitch",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'pitch', 'transpose', 'shift'],
+    description: 'Transposes MIDI Note events by a specified amount.'
+  },
+  inputs: {
+    stream: midiStreamType,
+    pitch: { type: numberType, description: 'Pitch shift amount (semitones)', defaultValue: 0, range: [ -24, 24 ] }
+  },
+  config: {},
+  outputs: {
+    stream: midiStreamType
+  },
+  execute: (inputs, config, context) => {
+    // Only use inputs.pitch. If unconnected, GraphExecutor injects defaultValue OR virtual input from config.values
+    const shift = (inputs.pitch ?? 0) as number;
+    const stream = inputs.stream as unknown as MidiEvent[];
+
+    if (!stream || !Array.isArray(stream)) return { stream: [] };
+
+    const processedStream: MidiEvent[] = stream.map(event => {
+      if (event.type === 'note_on' || event.type === 'note_off') {
+        const newNote = Math.max(0, Math.min(127, Math.floor(event.note + shift)));
+        return { ...event, note: newNote };
+      }
+      return event;
+    });
+
+    return { stream: processedStream };
+  },
+  compileConfig: (uiConfig) => ({
+    fields: {},
+    values: { pitch: uiConfig.pitch ?? 0 }, // Virtual Input
+    untagged: []
+  }),
+});
+
+registerNode(midiPitchNode);

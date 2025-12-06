@@ -98,7 +98,15 @@ export const integratorNode = definePrimitiveNode({
 *   **Symptom:** The graph executor (which runs in a Web Worker) will crash with `ReferenceError: window is not defined`.
 *   **Fix:** Keep node logic pure. If you need UI-specific rendering (like inspectors), keep that code in separate files (e.g., `src/views/`) and do not import it into the node definition or state files.
 
-## 6. Advanced Input Handling: Redirection
+### 6. Duplicate Parameters
+*   **Mistake:** Defining a parameter in both `inputs` and `config` (e.g. `config.pitch` AND `inputs.pitch`).
+*   **Correction:** Define it **ONLY** in `inputs`.
+    *   Use `defaultValue` in the input definition for the initial value.
+    *   Use `range` in the input definition constraints for UI sliders (e.g., `range: [-24, 24]`).
+    *   Do NOT enable it in `config`. The system handles "virtual inputs" (values injected when nothing is connected) automatically.
+
+
+## 7. Advanced Input Handling: Redirection
 
 Sometimes you want a named input port in the UI (e.g., `seq_in`) to collect multiple connections into a single array in the `untagged` input list. This is useful for nodes that process variable numbers of inputs but want a labeled connection point.
 

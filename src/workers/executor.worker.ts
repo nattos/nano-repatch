@@ -1,8 +1,10 @@
 import '../customnodes/debug/nodes.worker';
+import '../customnodes/expr/nodes';
 import '../customnodes/osc/nodes';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
 import '../customnodes/curve/nodes';
+import '../customnodes/midi/nodes';
 import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
 import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';

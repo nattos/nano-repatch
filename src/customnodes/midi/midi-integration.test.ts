@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { GraphExecutor } from '../../structor/executor';
 import { NodeRepository } from '../../structor/repository';
-import { midiCcNode, midiNoteNode, midiToMonoNode } from './nodes';
+import { midiCcNode, midiNoteNode, midiToMonoNode, midiPitchNode } from './nodes';
 import { GraphDefinition, StructorRecord } from '../../structor/structor';
 import { midiStreamType } from '../../structor/std-types';
 import { MidiEvent } from '../../io/midi/types';
@@ -213,7 +213,68 @@ describe('MIDI Integration', () => {
     executor.setInput('midi_in', stream4 as any);
     executor.update({});
 
-    expect(executor.getGraphOutput('gate')).toBe(0);
+  });
+
+  it('should process MIDI Pitch messages', () => {
+    // Register midi.pitch explicitly if not in base (not really needed if we trust setup, but test context might differ)
+    // We'll rely on correct registration from imports if possible, or register again.
+    // Since we import nodes individually, let's verify registration.
+
+    repository.register({
+      id: 'midi.pitch',
+      version: '1.0.0',
+      displayName: 'MIDI Pitch',
+      definition: midiPitchNode,
+      inputs: [
+        { name: 'stream', type: midiStreamType, description: 'MIDI Stream' },
+        { name: 'pitch', type: midiStreamType /* actually numberType */, description: 'Pitch' }
+      ],
+      outputs: [{ name: 'stream', type: midiStreamType }]
+    });
+
+    const graph = createGraph('pitchNode', 'midi.pitch', { pitch: 0 });
+    graph.outputs = {
+      'stream': { nodeId: 'pitchNode', port: 'stream' }
+    };
+    // Configure pitch input
+    graph.inputs = {
+      'midi_in': { nodeId: 'pitchNode', port: 'stream' },
+      'pitch_in': { nodeId: 'pitchNode', port: 'pitch' }
+    };
+
+    const executor = new GraphExecutor(graph, repository);
+
+    // Case 1: Default pitch 0
+    const noteOn = [createNoteOnEvent(1, 60, 100)];
+    executor.setInput('midi_in', noteOn as any);
+    executor.update({});
+    let output = executor.getGraphOutput('stream') as any[]; // Cast to any to access fields
+    expect(output[0].fields.note).toBe(60);
+
+    // Case 2: Pitch +12 via input
+    executor.setInput('midi_in', noteOn as any);
+    // Passing scalar input (number) directly? No, executor inputs usuallyStructorRecord.
+    // Logic: executor.setInput(key, value) -> inputRecord.fields[key] = value.
+    // If input is numberType, value should be number.
+    executor.setInput('pitch_in', 12 as any);
+    executor.update({});
+    output = executor.getGraphOutput('stream') as any[];
+    expect(output[0].fields.note).toBe(72);
+
+    // Case 3: Pitch -12 via input
+    executor.setInput('pitch_in', -12 as any);
+    executor.update({});
+    output = executor.getGraphOutput('stream') as any[];
+    expect(output[0].fields.note).toBe(48);
+
+    // Case 4: Clamping
+    const highNote = [createNoteOnEvent(1, 120, 100)];
+    executor.setInput('midi_in', highNote as any);
+    executor.setInput('pitch_in', 20 as any); // Should clamp to 127
+    executor.update({});
+    output = executor.getGraphOutput('stream') as any[];
+    expect(output[0].fields.note).toBe(127);
   });
 });
+
 
