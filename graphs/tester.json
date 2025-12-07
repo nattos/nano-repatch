@@ -1,4 +1,17 @@
 {
-  "nodes": {},
+  "nodes": {
+    "node-ff507760-1c01-423e-9e19-72515bc66ea4": {
+      "id": "node-ff507760-1c01-423e-9e19-72515bc66ea4",
+      "x": 1,
+      "y": 2,
+      "config": {
+        "typeId": "data.float",
+        "values": {
+          "value": 0.4
+        },
+        "name": "Float"
+      }
+    }
+  },
   "connections": {}
 }
