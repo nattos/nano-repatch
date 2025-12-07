@@ -1,5 +1,6 @@
 import { defineNode } from "../../structor/node-helpers";
 import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
+import { SeededRandom } from "./utils";
 
 // --- Physics Constants & Types ---
 
@@ -27,11 +28,11 @@ class Sphere {
     currentSpringForce: number;
     currentMagForce: number;
 
-    constructor(id: number, w: number, h: number, idx: number, count: number) {
+    constructor(id: number, w: number, h: number, idx: number, count: number, rng: SeededRandom) {
         this.id = id;
-        this.radius = 6 + Math.random() * 8;
+        this.radius = 6 + rng.next() * 8;
         this.mass = this.radius;
-        this.restLength = 20 + Math.pow(Math.random(), 2) * 150;
+        this.restLength = 20 + Math.pow(rng.next(), 2) * 150;
 
         const pad = w * 0.1;
         const avail = w - (pad * 2);
@@ -128,6 +129,10 @@ interface MagnetoState {
 
 // --- Node Definition ---
 
+export const MagnetoFields: InspectorFieldDef[] = [
+    { type: 'number', label: 'Seed', path: 'seed', step: 1, min: 0, max: 999999 }
+];
+
 export const magneto = defineNode({
   id: "nicepattern.magneto",
   version: "1.0.0",
@@ -136,6 +141,9 @@ export const magneto = defineNode({
     category: 'NicePattern',
     keywords: ['envelope', 'physics', 'magnet', 'modulator'],
     description: 'Physics-based magnetic envelope generator.'
+  },
+  config: {
+    seed: { ...numberType, defaultValue: 1337 }
   },
   inputs: {
     midi_in: { type: midiStreamType, description: "Trigger Input" },
@@ -159,6 +167,7 @@ export const magneto = defineNode({
     ch4: { type: numberType, description: "Channel 4 (Mag Force)" }
   },
   ui: {
+      inspector: { fields: MagnetoFields },
       body: () => import('./magneto-editor').then(m => m.MagnetoEditorRenderer),
       getBodyHeight: () => Promise.resolve(() => 272) // Triple Grid Height
   },
@@ -167,9 +176,10 @@ export const magneto = defineNode({
       const spheres: Sphere[] = [];
       const cw = 600; // Virtual width
       const ch = PRE_CONFIG.height;
-      for(let i=0; i<PRE_CONFIG.sphereCount; i++) {
-          spheres.push(new Sphere(i, cw, ch, i, PRE_CONFIG.sphereCount));
-      }
+       const rng = new SeededRandom(1337);
+       for(let i=0; i<PRE_CONFIG.sphereCount; i++) {
+           spheres.push(new Sphere(i, cw, ch, i, PRE_CONFIG.sphereCount, rng));
+       }
       return {
           spheres,
           plateY: 40, // Open Y
@@ -209,7 +219,9 @@ export const magneto = defineNode({
       const sustain = inputs.sustain ?? 0.6;
       const release = Math.max(0.005, inputs.release ?? 0.3);
       const peak = inputs.peak ?? 0.9;
-      const seed = inputs.seed ?? 1337;
+      // Get Seed from Config, default to 1337 if undefined
+      const seedRaw = config.seed;
+      const seed = (typeof seedRaw === 'number') ? seedRaw : 1337;
 
       const magStr = inputs.mag_flux ?? 2000000;
       const kp = inputs.spring_k ?? 25000;
@@ -218,12 +230,12 @@ export const magneto = defineNode({
       // Initialize or Regenerate Spheres if seed changes
       if (state.currentSeed !== seed || state.spheres.length === 0) {
           state.currentSeed = seed;
-          const rand = seededRandom(seed);
+          const rng = new SeededRandom(seed);
           state.spheres = [];
           const cw = 600; // Virtual width
           const ch = PRE_CONFIG.height;
           for(let i=0; i<PRE_CONFIG.sphereCount; i++) {
-              state.spheres.push(new Sphere(i, cw, ch, i, PRE_CONFIG.sphereCount, rand));
+              state.spheres.push(new Sphere(i, cw, ch, i, PRE_CONFIG.sphereCount, rng));
           }
       }
 
@@ -393,5 +405,8 @@ export const magneto = defineNode({
           },
           ui: uiData
       };
-  }
+  },
+  compileConfig: (uiConfig) => ({
+    seed: uiConfig?.seed ?? 1337
+  })
 });
