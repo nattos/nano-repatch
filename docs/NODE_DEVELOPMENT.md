@@ -195,3 +195,72 @@ Create a node that applies an easing function to an input value, with a rich vis
 2.  **Use Systemic Features:** Rely on `GraphExecutor` for defaults and broadcasting; don't reinvent them.
 3.  **Test the Contract:** Ensure your unit tests simulate the `GraphExecutor`'s behavior accurately, especially regarding input injection and config handling.
 4.  **Handle Interactions:** When embedding complex UI in nodes, carefully manage pointer events to prevent conflicts with the graph editor's drag-and-drop system.
+
+## 9. Advanced UI Patterns: "Hero" Nodes
+
+For nodes that require complex, high-frequency visualizations (like `Orthomod`), standard inspector fields or simple status indicators are insufficient. We call these "Hero" nodes because they feature rich, embedded editors.
+
+### The Challenge: High-Frequency Visualization
+A typical node update cycle might process audio or logic at high rates (e.g., audio sample rate or frame rate). Sending all this data through the standard graph outputs to be React-rendered in the UI is expensive and can cause lag.
+
+### The Solution: "UI Only" Outputs
+To solve this, we introduced a side-channel for UI data. The node execution logic calculates visualization state (e.g., envelope position, generated codes, modulation values) and returns it in a special `ui` property alongside standard `outputs`.
+
+#### 1. In the Node Definition
+The `execute` function returns an extra `ui` object. This object is NOT part of the graph's data flow (downstream nodes can't see it), but it is shipped to the main thread.
+
+```typescript
+// orthomod.ts
+execute: (inputs, config, context, state) => {
+  // ... calculate complex logic ...
+
+  return {
+    outputs: {
+      // Standard graph outputs (consumed by other nodes)
+      env: currentEnv,
+      gate: state.gateOpen
+    },
+    // Special UI-only payload (consumed by the editor)
+    ui: {
+      codes: state.codes,       // Heavy array
+      env: currentEnv,          // Current value for visualization
+      activeCodeIndex: idx,     // Computed index
+      rawVec: rawChannels       // Internal state not exposed to graph
+    }
+  };
+}
+```
+
+#### 2. In the Editor Component
+The custom editor component (e.g., `OrthomodEditorRenderer`) runs on the main thread. It bypasses the standard input props and polls the `runtimeManager` directly for this high-frequency data.
+
+```typescript
+// orthomod-editor.ts
+private startLoop() {
+  const loop = () => {
+    this.animationFrame = requestAnimationFrame(loop);
+
+    // Poll RuntimeManager for the latest UI state packet
+    const uiState = runtimeManager.uiStates.get(this.node.id);
+
+    if (uiState) {
+      // Update local LitElement state efficiently
+      this.codes = uiState.codes;
+      this.envelope = uiState.env;
+      this.requestUpdate();
+    }
+  };
+  loop();
+}
+```
+
+### Benefits
+1.  **Performance:** Heavy visualization data (like full codebooks or FFT arrays) doesn't clog the graph execution dependency chain.
+2.  **Decoupling:** The UI can render at 60fps (screen refresh) while the node logic runs at its own rate or only when dirty.
+3.  **Encapsulation:** Internal state (like `rawVec` before modulation) can be visualized without exposing it as a valid connection point for other nodes.
+
+### Visual Design Guidelines for Hero Nodes
+*   **Density:** Use dense, high-contrast displays.
+*   **Color:** Use a "hero" accent color (e.g., yellow `#ffcc00` for Orthomod) against a dark background.
+*   **Ghosting:** Show "raw" or "underlying" values (ghost bars) behind the active values to help users understand the modulation.
+*   **Interactivity:** If the visualization is also an input (e.g., scrubbing), ensure pointer events use `stopPropagation()` to avoid conflicting with the graph editor's canvas panning.

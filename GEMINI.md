@@ -3,6 +3,29 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Audio Context Reliability & Hero Node Patterns (As of 2025-12-07)
+
+This entry documents the fixes for AudioContext suspension handling and the formalization of the "Hero Node" UI pattern.
+
+### Features Implemented
+
+1.  **Robust Audio Suspension Handling:**
+    *   **Issue:** Browsers suspend `AudioContext` until user interaction. Our previous system auto-resumed in `AudioRenderer.execute()`, which was brittle and could cause "warning loops".
+    *   **Fix:** Removed auto-resume. Implemented a dedicated `resumeAudio()` method in `RuntimeManager`.
+    *   **Triggers:** Wired `resumeAudio()` to trigger on:
+        *   **Node Selection:** When a user selects any node.
+        *   **Grid Interaction:** When a user clicks anywhere on the `GraphGrid`.
+    *   **State Sync:** Implemented explicit synchronisation of the `AudioContext` state (`running`/`suspended`) from the main thread to the worker via `UPDATE_AUDIO_STATE` messages. This ensures nodes like `ToneSynthLayer` don't attempt to schedule events on a suspended clock.
+
+2.  **Documentation: Hero Nodes & UI Outputs:**
+    *   Updated **[docs/NODE_DEVELOPMENT.md](docs/NODE_DEVELOPMENT.md)** with a new section on "Advanced UI Patterns: Hero Nodes".
+    *   Documented the pattern of using a side-channel `ui` output object in the node definition to send high-frequency visualization data (envelopes, FFTs) to the main thread without clogging the graph execution.
+    *   Documented the corresponding consumption pattern in custom editors using `runtimeManager.uiStates.get()`.
+
+### Bug Fixes
+
+1.  **GraphGrid Syntax Error:** Fixed a regression where extra closing braces were introduced in `src/views/graph-grid.ts`.
+
 ## Pattern Node Polyphony & GraphExecutor Fixes (As of 2025-12-03)
 
 This entry documents the resolution of a critical bug where the `pattern` node failed to process multiple sequence inputs, and the underlying `GraphExecutor` issue that caused it.
