@@ -96,9 +96,10 @@ export const orthomod = defineNode({
   },
   inputs: {
     midi_in: { type: midiStreamType, description: "Trigger Input" },
-    decay: { type: numberType, defaultValue: 1.2, description: "Decay Time (s)" },
-    curve: { type: numberType, defaultValue: 1.5, description: "Response Curve", range: [0.1, 4.0] },
-    resolution: { type: numberType, defaultValue: 8, range: [2, 8], description: "Codebook Size" },
+    decay: { type: numberType, defaultValue: 1.2, description: "Decay Time (s)", range: [0.0, 4.0], step: 0.01 },
+    curve: { type: numberType, defaultValue: 1.5, description: "Response Curve", range: [0.1, 4.0], step: 0.1 },
+    relcurve: { type: numberType, defaultValue: 12.0, description: "Release Curve", range: [0.1, 20.0], step: 0.1 },
+    resolution: { type: numberType, defaultValue: 8, range: [2, 8], step: 1, description: "Codebook Size" },
     manual_phase: {
       type: numberType,
       defaultValue: -1,
@@ -144,6 +145,9 @@ export const orthomod = defineNode({
     const curveRaw = inputs.curve;
     const sustainCurve = (typeof curveRaw === 'number' && Number.isFinite(curveRaw)) ? Math.max(0.001, curveRaw) : 1.5;
 
+    const relCurveRaw = inputs.relcurve;
+    const releaseCurve = (typeof relCurveRaw === 'number' && Number.isFinite(relCurveRaw)) ? Math.max(0.1, relCurveRaw) : 12.0;
+
     const resRaw = inputs.resolution;
     const resolution = (typeof resRaw === 'number' && Number.isFinite(resRaw)) ? Math.floor(Math.max(2, Math.min(8, resRaw))) : 8;
 
@@ -168,19 +172,10 @@ export const orthomod = defineNode({
         state.linearEnv = 1.0;
         state.gateOpen = true;
         state.active = true;
-        state.currentEffectiveCurve = sustainCurve;
+        // Curve is handled in frame update
       } else if (e.type === 'note_off') {
         state.gateOpen = false;
-        // Logic from prototype: when released, switch to fast release curve
-        // But we need to calculate current level and decay from there
-        // The prototype logic was:
-        // STATE.currentEffectiveCurve = STATE.releaseCurve; // 12.0
-        // We'll simplify for now or adopt it?
-        // Let's stick to simple decay for now, prototype logic is a bit specific to 'hold' behavior.
-        // Actually, let's keep it simple: Release just lets it decay naturally or we can speed it up.
-        // The prototype says: when gate open, if decay finishes, it stops?
-        // Prototype: "if(gateOpen && ... > stepDur) noteOff" -> auto release logic.
-        // Here we just follow MIDI.
+        // Release phase triggers fast curve in frame update
       }
     }
 
@@ -200,14 +195,13 @@ export const orthomod = defineNode({
            state.active = false;
          }
        }
-        // Apply sustain curve if not manual
-        // If gate is open, use normal curve. If gate is closed (released), use sharper curve?
-        // Prototype logic: "STATE.currentEffectiveCurve = STATE.releaseCurve" (12.0) on noteOff.
+
+        // Dynamic Curve Logic
         if (!state.gateOpen && state.active) {
-            // Accelerate decay or change curve?
-            // The prototype just changed the curve.
-            state.currentEffectiveCurve = 12.0;
+            // Fast Release (controlled by relcurve)
+            state.currentEffectiveCurve = releaseCurve;
         } else {
+            // Sustain / Attack / Idle
             state.currentEffectiveCurve = sustainCurve;
         }
     }
@@ -233,14 +227,15 @@ export const orthomod = defineNode({
 
     // 5. Modulators
     // Prototype: sqr = (t*rate)%1 > 0.5. sin = abs(sin(t...))
-    const rate = 50; // Hz? Prototype used 50
+    const rate = 15; // Hz. Use 15Hz (60/4) to align with 60Hz update and ensure peaks are hit visually.
     const sqr = (now * rate) % 1.0 > 0.5 ? 1 : 0;
     const sin = Math.abs(Math.sin(now * rate * Math.PI * 2));
 
     // 6. Channel Outputs
     const channels = [0, 0, 0, 0];
+    const rawChannels = [0, 0, 0, 0];
 
-    if (state.active && currentEnv > 0.001) {
+    if (state.active) {
        for(let ch=0; ch<4; ch++) {
          const b1 = code[ch * 2] || 0;
          const b2 = code[ch * 2 + 1] || 0;
@@ -251,7 +246,9 @@ export const orthomod = defineNode({
          else if (b1 === 1 && b2 === 0) val = sqr; // SQR
          else if (b1 === 0 && b2 === 1) val = sin; // SIN
 
-         channels[ch] = val * currentEnv;
+         rawChannels[ch] = val; // Store raw value
+         channels[ch] = val * currentEnv; // Store modulated value
+
          if (Number.isNaN(channels[ch])) channels[ch] = 0;
        }
     }
@@ -271,11 +268,14 @@ export const orthomod = defineNode({
           codes: state.codes, // Pass the generated codes!
           env: safeNum(currentEnv),
           vec: channels.map(safeNum),
+          rawVec: state.active ? rawChannels.map(safeNum) : [0,0,0,0], // Unmodulated values
+          activeCodeIndex: idx, // Current code index
           gate: state.gateOpen ? 1 : 0
       }
     };
   },
   compileConfig: (uiConfig) => ({
-    seed: uiConfig?.seed ?? 12345
+    seed: uiConfig?.seed ?? 12345,
+    values: uiConfig?.values
   })
 });

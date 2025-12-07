@@ -39,6 +39,7 @@ export interface ExtendedInputDef {
   description?: string;
   defaultValue?: any;
   range?: [number, number];
+  step?: number;
   suppressInputEditor?: boolean;
   alwaysShowInputEditor?: boolean;
   suppressLabel?: boolean;
@@ -130,6 +131,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
       description: isExtended ? val.description : undefined,
       defaultValue: isExtended ? val.defaultValue : undefined,
       range: isExtended ? val.range : undefined,
+      step: isExtended ? val.step : undefined,
       suppressInputEditor: isExtended ? val.suppressInputEditor : undefined,
       alwaysShowInputEditor: isExtended ? val.alwaysShowInputEditor : undefined,
       suppressLabel: isExtended ? val.suppressLabel : undefined,

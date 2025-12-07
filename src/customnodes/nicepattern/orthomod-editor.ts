@@ -12,6 +12,7 @@ export class OrthomodEditor extends LitElement {
   @state() private codes: number[][] = [];
   @state() private activeIndex: number = 0;
   @state() private channels: number[] = [0, 0, 0, 0];
+  @state() private rawChannels: number[] = [0, 0, 0, 0];
   @state() private envelope: number = 0;
   @state() private gateOpen: boolean = false;
 
@@ -125,22 +126,49 @@ export class OrthomodEditor extends LitElement {
     }
     .channel:last-child { border-right: none; }
 
+
+
+    .channel-ghost {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(255, 204, 0, 0.25); /* Faint Yellow */
+      border-top: 1px solid rgba(255, 204, 0, 0.5); /* Rim */
+      z-index: 0;
+    }
+
     .channel-fill {
       width: 100%;
-      background: #ffcc00;
-      opacity: 0.8;
-      opacity: 0.8;
+      background: #ffcc00; /* Solid punchy yellow */
+      opacity: 1.0;
+      z-index: 1;
+      position: relative;
+      box-shadow: 0 0 10px rgba(255, 204, 0, 0.3); /* Glow */
     }
 
     .channel-label {
         position: absolute;
-        top: 2px;
+        top: 4px;
         left: 0; right: 0;
         text-align: center;
-        font-size: 8px;
-        color: #555;
+        font-size: 9px;
+        font-weight: 700;
+        color: #666;
         z-index: 10;
         pointer-events: none;
+        letter-spacing: 0.5px;
+    }
+
+    .channel-type {
+        position: absolute;
+        bottom: 4px;
+        left: 0; right: 0;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.9);
+        z-index: 11;
+        pointer-events: none;
+        opacity: 1.0;
     }
 
     /* Footer / Controls */
@@ -198,15 +226,20 @@ export class OrthomodEditor extends LitElement {
 
           this.envelope = uiState.env ?? 0;
           this.channels = uiState.vec ?? [0, 0, 0, 0];
+          this.rawChannels = uiState.rawVec ?? [0, 0, 0, 0];
           this.gateOpen = (uiState.gate ?? 0) > 0.5;
 
-          // Calculate active index from envelope
-          let pos = 1.0 - this.envelope;
-          pos = Math.max(0, Math.min(0.999, pos));
-          const idx = Math.floor(pos * this.codes.length);
-
-          if (this.activeIndex !== idx) {
-              this.activeIndex = idx;
+          // Use the activeIndex provided by worker if available, else calc
+          if (typeof uiState.activeCodeIndex === 'number') {
+              if (this.activeIndex !== uiState.activeCodeIndex) {
+                  this.activeIndex = uiState.activeCodeIndex;
+              }
+          } else {
+              // Fallback (legacy worker?)
+              let pos = 1.0 - this.envelope;
+              pos = Math.max(0, Math.min(0.999, pos));
+              const idx = Math.floor(pos * this.codes.length);
+              if (this.activeIndex !== idx) this.activeIndex = idx;
           }
           this.requestUpdate();
       }
@@ -277,13 +310,30 @@ export class OrthomodEditor extends LitElement {
         <div class="visualizer">
             <!-- Channels (Top) -->
             <div class="channels">
-                ${this.channels.map((val, i) => html`
+                ${this.channels.map((val, i) => {
+                    const activeCode = this.codes[this.activeIndex] || [];
+                    const b1 = activeCode[i * 2] || 0;
+                    const b2 = activeCode[i * 2 + 1] || 0;
+                    let typeLabel = "OFF";
+                    if (b1 === 0 && b2 === 0) typeLabel = "OFF";
+                    else if (b1 === 1 && b2 === 1) typeLabel = "ON";
+                    else if (b1 === 1 && b2 === 0) typeLabel = "SQR"; // 10
+                    else if (b1 === 0 && b2 === 1) typeLabel = "SIN"; // 01
+
+                    const rawVal = this.rawChannels[i] || 0;
+
+                    return html`
                     <div class="channel">
                         <div class="channel-label">CH ${i+1}</div>
-                        <!-- Use style height percentage. Clamp val to 0-1 just in case of NaN/overflow -->
+                        <!-- Ghost Bar (Raw / Unmodulated) -->
+                        <div class="channel-ghost" style="height: ${Number.isNaN(rawVal) ? 0 : Math.min(100, Math.max(0, rawVal * 100))}%"></div>
+
+                        <!-- Main Bar (Enveloped) -->
                         <div class="channel-fill" style="height: ${Number.isNaN(val) ? 0 : Math.min(100, Math.max(0, val * 100))}%"></div>
+
+                        <div class="channel-type" style="color: ${isActive ? '#000' : '#555'}">${typeLabel}</div>
                     </div>
-                `)}
+                `})}
             </div>
 
             <!-- Matrix (Bottom) -->

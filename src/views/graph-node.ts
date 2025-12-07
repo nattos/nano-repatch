@@ -1032,7 +1032,7 @@ export class GraphNode extends MobxLitElement {
                           <scalar-slider
                             .min=${input.range?.[0] ?? 0}
                             .max=${input.range?.[1] ?? 1}
-                            .step=${input.range ? (input.range[1] - input.range[0]) / 100 : 0.01}
+                            .step=${input.step ?? (input.range ? (input.range[1] - input.range[0]) / 100 : 0.01)}
                             .value=${currentValue}
                             .defaultValue=${input.defaultValue ?? Math.max(input.range?.[0] ?? 0, Math.min(input.range?.[1] ?? 1, 0))}
                             @input=${(e: CustomEvent) => this.handleVirtualInputChange(e, input.name)}

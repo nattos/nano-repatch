@@ -21,6 +21,7 @@ export interface PortHint {
   // For "virtual inputs"
   defaultValue?: any;
   range?: [number, number];
+  step?: number;
   redirect?: 'untagged';
   suppressInputEditor?: boolean;
   alwaysShowInputEditor?: boolean;

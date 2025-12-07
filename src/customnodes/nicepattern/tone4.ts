@@ -27,7 +27,7 @@ export const tone4 = defineNode({
   },
   inputs: {
     vec: { type: vec4Type, description: "Modulation Vector [c1, c2, c3, c4]" },
-    root: { type: numberType, defaultValue: 73.42, description: "Root Frequency (Hz)", range: [20, 2000] },
+    root: { type: numberType, defaultValue: 60, description: "Root Note (MIDI)", range: [0, 127] },
     gain: { type: numberType, defaultValue: 0.5, description: "Master Volume" }
   },
   outputs: {}, // Audio output is internal/side-effect
@@ -80,16 +80,21 @@ export const tone4 = defineNode({
 
     // Update Frequencies (if changed)
     const rootRaw = inputs.root;
-    // Clamp root to safe audio range
-    const root = (typeof rootRaw === 'number' && Number.isFinite(rootRaw))
-        ? Math.max(20, Math.min(2000, rootRaw))
-        : 73.42;
+    // Quantize root to integer MIDI note (0-127), default to 69 (A4 = 440Hz)
+    // Range is clamped to [0, 127]
+    const midiNote = (typeof rootRaw === 'number' && Number.isFinite(rootRaw))
+        ? Math.floor(Math.max(0, Math.min(127, rootRaw)))
+        : 69;
 
-    if (Math.abs(root - state.lastRoot) > 0.01) {
+    // Convert MIDI to Frequency
+    // f = 440 * 2^((d - 69) / 12)
+    const rootFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+
+    if (Math.abs(rootFreq - state.lastRoot) > 0.01) {
         state.voices.forEach(v => {
-            v.osc.frequency.setTargetAtTime(root * v.freqRatio, now, 0.05);
+            v.osc.frequency.setTargetAtTime(rootFreq * v.freqRatio, now, 0.05);
         });
-        state.lastRoot = root;
+        state.lastRoot = rootFreq;
     }
 
     // Update Voice Gains from Vector
