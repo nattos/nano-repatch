@@ -79,6 +79,7 @@ interface OrthomodState {
   lastSeed: number;
   lastResolution: number;
   currentEffectiveCurve: number;
+  phase: number;
 }
 
 export const orthomod = defineNode({
@@ -96,7 +97,7 @@ export const orthomod = defineNode({
   inputs: {
     midi_in: { type: midiStreamType, description: "Trigger Input" },
     decay: { type: numberType, defaultValue: 1.2, description: "Decay Time (s)" },
-    curve: { type: numberType, defaultValue: 1.5, description: "Response Curve" },
+    curve: { type: numberType, defaultValue: 1.5, description: "Response Curve", range: [0.1, 4.0] },
     resolution: { type: numberType, defaultValue: 8, range: [2, 8], description: "Codebook Size" },
     manual_phase: {
       type: numberType,
@@ -126,11 +127,13 @@ export const orthomod = defineNode({
     codes: [],
     lastSeed: -1,
     lastResolution: -1,
-    currentEffectiveCurve: 1.5
+    currentEffectiveCurve: 1.5,
+    phase: 0.0
   }),
   execute: (inputs, config, context, state: OrthomodState) => {
     const dt = context.clock.dt;
-    const now = context.clock.time;
+    state.phase += dt; // Accumulate time in seconds
+    const now = state.phase;
 
 
     // Inputs - Sanitize with Safe Defaults to prevent NaNs

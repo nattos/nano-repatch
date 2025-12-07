@@ -204,6 +204,11 @@ export class OrthomodEditor extends LitElement {
       const seed = this.node.config.seed ?? 12345;
 
       let resolution = 8;
+      // 1. Try Config (Inspector)
+      if (this.node.config.values && this.node.config.values.resolution !== undefined) {
+          resolution = this.node.config.values.resolution;
+      }
+      // 2. Try Runtime Input (Connection overrides config)
       if (inputs && inputs.fields && inputs.fields.resolution !== undefined) {
           const resRaw = inputs.fields.resolution;
           if (Number.isFinite(resRaw)) resolution = resRaw;

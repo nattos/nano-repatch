@@ -27,6 +27,7 @@ export {
   ToneSynthLayer,
 };
 import { orthomod } from "./orthomod";
+import { tone4 } from "./tone4";
 import { AbstractLayer, LayerConfig } from "./abstract-layer";
 
 // --- Real-time State Management ---
@@ -429,3 +430,4 @@ registerNode(pwmLayer);
 registerNode(noiseLayer);
 registerNode(toneSynthLayer);
 registerNode(orthomod);
+registerNode(tone4);
