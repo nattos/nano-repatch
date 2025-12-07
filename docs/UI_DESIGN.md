@@ -4,6 +4,12 @@
 
 The design pillars are clean and solid behaviours. As little menu digging as possible. "Playability" like an instrument, yet uncluttered. The editor should feel like a canvas you paint on, in broad strokes.
 
+**Key Concepts:**
+*   **Direct Manipulation:** Interact directly with values (sliders in-place) rather than abstract properties.
+*   **Instant Feedback:** Visuals update immediately on drag (`input` events), committing only on release (`change` events).
+*   **Transparency:** The UI should recede. We use a "Gel" aesthetic—tinted, transparent layers—so the content is always visible underneath.
+*   **"Slide Transparency":** Crisp borders and deep tints reminiscent of photographic slides or theatrical gels.
+
 ## 2. Layout System
 
 ### The Grid Layout
@@ -37,3 +43,8 @@ The editor features a **3-column layout**:
     *   **Wires:** Colored based on a hash of their port names.
     *   **Nodes:** Colored left border accent based on `typeId`.
 *   **Grid Rendering:** "Architectural Draft" style with dashed lines through gaps.
+*   **Palette:**
+    *   **Highlight:** Orange (`#ff4500`) for active focusing and dragging control.
+    *   **Backgrounds:** Deep Indigo/Slate (`#121418`) for a rich, cinematic dark mode.
+    *   **Gels:** Panels and nodes use `rgba` backgrounds (e.g., `rgba(20, 24, 30, 0.65)`) to layer content without blurring (`backdrop-filter` avoided for performance).
+*   **Commit-on-Release:** Heavy operations or history steps are triggered only on interaction end (mouse up), while lightweight previews run continuously.
