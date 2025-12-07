@@ -1142,7 +1142,7 @@ export class GraphNode extends MobxLitElement {
           </div>
           <div class="virtual-inputs-container">
             ${virtualInputElements}
-            <div style="top: ${currentInputY}px; position: absolute; width: 100%; height: 100px;">
+            <div style="top: ${currentInputY}px; position: absolute; width: 100%; height: ${nodeType?.getBodyHeight?.(this.node) || 0}px;">
               ${nodeType?.renderBody?.(this.node, { handleVirtualInputChange: this.handleVirtualInputChange.bind(this) }) || ''}
             </div>
           </div>
