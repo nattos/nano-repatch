@@ -201,6 +201,9 @@ export class MagnetoEditor extends LitElement {
 
         const { attack, decay, sustain, release, peak } = this.adsr;
 
+        // Iceberg Visualization (Inverted)
+        // Top (y=0) is Base. Bottom (y=h) is Peak.
+
         // Normalize time visualization (heuristic width)
         const totalT = attack + decay + 0.5 + release;
         const scaleX = w / Math.max(1.0, totalT); // Ensure minimal width
@@ -211,41 +214,33 @@ export class MagnetoEditor extends LitElement {
         const xR = xS + (release * scaleX);
 
         // Y coords (0 is TOP, 1 is BOTTOM in canvas coords)
-        // Peak 0.9 means HIGH level. In sim, plateClosedY (high level) was small Y value (top).
-        // Let's visualize envelope Level (Y inverted).
-        // 0 level = h. 1 level = 0.
+        // Iceberg:
+        // Zero Level = TOP (y=0)
+        // Peak Level = BOTTOM (y=h * peak)
+        // Sustain Level = BOTTOM (y=h * sustain)
 
-        const y0 = h;
-        const yP = h - (peak * h);
-        const yS = h - (sustain * h);
+        const y0 = 0; // Zero is at TOP
+        const yP = peak * h; // Peak is downward
+        const yS = sustain * h; // Sustain is downward
 
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, y0); // Start
-        ctx.lineTo(xA, yP); // Attack to Peak
-        ctx.lineTo(xD, yS); // Decay to Sustain
+        ctx.moveTo(0, y0); // Start at Top
+        ctx.lineTo(xA, yP); // Attack Down to Peak
+        ctx.lineTo(xD, yS); // Decay Up to Sustain
         ctx.lineTo(xS, yS); // Sustain Hold
-        ctx.lineTo(xR, y0); // Release to Zero
+        ctx.lineTo(xR, y0); // Release Up to Top
         ctx.stroke();
 
         // Fill
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, 'rgba(0, 255, 255, 0.2)');
-        grad.addColorStop(1, 'rgba(0, 255, 255, 0)');
+        grad.addColorStop(0, 'rgba(0, 255, 255, 0)');
+        grad.addColorStop(1, 'rgba(0, 255, 255, 0.2)');
         ctx.fillStyle = grad;
+        // Close path for fill
+        ctx.lineTo(0, y0);
         ctx.fill();
-
-        // Playhead Visualization
-        let px = 0;
-        if (this.phase === 'ATTACK') {
-             // Map plateY to attack progress
-             // Rough approx since plateY logic is complex physics
-             const progress = (1 - (this.plateY / 600)); // Normalize
-             // Actually rely on phase?
-             // Just draw a blip based on plateY roughly mapping to the curve?
-             // Or just draw based on phase if we knew phase time.
-        }
 
         // Simple Phase Highlight
         ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
@@ -257,15 +252,15 @@ export class MagnetoEditor extends LitElement {
 
     render() {
         return html`
-            <div class="header">
+            <div class="header" @pointerdown="${(e: Event) => e.stopPropagation()}">
                 <div class="status ${this.phase !== 'IDLE' ? 'active' : ''}">${this.phase}</div>
                 <div style="font-size: 8px;">MAGNETO</div>
             </div>
-            <div class="panel" style="height: 140px;">
+            <div class="panel" style="height: 140px;" @pointerdown="${(e: Event) => e.stopPropagation()}">
                 <canvas id="sim-canvas"></canvas>
                 <div class="param-label">SIMULATION</div>
             </div>
-            <div class="panel" style="height: 80px; flex: 1; border-bottom: none;">
+            <div class="panel" style="height: 80px; flex: 1; border-bottom: none;" @pointerdown="${(e: Event) => e.stopPropagation()}">
                 <canvas id="adsr-canvas"></canvas>
                 <div class="param-label">ENVELOPE</div>
             </div>

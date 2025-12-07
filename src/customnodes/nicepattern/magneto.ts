@@ -1,5 +1,5 @@
 import { defineNode } from "../../structor/node-helpers";
-import { numberType, booleanType, vec4Type, midiEventType } from "../../structor/std-types";
+import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
 
 // --- Physics Constants & Types ---
 
@@ -136,20 +136,25 @@ export const magneto = defineNode({
     description: 'Physics-based magnetic envelope generator.'
   },
   inputs: {
-    gate: { type: booleanType, description: "Gate Input" },
-    attack: { type: numberType, defaultValue: 0.2, range: [0.01, 2.0], description: "Attack Time (s)" },
-    decay: { type: numberType, defaultValue: 0.25, range: [0.01, 2.0], description: "Decay Time (s)" },
-    sustain: { type: numberType, defaultValue: 0.6, range: [0.0, 1.0], description: "Sustain Level (0-1)" },
-    release: { type: numberType, defaultValue: 0.3, range: [0.01, 5.0], description: "Release Time (s)" },
-    peak: { type: numberType, defaultValue: 0.9, range: [0.1, 1.0], description: "Peak Level (0-1, inverted)" },
+    midi_in: { type: midiStreamType, description: "Trigger Input" },
+    attack: { type: numberType, defaultValue: 0.2, range: [0.01, 2.0], step: 0.01, description: "Attack Time (s)" },
+    decay: { type: numberType, defaultValue: 0.25, range: [0.01, 2.0], step: 0.01, description: "Decay Time (s)" },
+    sustain: { type: numberType, defaultValue: 0.6, range: [0.0, 1.0], step: 0.01, description: "Sustain Level (0-1)" },
+    release: { type: numberType, defaultValue: 0.3, range: [0.01, 5.0], step: 0.01, description: "Release Time (s)" },
+    peak: { type: numberType, defaultValue: 0.9, range: [0.1, 1.0], step: 0.01, description: "Peak Level (0-1, inverted)" },
 
     // Physics
-    mag_flux: { type: numberType, defaultValue: 2000000, range: [100000, 4000000], description: "Magnet Strength" },
-    spring_k: { type: numberType, defaultValue: 25000, range: [1000, 50000], description: "Spring Stiffness" },
-    damping: { type: numberType, defaultValue: 0.999, range: [0.900, 1.000], description: "Damping Factor" }
+    mag_flux: { type: numberType, defaultValue: 2000000, range: [100000, 4000000], step: 10000, description: "Magnet Strength" },
+    spring_k: { type: numberType, defaultValue: 25000, range: [1000, 50000], step: 100, description: "Spring Stiffness" },
+    damping: { type: numberType, defaultValue: 0.999, range: [0.900, 1.000], step: 0.001, description: "Damping Factor" }
   },
   outputs: {
-    out: vec4Type // [Tension, Ext, Spring, Mag]
+    env: { type: numberType, description: "Envelope Output (Tension)" },
+    vec: vec4Type, // [Tension, Ext, Spring, Mag]
+    ch1: { type: numberType, description: "Channel 1 (Tension)" },
+    ch2: { type: numberType, description: "Channel 2 (Extension)" },
+    ch3: { type: numberType, description: "Channel 3 (Spring Force)" },
+    ch4: { type: numberType, description: "Channel 4 (Mag Force)" }
   },
   ui: {
       body: () => import('./magneto-editor').then(m => m.MagnetoEditorRenderer),
@@ -175,8 +180,18 @@ export const magneto = defineNode({
   execute: (inputs, config, context, state: MagnetoState) => {
       const dt = context.clock.dt;
 
-      // Inputs
-      const gate = inputs.gate ?? false;
+      // Inputs - Parse MIDI
+      const stream = (inputs.midi_in || []) as any[];
+      let gate = state.lastGate; // Persist gate state
+
+      for (const e of stream) {
+        if (e.type === 'note_on') {
+          gate = true;
+        } else if (e.type === 'note_off') {
+          gate = false;
+        }
+      }
+
       const attack = inputs.attack ?? 0.2;
       const decay = inputs.decay ?? 0.25;
       const sustain = inputs.sustain ?? 0.6;
@@ -197,20 +212,6 @@ export const magneto = defineNode({
       const plateSustainY = shallow + (sustain * (deep - shallow));
 
       // Speeds (ported from updatePhysics in HTML)
-      // The HTML logic used: speed = const / time
-      // But update logic was: plateY += diff * speed.
-      // Wait, HTML logic:
-      // SPEEDS.attack = 0.05 / this.attackTime;
-      // In loop:
-      // diff = targetY - STATE.plateY;
-      // STATE.plateY += diff * speed;
-      // This is weird linear/exponential hybrid?
-      // Actually `diff * speed` is exponential ease if speed < 1.
-      // If speed > 1, it overshoots?
-      // With fixed step?
-
-      // Let's replicate HTML calculation strictly.
-      // HTML: SPEEDS.attack = 0.05 / this.attackTime;
       const speedAttack = 0.05 / Math.max(0.01, attack);
       const speedDecay = 0.02 / Math.max(0.01, decay);
       const speedRelease = 0.02 / Math.max(0.01, release);
@@ -235,18 +236,14 @@ export const magneto = defineNode({
 
       let magnetActive = false;
 
-      // We run the physics loop multiple times if needed, but plate logic is also inside stepPhysics in HTML?
-      // In HTML, stepPhysics updates plateY THEN spheres.
-      // We should do the same.
-
-      while (state.accumulator >= FIXED_STEP) {
+      // Limit max steps to prevent freeze on lag
+      let steps = 0;
+      while (state.accumulator >= FIXED_STEP && steps < 5) {
           state.accumulator -= FIXED_STEP;
+          steps++;
 
           let targetY = plateOpenY;
           let speed = speedRelease;
-
-          // Re-evaluate phase transitions per step?
-          // HTML did it inside stepPhysics.
 
           if (gate) {
               if (state.phase === 'IDLE' || state.phase === 'RELEASE') {
@@ -265,8 +262,6 @@ export const magneto = defineNode({
               } else if (state.phase === 'SUSTAIN') {
                   targetY = plateSustainY;
                   speed = 0.1; // Slow drift? HTML: 0.1
-                  // HTML: STATE.sustainProgress += (1.0 - STATE.sustainProgress) * 2.0 * dt;
-                  // Note: 'dt' in HTML stepPhysics was passed as argument.
                   state.sustainProgress += (1.0 - state.sustainProgress) * 2.0 * FIXED_STEP;
               }
               magnetActive = true;
@@ -275,24 +270,19 @@ export const magneto = defineNode({
               state.phase = 'RELEASE';
               targetY = plateOpenY;
               speed = speedRelease;
-              if (Math.abs(state.plateY - plateOpenY) < 10) {
+
+              // Ensure we snap to open if close enough
+              if (Math.abs(state.plateY - plateOpenY) < 15) {
                   magnetActive = false;
                   state.phase = 'IDLE';
+                 // Optionally snap plateY?
+                 // state.plateY = plateOpenY;
               } else {
                   magnetActive = true;
               }
           }
 
           const diff = targetY - state.plateY;
-          // Note: using FIXED_STEP for integration?
-          // HTML: STATE.plateY += diff * speed;
-          // 'speed' seems calibrated for ~60hz or 120hz?
-          // In HTML run loop: stepPhysics(FIXED_STEP) is called.
-          // But speed usage `diff * speed` does NOT use dt!
-          // This makes it frame-rate dependent if called repeatedly?
-          // HTML: `while (accumulator >= FIXED_STEP) { stepPhysics(FIXED_STEP); ... }`
-          // So it runs X times.
-          // So speed is "per tick".
           state.plateY += diff * speed;
 
           // Solver
@@ -305,6 +295,8 @@ export const magneto = defineNode({
               });
           }
       }
+      // Dump extra accumulator if too much lag
+      if (state.accumulator > FIXED_STEP) state.accumulator = 0;
 
       // Calculate Metrics (Audio Output)
 
@@ -328,11 +320,9 @@ export const magneto = defineNode({
       const metricFM = Math.min(1.0, sumFM / maxMagF);
 
       // Prepare Output
-      // Out: [Tension, Ext, Spring, Mag]
-      // Tone4 expects vec4.
+      const vec = [metricTension, metricExt, metricFS, metricFM];
 
       // UI Output (for Hero Node)
-      // Send lightweight data
       const uiData = {
           plateY: state.plateY,
           phase: state.phase,
@@ -341,13 +331,18 @@ export const magneto = defineNode({
               x: s.x, y: s.y, r: s.radius,
               l: s.isLatched, t: s.tensionRatio
           })),
-          // Send inputs back for visualization if needed (ADSR curve)
           adsr: { attack, decay, sustain, release, peak }
       };
 
-      // We pass UI data as a secondary property 'ui' which the runtime handles specially
       return {
-          outputs: { out: [metricTension, metricExt, metricFS, metricFM] },
+          outputs: {
+              env: metricTension,
+              vec: vec,
+              ch1: metricTension,
+              ch2: metricExt,
+              ch3: metricFS,
+              ch4: metricFM
+          },
           ui: uiData
       };
   }
