@@ -63,7 +63,7 @@ export class GraphWidget extends MobxLitElement {
         --grid-size: 24px;
       }
       path.curve {
-        fill: url(#curveGradient);
+        fill: none;
         stroke: var(--accent-color, #ff4500);
         stroke-width: 2;
         pointer-events: none;
