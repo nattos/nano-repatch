@@ -61,8 +61,10 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       // Lazy connect resolume
       resolumeManager.connect();
 
-      // Reset audio context on new graph
-      virtualAudioContext.reset();
+      // Reset audio context ONLY on new graph load (not recompilation)
+      if (!msg.isRecompilation) {
+          virtualAudioContext.reset();
+      }
       break;
 
     case 'UPDATE_CONFIG':

@@ -7,18 +7,11 @@ import {
 } from "../../structor/node-helpers";
 import {
   numberType,
-  midiStreamType
+  midiStreamType,
+  vec4Type
 } from "../../structor/std-types";
 import { defineType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
-
-// --- Types ---
-export const vec4Type = defineType({
-  kind: "array",
-  element: numberType,
-  size: 4,
-  hint: "vec4"
-});
 
 // --- Logic Helpers ---
 

@@ -138,6 +138,7 @@ export class AppController {
   private compiledGraphDirtyListeners: (() => void)[] = [];
   private configChangeListeners: ((nodeIds: string[]) => void)[] = [];
   private inputUpdateListeners: ((updates: { nodeId: string, inputs: Record<string, any> }[]) => void)[] = [];
+  private graphResetListeners: (() => void)[] = [];
 
   constructor(initialState?: GraphInnerState) {
     const graphState = initialState || { nodes: {}, connections: {} };
@@ -189,6 +190,13 @@ export class AppController {
     this.inputUpdateListeners.push(listener);
     return () => {
       this.inputUpdateListeners = this.inputUpdateListeners.filter(l => l !== listener);
+    };
+  }
+
+  public onGraphReset(listener: () => void): () => void {
+    this.graphResetListeners.push(listener);
+    return () => {
+      this.graphResetListeners = this.graphResetListeners.filter(l => l !== listener);
     };
   }
 
@@ -648,6 +656,11 @@ export class AppController {
 
     mutations.push({ type: 'graph.recompile' });
     this.dispatch(mutations);
+
+    // Notify reset listeners
+    for (const listener of this.graphResetListeners) {
+      try { listener(); } catch (e) { console.error(e); }
+    }
   }
 
   public loadGraph(graphState: GraphInnerState): void {

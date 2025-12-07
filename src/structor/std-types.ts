@@ -28,3 +28,10 @@ export const midiStreamType = defineType({
   element: midiEventType,
   hint: 'midi-stream'
 });
+
+export const vec4Type = defineType({
+  kind: "array",
+  element: numberType,
+  size: 4,
+  hint: "vec4"
+});

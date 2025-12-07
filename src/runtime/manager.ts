@@ -63,6 +63,10 @@ export class RuntimeManager {
       this.recompileAndRun();
     });
 
+    this.appController.onGraphReset(() => {
+      this.hasLoadedGraph = false;
+    });
+
     this.appController.onConfigChange((nodeIds) => {
       this.updateNodeConfigsAndRealtimeStatus(nodeIds);
     });

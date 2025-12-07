@@ -1,7 +1,6 @@
 
 import { defineNode } from "../../structor/node-helpers";
-import { numberType } from "../../structor/std-types";
-import { vec4Type } from "./orthomod";
+import { numberType, vec4Type } from "../../structor/std-types";
 import { VirtualAudioContext, VirtualOscillatorNode, VirtualGainNode } from "../../audio/virtual-audio";
 
 interface Tone4State {
@@ -99,7 +98,13 @@ export const tone4 = defineNode({
 
     if (Math.abs(rootFreq - state.lastRoot) > 0.01) {
         state.voices.forEach(v => {
-            v.osc.frequency.setTargetAtTime(rootFreq * v.freqRatio, now, 0.05);
+            if (state.lastRoot === -1) {
+                // First update: Snap immediately to avoid startup sweep (440Hz -> Target)
+                v.osc.frequency.setValueAtTime(rootFreq * v.freqRatio, now);
+            } else {
+                // Subsequent updates: Glide
+                v.osc.frequency.setTargetAtTime(rootFreq * v.freqRatio, now, 0.05);
+            }
         });
         state.lastRoot = rootFreq;
     }
