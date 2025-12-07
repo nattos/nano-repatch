@@ -173,6 +173,7 @@ export interface TypedNodeOptions<
    */
   autoBroadcast?: boolean | Record<string, Partial<TypedBroadcastChannel>>;
   reshape?: 'none' | 'vector';
+  onMessage?: (state: TState, message: any) => void;
 
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
@@ -209,6 +210,7 @@ export function definePrimitiveNode<
     inputs: options.inputs, // Expose inputs for reflection
     configType,
     isRealtime: options.isRealtime,
+    onMessage: options.onMessage,
     computeOutputTypes: () => outputType,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config

@@ -352,6 +352,21 @@ export class GraphExecutor {
     return this.graphInputs;
   }
 
+  public handleNodeMessage(nodeId: string, message: any): void {
+    const instance = this.graph.nodes[nodeId];
+    if (!instance) return;
+
+    const definition = this.repository.get(instance.definitionId);
+    if (!definition || definition.kind !== 'primitive' || !definition.onMessage) return;
+
+    const userState = this.userNodeStates.get(nodeId);
+    // If state doesn't exist, we might need to wait or init?
+    // Usually it exists if init happened.
+    if (userState) {
+        definition.onMessage(userState, message);
+    }
+  }
+
   public getInspectedInputs(): Map<string, StructorRecord> {
     return this.inspectedInputs;
   }

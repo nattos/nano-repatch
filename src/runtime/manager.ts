@@ -167,6 +167,15 @@ export class RuntimeManager {
     }
   }
 
+  public sendNodeMessage(nodeId: string, message: any) {
+    const msg: ExecutorWorkerMessage = {
+      type: 'NODE_MESSAGE',
+      nodeId,
+      message
+    };
+    this.executorWorker.postMessage(msg);
+  }
+
   private lastMidiEventTime = 0;
 
   private setupWorkerListeners() {

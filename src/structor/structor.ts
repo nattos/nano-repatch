@@ -153,6 +153,9 @@ export interface PrimitiveNodeDefinition {
   ) => ExecuteResult;
 
   isRealtime?: (config: Structor) => boolean;
+
+  /** Optional handler for realtime messages from UI */
+  onMessage?: (state: any, message: any) => void;
 }
 
 /**

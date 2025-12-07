@@ -62,6 +62,7 @@ export interface EnhancedNodeOptions<
   compileConfig?: (uiConfig: any) => any;
   compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
+  onMessage?: (state: TState, message: any) => void;
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -74,6 +75,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   extendedOutputs?: NodeOutputsDef;
   compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
+  // onMessage is inherited from PrimitiveNodeDefinition
 }
 
 export function defineNode<
@@ -102,7 +104,8 @@ export function defineNode<
 
   const primitiveDef = definePrimitiveNode({
     ...options,
-    inputs: simpleInputs
+    inputs: simpleInputs,
+    onMessage: options.onMessage
   } as TypedNodeOptions<any, TConfig, TOutputs, TState>);
 
   return {

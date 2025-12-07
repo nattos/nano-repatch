@@ -69,13 +69,20 @@ export type MidiUpdateMessage = {
   events: any[]; // Typed as MidiEvent[] in implementation, but 'any' here to avoid circular deps or complex imports
 };
 
+export type NodeMessage = {
+  type: 'NODE_MESSAGE';
+  nodeId: string;
+  message: any;
+};
+
 export type ExecutorWorkerMessage =
   | InitGraphMessage
   | UpdateConfigMessage
   | UpdateInputMessage
   | ControlMessage
   | MidiUpdateMessage
-  | UpdateAudioStateMessage;
+  | UpdateAudioStateMessage
+  | NodeMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';
 

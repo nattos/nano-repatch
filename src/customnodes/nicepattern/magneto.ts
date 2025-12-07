@@ -118,10 +118,12 @@ class Sphere {
 interface MagnetoState {
     spheres: Sphere[];
     plateY: number;
-    phase: 'IDLE' | 'ATTACK' | 'DECAY' | 'SUSTAIN' | 'RELEASE';
+    phase: 'IDLE' | 'ATTACK' | 'DECAY' | 'SUSTAIN' | 'RELEASE' | 'MANUAL';
     sustainProgress: number;
     accumulator: number;
     lastGate: boolean;
+    isTouchingSim: boolean;
+    touchY: number;
 }
 
 // --- Node Definition ---
@@ -174,8 +176,18 @@ export const magneto = defineNode({
           phase: 'IDLE',
           sustainProgress: 0,
           accumulator: 0,
-          lastGate: false
+          lastGate: false,
+          isTouchingSim: false,
+          touchY: 0
       };
+  },
+  onMessage: (state: MagnetoState, message: any) => {
+      if (message.type === 'manual_interaction') {
+          state.isTouchingSim = message.active;
+          if (typeof message.y === 'number') {
+              state.touchY = message.y;
+          }
+      }
   },
   execute: (inputs, config, context, state: MagnetoState) => {
       const dt = context.clock.dt;
@@ -192,15 +204,28 @@ export const magneto = defineNode({
         }
       }
 
-      const attack = inputs.attack ?? 0.2;
-      const decay = inputs.decay ?? 0.25;
+      const attack = Math.max(0.005, inputs.attack ?? 0.2);
+      const decay = Math.max(0.005, inputs.decay ?? 0.25);
       const sustain = inputs.sustain ?? 0.6;
-      const release = inputs.release ?? 0.3;
+      const release = Math.max(0.005, inputs.release ?? 0.3);
       const peak = inputs.peak ?? 0.9;
+      const seed = inputs.seed ?? 1337;
 
       const magStr = inputs.mag_flux ?? 2000000;
       const kp = inputs.spring_k ?? 25000;
       const damp = inputs.damping ?? 0.999;
+
+      // Initialize or Regenerate Spheres if seed changes
+      if (state.currentSeed !== seed || state.spheres.length === 0) {
+          state.currentSeed = seed;
+          const rand = seededRandom(seed);
+          state.spheres = [];
+          const cw = 600; // Virtual width
+          const ch = PRE_CONFIG.height;
+          for(let i=0; i<PRE_CONFIG.sphereCount; i++) {
+              state.spheres.push(new Sphere(i, cw, ch, i, PRE_CONFIG.sphereCount, rand));
+          }
+      }
 
       // Layout Targets (simulating h * 0.95 vs h * 0.1)
       const h = PRE_CONFIG.height;
@@ -212,9 +237,10 @@ export const magneto = defineNode({
       const plateSustainY = shallow + (sustain * (deep - shallow));
 
       // Speeds (ported from updatePhysics in HTML)
-      const speedAttack = 0.05 / Math.max(0.01, attack);
-      const speedDecay = 0.02 / Math.max(0.01, decay);
-      const speedRelease = 0.02 / Math.max(0.01, release);
+      // Clamped to 1.0 to prevent overshoot/explosion
+      const speedAttack = Math.min(1.0, 0.05 / Math.max(0.001, attack));
+      const speedDecay = Math.min(1.0, 0.02 / Math.max(0.001, decay));
+      const speedRelease = Math.min(1.0, 0.02 / Math.max(0.001, release));
 
 
       // Phase Logic
@@ -245,10 +271,30 @@ export const magneto = defineNode({
           let targetY = plateOpenY;
           let speed = speedRelease;
 
-          if (gate) {
-              if (state.phase === 'IDLE' || state.phase === 'RELEASE') {
-                  state.phase = 'ATTACK';
-                  state.sustainProgress = 0;
+          if (state.isTouchingSim) {
+              state.phase = 'MANUAL';
+              magnetActive = true;
+              targetY = state.touchY;
+              // Clamp targetY to layout bounds
+              targetY = Math.max(plateOpenY, Math.min(deep, targetY));
+              speed = speedAttack; // High speed for responsiveness
+              state.sustainProgress = 0;
+
+          } else if (gate) {
+              if (state.phase === 'IDLE' || state.phase === 'RELEASE' || state.phase === 'MANUAL') {
+                   // If coming from manual, resume? Or reset?
+                   // Logic for resuming sequence if manual ends while gate is on?
+                   // Just go to ATTACK for simplicity or infer phase?
+                   // Let's rely on standard flow.
+                   // If we were manual and gate is held, where do we go?
+                   // Maybe sustain?
+                   if (state.phase === 'MANUAL') {
+                       // Resume at sustain if close?
+                       state.phase = 'ATTACK'; // Retrigger attack?
+                   } else {
+                       state.phase = 'ATTACK';
+                       state.sustainProgress = 0;
+                   }
               }
 
               if (state.phase === 'ATTACK') {
@@ -283,6 +329,7 @@ export const magneto = defineNode({
           }
 
           const diff = targetY - state.plateY;
+          // Apply speed but ensure we don't overshoot excessively
           state.plateY += diff * speed;
 
           // Solver
@@ -331,7 +378,8 @@ export const magneto = defineNode({
               x: s.x, y: s.y, r: s.radius,
               l: s.isLatched, t: s.tensionRatio
           })),
-          adsr: { attack, decay, sustain, release, peak }
+          adsr: { attack, decay, sustain, release, peak },
+          seed: seed // Added seed to UI data
       };
 
       return {

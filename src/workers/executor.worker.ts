@@ -113,6 +113,12 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         workerMidiEvents = msg.events;
       }
       break;
+
+    case 'NODE_MESSAGE':
+      if (executor) {
+        executor.handleNodeMessage(msg.nodeId, msg.message);
+      }
+      break;
   }
 };
 
