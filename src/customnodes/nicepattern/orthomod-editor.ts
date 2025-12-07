@@ -3,7 +3,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { GridNode } from '../../builder/state';
 import { runtimeManager } from '../../builder/controllers';
 import { appController } from '../../builder/controllers';
-import { generateCodes } from './orthomod';
 import { reaction } from 'mobx';
 
 @customElement('nicepattern-orthomod-editor')
@@ -173,21 +172,7 @@ export class OrthomodEditor extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.startLoop();
-    this.updateCodes();
-
-    // React to config changes (seed/resolution) to update matrix
-    this.cleanup = reaction(
-        () => ({
-            seed: this.node.config.seed,
-            resolution: this.node.inputs?.fields?.resolution ?? 8 // Using input? resolution is an input.
-            // Wait, resolution is an INPUT node.
-            // If it's connected, we can't easily know the value here unless we peek inputs.
-            // Inputs are in `runtimeManager.inputs`.
-        }),
-        () => {
-             this.updateCodes();
-        }
-    );
+    // We strictly rely on worker UI outputs now.
   }
 
   disconnectedCallback() {
@@ -196,85 +181,34 @@ export class OrthomodEditor extends LitElement {
     if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
   }
 
-  private updateCodes() {
-      // Get values.
-      // Inputs: resolution might be dynamic.
-      const inputs = runtimeManager.inputs.get(this.node.id);
 
-      const seed = this.node.config.seed ?? 12345;
-
-      let resolution = 8;
-      // 1. Try Config (Inspector)
-      if (this.node.config.values && this.node.config.values.resolution !== undefined) {
-          resolution = this.node.config.values.resolution;
-      }
-      // 2. Try Runtime Input (Connection overrides config)
-      if (inputs && inputs.fields && inputs.fields.resolution !== undefined) {
-          const resRaw = inputs.fields.resolution;
-          if (Number.isFinite(resRaw)) resolution = resRaw;
-      }
-      resolution = Math.max(2, Math.min(8, Math.floor(resolution)));
-
-      // Also check if resolution is static in inputs config?
-      // `node.inputs.fields` isn't where values are.
-      // Values are in `runtimeManager` or `node.config` if defaults?
-      // Actually `inputs.resolution` might be a constant in definitions, but here we want the RUNTIME value.
-      // If the runtime hasn't run yet, fall back to default?
-      // Default is 8.
-
-      resolution = Math.max(2, Math.min(8, Math.floor(resolution)));
-
-      this.codes = generateCodes(resolution, seed);
-      this.requestUpdate(); // Force re-render of matrix
-  }
 
   private startLoop() {
     const loop = () => {
       this.animationFrame = requestAnimationFrame(loop);
 
-      // Poll RuntimeManager for outputs
-      const outputs = runtimeManager.outputs.get(this.node.id);
-      if (outputs && outputs.fields) {
-          // { env, vec, ch1... }
-          const env = outputs.fields.env ?? 0;
-          const vec = outputs.fields.vec ?? [0,0,0,0];
-          const gate = outputs.fields.gate ?? 0;
+      // Poll RuntimeManager for UI outputs
+      const uiState = runtimeManager.uiStates.get(this.node.id);
 
-          this.envelope = env;
-          this.channels = vec;
-          this.gateOpen = gate > 0.5;
+      if (uiState) {
+          // { codes, env, vec, gate }
+          if (uiState.codes && uiState.codes.length > 0) {
+              this.codes = uiState.codes;
+          }
+
+          this.envelope = uiState.env ?? 0;
+          this.channels = uiState.vec ?? [0, 0, 0, 0];
+          this.gateOpen = (uiState.gate ?? 0) > 0.5;
 
           // Calculate active index from envelope
-          // Logic mirrors orthomod.ts logic
-          let pos = 1.0 - env;
+          let pos = 1.0 - this.envelope;
           pos = Math.max(0, Math.min(0.999, pos));
           const idx = Math.floor(pos * this.codes.length);
-
 
           if (this.activeIndex !== idx) {
               this.activeIndex = idx;
           }
-           this.requestUpdate();
-      }
-
-      // Also check inputs for resolution updates (poll vs reaction)
-      // Since resolution is an input, it might change every frame if modulated.
-      // But typically it's static. Polling is cheap enough.
-      const inputs = runtimeManager.inputs.get(this.node.id);
-      if (inputs && inputs.fields && inputs.fields.resolution !== undefined) {
-           const res = inputs.fields.resolution;
-           // If resolution changed, update codes.
-           // However, storing 'lastResolution' local state is needed.
-           // For now, let's rely on reaction for config changes and maybe poll for input changes if we really care about dynamic resolution updates affecting the visualizer.
-           // Given standard usage, resolution is likely static or rarely changed.
-           // I'll skip polling resolution for code rebuild to avoid perf hit, unless necessary.
-           // Wait, `reaction` above tracked `this.node.inputs...` which is structural, not values.
-           // To track value changes of input, we need to observe `runtimeManager.inputs`.
-           // But `runtimeManager.inputs` is observable map.
-
-           // Let's rely on manual refresh for now or just check it here.
-           // Checking `generateCodes` every frame is too heavy? No, it's small (8x8).
-           // Let's store lastRes.
+          this.requestUpdate();
       }
     };
     loop();
@@ -284,7 +218,6 @@ export class OrthomodEditor extends LitElement {
       // Update seed
       const newSeed = Math.floor(Math.random() * 100000);
       appController.setNodeConfig(this.node.id, { seed: newSeed });
-      this.updateCodes(); // Optimistic update
   }
 
   private handleMatrixDown(e: PointerEvent) {

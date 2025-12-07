@@ -77,6 +77,7 @@ export interface ExecutionUpdateMessage {
   type: 'EXECUTION_UPDATE';
   outputs: Map<string, StructorRecord>; // Note: Map might need serialization if not supported directly
   inputs?: Map<string, StructorRecord>;
+  uiOutputs?: Map<string, any>; // Add UI outputs
   stats: {
     nodeCount: number;
     executionTime: number;

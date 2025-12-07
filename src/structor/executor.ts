@@ -266,7 +266,8 @@ export class GraphExecutor {
         broadcast: (config, inputs) => broadcast(config, inputs),
         repository: this.repository,
         nodeState: this.userNodeStates,
-        nodeId: nodeId
+        nodeId: nodeId,
+        requestUiOutputs: true // Always true for now as requested
       };
 
       // Execute
@@ -277,7 +278,20 @@ export class GraphExecutor {
         }
 
         const result = definition.execute(inputRecord, state.config as any, executionContext);
-        state.output = result;
+
+        // Handle result (ExecuteResult)
+        if ('outputs' in result && 'ui' in result) {
+            state.output = result.outputs;
+            (state as any).uiOutput = result.ui;
+        } else if ('outputs' in result) {
+            state.output = result.outputs as StructorRecord;
+            // No UI output
+            (state as any).uiOutput = undefined;
+        } else {
+             state.output = result as StructorRecord;
+             (state as any).uiOutput = undefined;
+        }
+
         state.isDirty = false;
       } catch (error) {
         console.error(`Error executing node ${nodeId} (${definition.id}):`, error);
@@ -292,6 +306,17 @@ export class GraphExecutor {
       allOutputs.set(nodeId, state.output);
     }
     return allOutputs;
+  }
+
+  public getUiOutputs(): Map<string, any> {
+    const allUiOutputs = new Map<string, any>();
+    for (const [nodeId, state] of this.nodeStates.entries()) {
+        const ui = (state as any).uiOutput;
+        if (ui !== undefined) {
+            allUiOutputs.set(nodeId, ui);
+        }
+    }
+    return allUiOutputs;
   }
 
   public getNodeOutput(nodeId: string): StructorRecord | undefined {

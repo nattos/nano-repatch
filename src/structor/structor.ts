@@ -102,6 +102,7 @@ export interface ExecutionContext {
     values: Map<string, number>;
     events?: any[]; // Typed as MidiEvent[] in implementation
   };
+  requestUiOutputs?: boolean;
 };
 
 
@@ -125,6 +126,8 @@ export interface NodeMetadata {
   deprecated?: boolean;
 }
 
+export type ExecuteResult = StructorRecord | { outputs: StructorRecord; ui?: any };
+
 /**
  * A "black box" operation implemented in native TypeScript.
  */
@@ -147,7 +150,7 @@ export interface PrimitiveNodeDefinition {
     input: StructorRecord,
     config: Structor,
     context: ExecutionContext,
-  ) => StructorRecord;
+  ) => ExecuteResult;
 
   isRealtime?: (config: Structor) => boolean;
 }

@@ -203,6 +203,7 @@ function runTick() {
     type: 'EXECUTION_UPDATE',
     outputs: sanitizedOutputs,
     inputs: sanitizedInputs,
+    uiOutputs: executor.getUiOutputs(), // Will contain raw data (codes, etc.)
     stats: {
       nodeCount: executor.graphNodeCount,
       executionTime: endTime - startTime

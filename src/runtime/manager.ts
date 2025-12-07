@@ -30,6 +30,7 @@ export class RuntimeManager {
 
   @observable outputs = new Map<string, any>();
   @observable inputs = new Map<string, any>();
+  @observable uiStates = new Map<string, any>();
   @observable stats = {
     nodeCount: 0,
     executionTime: 0,
@@ -227,6 +228,18 @@ export class RuntimeManager {
         } else {
           for (const [key, value] of Object.entries(msg.inputs)) {
             this.inputs.set(key, value);
+          }
+        }
+      }
+      this.uiStates.clear();
+      if (msg.uiOutputs) {
+        if (msg.uiOutputs instanceof Map) {
+          for (const [key, value] of msg.uiOutputs.entries()) {
+            this.uiStates.set(key, value);
+          }
+        } else {
+          for (const [key, value] of Object.entries(msg.uiOutputs)) {
+            this.uiStates.set(key, value);
           }
         }
       }

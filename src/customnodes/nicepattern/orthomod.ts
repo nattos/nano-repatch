@@ -259,13 +259,20 @@ export const orthomod = defineNode({
     const safeNum = (n: number) => Number.isFinite(n) ? n : 0;
 
     return {
-      env: safeNum(currentEnv),
-      vec: channels.map(safeNum),
-      ch1: safeNum(channels[0]),
-      ch2: safeNum(channels[1]),
-      ch3: safeNum(channels[2]),
-      ch4: safeNum(channels[3]),
-      gate: state.gateOpen ? 1 : 0
+      outputs: {
+          env: safeNum(currentEnv),
+          vec: channels.map(safeNum),
+          ch1: safeNum(channels[0]),
+          ch2: safeNum(channels[1]),
+          ch3: safeNum(channels[2]),
+          ch4: safeNum(channels[3]),
+      },
+      ui: {
+          codes: state.codes, // Pass the generated codes!
+          env: safeNum(currentEnv),
+          vec: channels.map(safeNum),
+          gate: state.gateOpen ? 1 : 0
+      }
     };
   },
   compileConfig: (uiConfig) => ({
