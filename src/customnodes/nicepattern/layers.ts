@@ -194,6 +194,15 @@ export class ToneSynthLayer extends AbstractLayer {
   // Audio layers handle output differently (audio graph),
   // but we can use 'output' for monitoring amplitude if we want.
 
+  // Helper to prevent "non-finite" errors in AudioParams
+  private safeParam(param: AudioParam, value: number, time: number) {
+    if (Number.isFinite(value) && Number.isFinite(time)) {
+        try {
+            param.setValueAtTime(value, time);
+        } catch(e) { /* ignore */ }
+    }
+  }
+
   private initVoice(time: number, velocity: number) {
     if (!this.ctx || this.ctx.state === 'suspended') return;
 
@@ -206,17 +215,19 @@ export class ToneSynthLayer extends AbstractLayer {
 
     // Config
     // Use calculated frequency if available, else default
-    const freq = (this.frequency > 0) ? this.frequency : 440;
-    this.osc.frequency.setValueAtTime(freq, time);
+    const freq = (Number.isFinite(this.frequency) && this.frequency > 0) ? this.frequency : 440;
+    this.safeParam(this.osc.frequency, freq, time);
 
     this.filter.type = 'lowpass';
-    this.filter.frequency.setValueAtTime(800 + (velocity * 2000), time);
+    const filterFreq = 800 + (velocity * 2000);
+    this.safeParam(this.filter.frequency, filterFreq, time);
 
     // Envelope
-    this.gain.gain.setValueAtTime(0, time);
-    this.gain.gain.linearRampToValueAtTime(velocity, time + 0.005);
-    // Use setTargetAtTime for decay to avoid "pop to 100%" when cancelling ramps on release
-    this.gain.gain.setTargetAtTime(0, time + 0.005, 0.1); // Decay constant
+    this.safeParam(this.gain.gain, 0, time);
+    try {
+        this.gain.gain.linearRampToValueAtTime(velocity, time + 0.005);
+        this.gain.gain.setTargetAtTime(0, time + 0.005, 0.1); // Decay
+    } catch(e) {}
 
     // Graph
     this.osc.connect(this.filter);
@@ -224,8 +235,6 @@ export class ToneSynthLayer extends AbstractLayer {
     this.gain.connect(this.ctx.destination); // Or a master bus passed in constructor
 
     this.osc.start(time);
-    // Remove fixed duration to allow sustain
-    // this.osc.stop(time + 0.35);
   }
 
   /*
@@ -234,6 +243,12 @@ export class ToneSynthLayer extends AbstractLayer {
    */
   private retirePreviousVoice(time: number) {
     if (!this.osc || !this.gain || !this.filter) return;
+
+    // If context is suspended, we can't schedule/fade perfectly,
+    // but we should still detach to clean up our references.
+    // However, scheduling on a suspended context is generally allowed but won't process until resume.
+    // If strict suspension check is needed, we could return, but that leaks the voice ref if we init new one.
+    // Given initVoice guards against suspended, this might be moot, but let's be safe.
 
     const oldOsc = this.osc;
     const oldGain = this.gain;
@@ -253,7 +268,7 @@ export class ToneSynthLayer extends AbstractLayer {
         (oldGain.gain as any).cancelAndHoldAtTime(time);
       } catch (e) {
         oldGain.gain.cancelScheduledValues(time);
-        oldGain.gain.setValueAtTime(oldGain.gain.value, time);
+        this.safeParam(oldGain.gain, oldGain.gain.value, time);
       }
 
       oldGain.gain.linearRampToValueAtTime(0, time + fadeTime);
@@ -286,6 +301,9 @@ export class ToneSynthLayer extends AbstractLayer {
   }
 
   protected onTrigger(velocity: number, noteIndex?: number | null) {
+    // If suspended, do not trigger (initVoice handles it, but good to check early)
+    if (this.ctx?.state === 'suspended') return;
+
     // Monophonic synth logic
     // If holding, we might just pitch slide, but for this specific "Clicky" requirement:
     // We do trigger a new pluck on new note, but handle holds in process
@@ -293,13 +311,17 @@ export class ToneSynthLayer extends AbstractLayer {
     // Calculate frequency from noteIndex if provided
     if (noteIndex !== null && noteIndex !== undefined) {
       // MIDI Note to Frequency: 440 * 2^((note - 69) / 12)
-      this.frequency = 440 * Math.pow(2, (noteIndex - 69) / 12);
+      const f = 440 * Math.pow(2, (noteIndex - 69) / 12);
+      if (Number.isFinite(f)) this.frequency = f;
     }
 
     this.initVoice(this.ctx?.currentTime ?? 0.0, velocity);
   }
 
   protected onRelease() {
+    // If suspended, nothing to release
+    if (this.ctx?.state === 'suspended') return;
+
     if (this.gain) {
       // 5ms fade out
       const currentTime = this.ctx?.currentTime ?? 0.0;
@@ -309,9 +331,11 @@ export class ToneSynthLayer extends AbstractLayer {
       } catch (e) {
         // Fallback
         this.gain.gain.cancelScheduledValues(currentTime);
-        this.gain.gain.setValueAtTime(this.gain.gain.value, currentTime);
+        this.safeParam(this.gain.gain, this.gain.gain.value, currentTime);
       }
-      this.gain.gain.linearRampToValueAtTime(0, currentTime + 0.005);
+      try {
+        this.gain.gain.linearRampToValueAtTime(0, currentTime + 0.005);
+      } catch(e) {}
 
       // Stop oscillator after fade out to save resources
       // We can schedule it.

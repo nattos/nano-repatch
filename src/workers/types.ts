@@ -58,6 +58,11 @@ export type ControlMessage = {
   frameRate?: number;
 };
 
+export type UpdateAudioStateMessage = {
+  type: 'UPDATE_AUDIO_STATE';
+  state: 'suspended' | 'running' | 'closed';
+};
+
 export type MidiUpdateMessage = {
   type: 'MIDI_UPDATE';
   values: Map<string, number>;
@@ -69,7 +74,8 @@ export type ExecutorWorkerMessage =
   | UpdateConfigMessage
   | UpdateInputMessage
   | ControlMessage
-  | MidiUpdateMessage;
+  | MidiUpdateMessage
+  | UpdateAudioStateMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';
 

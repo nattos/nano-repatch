@@ -40,7 +40,7 @@ export const tone4 = defineNode({
   }),
   execute: (inputs, config, context, state: Tone4State) => {
     const audio = context.audio?.context;
-    if (!audio) return {}; // No audio context, do nothing
+    if (!audio || audio.state === 'suspended') return {}; // No audio context or suspended, do nothing
 
     const now = audio.currentTime;
 

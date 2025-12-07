@@ -128,6 +128,39 @@ export class RuntimeManager {
       },
       { delay: 16 } // Throttle to ~60fps
     );
+
+    // Resume audio context on selection change (user interaction intent)
+    // We observe the selection size.
+    reaction(
+      () => this.localController.observableState.selection.size,
+      (size) => {
+        if (size > 0 && this.audioRenderer.state === 'suspended') {
+          this.audioRenderer.resume();
+        }
+      }
+    );
+
+    // Sync audio context state to worker
+    this.audioRenderer.onStateChange = (state) => {
+      this.executorWorker.postMessage({
+        type: 'UPDATE_AUDIO_STATE',
+        state
+      } as ExecutorWorkerMessage);
+    };
+
+    // Initial sync
+    setTimeout(() => {
+        this.executorWorker.postMessage({
+            type: 'UPDATE_AUDIO_STATE',
+            state: this.audioRenderer.state
+        } as ExecutorWorkerMessage);
+    }, 100);
+  }
+
+  public resumeAudio() {
+    if (this.audioRenderer.state === 'suspended') {
+      this.audioRenderer.resume();
+    }
   }
 
   private lastMidiEventTime = 0;

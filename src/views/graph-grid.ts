@@ -3,7 +3,7 @@ import { SmartInput } from '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { appController, localController } from '../builder/controllers';
+import { appController, localController, runtimeManager } from '../builder/controllers';
 import { reaction } from 'mobx';
 import { LongEdit, generateId } from '../builder/state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
@@ -183,6 +183,9 @@ export class GraphGrid extends MobxLitElement {
         }
       }
     }
+
+    // Resume audio on any interaction
+    runtimeManager.resumeAudio();
 
     const path = e.composedPath();
     const isNode = path.some(el => (el as Element).tagName === 'GRAPH-NODE');

@@ -7,7 +7,13 @@ export class AudioRenderer {
   constructor() {
     this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     this.nodes.set('destination', this.ctx.destination);
+
+    this.ctx.onstatechange = () => {
+        this.onStateChange?.(this.ctx.state);
+    };
   }
+
+  public onStateChange?: (state: AudioContextState) => void;
 
   resume() {
     if (this.ctx.state === 'suspended') {
@@ -15,8 +21,11 @@ export class AudioRenderer {
     }
   }
 
+  get state() {
+    return this.ctx.state;
+  }
+
   execute(commands: AudioCommand[]) {
-    this.resume();
 
     for (const cmd of commands) {
       try {

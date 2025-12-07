@@ -100,6 +100,10 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       }
       break;
 
+    case 'UPDATE_AUDIO_STATE':
+      virtualAudioContext.state = msg.state;
+      break;
+
     case 'MIDI_UPDATE':
       // Update worker MIDI state
       // msg.values is a Map
