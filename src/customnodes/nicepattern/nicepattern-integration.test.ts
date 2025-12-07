@@ -120,7 +120,7 @@ describe('NicePattern Integration', () => {
       kind: 'primitive',
       configType: { kind: 'record', fields: {}, untagged: [] },
       computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, untagged: [] }),
-      execute: (inputs, config) => ({ fields: { val: config }, untagged: [] }),
+      execute: (inputs, config) => ({ fields: { val: (config && config.value !== undefined) ? config.value : config }, untagged: [] }),
     },
     inputs: [],
     outputs: [{ name: 'val', type: anyType }],
@@ -431,5 +431,56 @@ describe('NicePattern Integration', () => {
       audio: { context: mockAudioContext as any }
     });
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(2);
+  });
+
+  it('should generate Note Off when input sequence is removed (stuck note fix)', () => {
+    // pattern node connected to manual input
+    const { executor, getOutput } = compileAndRunwithOutput(
+      {
+        'manual_seq': { typeId: 'io.input', config: { value: [] } },
+        'pat': { typeId: 'nicepattern.pattern', config: {} }
+      },
+      [
+        { from: 'manual_seq', port: 'val', to: 'pat', portIn: 'seq_in' }
+      ],
+      'pat', 'midi_out'
+    );
+
+    // 1. Input active sequence (Step 0: Note 60)
+    // Construct a sequence with note 60 at step 0
+    const activeSeq = new Array(16).fill(null).map((_, i) => ({
+      noteIndex: i === 0 ? 60 : null,
+      velocity: 1,
+      hold: false
+    }));
+
+    // Inject active sequence
+    executor.setNodeConfig('manual_seq', { value: activeSeq });
+
+    // Update at time 0
+    executor.update({ clock: { beat: 0, dt: 0.1 } });
+
+    let stream = getOutput() as any[];
+    let noteOn = stream.find(e => e.fields.type === 'note_on');
+    expect(noteOn).toBeDefined();
+    expect(noteOn.fields.note).toBe(60);
+
+    // 2. Input EMPTY sequence (simulating disconnection or empty pattern)
+    // This effectively removes the sequence from the input
+    executor.setNodeConfig('manual_seq', { value: [] });
+
+    // Update at time 0.1 (still step 0 effectively, or next step, doesn't matter much as long as we process)
+    // Actually, let's advance time slightly.
+    // IMPORTANT: The pattern node logic checks `currentStepIndex !== seqState.lastStepIndex`.
+    // If we are at the ANY step with an empty sequence, the old state says "last step I played note 60".
+    // Now I see nothing. I should generate a release.
+    executor.update({ clock: { beat: 0.1, dt: 0.1 } });
+
+    stream = getOutput() as any[];
+    let noteOff = stream.find(e => e.fields.type === 'note_off');
+
+    // This EXPECTATION will FAIL before the fix
+    expect(noteOff, "Should generate Note Off for stuck note").toBeDefined();
+    expect(noteOff?.fields?.note).toBe(60);
   });
 });

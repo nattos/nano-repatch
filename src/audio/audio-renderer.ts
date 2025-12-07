@@ -25,11 +25,32 @@ export class AudioRenderer {
     return this.ctx.state;
   }
 
+  clear() {
+    for (const node of this.nodes.values()) {
+        try {
+            node.disconnect();
+            // Stop source nodes if they have a stop method
+            if ((node as any).stop) {
+                try { (node as any).stop(); } catch (e) { }
+            }
+        } catch (e) {
+            console.warn('Error clearing audio node:', e);
+        }
+    }
+    this.nodes.clear();
+    // Re-register destination
+    this.nodes.set('destination', this.ctx.destination);
+  }
+
   execute(commands: AudioCommand[]) {
 
     for (const cmd of commands) {
       try {
         switch (cmd.type) {
+          case 'clear': {
+            this.clear();
+            break;
+          }
           case 'createOscillator': {
             const osc = this.ctx.createOscillator();
             osc.onended = () => {

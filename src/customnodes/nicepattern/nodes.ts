@@ -189,7 +189,12 @@ export const pattern = defineNode({
   },
   isRealtime: () => true,
   createState: () => ({
-    sequenceStates: new Map<number, { lastStepIndex: number, activeNotes: Map<number, number> }>()
+    sequenceStates: new Map<number, {
+      lastStepIndex: number,
+      lastNoteIndex: number | null,
+      lastHold: boolean,
+      activeNotes: Map<number, number>
+    }>()
   }),
   execute: (inputs, config, context, state) => {
     const seqs = inputs.seq_in as Step[][]; // Array of sequences
@@ -198,54 +203,101 @@ export const pattern = defineNode({
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
     const currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
 
-    // Process each sequence independently
+    // Process all sequences (both current inputs and previously active ones)
+    const seqIndices = new Set<number>();
     if (Array.isArray(seqs)) {
-      seqs.forEach((seq, seqIndex) => {
+        seqs.forEach((_, i) => seqIndices.add(i));
+    }
+    state.sequenceStates.forEach((_, i) => seqIndices.add(i));
+
+    for (const seqIndex of seqIndices) {
+        const seq = (Array.isArray(seqs) ? seqs[seqIndex] : undefined);
+
         // Initialize state for this sequence if missing
         if (!state.sequenceStates.has(seqIndex)) {
-          state.sequenceStates.set(seqIndex, { lastStepIndex: -1, activeNotes: new Map<number, number>() });
-        }
-        const seqState = state.sequenceStates.get(seqIndex)!;
-
-        if (currentStepIndex !== seqState.lastStepIndex) {
-          const lastStep = (seq && seq[seqState.lastStepIndex]) ? seq[seqState.lastStepIndex] : { noteIndex: null, velocity: 0, hold: false };
-          const currentStep = (seq && seq[currentStepIndex]) ? seq[currentStepIndex] : { noteIndex: null, velocity: 0, hold: false };
-
-          // Determine if we need to trigger a note
-          const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
-          const isSameNote = isNoteActive && currentStep.noteIndex === lastStep.noteIndex;
-          const shouldTrigger = isNoteActive && (!isSameNote || !lastStep.hold);
-
-          const shouldRelease = (lastStep.noteIndex !== null && lastStep.noteIndex !== undefined) &&
-            (currentStep.noteIndex !== lastStep.noteIndex || (isSameNote && !lastStep.hold));
-
-          if (shouldRelease) {
-            stream.push({
-              type: 'note_off',
-              note: lastStep.noteIndex!,
-              velocity: 0,
-              channel: 1,
-              deviceId: 'pattern',
-              time: 0
+            state.sequenceStates.set(seqIndex, {
+              lastStepIndex: -1,
+              lastNoteIndex: null,
+              lastHold: false,
+              activeNotes: new Map<number, number>()
             });
-            seqState.activeNotes.delete(lastStep.noteIndex!);
-          }
-
-          if (shouldTrigger) {
-            stream.push({
-              type: 'note_on',
-              note: currentStep.noteIndex!,
-              velocity: currentStep.velocity,
-              channel: 1,
-              deviceId: 'pattern',
-              time: 0
-            });
-            seqState.activeNotes.set(currentStep.noteIndex!, currentStep.velocity);
-          }
-
-          seqState.lastStepIndex = currentStepIndex;
         }
-      });
+        const seqState = state.sequenceStates.get(seqIndex)! as {
+          lastStepIndex: number,
+          lastNoteIndex: number | null,
+          lastHold: boolean,
+          activeNotes: Map<number, number>
+        };
+
+        // If seq is gone and no active note, cleanup
+        if (!seq && seqState.lastNoteIndex === null) {
+            state.sequenceStates.delete(seqIndex);
+            continue;
+        }
+
+        const currentStep = (seq && seq[currentStepIndex]) ? seq[currentStepIndex] : { noteIndex: null, velocity: 0, hold: false };
+
+        // Check if we need to update:
+        // 1. Moved to a new step
+        // 2. Input sequence disappeared (!seq)
+        // 3. Note at current step CHANGED (e.g. pattern modulation or cable disconnect)
+        // 4. Force update if unknown state
+        if (currentStepIndex !== seqState.lastStepIndex || !seq || currentStep.noteIndex !== seqState.lastNoteIndex) {
+
+            // Logic: Compare currentStep against STORED state
+            const lastNoteIndex = seqState.lastNoteIndex;
+            const lastHold = seqState.lastHold;
+
+            const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
+            const isSameNote = isNoteActive && currentStep.noteIndex === lastNoteIndex;
+
+            // Release conditions:
+            // 1. We had a note (lastNoteIndex != null)
+            // 2. AND (New note is different OR (Same note but NOT held))
+            // Note: If input disappeared (!seq), currentStep is null-step, so isSameNote is false.
+            const shouldRelease = (lastNoteIndex !== null) && (!isSameNote || !lastHold);
+
+            // Trigger conditions:
+            // 1. We have a new note (isNoteActive)
+            // 2. AND (Only trigger if state changed to active, avoids retriggering same note same step if update logic runs due to other change?)
+            // Actually, if update logic runs, it means something changed.
+            // But if we just checked 'lastNoteIndex', we are good.
+            const shouldTrigger = isNoteActive && (!isSameNote || !lastHold);
+
+            if (shouldRelease && lastNoteIndex !== null) {
+                stream.push({
+                    type: 'note_off',
+                    note: lastNoteIndex,
+                    velocity: 0,
+                    channel: 1,
+                    deviceId: 'pattern',
+                    time: 0
+                });
+                seqState.activeNotes.delete(lastNoteIndex);
+                seqState.lastNoteIndex = null;
+                seqState.lastHold = false;
+            }
+
+            if (shouldTrigger && currentStep.noteIndex !== null) {
+                stream.push({
+                    type: 'note_on',
+                    note: currentStep.noteIndex,
+                    velocity: currentStep.velocity,
+                    channel: 1,
+                    deviceId: 'pattern',
+                    time: 0
+                });
+                seqState.activeNotes.set(currentStep.noteIndex, currentStep.velocity);
+                seqState.lastNoteIndex = currentStep.noteIndex;
+                seqState.lastHold = currentStep.hold;
+            } else if (isSameNote && lastHold) {
+                // Determine if we are just continuing (holding)
+                // We don't need to change state, but we should carry over hold status
+                seqState.lastHold = currentStep.hold;
+            }
+
+            seqState.lastStepIndex = currentStepIndex;
+        }
     }
 
     return { midi_out: stream };
@@ -367,10 +419,18 @@ export const toneSynthLayer = defineNode({
       layer: new ToneSynthLayer({}),
       lastActive: false,
       lastActiveNote: null as number | null,
-      activeVelocity: 0
+      activeVelocity: 0,
+      contextId: ''
     };
   },
   execute: (inputs, config, context, state) => {
+    // Check for Audio Context Reset/Invalidation
+    const audioContext = context.audio?.context;
+    if (audioContext && state.contextId !== audioContext.contextId) {
+         state.layer = new ToneSynthLayer({});
+         state.contextId = audioContext.contextId;
+    }
+
     const activeLayer = state.layer;
     const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
     // Removed targetNote

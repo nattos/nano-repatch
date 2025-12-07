@@ -15,7 +15,8 @@ export type AudioCommand =
   | { type: 'setTargetAtTime'; id: string; param: string; target: number; startTime: number; timeConstant: number }
   | { type: 'cancelScheduledValues'; id: string; param: string; time: number }
   | { type: 'setNodeProperty'; id: string; property: string; value: any }
-  | { type: 'dispose'; id: string };
+  | { type: 'dispose'; id: string }
+  | { type: 'clear' };
 
 export class VirtualAudioParam {
   constructor(
@@ -173,6 +174,9 @@ export class VirtualAudioContext {
   // We can let the worker track its own time or receive it.
   public currentTime: number = 0;
 
+  // We need a way to track context lifetime to invalidate node states on reset
+  public contextId: string = Math.random().toString(36).slice(2);
+
   constructor() {
     this.destination = new VirtualAudioNode('destination', this);
   }
@@ -203,5 +207,16 @@ export class VirtualAudioContext {
     const cmds = this.commands;
     this.commands = [];
     return cmds;
+  }
+
+  reset() {
+      // Clear all pending commands
+      this.commands = [];
+      // Issue a clear command to the renderer
+      this.addCommand({ type: 'clear' });
+      // Reset local counters
+      this.nodeCount = 0;
+      // Generate new context ID
+      this.contextId = Math.random().toString(36).slice(2);
   }
 }

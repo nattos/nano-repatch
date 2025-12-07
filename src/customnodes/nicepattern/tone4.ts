@@ -6,6 +6,7 @@ import { VirtualAudioContext, VirtualOscillatorNode, VirtualGainNode } from "../
 
 interface Tone4State {
   initialized: boolean;
+  contextId?: string;
   masterGain: VirtualGainNode | null;
   voices: {
     osc: VirtualOscillatorNode;
@@ -15,6 +16,14 @@ interface Tone4State {
   }[];
   lastRoot: number;
 }
+
+export const createTone4State = () => ({
+  initialized: false,
+  contextId: '',
+  masterGain: null,
+  voices: [],
+  lastRoot: -1
+});
 
 export const tone4 = defineNode({
   id: "nicepattern.tone4",
@@ -32,12 +41,7 @@ export const tone4 = defineNode({
   },
   outputs: {}, // Audio output is internal/side-effect
   isRealtime: () => true,
-  createState: () => ({
-    initialized: false,
-    masterGain: null,
-    voices: [],
-    lastRoot: -1
-  }),
+  createState: createTone4State,
   execute: (inputs, config, context, state: Tone4State) => {
     const audio = context.audio?.context;
     if (!audio || audio.state === 'suspended') return {}; // No audio context or suspended, do nothing
@@ -45,7 +49,8 @@ export const tone4 = defineNode({
     const now = audio.currentTime;
 
     // Initialize Audio Graph
-    if (!state.initialized) {
+    // Check if initialized AND if context matches (in case of reset)
+    if (!state.initialized || state.contextId !== audio.contextId) {
       // Create Master
       state.masterGain = audio.createGain();
       state.masterGain.connect(audio.destination);
@@ -70,6 +75,8 @@ export const tone4 = defineNode({
       });
 
       state.initialized = true;
+      state.contextId = audio.contextId;
+      state.lastRoot = -1; // Force frequency update
     }
 
     // Update Master Volume
