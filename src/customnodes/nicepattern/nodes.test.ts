@@ -38,8 +38,8 @@ describe('NicePattern Nodes', () => {
   describe('RhythmicGenerator', () => {
     it('should generate a sequence based on density', () => {
       const context = createMockContext();
-      const config = { fields: { targetNote: 60, density: 0.5 }, untagged: [] };
-      const input = { fields: {}, untagged: [] };
+      const config = { fields: { targetNote: 60, density: 0.5 },  };
+      const input = { fields: {},  };
 
       const result = rhythmicGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
@@ -52,8 +52,8 @@ describe('NicePattern Nodes', () => {
 
     it('should use input density if provided', () => {
       const context = createMockContext();
-      const config = { fields: { targetNote: 60, density: 0.1 }, untagged: [] };
-      const input = { fields: { density: 1.0 }, untagged: [] };
+      const config = { fields: { targetNote: 60, density: 0.1 },  };
+      const input = { fields: { density: 1.0 },  };
 
       const result = rhythmicGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
@@ -66,8 +66,8 @@ describe('NicePattern Nodes', () => {
   describe('ChaosGenerator', () => {
     it('should generate random notes within range', () => {
       const context = createMockContext();
-      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 123 }, untagged: [] };
-      const input = { fields: {}, untagged: [] };
+      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 123 },  };
+      const input = { fields: {},  };
 
       const result = chaosGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
@@ -83,8 +83,8 @@ describe('NicePattern Nodes', () => {
 
     it('should produce deterministic output with same seed', () => {
       const context = createMockContext();
-      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 999 }, untagged: [] };
-      const input = { fields: {}, untagged: [] };
+      const config = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 999 },  };
+      const input = { fields: {},  };
 
       const result1 = chaosGenerator.execute(input, config, context);
       const seq1 = result1.fields.seq_out as any[];
@@ -97,13 +97,13 @@ describe('NicePattern Nodes', () => {
 
     it('should produce different output with different seed', () => {
       const context = createMockContext();
-      const input = { fields: {}, untagged: [] };
+      const input = { fields: {},  };
 
-      const config1 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 111 }, untagged: [] };
+      const config1 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 111 },  };
       const result1 = chaosGenerator.execute(input, config1, context);
       const seq1 = result1.fields.seq_out as any[];
 
-      const config2 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 222 }, untagged: [] };
+      const config2 = { fields: { minNote: 60, maxNote: 72, density: 1.0, seed: 222 },  };
       const result2 = chaosGenerator.execute(input, config2, context);
       const seq2 = result2.fields.seq_out as any[];
 
@@ -112,8 +112,8 @@ describe('NicePattern Nodes', () => {
 
     it('should use input density if provided', () => {
       const context = createMockContext();
-      const config = { fields: { minNote: 60, maxNote: 72, density: 0.1, seed: 123 }, untagged: [] };
-      const input = { fields: { density: 1.0 }, untagged: [] };
+      const config = { fields: { minNote: 60, maxNote: 72, density: 0.1, seed: 123 },  };
+      const input = { fields: { density: 1.0 },  };
 
       const result = chaosGenerator.execute(input, config, context);
       const seq = result.fields.seq_out as any[];
@@ -128,8 +128,8 @@ describe('NicePattern Nodes', () => {
     it('should combine sequences and generate events', () => {
       const context = createMockContext();
       // Mock broadcast to return a sequence
-      const mockSeq = Array(16).fill({ fields: { noteIndex: null, velocity: 0, hold: false }, untagged: [] });
-      mockSeq[0] = { fields: { noteIndex: 60, velocity: 1, hold: false }, untagged: [] };
+      const mockSeq = Array(16).fill({ fields: { noteIndex: null, velocity: 0, hold: false },  });
+      mockSeq[0] = { fields: { noteIndex: 60, velocity: 1, hold: false },  };
 
       // We need to mock the typedBroadcast behavior which calls context.broadcast
       // The pattern node calls typedBroadcast which calls context.broadcast
@@ -146,8 +146,8 @@ describe('NicePattern Nodes', () => {
         } as any;
       });
 
-      const config = { fields: {}, untagged: [] };
-      const input = { fields: { seq_in: mockSeq }, untagged: [] }; // Raw input
+      const config = { fields: {},  };
+      const input = { fields: { seq_in: mockSeq },  }; // Raw input
 
       // First call: initialize state and process step 0
       context.clock.beat = 0;

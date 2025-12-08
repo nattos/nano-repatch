@@ -42,7 +42,7 @@ describe('Executor Worker', () => {
     const graph: GraphDefinition = {
       id: 'test-graph',
       kind: 'graph',
-      type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } },
+      type: { kind: 'graph', inputs: { kind: 'record', fields: {},  }, outputs: { kind: 'record', fields: {},  } },
       nodes: {},
       connections: [],
       inputs: {},

@@ -6,7 +6,7 @@ describe('Broadcast System', () => {
   it('should handle scalar inputs', () => {
     const inputs: StructorRecord = {
       fields: { a: 1, b: 2 },
-      untagged: []
+      
     };
     const config = {
       outputs: {
@@ -28,8 +28,7 @@ describe('Broadcast System', () => {
 
   it('should handle vector inputs', () => {
     const inputs: StructorRecord = {
-      fields: { a: [1, 2, 3], b: 10 },
-      untagged: []
+      fields: { a: [1, 2, 3], b: 10 }
     };
     const config = {
       outputs: {
@@ -50,7 +49,7 @@ describe('Broadcast System', () => {
   it('should zip vectors of same length', () => {
     const inputs: StructorRecord = {
       fields: { a: [1, 2, 3], b: [10, 20, 30] },
-      untagged: []
+      
     };
     const config = {
       outputs: {
@@ -71,7 +70,7 @@ describe('Broadcast System', () => {
   it('should repeat scalars to match vector length', () => {
     const inputs: StructorRecord = {
       fields: { a: [1, 2, 3], b: 10, c: 100 },
-      untagged: []
+      
     };
     const config = {
       outputs: {
@@ -93,7 +92,7 @@ describe('Broadcast System', () => {
   it('should handle mismatched vector lengths (round-robin cycle)', () => {
     const inputs: StructorRecord = {
       fields: { a: [1, 2], b: [10, 20, 30] },
-      untagged: []
+      
     };
     const config = {
       outputs: {
@@ -118,7 +117,7 @@ describe('Broadcast System', () => {
   it('should support named fields in apply lambda', () => {
     const inputs: StructorRecord = {
       fields: { val: 10, min: 0, max: 100 },
-      untagged: []
+      
     };
     // Config that maps inputs to specific names for the lambda
     const config = {

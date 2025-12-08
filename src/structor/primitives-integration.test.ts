@@ -31,9 +31,9 @@ export const compileAndRun = (
         }
         // For lerp, handle clamp
         if (def.id === 'math.lerp') {
-          return { fields: { clamp: uiConfig?.clamp ?? true }, untagged: [] };
+          return { fields: { clamp: uiConfig?.clamp ?? true },  };
         }
-        return { fields: {}, untagged: [] };
+        return { fields: {},  };
       }
     });
   });
@@ -46,16 +46,16 @@ export const compileAndRun = (
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
       execute: (inputs) => {
         // console.log('io.output execute inputs:', JSON.stringify(inputs));
-        return { fields: { val: inputs.fields.val }, untagged: [] };
+        return { fields: { val: inputs.fields.val },  };
       },
     },
     inputs: [{ name: 'val', type: numberType }],
     outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {}, untagged: [] })
+    compileConfig: (c) => ({ fields: {},  })
   });
 
   const gridNodes: Record<string, GridNode> = {};
@@ -132,10 +132,10 @@ describe('Primitives Integration', () => {
         'mul': { typeId: 'math.multiply' }
       },
       [
-        { from: 'l1', port: '', to: 'add', portIn: 'a' },
-        { from: 'l2', port: '', to: 'add', portIn: 'b' },
+        { from: 'l1', port: 'value', to: 'add', portIn: 'a' },
+        { from: 'l2', port: 'value', to: 'add', portIn: 'b' },
         { from: 'add', port: 'result', to: 'mul', portIn: 'a' },
-        { from: 'l3', port: '', to: 'mul', portIn: 'b' }
+        { from: 'l3', port: 'value', to: 'mul', portIn: 'b' }
       ],
       'mul', 'result'
     );
@@ -156,10 +156,10 @@ describe('Primitives Integration', () => {
         'and': { typeId: 'logic.and' }
       },
       [
-        { from: 'l1', port: '', to: 'gt', portIn: 'a' },
-        { from: 'l2', port: '', to: 'gt', portIn: 'b' },
-        { from: 'l3', port: '', to: 'lt', portIn: 'a' },
-        { from: 'l4', port: '', to: 'lt', portIn: 'b' },
+        { from: 'l1', port: 'value', to: 'gt', portIn: 'a' },
+        { from: 'l2', port: 'value', to: 'gt', portIn: 'b' },
+        { from: 'l3', port: 'value', to: 'lt', portIn: 'a' },
+        { from: 'l4', port: 'value', to: 'lt', portIn: 'b' },
         { from: 'gt', port: 'result', to: 'and', portIn: 'a' },
         { from: 'lt', port: 'result', to: 'and', portIn: 'b' }
       ],
@@ -179,11 +179,11 @@ describe('Primitives Integration', () => {
         'clamp': { typeId: 'math.clamp' }
       },
       [
-        { from: 'val', port: '', to: 'clamp', portIn: 'value' },
-        { from: 'min', port: '', to: 'clamp', portIn: 'min' },
-        { from: 'max', port: '', to: 'clamp', portIn: 'max' }
+        { from: 'val', port: 'value', to: 'clamp', portIn: 'value' },
+        { from: 'min', port: 'value', to: 'clamp', portIn: 'min' },
+        { from: 'max', port: 'value', to: 'clamp', portIn: 'max' }
       ],
-      'clamp', 'value'
+      'clamp', 'result'
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });
@@ -197,9 +197,9 @@ describe('Primitives Integration', () => {
         'clamp': { typeId: 'math.clamp', config: { values: { min: 0, max: 1 } } }
       },
       [
-        { from: 'val', port: '', to: 'clamp', portIn: 'value' }
+        { from: 'val', port: 'value', to: 'clamp', portIn: 'value' }
       ],
-      'clamp', 'value'
+      'clamp', 'result'
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });
@@ -215,9 +215,9 @@ describe('Primitives Integration', () => {
         'lerp': { typeId: 'math.lerp' }
       },
       [
-        { from: 'a', port: '', to: 'lerp', portIn: 'a' },
-        { from: 'b', port: '', to: 'lerp', portIn: 'b' },
-        { from: 't', port: '', to: 'lerp', portIn: 't' }
+        { from: 'a', port: 'value', to: 'lerp', portIn: 'a' },
+        { from: 'b', port: 'value', to: 'lerp', portIn: 'b' },
+        { from: 't', port: 'value', to: 'lerp', portIn: 't' }
       ],
       'lerp', 'result'
     );

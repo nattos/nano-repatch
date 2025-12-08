@@ -29,7 +29,7 @@ export const primitive_clamp = definePrimitiveNode({
     description: 'Clamps a value between a minimum and maximum.'
   },
   inputs: { value: numberType, min: { ...numberType, defaultValue: 0 }, max: { ...numberType, defaultValue: 1 } },
-  outputs: { value: numberType },
+  outputs: { result: numberType },
   autoBroadcast: {
     value: { combine: 'collect' },
     min: { combine: 'collect' },
@@ -38,7 +38,7 @@ export const primitive_clamp = definePrimitiveNode({
   reshape: 'vector',
   execute: (inputs) => {
     const { value, min, max } = inputs as { value: number, min: number, max: number };
-    return { value: Math.max(min, Math.min(value, max)) };
+    return { result: Math.max(min, Math.min(value, max)) };
   }
 });
 
@@ -70,10 +70,10 @@ export const primitive_literal: PrimitiveNodeDefinition = {
   },
   configType: { kind: 'atomic', type: 'any' }, // This literal can hold any type of value
   computeOutputTypes: (inputType: RecordType, configType: StructorType, context: AnalysisContext) => {
-    return { kind: 'record', fields: {}, untagged: [configType] };
+    return { kind: 'record', fields: { value: configType } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    return { fields: {}, untagged: [config] };
+    return { fields: { value: config } };
   },
 };
 
@@ -87,12 +87,12 @@ export const primitive_apply: PrimitiveNodeDefinition = {
   },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     const functorType = inputType.fields['functor'] as FunctorType;
-    return { kind: 'record', fields: {}, untagged: [functorType.output] };
+    return { kind: 'record', fields: { result: functorType.output } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     const functor = input.fields['functor'] as Functor;
     const inputValue = input.fields['input'];
-    return { fields: {}, untagged: [functor(inputValue)] };
+    return { fields: { result: functor(inputValue) } };
   }
 };
 
@@ -107,12 +107,12 @@ export const primitive_input: PrimitiveNodeDefinition = {
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // Identity: Output type is same as input type of 'val' (injected by executor) or config type
     const valType = inputType.fields['val'] || config || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'val': valType }, untagged: [valType] };
+    return { kind: 'record', fields: { 'val': valType } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Identity: Output value is input 'val' OR config value (from slider)
     const val = input.fields['val'] !== undefined ? input.fields['val'] : config;
-    return { fields: { 'val': val }, untagged: [val] };
+    return { fields: { 'val': val } };
   }
 };
 
@@ -126,13 +126,13 @@ export const primitive_output: PrimitiveNodeDefinition = {
   },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // Identity: Output type is same as input type of 'val'
-    const valType = inputType.fields['val'] || inputType.untagged[0] || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'val': valType }, untagged: [valType] };
+    const valType = inputType.fields['val'] || { kind: 'atomic', type: 'any' };
+    return { kind: 'record', fields: { 'val': valType } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Identity: Output value is input 'val'
-    const val = input.fields['val'] !== undefined ? input.fields['val'] : input.untagged[0];
-    return { fields: { 'val': val }, untagged: [val] };
+    const val = input.fields['val'];
+    return { fields: { 'val': val } };
   }
 };
 
@@ -147,14 +147,43 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // In a real implementation, we would look up the subgraph definition and return its output types.
     // Since we can't access the config value (subgraphId) here, we return Any.
-    return { kind: 'record', fields: {}, untagged: [{ kind: 'atomic', type: 'any' }] };
+    return { kind: 'record', fields: { output: { kind: 'atomic', type: 'any' } } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Subgraph execution logic would go here.
-    return { fields: {}, untagged: [] };
+    return { fields: {} };
   }
 };
 
+export const primitive_pack = definePrimitiveNode({
+    id: 'core.pack',
+    metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct'], description: 'Packs inputs into a record.' },
+    inputs: {}, // Dynamic inputs
+    outputs: { result: { kind: 'atomic', type: 'any' } }, // Output is a dynamic record (handled as any structor)
+    execute: (inputs) => ({ result: inputs }) // Simply return the inputs as a record
+});
+
+export const primitive_unpack: PrimitiveNodeDefinition = {
+    id: 'core.unpack',
+    kind: 'primitive',
+    metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record into outputs.' },
+    // Inputs: One record input 'record'
+    // Outputs: Dynamic based on input record type
+    computeOutputTypes: (inputType, config, context) => {
+        const recordType = inputType.fields['record'];
+        if (recordType && recordType.kind === 'record') {
+            return recordType;
+        }
+        return { kind: 'record', fields: {} };
+    },
+    execute: (input) => {
+        const record = input.fields['record'];
+        if (record && typeof record === 'object' && 'fields' in record) {
+             return record as StructorRecord;
+        }
+        return { fields: {} };
+    }
+};
 
 
 // --- Math (Constants) ---
@@ -194,6 +223,7 @@ export const primitive_lerp = definePrimitiveNode({
     const doClamp = config.clamp !== false; // Default to true
 
     const val = a + (b - a) * t;
+
     const result = doClamp
       ? Math.max(Math.min(val, Math.max(a, b)), Math.min(a, b))
       : val;
@@ -399,7 +429,7 @@ const defineAllNode = (
     metadata: { category, description: `Apply ${id.split('.').pop()} to all inputs.` },
     inputs: { values: { kind: 'array', element: numberType, size: 'dynamic' } },
     outputs: { result: numberType },
-    autoBroadcast: { values: { combine: 'collect', fromUntagged: true } },
+    autoBroadcast: { values: { combine: 'collect' } },
     execute: (inputs) => {
       const values = (inputs.values as any[]).flat();
       if (values.length === 0) return { result: 0 };
@@ -431,6 +461,7 @@ export const ALL_PRIMITIVES = [
   primitive_pi, primitive_e,
   primitive_lerp, primitive_map, primitive_hub, primitive_float,
   primitive_input, primitive_output, primitive_subgraph, primitive_literal, primitive_apply,
+  primitive_pack, primitive_unpack,
 
   // All variants
   primitive_all_add, primitive_all_subtract, primitive_all_multiply, primitive_all_divide, primitive_all_pow, primitive_all_min, primitive_all_max,

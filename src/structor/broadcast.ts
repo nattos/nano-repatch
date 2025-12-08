@@ -38,16 +38,7 @@ export function broadcast(config: BroadcastConfig, inputs: StructorRecord): Broa
       }
     }
 
-    // Gather from untagged
-    if (outputConfig.fromUntagged === true) {
-      values.push(...inputs.untagged);
-    } else if (Array.isArray(outputConfig.fromUntagged)) {
-      for (const index of outputConfig.fromUntagged) {
-        if (inputs.untagged[index] !== undefined) {
-          values.push(inputs.untagged[index]);
-        }
-      }
-    }
+
 
     // Combine logic
     let finalValue: any;

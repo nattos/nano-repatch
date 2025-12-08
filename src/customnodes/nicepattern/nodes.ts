@@ -124,8 +124,7 @@ export const rhythmicGenerator = defineNode({
   compileConfig: (uiConfig) => ({
     fields: {
       targetNote: uiConfig?.targetNote ?? 60,
-    },
-    untagged: [],
+    }
   }),
 });
 
@@ -165,8 +164,7 @@ export const chaosGenerator = defineNode({
       minNote: uiConfig?.minNote ?? 60,
       maxNote: uiConfig?.maxNote ?? 60,
       seed: uiConfig?.seed ?? 12345,
-    },
-    untagged: [],
+    }
   }),
 });
 
@@ -182,11 +180,11 @@ export const pattern = defineNode({
   },
   config: {},
   inputs: {
-    seq_in: { type: sequenceStructorType, description: "Input sequence(s)", redirect: 'untagged' }
+    seq_in: { type: sequenceStructorType, description: "Input sequence(s)" }
   },
   outputs: { midi_out: midiStreamType },
   autoBroadcast: {
-    seq_in: { combine: 'collect', fromUntagged: true }
+    seq_in: { combine: 'collect' }
   },
   isRealtime: () => true,
   createState: () => ({
@@ -384,7 +382,6 @@ export function createLayerNode(
     },
     compileConfig: (uiConfig) => ({
       fields: {},
-      untagged: [],
     }),
   });
 }
@@ -477,7 +474,6 @@ export const toneSynthLayer = defineNode({
   },
   compileConfig: (uiConfig) => ({
     fields: {},
-    untagged: [],
   }),
 });
 

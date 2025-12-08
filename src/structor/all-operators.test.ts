@@ -10,7 +10,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'math.all.add' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );
@@ -27,7 +27,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'math.all.subtract' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );
@@ -43,7 +43,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'math.all.multiply' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );
@@ -60,7 +60,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'math.all.divide' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );
@@ -76,7 +76,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'logic.all.and' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );
@@ -92,7 +92,7 @@ describe('All Operators Integration', () => {
         'op': { typeId: 'logic.all.and' }
       },
       [
-        { from: 'val', port: '', to: 'op', portIn: '' }
+        { from: 'val', port: 'value', to: 'op', portIn: 'values' }
       ],
       'op', 'result'
     );

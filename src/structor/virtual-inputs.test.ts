@@ -37,15 +37,15 @@ describe('Virtual Inputs Integration', () => {
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
       execute: (inputs) => {
-        return { fields: { val: inputs.fields.val }, untagged: [] };
+        return { fields: { val: inputs.fields.val },  };
       },
     },
     inputs: [{ name: 'val', type: numberType }],
     outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {}, untagged: [] })
+    compileConfig: (c) => ({ fields: {},  })
   });
 
   const compileAndRun = (
@@ -149,7 +149,7 @@ describe('Virtual Inputs Integration', () => {
           }
         }
       },
-      'clamp', 'value'
+      'clamp', 'result'
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });

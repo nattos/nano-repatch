@@ -6,7 +6,7 @@ import '../customnodes/resolume/nodes';
 import '../customnodes/curve/nodes';
 import '../customnodes/midi/nodes';
 import { AppState, GraphState, GridNode } from './state';
-import { GraphDefinition, NodeInstance, Structor } from '../structor/structor';
+import { GraphDefinition, NodeInstance, Structor, StructorType, RecordType } from '../structor/structor';
 import { NodeRepository } from '../structor/repository';
 
 /**
@@ -127,7 +127,7 @@ export function compileGraph(
 
             if (value !== undefined) {
               // Inject into defaultConfig.values so GraphExecutor can pick it up dynamically
-              if (!instance.defaultConfig) instance.defaultConfig = { fields: {}, untagged: [] };
+              if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
               if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
               (instance.defaultConfig as any).values[portName] = value;
             }
@@ -195,61 +195,175 @@ export function compileGraph(
 
   processGraph(appState.graph, '', true);
 
-  // 3. Cycle Detection and Breaking
-  // We perform a DFS to detect back edges. Any back edge found implies a cycle.
-  // We break the cycle by removing the back edge.
-
+  // 3. Cycle Detection and Breaking (and Topological Sort)
   const adjacency = new Map<string, Array<{ toNode: string; connIndex: number }>>();
+  const inDegree = new Map<string, number>();
+
+  // Initialize in-degrees
+  Object.keys(flatNodes).forEach(nodeId => inDegree.set(nodeId, 0));
+
   flatConnections.forEach((conn, index) => {
     if (!adjacency.has(conn.fromNode)) {
       adjacency.set(conn.fromNode, []);
     }
     adjacency.get(conn.fromNode)!.push({ toNode: conn.toNode, connIndex: index });
+    inDegree.set(conn.toNode, (inDegree.get(conn.toNode) || 0) + 1);
   });
 
-  const visited = new Set<string>();
-  const recursionStack = new Set<string>();
-  const edgesToRemove = new Set<number>();
+  // Kahn's Algorithm for Topological Sort & Cycle Breaking
+  const executionOrder: string[] = [];
+  const queue: string[] = [];
+  const validConnectionIndices = new Set<number>();
 
-  function detectCycles(nodeId: string) {
-    visited.add(nodeId);
-    recursionStack.add(nodeId);
+  // Start with nodes having in-degree 0
+  for (const [nodeId, degree] of inDegree) {
+    if (degree === 0) queue.push(nodeId);
+  }
 
-    const neighbors = adjacency.get(nodeId);
-    if (neighbors) {
-      for (const { toNode, connIndex } of neighbors) {
-        if (recursionStack.has(toNode)) {
-          // Cycle detected!
-          console.warn(`Cycle detected: ${nodeId} -> ${toNode}. Breaking connection to prevent infinite loop.`);
-          edgesToRemove.add(connIndex);
-        } else if (!visited.has(toNode)) {
-          detectCycles(toNode);
-        }
+  while (queue.length > 0) {
+    const u = queue.shift()!;
+    executionOrder.push(u);
+
+    if (adjacency.has(u)) {
+      for (const { toNode, connIndex } of adjacency.get(u)!) {
+         validConnectionIndices.add(connIndex);
+         inDegree.set(toNode, (inDegree.get(toNode) || 0) - 1);
+         if (inDegree.get(toNode) === 0) {
+           queue.push(toNode);
+         }
       }
     }
-
-    recursionStack.delete(nodeId);
   }
 
-  // Run DFS from every node (to handle disconnected components)
-  for (const nodeId of Object.keys(flatNodes)) {
-    if (!visited.has(nodeId)) {
-      detectCycles(nodeId);
+  // If there are still nodes with in-degree > 0, we have cycles (or just unvisited nodes in a cycle)
+  // For now, we just exclude connections that form the cycle implicitly by only keeping validConnectionIndices.
+  // Although, strictly speaking, we might want to be more aggressive about breaking specific backedges.
+  // But this simple approach ensures we have a valid DAG execution order.
+
+  // Any nodes NOT in executionOrder are part of a cycle or dependent on a cycle.
+  // We should probably include them in the result but disconnected?
+  // Or just warn.
+  if (executionOrder.length !== Object.keys(flatNodes).length) {
+     console.warn(`Graph contains cycles! Only ${executionOrder.length}/${Object.keys(flatNodes).length} nodes differ in DAG.`);
+     // Add remaining nodes to execution order arbitrarily to ensure they exist in the map
+      for (const nodeId of Object.keys(flatNodes)) {
+        if (!executionOrder.includes(nodeId)) executionOrder.push(nodeId);
+      }
+  }
+
+  const validConnections = flatConnections.filter((_, index) => validConnectionIndices.has(index));
+
+  // --- Type Compilation Passes ---
+
+  // Initialize Type State
+  const nodeTypes = new Map<string, {
+    inputs: StructorType; // RecordType theoretically
+    outputs: StructorType; // RecordType
+  }>();
+
+  // Backward Pass (Constraint Propagation could go here)
+  // For now, we assume explicit types from Node Definitions.
+
+  // Forward Pass (Type Inference)
+  for (const nodeId of executionOrder) {
+    const instance = flatNodes[nodeId];
+    const nodeDef = nodeRepository.get(instance.definitionId);
+
+    if (nodeDef && nodeDef.kind === 'primitive') {
+        // 1. Gather Input Types from Upstream
+        const resolvedInputs: Record<string, StructorType> = {};
+
+        // Find connections to this node
+        const inputConns = validConnections.filter(c => c.toNode === nodeId);
+
+        // Group by input port (to handle arrays)
+        const inputsByPort = new Map<string, StructorType[]>();
+        for (const conn of inputConns) {
+            const fromType = nodeTypes.get(conn.fromNode)?.outputs;
+            if (fromType && fromType.kind === 'record') {
+                 // Resolve source type
+                 const portName = conn.fromPort.toString(); // TODO: number ports
+                 if (fromType.fields[portName]) {
+                     if (!inputsByPort.has(conn.toPort.toString())) {
+                         inputsByPort.set(conn.toPort.toString(), []);
+                     }
+                     inputsByPort.get(conn.toPort.toString())!.push(fromType.fields[portName]);
+                 }
+            }
+        }
+
+        // Resolve final input types (handling arrays vs single)
+        // We need the Node Definition's Input Schema to know if it EXPECTS an array.
+        // If it expects an array, we collect all connections.
+        // If it expects a scalar, we take the last one (or first).
+
+        const expectedInputs = nodeDef.inputs || {};
+
+        for (const [port, types] of inputsByPort) {
+             const expected = expectedInputs[port];
+             if (expected && expected.kind === 'array') {
+                 // It's an array input, so we effectively have an array of the connected types.
+                 // We need to Union them or assume they are homogeneous?
+                 // For now, let's assume valid types.
+                 // The "Type" of the input port is now an Array of the connected types.
+                 // Wait, structor type system doesn't have Union types yet.
+                 // Let's take the first one as representative for the element type?
+                 if (types.length > 0) {
+                   resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
+                 }
+             } else {
+                 // Scalar - take last
+                 if (types.length > 0) {
+                     resolvedInputs[port] = types[types.length - 1];
+                 }
+             }
+        }
+
+        const inputRecordType: RecordType = {
+            kind: 'record',
+            fields: resolvedInputs
+        };
+
+        // 2. Compute Output Types
+        const config = instance.defaultConfig || { fields: {} };
+        // Valid config type placeholder for now
+        const configType: RecordType = { kind: 'record', fields: {} };
+
+        let outputRecordType: RecordType;
+        try {
+             outputRecordType = nodeDef.computeOutputTypes(
+                inputRecordType,
+                configType,
+                { repository: nodeRepository, broadcast: () => undefined } as any
+            );
+        } catch (e) {
+            console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
+            outputRecordType = { kind: 'record', fields: {} };
+        }
+
+        nodeTypes.set(nodeId, {
+            inputs: inputRecordType,
+            outputs: outputRecordType
+        });
+
+        // 3. Compute Broadcast Config (if applicable)
+        // We only do this for primitive nodes that request autoBroadcast (or use typed helper)
+        if (nodeDef.metadata?.keywords?.includes('broadcast')) {
+             // ... Logic to generate broadcast op ...
+             // For now, we rely on the executor doing it dynamically if we don't store it.
+             // But the plan says: "The compiler will take the config, and produce a broadcast operation"
+        }
     }
   }
-
-  // Filter out broken connections
-  const validConnections = flatConnections.filter((_, index) => !edgesToRemove.has(index));
-
-  // console.log(`Compiled graph with ${Object.keys(flatNodes).length} nodes and ${validConnections.length} connections (removed ${edgesToRemove.size} cyclic connections).`);
 
   return {
     id: 'compiled-graph',
     kind: 'graph',
-    type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } }, // TODO: Compute actual type
+    type: { kind: 'graph', inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } },
     nodes: flatNodes,
     connections: validConnections,
     inputs: flatInputs,
-    outputs: flatOutputs
+    outputs: flatOutputs,
+    executionOrder // Return the order so Executor doesn't have to recompute
   };
 }

@@ -50,7 +50,7 @@ describe('NicePattern Integration', () => {
     definition: pattern,
     inputs: [{ name: 'seq_in', type: sequenceStructorType, description: 'Input sequence(s)', redirect: 'untagged' }],
     outputs: [{ name: 'midi_out', type: midiStreamType, description: 'Real-time MIDI stream' }],
-    compileConfig: (uiConfig) => ({ fields: {}, untagged: [] }),
+    compileConfig: (uiConfig) => ({ fields: {},  }),
   });
 
   // Register Layers
@@ -89,7 +89,7 @@ describe('NicePattern Integration', () => {
       fields: {
         targetNote: uiConfig?.targetNote ?? 60,
       },
-      untagged: [],
+      ,
     }),
   });
 
@@ -101,13 +101,13 @@ describe('NicePattern Integration', () => {
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, untagged: [] }),
-      execute: (inputs) => ({ fields: { val: inputs.fields.val }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
+      execute: (inputs) => ({ fields: { val: inputs.fields.val },  }),
     },
     inputs: [{ name: 'val', type: anyType }],
     outputs: [{ name: 'val', type: anyType }],
-    compileConfig: (c) => ({ fields: {}, untagged: [] })
+    compileConfig: (c) => ({ fields: {},  })
   });
 
   // Mock Input Node
@@ -118,9 +118,9 @@ describe('NicePattern Integration', () => {
     definition: {
       id: 'io.input',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, untagged: [] }),
-      execute: (inputs, config) => ({ fields: { val: (config && config.value !== undefined) ? config.value : config }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType },  }),
+      execute: (inputs, config) => ({ fields: { val: (config && config.value !== undefined) ? config.value : config },  }),
     },
     inputs: [],
     outputs: [{ name: 'val', type: anyType }],
@@ -396,7 +396,7 @@ describe('NicePattern Integration', () => {
 
     // 1. Note On (60)
     // We must format this as Structor (array of records)
-    const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
+    const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100, channel: 1, time: 0 },  }];
     executor.setNodeConfig('input', noteOn as any);
     executor.update({
       clock: { beat: 0, dt: 0.1 },
@@ -407,7 +407,7 @@ describe('NicePattern Integration', () => {
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Only for the first Note On
 
     // 2. Note Off (60)
-    const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 }, untagged: [] }];
+    const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 },  }];
     executor.setNodeConfig('input', noteOff as any);
     executor.update({
       clock: { beat: 0.1, dt: 0.1 },
@@ -424,7 +424,7 @@ describe('NicePattern Integration', () => {
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
 
     // 4. Note On (62) - Should trigger (as we now trigger on ALL notes)
-    const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 }, untagged: [] }];
+    const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 },  }];
     executor.setNodeConfig('input', noteOnWrong as any);
     executor.update({
       clock: { beat: 0.3, dt: 0.1 },

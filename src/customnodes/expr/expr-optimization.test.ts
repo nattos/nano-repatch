@@ -85,7 +85,7 @@ describe('Expression Node Optimization', () => {
     const result = expressionNode.execute!(inputs, config, {} as any);
 
     expect(result).toBeDefined();
-    // execute returns StructorRecord { fields: { ... }, untagged: [] }
+    // execute returns StructorRecord { fields: { ... },  }
     // We expect { result: 0 } to be wrapped in fields.
     if (result && 'fields' in result) {
         expect(result.fields.result).toBe(0);

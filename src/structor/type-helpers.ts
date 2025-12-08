@@ -83,8 +83,8 @@ function fromStructor(value: Structor, type: StructorType): any {
   if (type.kind === 'record') {
     // Value could be StructorRecord OR plain object (if system is loose)
     if (typeof value === 'object') {
-      // Check if it's a StructorRecord (has fields/untagged)
-      if ('fields' in value && 'untagged' in value) {
+      // Check if it's a StructorRecord (has fields)
+      if ('fields' in value) {
         const rec = value as StructorRecord;
         const result: any = {};
         for (const [k, fieldType] of Object.entries(type.fields)) {
@@ -133,7 +133,7 @@ function toStructor(value: any, type: StructorType): Structor {
         fields[k] = toStructor(value[k], fieldType);
       }
     }
-    return { fields, untagged: [] };
+    return { fields };
   }
 
   return value;
@@ -191,17 +191,13 @@ export function definePrimitiveNode<
 >(
   options: TypedNodeOptions<TInputs, TConfig, TOutputs, TState>
 ): PrimitiveNodeDefinition {
-  const configType: RecordType = {
-    kind: 'record',
-    fields: options.config || {},
-    untagged: []
-  };
+  const configType: RecordType = defineRecordType({
+    fields: options.config || {}
+  });
 
-  const outputType: RecordType = {
-    kind: 'record',
-    fields: options.outputs,
-    untagged: []
-  };
+  const outputType: RecordType = defineRecordType({
+    fields: options.outputs
+  });
 
   return {
     id: options.id,
@@ -245,7 +241,6 @@ export function definePrimitiveNode<
 
           broadcastConfig.outputs[key] = {
             fromFields: [key],
-            fromUntagged: override?.fromUntagged ?? false,
             combine: combine ?? undefined
           };
         }
@@ -292,9 +287,9 @@ export function definePrimitiveNode<
                 wrappedFields[key] = toStructor(val, { kind: 'array', element: options.outputs[key], size: result.length });
               }
             }
-            return { fields: wrappedFields, untagged: [] };
+            return { fields: wrappedFields };
           } else {
-            return { fields: {}, untagged: [] };
+            return { fields: {} };
           }
         } else {
           // Scalar result
@@ -305,7 +300,7 @@ export function definePrimitiveNode<
               wrappedFields[key] = toStructor(anyResult[key], type);
             }
           }
-          return { fields: wrappedFields, untagged: [] };
+          return { fields: wrappedFields };
         }
       } else if (options.inputs && Object.keys(options.inputs).length > 0) {
         // Even if not broadcasting, we might want to unwrap the raw inputs if they match the schema
@@ -355,8 +350,7 @@ export function definePrimitiveNode<
       }
 
       const structorResult: StructorRecord = {
-        fields: wrappedFields,
-        untagged: []
+        fields: wrappedFields
       };
 
       if (uiOutputs !== undefined) {
@@ -377,7 +371,6 @@ export interface TypedBroadcastChannel {
   source?: string | string[]; // Default to channel name if omitted
   type?: StructorType; // Used for inference
   combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' } | null;
-  fromUntagged?: boolean | number[];
 }
 
 export type TypedBroadcastSchema = Record<string, TypedBroadcastChannel>;
@@ -401,7 +394,6 @@ export function typedBroadcast<TSchema extends TypedBroadcastSchema>(
   for (const [key, def] of Object.entries(schema)) {
     config.outputs[key] = {
       fromFields: def.source ? (Array.isArray(def.source) ? def.source : [def.source]) : [key],
-      fromUntagged: def.fromUntagged ?? false,
       combine: def.combine ?? { reduce: 'first' }
     };
   }

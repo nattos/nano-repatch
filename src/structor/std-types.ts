@@ -18,7 +18,6 @@ export const midiEventType = defineType({
     cc: { ...numberType, optional: true },
     value: { ...numberType, optional: true }
   },
-  untagged: [],
   hint: 'midi'
 });
 

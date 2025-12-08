@@ -16,38 +16,38 @@ describe('Structor Core Tests', () => {
 
     // --- MOCK PRIMITIVES FOR TESTING ---
     const mock_add: PrimitiveNodeDefinition = {
-        id: 'mock_add', kind: 'primitive',
-        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
+        id: 'math.add', kind: 'primitive',
+        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: { result: numberType } }),
         execute: (input, config, context) => {
             const broadcastResult = context.broadcast({} as any, input);
             const result = broadcastResult.apply((args: any) => args.reduce((a: number, b: number) => a + b, 0));
-            return { fields: {}, untagged: [result] };
+            return { fields: { result } };
         }
     };
 
     const mock_clamp: PrimitiveNodeDefinition = {
         id: 'mock_clamp', kind: 'primitive',
-        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [i.fields['value'] || i.untagged[0]] }),
+        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: { result: i.fields['value'] || numberType } }),
         execute: (input, config, context) => {
             const broadcastResult = context.broadcast({} as any, input);
             const clamped = broadcastResult.apply((args: any) => Math.max(args.min, Math.min(args.value, args.max)));
-            return { fields: {}, untagged: [clamped] };
+            return { fields: { result: clamped } };
         }
     };
 
     const mock_literal: PrimitiveNodeDefinition = {
         id: 'mock_literal', kind: 'primitive', configType: anyType,
-        computeOutputTypes: (i, configType, ctx) => ({ kind: 'record', fields: {}, untagged: [configType] }),
-        execute: (i, config, ctx) => ({ fields: {}, untagged: [config] }),
+        computeOutputTypes: (i, configType, ctx) => ({ kind: 'record', fields: { value: configType } }),
+        execute: (i, config, ctx) => ({ fields: { value: config } }),
     };
 
     const mock_apply: PrimitiveNodeDefinition = {
         id: 'mock_apply', kind: 'primitive',
-        computeOutputTypes: (inputType, c, ctx) => ({ kind: 'record', fields: {}, untagged: [(inputType.fields['functor'] as FunctorType).output] }),
+        computeOutputTypes: (inputType, c, ctx) => ({ kind: 'record', fields: { result: (inputType.fields['functor'] as FunctorType).output } }),
         execute: (input, c, ctx) => {
             const functor = input.fields['functor'] as Functor;
             const inputValue = input.fields['input'];
-            return { fields: {}, untagged: [functor(inputValue)] };
+            return { fields: { result: functor(inputValue) } };
         }
     };
 
@@ -60,8 +60,8 @@ describe('Structor Core Tests', () => {
             id: 'graph:TestAdd', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: { 'a': numberType, 'b': { kind: 'array', size: 2, element: numberType }, 'c': stringType }, untagged: [] },
-                outputs: { kind: 'record', fields: { 'result': { kind: 'array', size: 2, element: numberType } }, untagged: [] }
+                inputs: { kind: 'record', fields: { 'a': numberType, 'b': { kind: 'array', size: 2, element: numberType }, 'c': stringType },  },
+                outputs: { kind: 'record', fields: { 'result': { kind: 'array', size: 2, element: numberType } },  }
             },
             nodes: { 'adder': { definitionId: 'math.add' } },
             connections: [],
@@ -82,14 +82,13 @@ describe('Structor Core Tests', () => {
                 nodeState: new Map()
             };
             const adderDef = executionContext.repository.get('math.add') as PrimitiveNodeDefinition;
-            const inputData: StructorRecord = { "fields": { "a": 10, "b": [100, 200], "c": "5" }, "untagged": [] };
+            const inputData: StructorRecord = { "fields": { "a": 10, "b": [100, 200], "c": "5" } };
             const adderInput: StructorRecord = {
-                fields: { 'val_a': inputData.fields['a'], 'val_b': inputData.fields['b'] },
-                untagged: [inputData.fields['c']]
+                fields: { 'val_a': inputData.fields['a'], 'val_b': inputData.fields['b'], 'c': inputData.fields['c'] }
             };
             const adderOutput = adderDef.execute(adderInput, undefined as any, executionContext);
-            const finalOutput: StructorRecord = { fields: { 'result': adderOutput.untagged[0] }, untagged: [] };
-            const expectedOutput: StructorRecord = { "fields": { "result": [115, 215] }, "untagged": [] };
+            const finalOutput: StructorRecord = { fields: { 'result': adderOutput.fields['result'] },  };
+            const expectedOutput: StructorRecord = { "fields": { "result": [115, 215] } };
             expect(finalOutput).toEqual(expectedOutput);
         });
     });
@@ -112,14 +111,13 @@ describe('Structor Core Tests', () => {
                 nodeState: new Map()
             };
             const clamperDef = executionContext.repository.get('math.clamp') as PrimitiveNodeDefinition;
-            const inputData: StructorRecord = { "fields": { "v1": 5, "v2": 500, "min1": 10, "max1": 100, "max2": 90 }, "untagged": [] };
+            const inputData: StructorRecord = { "fields": { "v1": 5, "v2": 500, "min1": 10, "max1": 100, "max2": 90 } };
             const clamperInput: StructorRecord = {
-                fields: { 'value': [inputData.fields['v1']], 'min': [inputData.fields['min1']], 'max': [inputData.fields['max1'], inputData.fields['max2']] },
-                untagged: [inputData.fields['v2']]
+                fields: { 'value': [inputData.fields['v1']], 'min': [inputData.fields['min1']], 'max': [inputData.fields['max1'], inputData.fields['max2']], 'v2': inputData.fields['v2'] }
             };
             const clamperOutput = clamperDef.execute(clamperInput, undefined as any, executionContext);
-            const finalOutput: StructorRecord = { fields: { 'result': clamperOutput.untagged[0] }, untagged: [] };
-            const expectedOutput: StructorRecord = { "fields": { "result": [10, 100] }, "untagged": [] };
+            const finalOutput: StructorRecord = { fields: { 'result': clamperOutput.fields['result'] },  };
+            const expectedOutput: StructorRecord = { "fields": { "result": [10, 100] } };
             expect(finalOutput).toEqual(expectedOutput);
         });
     });
@@ -135,8 +133,8 @@ describe('Structor Core Tests', () => {
             id: 'graph:SubGraphAdd5', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: { 'in': numberType }, untagged: [] },
-                outputs: { kind: 'record', fields: { 'out': numberType }, untagged: [] }
+                inputs: { kind: 'record', fields: { 'in': numberType },  },
+                outputs: { kind: 'record', fields: { 'out': numberType },  }
             },
             nodes: {
                 'adder': { definitionId: 'math.add' },
@@ -150,10 +148,10 @@ describe('Structor Core Tests', () => {
 
         it('should pass the runtime execution test', () => {
             const myFunctor: Functor = (x) => (x as number) * 2;
-            const inputData: StructorRecord = { "fields": { "myFunctor": myFunctor }, "untagged": [] };
+            const inputData: StructorRecord = { "fields": { "myFunctor": myFunctor } };
             const executionContext: ExecutionContext = {
                 broadcast: (config, inputs) => ({
-                    apply: (lambda: any) => lambda([inputs.untagged[0], inputs.untagged[1]])
+                    apply: (lambda: any) => lambda([inputs.fields['a'], inputs.fields['b']])
                 } as any),
                 repository: testRepo,
                 clock: { beat: 0, dt: 0 },
@@ -162,23 +160,41 @@ describe('Structor Core Tests', () => {
 
             // Simulate execution flow
             const const10Def = executionContext.repository.get('data.literal') as PrimitiveNodeDefinition;
-            const const10Output = const10Def.execute(null as any, 10, executionContext).untagged[0];
+            const const10Output = const10Def.execute(null as any, 10, executionContext).fields['value'];
             expect(const10Output).toBe(10);
 
             const applierDef = executionContext.repository.get('functional.apply') as PrimitiveNodeDefinition;
-            const applierInput: StructorRecord = { fields: { 'functor': inputData.fields['myFunctor'], 'input': const10Output }, untagged: [] };
-            const applierOutput = applierDef.execute(applierInput, undefined as any, executionContext).untagged[0];
+            const applierInput: StructorRecord = { fields: { 'functor': inputData.fields['myFunctor'], 'input': const10Output },  };
+            const applierOutput = applierDef.execute(applierInput, undefined as any, executionContext).fields['result'];
             expect(applierOutput).toBe(20);
 
             // Mock subgraph execution
             const const5Def = executionContext.repository.get('data.literal') as PrimitiveNodeDefinition;
-            const const5Output = const5Def.execute(null as any, 5, executionContext).untagged[0];
+            const const5Output = const5Def.execute(null as any, 5, executionContext).fields['value'];
             const addDef = executionContext.repository.get('math.add') as PrimitiveNodeDefinition;
-            const adderInput: StructorRecord = { fields: {}, untagged: [applierOutput, const5Output] };
+            const adderInput: StructorRecord = { fields: { a: applierOutput, b: const5Output } };
+            // Note: Mock add returns result in fields['result']
             const add5GraphOutput = addDef.execute(adderInput, undefined as any, executionContext);
 
-            const finalOutput: StructorRecord = { fields: { 'result': add5GraphOutput.untagged[0] }, untagged: [] };
-            const expectedOutput: StructorRecord = { "fields": { "result": 25 }, "untagged": [] };
+            const finalOutput: StructorRecord = { fields: { 'result': add5GraphOutput.fields['result'] },  };
+            const expectedOutput: StructorRecord = { "fields": { "result": 25 } };
+            // The simulation in logic above (lines 155-157) is a bit abstract since we don't have real inputs in context.broadcast mock
+            // But this test mainly validates the types and structure manually.
+            // Wait, previous test passed with 25.
+            // Because previous lambda was `lambda([inputs.untagged[0], inputs.untagged[1]])`.
+            // Here I assume inputs has 'a' and 'b'.
+            // The mock `math.add` execute function:
+            // `args.reduce((a, b) => a+b, 0)`
+            // `context.broadcast` returns [a, b]?
+            // In Test Case 3 broadcast mock: `apply: (lambda) => lambda([inputs.fields['a'], inputs.fields['b']])`.
+            // So args will be [20, 5]. reduce -> 25.
+            // Looks consistent.
+
+            // Wait, previous code used `applierOutput` and `const5Output` which were values.
+            // And passed them into `adderInput` (untagged).
+            // Now I pass them into `a` and `b`.
+
+            expect(add5GraphOutput.fields['result']).toBe(25);
             expect(finalOutput).toEqual(expectedOutput);
         });
     });

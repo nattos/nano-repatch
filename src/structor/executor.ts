@@ -69,7 +69,7 @@ export class GraphExecutor {
     for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {
       const definition = this.repository.get(instance.definitionId);
       const config = instance.defaultConfig ?? null;
-      const isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {}, untagged: [] }) ?? false;
+      const isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {} }) ?? false;
 
       // Try to recover state if available and compatible
       let recoveredState: NodeState | undefined;
@@ -93,7 +93,7 @@ export class GraphExecutor {
         this.nodeStates.set(nodeId, state);
       } else {
         state = {
-          output: { fields: {}, untagged: [] },
+          output: { fields: {} },
           config: instance.defaultConfig ?? null,
           isDirty: true,
           isRealtime,
@@ -125,7 +125,7 @@ export class GraphExecutor {
       state.config = config;
       const instance = this.graph.nodes[nodeId];
       const definition = this.repository.get(instance.definitionId);
-      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {}, untagged: [] }) ?? false;
+      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {} }) ?? false;
       this.markDirty(nodeId);
     }
   }
@@ -170,48 +170,39 @@ export class GraphExecutor {
       }
 
       // 2. Collect inputs
-      const inputRecord: StructorRecord = { fields: {}, untagged: [] };
+      const inputRecord: StructorRecord = { fields: {} };
+
+      const nodeType = this.repository.getNodeType(instance.definitionId);
+
+      // Helper to aggregate inputs
+      const inputsByPort = new Map<string, Structor[]>();
+
+      const addToPort = (port: string, value: Structor) => {
+          if (!inputsByPort.has(port)) {
+              inputsByPort.set(port, []);
+          }
+          inputsByPort.get(port)!.push(value);
+      };
 
       for (const conn of this.graph.connections) {
         if (conn.toNode === nodeId) {
           const upstreamOutput = this.nodeStates.get(conn.fromNode)?.output;
           if (upstreamOutput) {
             const fromPort = conn.fromPort;
-            const toPort = conn.toPort;
+            const toPort = conn.toPort; // Can be string or number
 
-            // Check for port redirection (e.g. named port -> untagged)
-            const nodeType = this.repository.getNodeType(instance.definitionId);
-            let portHint;
-            if (typeof toPort === 'string') {
-              portHint = nodeType?.inputs?.find(p => p.name === toPort);
-            } else if (typeof toPort === 'number') {
-              portHint = nodeType?.inputs?.[toPort];
-            }
-            const redirect = portHint?.redirect;
+            let value: Structor | undefined;
 
-            let value: Structor;
+            // Resolve output value from upstream
             if (typeof fromPort === 'string' && fromPort) {
-              value = upstreamOutput.fields[fromPort]
+              value = upstreamOutput.fields[fromPort];
             } else if (typeof fromPort === 'number') {
-              value = upstreamOutput.untagged[fromPort];
-            } else {
-              value = upstreamOutput.untagged[0];
+                 // Fallback for number ports - ignored or strictly named
             }
 
-            if (redirect === 'untagged') {
-              inputRecord.untagged.push(value);
-            } else if (typeof toPort === 'string' && toPort) {
-              inputRecord.fields[toPort] = value;
-            } else if (typeof toPort === 'number') {
-              // Try to map to named port
-              const namedPort = nodeType?.inputs?.[toPort];
-              if (namedPort && namedPort.name) {
-                inputRecord.fields[namedPort.name] = value;
-              } else {
-                inputRecord.untagged[toPort] = value;
-              }
-            } else {
-              inputRecord.untagged.push(value);
+            if (value !== undefined) {
+                 const portName = toPort.toString();
+                 addToPort(portName, value);
             }
           }
         }
@@ -221,11 +212,7 @@ export class GraphExecutor {
         if (conn.nodeId === nodeId) {
           const value = this.graphInputs.get(graphInputName);
           if (value !== undefined) {
-            if (typeof conn.port === 'string') {
-              inputRecord.fields[conn.port] = value;
-            } else {
-              inputRecord.untagged[conn.port] = value;
-            }
+            addToPort(conn.port.toString(), value);
           }
         }
       }
@@ -236,21 +223,45 @@ export class GraphExecutor {
         if (values && typeof values === 'object') {
           for (const [portName, value] of Object.entries(values)) {
             // Only use virtual input if the port is NOT already connected/set
-            if (inputRecord.fields[portName] === undefined) {
-              inputRecord.fields[portName] = value as Structor;
+            if (!inputsByPort.has(portName)) {
+               addToPort(portName, value as Structor);
             }
           }
         }
       }
 
       // Apply default values from Node Definition
-      const nodeType = this.repository.getNodeType(instance.definitionId);
-      if (nodeType && nodeType.inputs) {
-        for (const input of nodeType.inputs) {
-          if (inputRecord.fields[input.name] === undefined && input.defaultValue !== undefined) {
-            inputRecord.fields[input.name] = input.defaultValue;
+      // AND resolve final input shape (Scalar vs Array)
+
+      const inputSchema = nodeType?.inputs as Record<string, any> | undefined;
+
+      // Process collected inputs into final record
+      // We iterate over everything we collected, plus defaults for missing ones.
+
+      const allPorts = new Set<string>([...inputsByPort.keys()]);
+      if (inputSchema) {
+          Object.keys(inputSchema).forEach(k => allPorts.add(k));
+      }
+
+      for (const port of allPorts) {
+          const schema = inputSchema?.[port];
+          const values = inputsByPort.get(port);
+
+          if (values && values.length > 0) {
+              if (schema && schema.kind === 'array') {
+                  // It expects array -> collect all
+                  inputRecord.fields[port] = values;
+              } else {
+                  // It expects scalar -> take last (LIFO/Stack conventions usually imply last connected wins in UI visualization?)
+                  inputRecord.fields[port] = values[values.length - 1];
+              }
+          } else {
+              // No values connected. Check default.
+              // Note: Virtual inputs (config.values) were already added to inputsByPort above.
+              if (schema && schema.defaultValue !== undefined) {
+                  inputRecord.fields[port] = schema.defaultValue;
+              }
           }
-        }
       }
 
       const executionContext: ExecutionContext = {
@@ -333,7 +344,8 @@ export class GraphExecutor {
     if (typeof connection.port === 'string') {
       return nodeOutput.fields[connection.port];
     } else {
-      return nodeOutput.untagged[connection.port];
+      // Fallback or legacy support if needed, but untagged is gone.
+      return undefined; // or throw?
     }
   }
   public getNodeStates(): Map<string, NodeState> {

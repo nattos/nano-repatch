@@ -65,7 +65,7 @@ describe('Node Initialization and Updates', () => {
     executor.update({ clock: { beat: 0, dt: 0 } });
 
     // 2. Simulate UPDATE_INPUT (Worker logic: merge values)
-    const currentConfig = executor.getNodeConfig('node-1') || { fields: {}, untagged: [] };
+    const currentConfig = executor.getNodeConfig('node-1') || { fields: {},  };
     const currentValues = (currentConfig as any).values || {};
     const newConfig = {
       ...(currentConfig as any),

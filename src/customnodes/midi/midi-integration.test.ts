@@ -38,7 +38,7 @@ describe('MIDI Integration', () => {
   const createGraph = (nodeId: string, definitionId: string, config: any): GraphDefinition => ({
     id: 'test-graph',
     kind: 'graph',
-    type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } },
+    type: { kind: 'graph', inputs: { kind: 'record', fields: {},  }, outputs: { kind: 'record', fields: {},  } },
     nodes: {
       [nodeId]: { definitionId, defaultConfig: config }
     },

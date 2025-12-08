@@ -8,24 +8,36 @@ const numberType: AtomicType = { kind: 'atomic', type: 'number' };
 
 describe('GraphExecutor', () => {
     const addExecute = vi.fn((input: StructorRecord, config: Structor, context: ExecutionContext) => {
-        const values = [...Object.values(input.fields), ...input.untagged] as number[];
-        const sum = values.reduce((a, b) => a + b, 0);
-        return { fields: {}, untagged: [sum] };
+        const a = input.fields['a'] as number || 0;
+        const b = input.fields['b'] as number || 0;
+        // Also handle virtual/other inputs in a real scenario, but for now specific to test graph
+        const val_a = input.fields['val_a'] as number || 0;
+        const val_b = input.fields['val_b'] as number || 0;
+
+        // Sum all numbers found in fields for this generic mock?
+        // Or keep it simple: just sum values.
+        const values = Object.values(input.fields).filter(v => typeof v === 'number') as number[];
+        const sum = values.reduce((acc, v) => acc + v, 0);
+        return { fields: { result: sum } }; // The graph expects output 'c' on port 0?
+        // In testGraph: outputs: { 'c': { nodeId: 'adder', port: 0 } }
+        // Wait, port 0 (number) maps to what?
+        // In my new executor logic, port numbers are ignored/legacy unless named explicitly.
+        // I should probably update the test graph to use named ports.
     });
 
     const mock_primitive_add: PrimitiveNodeDefinition = {
         id: 'math.add', kind: 'primitive',
-        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
+        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: { result: numberType } }),
         execute: addExecute,
     };
 
     const literalExecute = vi.fn((input: StructorRecord, config: Structor, context: ExecutionContext) => {
-        return { fields: {}, untagged: [config] };
+        return { fields: { value: config } };
     });
 
     const mock_primitive_literal: PrimitiveNodeDefinition = {
         id: 'data.literal', kind: 'primitive', configType: numberType,
-        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: {}, untagged: [numberType] }),
+        computeOutputTypes: (i, c, ctx) => ({ kind: 'record', fields: { value: numberType } }),
         execute: literalExecute,
     };
 
@@ -38,16 +50,16 @@ describe('GraphExecutor', () => {
         id: 'testGraph', kind: 'graph',
         type: {
             kind: 'graph',
-            inputs: { kind: 'record', fields: { 'a': numberType }, untagged: [] },
-            outputs: { kind: 'record', fields: { 'c': numberType }, untagged: [] },
+            inputs: { kind: 'record', fields: { 'a': numberType },  },
+            outputs: { kind: 'record', fields: { 'c': numberType },  },
         },
         nodes: {
             'adder': { definitionId: 'math.add' },
             'ten': { definitionId: 'data.literal', defaultConfig: 10 },
         },
-        inputs: { 'a': { nodeId: 'adder', port: 0 } },
-        connections: [{ fromNode: 'ten', fromPort: 0, toNode: 'adder', toPort: 1 }],
-        outputs: { 'c': { nodeId: 'adder', port: 0 } },
+        inputs: { 'a': { nodeId: 'adder', port: 'a' } }, // Updated to named port
+        connections: [{ fromNode: 'ten', fromPort: 'value', toNode: 'adder', toPort: 'b' }], // named ports
+        outputs: { 'c': { nodeId: 'adder', port: 'result' } }, // named port
     };
 
     it('should initialize with default config and perform a full update', () => {
@@ -91,8 +103,8 @@ describe('GraphExecutor', () => {
             id: 'fmodGraph', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: {}, untagged: [] },
-                outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, untagged: [] },
+                inputs: { kind: 'record', fields: {},  },
+                outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType },  },
             },
             nodes: {
                 'dividend': { definitionId: 'data.literal', defaultConfig: 10 },
@@ -101,8 +113,8 @@ describe('GraphExecutor', () => {
             },
             inputs: {},
             connections: [
-                { fromNode: 'dividend', fromPort: 0, toNode: 'fmod', toPort: 'dividend' },
-                { fromNode: 'divisor', fromPort: 0, toNode: 'fmod', toPort: 'divisor' }
+                { fromNode: 'dividend', fromPort: 'value', toNode: 'fmod', toPort: 'dividend' },
+                { fromNode: 'divisor', fromPort: 'value', toNode: 'fmod', toPort: 'divisor' }
             ],
             outputs: {
                 'div': { nodeId: 'fmod', port: 'div' },
@@ -118,35 +130,12 @@ describe('GraphExecutor', () => {
     });
 
     it('should use virtual input values when ports are not connected', () => {
-        const virtualInputGraph: GraphDefinition = {
-            id: 'virtualInputGraph', kind: 'graph',
-            type: {
-                kind: 'graph',
-                inputs: { kind: 'record', fields: {}, untagged: [] },
-                outputs: { kind: 'record', fields: { 'c': numberType }, untagged: [] },
-            },
-            nodes: {
-                'adder': { definitionId: 'math.add' },
-            },
-            inputs: {},
-            connections: [], // No connections, relying on virtual inputs
-            outputs: { 'c': { nodeId: 'adder', port: 0 } },
-        };
-
-        const executor = new GraphExecutor(virtualInputGraph, testRepo);
-
-        // Simulate setting virtual input values via config
-        // The 'add' node expects untagged inputs.
-        // However, our current 'add' mock uses untagged inputs.
-        // Let's use a node that uses named fields for clarity, or adapt the test.
-        // The 'fmod' node uses named fields 'dividend' and 'divisor'.
-
         const fmodGraph: GraphDefinition = {
             id: 'fmodVirtualGraph', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: {}, untagged: [] },
-                outputs: { kind: 'record', fields: { 'mod': numberType }, untagged: [] },
+                inputs: { kind: 'record', fields: {},  },
+                outputs: { kind: 'record', fields: { 'mod': numberType },  },
             },
             nodes: {
                 'fmod': { definitionId: 'math.fmod' },
@@ -163,71 +152,5 @@ describe('GraphExecutor', () => {
         fmodExecutor.update({});
 
         expect(fmodExecutor.getGraphOutput('mod')).toBe(1);
-    });
-    it('should correctly broadcast untagged inputs when fromUntagged is true', () => {
-        const graph: GraphDefinition = {
-            id: 'test-graph',
-            kind: 'graph',
-            type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: {}, untagged: [] } },
-            nodes: {
-                'n1': { definitionId: 'data.literal', defaultConfig: 0.5 },
-                'n2': { definitionId: 'math.clamp', defaultConfig: { values: { min: 0, max: 1 } } as any }
-            },
-            connections: [
-                { fromNode: 'n1', fromPort: '', toNode: 'n2', toPort: 0 } // Connect to untagged input 0
-            ],
-            inputs: {},
-            outputs: {}
-        };
-
-        const executor = new GraphExecutor(graph, defaultNodeRepository);
-        executor.update({});
-
-        const output = executor.getNodeOutput('n2');
-        expect(output).toBeDefined();
-        // Clamp default min=0, max=1. Input 0.5. Output should be 0.5.
-        // primitive_clamp returns a named field 'value'
-        expect(output?.fields.value).toEqual(0.5);
-    });
-
-    it('should redirect named inputs to untagged when redirect: "untagged" is set', () => {
-        // Define a node with redirect
-        const redirectNodeDef: PrimitiveNodeDefinition = {
-            id: 'redirectNode', kind: 'primitive',
-            computeOutputTypes: () => ({ kind: 'record', fields: { 'out': numberType }, untagged: [] }),
-            execute: (inputs) => {
-                // Return the number of untagged inputs received
-                return { fields: { 'out': inputs.untagged.length }, untagged: [] };
-            }
-        };
-
-        const repo = new NodeRepository();
-        repo.register({
-            id: 'redirectNode', version: '1.0.0', displayName: 'Redirect Node', definition: redirectNodeDef,
-            inputs: [{ name: 'multi_in', type: numberType, redirect: 'untagged' }],
-            outputs: [{ name: 'out', type: numberType }]
-        });
-        repo.register({ id: 'data.literal', version: '1.0.0', displayName: 'Literal', definition: mock_primitive_literal });
-
-        const graph: GraphDefinition = {
-            id: 'redirectGraph', kind: 'graph',
-            type: { kind: 'graph', inputs: { kind: 'record', fields: {}, untagged: [] }, outputs: { kind: 'record', fields: { 'count': numberType }, untagged: [] } },
-            nodes: {
-                'l1': { definitionId: 'literal', defaultConfig: 1 },
-                'l2': { definitionId: 'literal', defaultConfig: 2 },
-                'r1': { definitionId: 'redirectNode' }
-            },
-            connections: [
-                { fromNode: 'l1', fromPort: 0, toNode: 'r1', toPort: 'multi_in' },
-                { fromNode: 'l2', fromPort: 0, toNode: 'r1', toPort: 'multi_in' }
-            ],
-            inputs: {},
-            outputs: { 'count': { nodeId: 'r1', port: 'out' } }
-        };
-
-        const executor = new GraphExecutor(graph, repo);
-        executor.update({});
-
-        expect(executor.getGraphOutput('count')).toBe(2);
     });
 });

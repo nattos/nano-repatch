@@ -71,9 +71,9 @@ describe('Orthomod Node', () => {
     definition: {
       id: 'io.input',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, untagged: [] }),
-      execute: (inputs, config) => ({ fields: { val: config }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType },  }),
+      execute: (inputs, config) => ({ fields: { val: config },  }),
     },
     inputs: [],
     outputs: [{ name: 'val', type: anyType }],
@@ -88,13 +88,13 @@ describe('Orthomod Node', () => {
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {}, untagged: [] },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, untagged: [] }),
-      execute: (inputs) => ({ fields: { val: inputs.fields.val }, untagged: [] }),
+      configType: { kind: 'record', fields: {},  },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType },  }),
+      execute: (inputs) => ({ fields: { val: inputs.fields.val },  }),
     },
     inputs: [{ name: 'val', type: anyType }],
     outputs: [{ name: 'val', type: anyType }],
-    compileConfig: (c) => ({ fields: {}, untagged: [] })
+    compileConfig: (c) => ({ fields: {},  })
   });
 
   const compileAndRunwithOutput = (
@@ -158,7 +158,7 @@ describe('Orthomod Node', () => {
       expect(getOutput()).toBeCloseTo(0);
 
       // 2. Note On
-      const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100 }, untagged: [] }];
+      const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100 },  }];
       executor.setNodeConfig('midi_src', noteOn as any);
       executor.update({ clock: { beat: 0, dt: 0.1, time: 0.1 } });
 

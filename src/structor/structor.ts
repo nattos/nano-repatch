@@ -29,7 +29,6 @@ export interface ArrayType {
 export interface RecordType {
   kind: 'record';
   fields: Record<string, StructorType>; // Named/tagged inputs
-  untagged: StructorType[];             // Ordered/untagged inputs
   optional?: boolean;
   hint?: string;
 }
@@ -56,7 +55,6 @@ export type Functor = (input: Structor) => Structor;
 export interface StructorArray extends Array<Structor> { }
 export interface StructorRecord {
   fields: Record<string, Structor>;
-  untagged: Structor[];
 }
 
 export type Structor =
@@ -171,6 +169,7 @@ export interface GraphDefinition {
   // Simplified for test purposes
   inputs: Record<string, { nodeId: string; port: string | number }>;
   outputs: Record<string, { nodeId: string; port: string | number }>;
+  executionOrder?: string[];
 }
 
 // Added for GraphDefinition
@@ -198,11 +197,6 @@ export interface BroadcastConfig {
     {
       /** Which *named* input fields to pull from. `['*']` means all. */
       fromFields: string[];
-      /**
-       * Which *untagged* inputs to pull from.
-       * `true` (all), `false` (none), or `[0, 2]` (specific indices).
-       */
-      fromUntagged: boolean | number[];
       /**
        * How to combine all collected inputs for this channel.
        */
