@@ -177,5 +177,33 @@ This entry documents the implementation of several Quality-of-Life improvements 
 
 ### Verification
 
-*   **Test Suite:** All 202 tests passed, including new logic checks and regression tests.
 
+## Execution Flow Documentation & Type Hardening (As of 2025-12-09)
+
+This entry documents the comprehensive documentation of the runtime execution flow and the resolution of extensive TypeScript build errors and test failures.
+
+### Features Implemented
+
+1.  **Architecture Documentation:**
+    *   Created **[docs/execution_flow.md](docs/execution_flow.md)**: A detailed guide to the Multi-Worker Architecture.
+    *   Mapped the exact message passing sequences for Graph Compilation, Config Updates, and the Main Execution Loop.
+    *   Documented "Auto-Flattening" array heuristics and the "Hero Node" UI optimization pattern.
+
+2.  **Type System Hardening:**
+    *   **Strict StructorRecord:** Removed all legacy `untagged` properties from the codebase. Updated `defineNode` headers to enforce strict `Record<string, StructorType>` constraints.
+    *   **Generic Signatures:** Fixed `SimplifyInputs`/`SimplifyOutputs` types in `node-helpers.ts` to correctly satisfy TypeScript constraints, eliminating build errors in simple node definitions.
+
+### Bug Fixes
+
+1.  **GraphExecutor Array Handling:**
+    *   **Issue:** `NicePattern` nodes received nested arrays (`[[MidiEvent]]`) instead of flat streams.
+    *   **Fix:** Implemented a heuristic in `GraphExecutor` to flatten scalar streams into arrays only when the destination port explicitly expects an array *and* the incoming data isn't one.
+
+2.  **NicePattern Logic:**
+    *   **Magneto:** Fixed missing `currentSeed` state property and `InspectorFieldDef` import.
+    *   **Tone4:** Added null safety for `state.masterGain`.
+    *   **Tests:** Fixed `midi.pitch` integration test input types.
+
+### Known Issues
+
+*   **Vite Circular Import:** While `tsc` (TypeScript Compiler) passes clean, the Vite production build fails with a circular worker import error (`compiler` <-> `executor` via shared modules). This is an improved state (logic verified) but prevents shipping a production bundle.
