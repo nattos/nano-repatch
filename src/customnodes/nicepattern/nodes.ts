@@ -93,6 +93,7 @@ const ChaosFields: InspectorFieldDef[] = [
 // --- Node Implementations ---
 
 // RhythmicGenerator
+// RhythmicGenerator
 export const rhythmicGenerator = defineNode({
   id: "nicepattern.rhythmic_generator",
   version: "1.0.0",
@@ -103,7 +104,7 @@ export const rhythmicGenerator = defineNode({
     description: 'Generates a rhythmic sequence based on density.'
   },
   config: { targetNote: numberType },
-  inputs: { density: numberType },
+  inputs: { density: { ...numberType, defaultValue: 0.5 } },
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: RhythmicFields } },
   execute: (inputs, config, context) => {
@@ -123,7 +124,7 @@ export const rhythmicGenerator = defineNode({
   },
   compileConfig: (uiConfig) => ({
     fields: {
-      targetNote: uiConfig?.targetNote ?? 60,
+      targetNote: uiConfig?.targetNote ?? 60
     }
   }),
 });
@@ -139,13 +140,12 @@ export const chaosGenerator = defineNode({
     description: 'Generates a random sequence of notes.'
   },
   config: { minNote: numberType, maxNote: numberType, seed: numberType },
-  inputs: { density: numberType },
+  inputs: { density: { ...numberType, defaultValue: 0.5 } },
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: ChaosFields } },
   execute: (inputs, config, context) => {
     const { minNote, maxNote, seed } = config;
     const density = inputs.density ?? 0.5;
-
     const rng = new SeededRandom(seed ?? 12345); // Default seed if not provided
 
     const sequence: Step[] = [];
@@ -196,7 +196,7 @@ export const pattern = defineNode({
     }>()
   }),
   execute: (inputs, config, context, state) => {
-    const seqs = inputs.seq_in as Step[][]; // Array of sequences
+    const seqs = inputs.seq_in as unknown as Step[][]; // Array of sequences
     const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
@@ -344,7 +344,7 @@ export function createLayerNode(
     },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
-      const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
+      const stream = (inputs.midi_in || []).flat() as unknown as MidiEvent[];
       // Removed targetNote
 
       // Process MIDI stream
@@ -430,7 +430,7 @@ export const toneSynthLayer = defineNode({
     }
 
     const activeLayer = state.layer;
-    const stream = (inputs.midi_in || []) as unknown as MidiEvent[];
+    const stream = (inputs.midi_in || []).flat() as unknown as MidiEvent[];
     // Removed targetNote
 
     let hasNoteOn = false;

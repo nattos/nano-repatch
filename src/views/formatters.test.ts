@@ -6,7 +6,7 @@ import { html } from 'lit';
 
 describe('Formatters', () => {
   it('should format types with hints', () => {
-    const midiType: StructorType = { kind: 'record', fields: {}, , hint: 'midi' };
+    const midiType: StructorType = { kind: 'record', fields: {}, hint: 'midi' };
     expect(formatType(midiType)).toBe('midi');
 
     const streamType: StructorType = { kind: 'array', element: midiType, size: 'dynamic', hint: 'midi-stream' };
@@ -14,7 +14,7 @@ describe('Formatters', () => {
   });
 
   it('should format MIDI events', () => {
-    const midiType: StructorType = { kind: 'record', fields: {}, , hint: 'midi' };
+    const midiType: StructorType = { kind: 'record', fields: {}, hint: 'midi' };
 
     // Note On: Channel 1, Note 60 (C4), Velocity 100
     const noteOn = { status: 0x90, data1: 60, data2: 100 };
@@ -39,7 +39,7 @@ describe('Formatters', () => {
   });
 
   it('should format MIDI streams', () => {
-    const midiType: StructorType = { kind: 'record', fields: {}, , hint: 'midi' };
+    const midiType: StructorType = { kind: 'record', fields: {}, hint: 'midi' };
     const streamType: StructorType = { kind: 'array', element: midiType, size: 'dynamic', hint: 'midi-stream' };
 
     const stream = [

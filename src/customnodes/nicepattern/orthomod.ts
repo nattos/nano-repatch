@@ -159,7 +159,7 @@ export const orthomod = defineNode({
     }
 
     // 2. MIDI Triggers
-    const stream = (inputs.midi_in || []) as any[];
+    const stream = (inputs.midi_in || []).flat() as any[];
     for (const e of stream) {
       if (e.type === 'note_on') {
         state.linearEnv = 1.0;

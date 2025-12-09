@@ -1,4 +1,4 @@
-import { defineNode } from "../../structor/node-helpers";
+import { defineNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
 import { SeededRandom } from "./utils";
 
@@ -125,6 +125,7 @@ interface MagnetoState {
     lastGate: boolean;
     isTouchingSim: boolean;
     touchY: number;
+    currentSeed?: number;
 }
 
 // --- Node Definition ---
@@ -172,7 +173,7 @@ export const magneto = defineNode({
       getBodyHeight: () => Promise.resolve(() => 272) // Triple Grid Height
   },
   isRealtime: () => true,
-  createState: () => {
+  createState: (): MagnetoState => {
       const spheres: Sphere[] = [];
       const cw = 600; // Virtual width
       const ch = PRE_CONFIG.height;

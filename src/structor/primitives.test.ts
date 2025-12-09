@@ -65,7 +65,7 @@ describe('Primitive Nodes', () => {
       };
       expect(lerp(0, 10, 0.5)).to.equal(5);
       expect(lerp(0, 10, 1.5)).to.equal(10); // Clamped by default
-      // expect(lerp(0, 10, 1.5, false)).to.equal(15); // Unclamped - TODO: Fix unit test mock context for this case
+      expect(lerp(0, 10, 1.5, false)).to.equal(15); // Unclamped
     });
 
     it('math.map', () => {

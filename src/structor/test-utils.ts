@@ -66,8 +66,8 @@ export function createNodeHarness<TInputs, TOutputs>(
   // We need to know output names.
   // definition.computeOutputTypes() returns RecordType.
   const outputType = definition.computeOutputTypes(
-      { kind: 'record', fields: {}, untagged: [] },
-      { kind: 'record', fields: {}, untagged: [] },
+      { kind: 'record', fields: {} },
+      { kind: 'record', fields: {} },
       { beat: 0, dt: 0, broadcast: () => ({ apply: () => {} }) } as any
   );
 
@@ -80,7 +80,7 @@ export function createNodeHarness<TInputs, TOutputs>(
   const graphDef = {
       id: 'test-graph',
       kind: 'graph' as const,
-      type: { kind: 'graph' as const, inputs: { kind: 'record' as const, fields: {}, untagged: [] }, outputs: { kind: 'record' as const, fields: {}, untagged: [] } },
+      type: { kind: 'graph' as const, inputs: { kind: 'record' as const, fields: {} }, outputs: { kind: 'record' as const, fields: {} } },
       nodes,
       connections,
       inputs: graphInputs,
@@ -93,7 +93,7 @@ export function createNodeHarness<TInputs, TOutputs>(
   for (const [nid, n] of Object.entries(nodes)) {
       graphDefNodes[nid] = {
           definitionId: n.config.typeId,
-          defaultConfig: { fields: n.config.values || {}, untagged: [] }
+          defaultConfig: { fields: n.config.values || {} }
       };
   }
   (graphDef as any).nodes = graphDefNodes;
@@ -105,7 +105,7 @@ export function createNodeHarness<TInputs, TOutputs>(
     execute: (inputs: Partial<TInputs>, config?: any) => {
       // Update config if provided
       if (config) {
-          executor.setNodeConfig(nodeId, { fields: config, untagged: [] });
+          executor.setNodeConfig(nodeId, { fields: config });
       }
 
       // Reset all inputs to undefined first to ensure isolation

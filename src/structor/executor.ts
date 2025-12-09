@@ -233,27 +233,45 @@ export class GraphExecutor {
       // Apply default values from Node Definition
       // AND resolve final input shape (Scalar vs Array)
 
-      const inputSchema = nodeType?.inputs as Record<string, any> | undefined;
+      const inputSchema = nodeType?.inputs;
 
       // Process collected inputs into final record
       // We iterate over everything we collected, plus defaults for missing ones.
 
       const allPorts = new Set<string>([...inputsByPort.keys()]);
-      if (inputSchema) {
-          Object.keys(inputSchema).forEach(k => allPorts.add(k));
+      const inputSchemaMap = new Map<string, any>();
+
+      if (Array.isArray(inputSchema)) {
+          inputSchema.forEach(p => {
+            allPorts.add(p.name);
+            inputSchemaMap.set(p.name, p);
+          });
+      } else if (inputSchema) {
+          Object.entries(inputSchema).forEach(([k, v]) => {
+            allPorts.add(k);
+            inputSchemaMap.set(k, v);
+          });
       }
 
       for (const port of allPorts) {
-          const schema = inputSchema?.[port];
+          const schema = inputSchemaMap.get(port);
           const values = inputsByPort.get(port);
 
+          // Determine if it expects an array input
+          // schema matches PortHint interface or StructorType
+          const schemaType = schema ? (schema.type || schema) : undefined;
+          const isArrayType = schemaType && schemaType.kind === 'array';
+
           if (values && values.length > 0) {
-              if (schema && schema.kind === 'array') {
-                  // It expects array -> collect all
+              const lastValue = values[values.length - 1];
+              // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
+              // Only collect if input is NOT array (merging scalars or elements).
+              if (isArrayType && !Array.isArray(lastValue)) {
+                  // It expects array, but getting scalars -> collect all
                   inputRecord.fields[port] = values;
               } else {
-                  // It expects scalar -> take last (LIFO/Stack conventions usually imply last connected wins in UI visualization?)
-                  inputRecord.fields[port] = values[values.length - 1];
+                  // It expects scalar OR input is already array -> take last
+                  inputRecord.fields[port] = lastValue;
               }
           } else {
               // No values connected. Check default.

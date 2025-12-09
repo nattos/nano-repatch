@@ -48,13 +48,29 @@ export interface ExtendedInputDef {
 
 export type ExtendedNodeInputsDef = Record<string, StructorType | ExtendedInputDef>;
 
+export interface ExtendedOutputDef {
+  type: StructorType;
+  description?: string;
+}
+
+export type ExtendedNodeOutputsDef = Record<string, StructorType | ExtendedOutputDef>;
+
+export type SimplifyInputs<T extends ExtendedNodeInputsDef> = {
+  [K in keyof T]: T[K] extends ExtendedInputDef ? T[K]['type'] : T[K]
+} & Record<string, StructorType>;
+
+export type SimplifyOutputs<T extends ExtendedNodeOutputsDef> = {
+  [K in keyof T]: T[K] extends ExtendedOutputDef ? T[K]['type'] : T[K]
+} & Record<string, StructorType>;
+
 export interface EnhancedNodeOptions<
   TInputs extends ExtendedNodeInputsDef,
   TConfig extends NodeConfigDef,
-  TOutputs extends NodeOutputsDef,
+  TOutputs extends ExtendedNodeOutputsDef,
   TState = undefined
-> extends Omit<TypedNodeOptions<any, TConfig, TOutputs, TState>, 'inputs'> {
+> extends Omit<TypedNodeOptions<any, TConfig, any, TState>, 'inputs' | 'outputs' | 'execute'> {
   inputs?: TInputs;
+  outputs: TOutputs; // Explicit override
   ui?: NodeUI;
   version?: string;
   displayName?: string;
@@ -63,6 +79,13 @@ export interface EnhancedNodeOptions<
   compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
+
+  execute: (
+    inputs: InferRecord<{ kind: 'record', fields: SimplifyInputs<TInputs> }>,
+    config: InferRecord<{ kind: 'record', fields: TConfig }>,
+    context: ExecutionContext,
+    state: TState
+  ) => InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }> | { outputs: InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }>; ui?: any };
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -72,7 +95,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   extendedInputs?: ExtendedNodeInputsDef;
-  extendedOutputs?: NodeOutputsDef;
+  extendedOutputs?: ExtendedNodeOutputsDef;
   compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
   inspectInputs?: boolean;
   // onMessage is inherited from PrimitiveNodeDefinition
@@ -81,7 +104,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
 export function defineNode<
   TInputs extends ExtendedNodeInputsDef,
   TConfig extends NodeConfigDef,
-  TOutputs extends NodeOutputsDef,
+  TOutputs extends ExtendedNodeOutputsDef,
   TState = undefined
 >(
   options: EnhancedNodeOptions<TInputs, TConfig, TOutputs, TState>
@@ -89,24 +112,33 @@ export function defineNode<
   // 1. Strip down inputs to NodeInputsDef (just types) for definePrimitiveNode
   const simpleInputs: NodeInputsDef = {};
   for (const [key, val] of Object.entries(options.inputs || {})) {
-    if ('kind' in val) {
+    if ('kind' in (val as any)) {
        // It's StructorType
        simpleInputs[key] = val as StructorType;
-    } else if ('type' in val) {
+    } else if ('type' in (val as any)) {
        // It's ExtendedInputDef
-       // We need to preserve redirect info on the type object itself if possible,
-       // or we need to change how simpleInputs is constructed.
-       // Since StructorType is an object, we can mix in the redirect property.
        const type = (val as ExtendedInputDef).type;
        simpleInputs[key] = { ...type, redirect: (val as ExtendedInputDef).redirect };
     }
   }
 
+  // 2. Strip down outputs to NodeOutputsDef
+  const simpleOutputs: NodeOutputsDef = {};
+  for (const [key, val] of Object.entries(options.outputs || {})) {
+      if ('kind' in (val as any)) {
+          simpleOutputs[key] = val as StructorType;
+      } else if ('type' in (val as any)) {
+          simpleOutputs[key] = (val as ExtendedOutputDef).type;
+      }
+  }
+
   const primitiveDef = definePrimitiveNode({
     ...options,
     inputs: simpleInputs,
+    outputs: simpleOutputs, // Use stripped outputs
     onMessage: options.onMessage
-  } as TypedNodeOptions<any, TConfig, TOutputs, TState>);
+  } as unknown as TypedNodeOptions<any, TConfig, any, TState>);
+  // Cast to unknown first to avoid incompatibility issues with Simplify types vs constraints
 
   return {
     ...primitiveDef,
@@ -142,11 +174,15 @@ export function registerNode(def: EnhancedNodeDefinition) {
     };
   });
 
-  const outputs: PortHint[] = Object.entries(def.extendedOutputs || {}).map(([name, type]: [string, any]) => ({
-    name,
-    type,
-    // Outputs currently don't use ExtendedInputDef, but could in future
-  }));
+  const outputs: PortHint[] = Object.entries(def.extendedOutputs || {}).map(([name, val]: [string, any]) => {
+      const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
+      const type = isExtended ? val.type : val;
+      return {
+        name,
+        type,
+        description: isExtended ? val.description : undefined
+      };
+  });
 
   const nodeType: NodeType = {
     id: def.id,

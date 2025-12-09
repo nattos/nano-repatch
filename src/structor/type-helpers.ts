@@ -192,11 +192,13 @@ export function definePrimitiveNode<
   options: TypedNodeOptions<TInputs, TConfig, TOutputs, TState>
 ): PrimitiveNodeDefinition {
   const configType: RecordType = defineRecordType({
-    fields: options.config || {}
+    kind: 'record',
+    fields: (options.config || {}) as any
   });
 
   const outputType: RecordType = defineRecordType({
-    fields: options.outputs
+    kind: 'record',
+    fields: options.outputs as any
   });
 
   return {
@@ -254,7 +256,8 @@ export function definePrimitiveNode<
             if (isCollect && Array.isArray(args[key])) {
               inputs[key] = args[key].map((v: any) => fromStructor(v, type));
             } else {
-              inputs[key] = fromStructor(args[key], type);
+              const val = fromStructor(args[key], type);
+              inputs[key] = val !== undefined ? val : (type as any).defaultValue;
             }
           }
           // console.error('Execute Inputs:', JSON.stringify(inputs));
@@ -308,6 +311,8 @@ export function definePrimitiveNode<
         for (const [key, type] of Object.entries(options.inputs)) {
           if (rawInput.fields && rawInput.fields[key] !== undefined) {
             inputs[key] = fromStructor(rawInput.fields[key], type);
+          } else if ((type as any).defaultValue !== undefined) {
+            inputs[key] = (type as any).defaultValue;
           }
         }
         processedInput = inputs;

@@ -4,7 +4,7 @@ import { GraphExecutor } from '../../structor/executor';
 import { NodeRepository } from '../../structor/repository';
 import { midiCcNode, midiNoteNode, midiToMonoNode, midiPitchNode } from './nodes';
 import { GraphDefinition, StructorRecord } from '../../structor/structor';
-import { midiStreamType } from '../../structor/std-types';
+import { midiStreamType, numberType } from '../../structor/std-types';
 import { MidiEvent } from '../../io/midi/types';
 
 describe('MIDI Integration', () => {
@@ -227,7 +227,7 @@ describe('MIDI Integration', () => {
       definition: midiPitchNode,
       inputs: [
         { name: 'stream', type: midiStreamType, description: 'MIDI Stream' },
-        { name: 'pitch', type: midiStreamType /* actually numberType */, description: 'Pitch' }
+        { name: 'pitch', type: numberType, description: 'Pitch' }
       ],
       outputs: [{ name: 'stream', type: midiStreamType }]
     });

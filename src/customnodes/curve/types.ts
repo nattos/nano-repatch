@@ -39,21 +39,17 @@ export const curveStructorType = defineRecordType<GraphWidgetConfig>({
                 kind: 'array',
                 element: {
                   kind: 'record',
-                  fields: { x: NumberType, y: NumberType },
-                  untagged: []
+                  fields: { x: NumberType, y: NumberType }
                 },
                 optional: true,
                 size: 'dynamic'
               }
-            },
-            untagged: []
+            }
           }
-        },
-        untagged: []
+        }
       },
       size: 'dynamic'
     }
   },
-  untagged: [],
   hint: 'curve'
 });

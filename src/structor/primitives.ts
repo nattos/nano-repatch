@@ -220,7 +220,7 @@ export const primitive_lerp = definePrimitiveNode({
   execute: (inputs, config) => {
     // console.log('Lerp execute:', inputs, config);
     const { a, b, t } = inputs as { a: number, b: number, t: number };
-    const doClamp = config.clamp !== false; // Default to true
+    const doClamp = config.clamp !== false; // if undefined, it's true. if true, it's true. if false, it's false.
 
     const val = a + (b - a) * t;
 

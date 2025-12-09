@@ -227,8 +227,7 @@ function runTick() {
 
 function sanitizeStructorRecord(record: StructorRecord): StructorRecord {
   return {
-    fields: sanitizeRecord(record.fields),
-    untagged: record.untagged.map(sanitizeStructor)
+    fields: sanitizeRecord(record.fields)
   };
 }
 
@@ -248,12 +247,12 @@ function sanitizeStructor(value: Structor): Structor {
     return value.map(sanitizeStructor);
   }
   if (typeof value === 'object' && value !== null) {
-    // Check if it's a StructorRecord (has fields and untagged)
-    if ('fields' in value && 'untagged' in value) {
+    // Check if it's a StructorRecord (has fields)
+    if ('fields' in value) {
       return sanitizeStructorRecord(value as StructorRecord);
     }
     // Generic object? Should not happen in Structor types usually, but handle recursively
-    return sanitizeRecord(value as Record<string, Structor>) as any;
+    return sanitizeRecord(value as unknown as Record<string, Structor>) as any;
   }
   return value;
 }

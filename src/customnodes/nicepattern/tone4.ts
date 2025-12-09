@@ -52,7 +52,7 @@ export const tone4 = defineNode({
     if (!state.initialized || state.contextId !== audio.contextId) {
       // Create Master
       state.masterGain = audio.createGain();
-      state.masterGain.connect(audio.destination);
+      state?.masterGain?.connect(audio.destination);
 
       // Create Voices
       // Prototype: [73.42, 110.00, 146.83, 220.00]
