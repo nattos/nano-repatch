@@ -4,7 +4,7 @@ import { NodeRepository } from './repository';
 import { ALL_PRIMITIVES } from './primitives';
 import { compileGraph } from '../builder/compiler';
 import { AppState, GridNode, Connection } from '../builder/state';
-import { numberType } from './std-types';
+import { numberType, vec4Type } from './std-types';
 
 // Helper to compile GridNodes into GraphDefinition
 export const compileAndRun = (
@@ -224,5 +224,79 @@ describe('Primitives Integration', () => {
 
     executor.update({ clock: { beat: 0, dt: 0 } });
     expect(getOutput()).toBe(5);
+  });
+
+  it('should unpack vec4 to x, y, z, w', () => {
+       const repository = new NodeRepository();
+       // Register unpack
+       // @ts-ignore
+       const unpackDef = ALL_PRIMITIVES.find(p => p.id === 'core.unpack')!;
+       repository.register({
+           id: unpackDef.id,
+           version: '1.0.0',
+           displayName: 'Unpack',
+           definition: unpackDef,
+           inputs: [{ name: 'record', type: vec4Type }],
+           outputs: []
+       });
+
+       // Register Mock Vec4 Source
+       repository.register({
+           id: 'mock.vec4',
+           version: '1.0.0',
+           displayName: 'Vec4',
+           definition: {
+               id: 'mock.vec4',
+               kind: 'primitive',
+               metadata: { category: 'Mock' },
+               computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
+               execute: () => ({ fields: { out: [10, 20, 30, 40] } })
+           },
+           inputs: [],
+           outputs: [{ name: 'out', type: vec4Type }]
+       });
+
+       // Register Output (Mock)
+       repository.register({
+        id: 'io.output',
+        version: '1.0.0',
+        displayName: 'Output',
+        definition: {
+            id: 'io.output',
+            kind: 'primitive',
+            metadata: { category: 'Mock' },
+            computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
+            execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+        },
+        inputs: [{ name: 'val', type: numberType }],
+        outputs: [{ name: 'val', type: numberType }],
+        compileConfig: (c) => ({ fields: {} })
+      });
+
+       const appState: AppState = {
+        graph: {
+          inner: {
+              nodes: {
+                  'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
+                  'unpack': { id: 'unpack', x: 100, y: 0, config: { typeId: 'core.unpack' } },
+                  'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
+                  'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
+              },
+              connections: {
+                  'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'unpack', toPort: 'record' },
+                  'c2': { id: 'c2', fromNodeId: 'unpack', fromPort: 'x', toNodeId: 'outX', toPort: 'val' },
+                  'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+              }
+          },
+          auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+        }
+      };
+
+      const graphDef = compileGraph(appState, new Map(), repository);
+      const executor = new GraphExecutor(graphDef, repository);
+      executor.update({ clock: { beat: 0, dt: 0 } });
+
+      expect(executor.getGraphOutput('outX')).toBe(10);
+      expect(executor.getGraphOutput('outW')).toBe(40);
   });
 });

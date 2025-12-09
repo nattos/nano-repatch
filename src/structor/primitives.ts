@@ -166,21 +166,77 @@ export const primitive_pack = definePrimitiveNode({
 export const primitive_unpack: PrimitiveNodeDefinition = {
     id: 'core.unpack',
     kind: 'primitive',
-    metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record into outputs.' },
+    metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record or fixed-length vector into outputs.' },
     // Inputs: One record input 'record'
     // Outputs: Dynamic based on input record type
     computeOutputTypes: (inputType, config, context) => {
-        const recordType = inputType.fields['record'];
-        if (recordType && recordType.kind === 'record') {
-            return recordType;
+        const input = inputType.fields['record'];
+        if (!input) return { kind: 'record', fields: {} };
+
+        if (input.kind === 'record') {
+            return input;
         }
+
+        if (input.kind === 'array' && typeof input.size === 'number' && input.size <= 16) {
+             const size = input.size;
+             const fields: Record<string, StructorType> = {};
+
+             if (size === 2) {
+                 fields['x'] = input.element;
+                 fields['y'] = input.element;
+             } else if (size === 3) {
+                 fields['x'] = input.element;
+                 fields['y'] = input.element;
+                 fields['z'] = input.element;
+             } else if (size === 4) {
+                 fields['x'] = input.element;
+                 fields['y'] = input.element;
+                 fields['z'] = input.element;
+                 fields['w'] = input.element;
+             } else {
+                 for(let i=0; i<size; i++) {
+                     fields[i.toString()] = input.element;
+                 }
+             }
+             return { kind: 'record', fields };
+        }
+
         return { kind: 'record', fields: {} };
     },
     execute: (input) => {
         const record = input.fields['record'];
-        if (record && typeof record === 'object' && 'fields' in record) {
+        if (!record) return { fields: {} };
+
+        // Handle Record
+        if (typeof record === 'object' && 'fields' in record) {
              return record as StructorRecord;
         }
+
+        // Handle Array (Vector)
+        if (Array.isArray(record)) {
+            const size = record.length;
+            const fields: Record<string, any> = {};
+
+            if (size === 2) {
+                 fields['x'] = record[0];
+                 fields['y'] = record[1];
+            } else if (size === 3) {
+                 fields['x'] = record[0];
+                 fields['y'] = record[1];
+                 fields['z'] = record[2];
+            } else if (size === 4) {
+                 fields['x'] = record[0];
+                 fields['y'] = record[1];
+                 fields['z'] = record[2];
+                 fields['w'] = record[3];
+            } else {
+                 for(let i=0; i<size; i++) {
+                     if (i < 16) fields[i.toString()] = record[i];
+                 }
+            }
+            return { fields };
+        }
+
         return { fields: {} };
     }
 };
