@@ -108,6 +108,36 @@
         },
         "seed": 3
       }
+    },
+    "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80": {
+      "id": "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "osc.sawtooth",
+        "values": {}
+      }
+    },
+    "node-97f68c74-48d2-418e-9472-3cb20dfe52e2": {
+      "id": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "math.map",
+        "values": {
+          "outMin": 0.8,
+          "outMax": 1
+        }
+      }
+    },
+    "node-fc2facbb-dec4-44c2-b8c2-8abb4c42d2db": {
+      "id": "node-fc2facbb-dec4-44c2-b8c2-8abb4c42d2db",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "core.unpack",
+        "values": {}
+      }
     }
   },
   "connections": {
@@ -159,6 +189,20 @@
       "fromPort": "stream",
       "toNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
       "toPort": "midi_in"
+    },
+    "conn-0275b1a4-9a91-4b55-b242-21c12ce5fc02": {
+      "id": "conn-0275b1a4-9a91-4b55-b242-21c12ce5fc02",
+      "fromNodeId": "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80",
+      "fromPort": "out",
+      "toNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
+      "toPort": "value"
+    },
+    "conn-491196c2-a38b-437c-ae8f-bbeafb532eb2": {
+      "id": "conn-491196c2-a38b-437c-ae8f-bbeafb532eb2",
+      "fromNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
+      "fromPort": "result",
+      "toNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
+      "toPort": "peak"
     }
   }
 }

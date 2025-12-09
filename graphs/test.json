@@ -100,7 +100,7 @@
       "config": {
         "typeId": "curve.ease4",
         "values": {
-          "value": 0.65,
+          "value": 0.25,
           "easing": {
             "domain": [
               0,
@@ -157,15 +157,6 @@
         "values": {
           "value": 0.62
         }
-      }
-    },
-    "node-77494fcf-817f-483b-8ba3-30378f86d103": {
-      "id": "node-77494fcf-817f-483b-8ba3-30378f86d103",
-      "x": 1,
-      "y": 1,
-      "config": {
-        "typeId": "nicepattern.orthomod",
-        "values": {}
       }
     }
   },

@@ -6,6 +6,7 @@ import {
   primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
   primitive_pi, primitive_e,
   primitive_lerp, primitive_map, primitive_hub, primitive_float,
+  primitive_pack, primitive_unpack,
   primitive_all_add, primitive_all_subtract, primitive_all_multiply, primitive_all_divide, primitive_all_pow, primitive_all_min, primitive_all_max,
   primitive_all_and, primitive_all_or, primitive_all_xor, primitive_all_equals, primitive_all_greater_than, primitive_all_less_than
 } from './primitives';
@@ -646,6 +647,31 @@ defaultNodeRepository.register({
       displayName: `Subgraph (Not Found)`
     };
   },
+});
+
+
+defaultNodeRepository.register({
+  id: 'core.pack',
+  version: '1.0.0',
+  displayName: 'Pack',
+  definition: primitive_pack,
+  inputs: [],
+  outputs: [
+      { name: 'result', type: AnyType, description: 'Record' }
+  ],
+  // TODO: Add compilePorts usually for dynamic inputs?
+  // Check primitive_subgraph for inspiration if needed.
+});
+
+defaultNodeRepository.register({
+  id: 'core.unpack',
+  version: '1.0.0',
+  displayName: 'Unpack',
+  definition: primitive_unpack,
+  inputs: [
+      { name: 'record', type: AnyType, description: 'Record to unpack' }
+  ],
+  outputs: [], // Dynamic outputs based on record
 });
 
 // --- All Variants ---
