@@ -110,8 +110,6 @@ export const orthomod = defineNode({
   },
   ui: {
     inspector: { fields: OrthomodFields },
-    body: () => import('./orthomod-editor').then(m => m.OrthomodEditorRenderer),
-    getBodyHeight: () => Promise.resolve(() => 260) // Fixed height for hero widget
   },
   isRealtime: () => true,
   createState: () => ({

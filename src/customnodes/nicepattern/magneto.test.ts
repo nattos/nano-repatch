@@ -2,7 +2,9 @@
 import { describe, it, expect } from 'vitest';
 import { magneto } from './magneto';
 import { registerNode } from '../../structor/node-helpers';
+import { registerNicePatternUI } from './ui-registration';
 
+registerNicePatternUI();
 registerNode(magneto);
 
 describe('Magneto Node', () => {

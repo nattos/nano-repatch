@@ -169,8 +169,6 @@ export const magneto = defineNode({
   },
   ui: {
       inspector: { fields: MagnetoFields },
-      body: () => import('./magneto-editor').then(m => m.MagnetoEditorRenderer),
-      getBodyHeight: () => Promise.resolve(() => 272) // Triple Grid Height
   },
   isRealtime: () => true,
   createState: (): MagnetoState => {

@@ -207,3 +207,23 @@ This entry documents the comprehensive documentation of the runtime execution fl
 ### Known Issues
 
 *   **Vite Circular Import:** While `tsc` (TypeScript Compiler) passes clean, the Vite production build fails with a circular worker import error (`compiler` <-> `executor` via shared modules). This is an improved state (logic verified) but prevents shipping a production bundle.
+
+## Worker Circular Dependency Fix (As of 2025-12-09)
+
+This entry documents the successful resolution of the Vite "Circular Worker Import" error which blocked the production build.
+
+### Root Cause Analysis
+
+The circular dependency was caused by **dynamic imports of UI components** within node definitions (`magneto.ts`, `orthomod.ts`) which are shared between the Main Thread and Web Workers (Compiler & Executor).
+*   **The Chain:** `executor.worker.ts` -> imports `nodes.ts` -> imports `magneto.ts` -> dynamic import(`magneto-editor.ts`) -> imports `lit` / UI code -> ... -> (potential cycle back to worker loaders or just strictly forbidden environment mix).
+*   Even though it was a dynamic `import()`, Vite's bundler traces it and flagged the cycle/illegal access for the worker bundle.
+
+### The Fix
+
+1.  **Decoupling UI:** Removed the `ui.body` property (which contained the dynamic import) from the static `defineNode` calls in `magneto.ts` and `orthomod.ts`.
+2.  **Separate Registration:** Created `src/customnodes/nicepattern/ui-registration.ts` to handle the attachment of `MagnetoEditorRenderer` and `OrthomodEditorRenderer` to their respective nodes.
+3.  **Main Thread Only:** Imported and executed `registerNicePatternUI()` in `src/builder/controllers.ts`, ensuring that UI components are only registered in the browser context (Main Thread), while the workers consume clean, logic-only node definitions.
+
+### Verification
+
+*   **Build Success:** `npm run build` now completes successfully (Exit code: 0).

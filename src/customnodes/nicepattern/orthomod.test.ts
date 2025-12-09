@@ -7,6 +7,9 @@ import { AnyType as anyType } from '../../structor/type-helpers';
 import { compileGraph } from '../../builder/compiler';
 import { AppState, GridNode, Connection } from '../../builder/state';
 import { MidiEvent } from '../../io/midi/types';
+import { registerNicePatternUI } from './ui-registration';
+
+registerNicePatternUI();
 
 describe('Orthomod Node', () => {
 

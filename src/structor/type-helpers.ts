@@ -1,4 +1,3 @@
-
 import {
   StructorType,
   AtomicType,

@@ -3,7 +3,12 @@ import { LocalController } from './local-state';
 import { RuntimeManager } from '../runtime/manager';
 import { WorkspaceController } from './workspace-controller';
 
+import { registerNicePatternUI } from '../customnodes/nicepattern/ui-registration';
+
 import { reaction, toJS } from 'mobx';
+
+// Register UI components for custom nodes (Main thread only)
+registerNicePatternUI();
 
 // These are the singleton instances of the controllers that will be used throughout the application.
 export const appController = new AppController();
