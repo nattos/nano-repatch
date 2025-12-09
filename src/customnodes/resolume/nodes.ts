@@ -1,6 +1,6 @@
 import { defineNode, registerNode, InspectorFieldDef } from '../../structor/node-helpers';
 import { defineType } from '../../structor/type-helpers';
-import { resolumeManager } from '../../io/resolume/manager';
+// import { resolumeManager } from '../../io/resolume/manager'; // Removed to break circular dependency
 import { NodeCategory } from '../../structor/structor';
 import { numberType } from '../../structor/std-types';
 
@@ -44,9 +44,11 @@ export const resolumeInputNode = defineNode({
       state.value = val;
     };
 
-    if (config.path) {
-      resolumeManager.subscribe(config.path, state.callback, state.callback);
-      state.unsubscribe = () => resolumeManager.unsubscribe(config.path, state.callback);
+    const resolume = context.resolume;
+
+    if (config.path && resolume) {
+      resolume.subscribe(config.path, state.callback, state.callback);
+      state.unsubscribe = () => resolume.unsubscribe(config.path, state.callback);
     }
 
     return state;
@@ -63,9 +65,10 @@ export const resolumeInputNode = defineNode({
       state.currentPath = config.path;
 
       // Subscribe to new
-      if (config.path) {
-        resolumeManager.subscribe(config.path, state.callback);
-        state.unsubscribe = () => resolumeManager.unsubscribe(config.path, state.callback);
+      const resolume = context.resolume;
+      if (config.path && resolume) {
+        resolume.subscribe(config.path, state.callback);
+        state.unsubscribe = () => resolume.unsubscribe(config.path, state.callback);
       }
     }
 
@@ -117,8 +120,9 @@ export const resolumeOutputNode = defineNode({
         changed = true;
       }
 
-      if (changed) {
-        resolumeManager.setValue(config.path, newValue);
+      const resolume = context.resolume;
+      if (changed && resolume) {
+        resolume.setValue(config.path, newValue);
         state.lastValue = newValue;
       }
     }

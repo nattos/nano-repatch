@@ -100,6 +100,7 @@ export interface ExecutionContext {
     values: Map<string, number>;
     events?: any[]; // Typed as MidiEvent[] in implementation
   };
+  resolume?: any; // Injected ResolumeManager
   requestUiOutputs?: boolean;
 };
 

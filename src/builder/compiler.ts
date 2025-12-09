@@ -1,4 +1,4 @@
-import '../customnodes/debug/nodes.worker';
+import '../customnodes/debug/nodes-registration';
 import '../customnodes/expr/nodes';
 import '../customnodes/osc/nodes';
 import '../customnodes/nicepattern/nodes';

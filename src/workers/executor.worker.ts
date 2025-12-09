@@ -1,4 +1,4 @@
-import '../customnodes/debug/nodes.worker';
+import '../customnodes/debug/nodes-registration';
 import '../customnodes/expr/nodes';
 import '../customnodes/osc/nodes';
 import '../customnodes/nicepattern/nodes';
@@ -177,7 +177,8 @@ function runTick() {
     executor.update({
       clock: { beat: clock.beat, dt },
       audio: { context: virtualAudioContext },
-      midi: { values: workerMidiValues, events: workerMidiEvents }
+      midi: { values: workerMidiValues, events: workerMidiEvents },
+      resolume: resolumeManager
     });
 
     // Clear events after processing (assuming they are consumed per tick or accumulated?)
