@@ -87,7 +87,7 @@ export interface NodeType {
    * A function to dynamically get the ports for a node, possibly using a cached compiled config.
    * Used for nodes like subgraphs or expressions where ports depend on internal state or code.
    */
-  compilePorts?: (node: GridNode, context: { loadedSubgraphs: Map<string, GraphState>, compiledConfig?: Structor }) => {
+  compilePorts?: (node: GridNode, context: { loadedSubgraphs: Map<string, GraphState>, compiledConfig?: Structor, inferredType?: { inputs: StructorType, outputs: StructorType } }) => {
     inputs: PortHint[];
     outputs: PortHint[];
     displayName?: string;
@@ -659,8 +659,6 @@ defaultNodeRepository.register({
   outputs: [
       { name: 'result', type: AnyType, description: 'Record' }
   ],
-  // TODO: Add compilePorts usually for dynamic inputs?
-  // Check primitive_subgraph for inspiration if needed.
 });
 
 defaultNodeRepository.register({

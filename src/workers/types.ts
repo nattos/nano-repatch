@@ -1,4 +1,4 @@
-import { GraphDefinition, Structor, StructorRecord } from '../structor/structor';
+import { GraphDefinition, Structor, StructorRecord, StructorType } from '../structor/structor';
 import { AppState, GraphState } from '../builder/state';
 import { NodeType } from '../structor/repository';
 
@@ -16,6 +16,7 @@ export type CompileGraphMessage = {
 export type GraphCompiledMessage = {
   type: 'GRAPH_COMPILED';
   graph: GraphDefinition;
+  inferredTypes: Record<string, { inputs: StructorType; outputs: StructorType }>;
 };
 
 export type CompileConfigsMessage = {

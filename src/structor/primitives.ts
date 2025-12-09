@@ -155,19 +155,27 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
   }
 };
 
-export const primitive_pack = definePrimitiveNode({
+export const primitive_pack: PrimitiveNodeDefinition = {
     id: 'core.pack',
+    kind: 'primitive',
     metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct'], description: 'Packs inputs into a record.' },
-    inputs: {}, // Dynamic inputs
-    outputs: { result: { kind: 'atomic', type: 'any' } }, // Output is a dynamic record (handled as any structor)
-    execute: (inputs) => ({ result: inputs }) // Simply return the inputs as a record
-});
+    configType: { kind: 'record', fields: {} },
+    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+        // Pack creates a record from its inputs
+        if (inputType.kind === 'record') {
+            return { kind: 'record', fields: inputType.fields };
+        }
+        return { kind: 'record', fields: {} };
+    },
+    execute: (inputs: StructorRecord) => ({ fields: { result: { kind: 'record', fields: inputs.fields } as any } }) // Output the whole record
+};
 
 export const primitive_unpack: PrimitiveNodeDefinition = {
     id: 'core.unpack',
     kind: 'primitive',
     metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record or fixed-length vector into outputs.' },
-    // Inputs: One record input 'record'
+    configType: { kind: 'record', fields: {} },
+    inputs: { record: anyType },
     // Outputs: Dynamic based on input record type
     computeOutputTypes: (inputType, config, context) => {
         const input = inputType.fields['record'];

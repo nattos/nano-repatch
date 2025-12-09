@@ -17,7 +17,7 @@ export function compileGraph(
   appState: AppState,
   loadedSubgraphs: Map<string, GraphState>,
   nodeRepository: NodeRepository
-): GraphDefinition {
+): { graph: GraphDefinition, inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> } {
   const flatNodes: Record<string, NodeInstance> = {};
   const flatConnections: {
     fromNode: string;
@@ -356,7 +356,13 @@ export function compileGraph(
     }
   }
 
-  return {
+  // Convert nodeTypes to plain object for worker transfer
+  const inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> = {};
+  for (const [id, types] of nodeTypes) {
+      inferredTypes[id] = types;
+  }
+
+  const graph: GraphDefinition = {
     id: 'compiled-graph',
     kind: 'graph',
     type: { kind: 'graph', inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } },
@@ -364,6 +370,8 @@ export function compileGraph(
     connections: validConnections,
     inputs: flatInputs,
     outputs: flatOutputs,
-    executionOrder // Return the order so Executor doesn't have to recompute
+    executionOrder
   };
+
+  return { graph, inferredTypes };
 }

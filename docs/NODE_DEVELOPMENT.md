@@ -264,3 +264,17 @@ private startLoop() {
 *   **Color:** Use a "hero" accent color (e.g., yellow `#ffcc00` for Orthomod) against a dark background.
 *   **Ghosting:** Show "raw" or "underlying" values (ghost bars) behind the active values to help users understand the modulation.
 *   **Interactivity:** If the visualization is also an input (e.g., scrubbing), ensure pointer events use `stopPropagation()` to avoid conflicting with the graph editor's canvas panning.
+
+## 10. Quirks & Limitations (Dynamic Ports)
+
+### 1. Dynamic Port Visibility
+*   For nodes like `core.unpack`, output ports (e.g., `x`, `y`, `z`, `w`) are generated dynamically based on the input type.
+*   **Limitation:** These ports only appear *after* a valid connection is made to the input. If the input is disconnected or invalid, the node may show no outputs. The UI blindly trusts the Compiler Worker's `inferredTypes`.
+
+### 2. Vector Unpacking
+*   Named outputs (`x`, `y`, `z`, `w`) are currently supported only for vector sizes 2, 3, and 4.
+*   Other array sizes use numerical indices (`0`, `1`, ...).
+
+### 3. Pack Node
+*   The `core.pack` node accepts any input type but treats its output as a generic Record containing those named fields.
+*   Downstream nodes must be able to handle this Record structure.

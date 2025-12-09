@@ -115,7 +115,9 @@
       "y": 3,
       "config": {
         "typeId": "osc.sawtooth",
-        "values": {}
+        "values": {
+          "freq": 60
+        }
       }
     },
     "node-97f68c74-48d2-418e-9472-3cb20dfe52e2": {
@@ -130,9 +132,9 @@
         }
       }
     },
-    "node-fc2facbb-dec4-44c2-b8c2-8abb4c42d2db": {
-      "id": "node-fc2facbb-dec4-44c2-b8c2-8abb4c42d2db",
-      "x": 4,
+    "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f": {
+      "id": "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f",
+      "x": 2,
       "y": 4,
       "config": {
         "typeId": "core.unpack",
@@ -203,6 +205,13 @@
       "fromPort": "result",
       "toNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
       "toPort": "peak"
+    },
+    "conn-06ad6092-9fda-49d8-871c-8b975cc42e34": {
+      "id": "conn-06ad6092-9fda-49d8-871c-8b975cc42e34",
+      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
+      "fromPort": "vec",
+      "toNodeId": "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f",
+      "toPort": "record"
     }
   }
 }

@@ -795,14 +795,53 @@ export class GraphNode extends MobxLitElement {
       let outputs: PortHint[] = [];
 
       if (nodeType) {
-        const compiledConfig = localController.observableState.compiledNodeConfigs.get(this.node.id);
-        const dynamicInfo = nodeType.compilePorts?.(this.node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
-        if (dynamicInfo) {
-          inputs = dynamicInfo.inputs;
-          outputs = dynamicInfo.outputs;
-        } else {
-          inputs = nodeType.inputs || [];
-          outputs = nodeType.outputs || [];
+        inputs = nodeType.inputs || [];
+        outputs = nodeType.outputs || [];
+
+        const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
+
+        // Merge Inferred Outputs (this is the source of truth for dynamic outputs)
+        if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
+            const inferredOutputs = inferredType.outputs.fields;
+            // If the node definition doesn't declare specific outputs (is dynamic), use inferred.
+            // Or if it's dynamic, inferred outputs usually override.
+            // For primitive_unpack, static outputs are empty. So inferred outputs are all we have.
+            // For primitive_pack, static outputs are { result: Any }. Inferred is { result: ... }. Same keys.
+            // Generally, if inferred has output fields, we should use them to drive the port list if the node is dynamic.
+
+            // Heuristic: If static outputs are empty, use inferred fully.
+            // If static outputs exist, we might just be updating types?
+            // Actually, for Unpack, we have x,y,z,w which are NOT in static outputs.
+
+            if (outputs.length === 0) {
+                 outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
+                     name,
+                     type,
+                     description: name
+                 }));
+            } else {
+                 // For static nodes, we might just want to update the type info?
+                 // But typically port rendering relies on the list identity.
+                 // Let's assume only dynamic nodes need port generation.
+                 // And dynamic nodes usually have empty static output lists (like unpack).
+            }
+        }
+
+        // Determine Input list: Static + Connected Dynamic
+        // Inferred Inputs only contain connected ports.
+        if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
+            const connectedInputs = inferredType.inputs.fields;
+            const staticInputNames = new Set(inputs.map(i => i.name));
+
+            for (const [name, type] of Object.entries(connectedInputs)) {
+                if (!staticInputNames.has(name)) {
+                    inputs.push({
+                        name,
+                        type,
+                        description: name
+                    });
+                }
+            }
         }
       }
 
@@ -896,17 +935,39 @@ export class GraphNode extends MobxLitElement {
     let displayName = this.node.config.typeId;
 
     if (nodeType) {
-      const compiledConfig = localController.observableState.compiledNodeConfigs.get(this.node.id);
-      const dynamicInfo = nodeType.compilePorts?.(this.node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
-      if (dynamicInfo) {
-        inputs = dynamicInfo.inputs;
-        outputs = dynamicInfo.outputs;
-        displayName = dynamicInfo.displayName || nodeType.displayName;
-      } else {
         inputs = nodeType.inputs || [];
         outputs = nodeType.outputs || [];
-        displayName = nodeType.displayName;
-      }
+        displayName = nodeType.displayName || this.node.config.typeId;
+
+        const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
+
+        // Merge Inferred Outputs (Source of Truth for Dynamic Outputs)
+        if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
+            const inferredOutputs = inferredType.outputs.fields;
+            if (outputs.length === 0) {
+                 outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
+                     name,
+                     type,
+                     description: name
+                 }));
+            }
+        }
+
+        // Merge Inferred Inputs (Static + Dynamic Connected)
+        if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
+            const connectedInputs = inferredType.inputs.fields;
+            const staticInputNames = new Set(inputs.map(i => i.name));
+
+            for (const [name, type] of Object.entries(connectedInputs)) {
+                if (!staticInputNames.has(name)) {
+                    inputs.push({
+                        name,
+                        type,
+                        description: name
+                    });
+                }
+            }
+        }
     }
 
     // Get current incoming connections to this node

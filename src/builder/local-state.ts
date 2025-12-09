@@ -3,6 +3,7 @@ import { observable, makeObservable, action, runInAction, toJS } from 'mobx';
 import { LayoutResult, WireDef, computeWireLayout } from '../layout/wire-layout';
 import { GraphState } from './state';
 import { settingsManager } from './settings-manager';
+import { StructorType } from '../structor/structor';
 
 // Part 4: Local Controller (UI State)
 
@@ -13,6 +14,7 @@ export interface LocalState {
   inflightPortConnectionOperation: { nodeId: string; port: string; type: 'in' | 'out'; } | null;
   loadedSubgraphs: Map<string, GraphState>;
   compiledNodeConfigs: Map<string, any>; // Cache for worker-compiled configs
+  inferredNodeTypes: Map<string, { inputs: StructorType, outputs: StructorType }>;
   wireLayout: LayoutResult;
 
   // Serialized settings.
@@ -48,6 +50,7 @@ export class LocalController {
       loadedSubgraphs: new Map<string, GraphState>(),
       compiledNodeConfigs: new Map<string, any>(),
       wireLayout: { wires: {} },
+      inferredNodeTypes: new Map<string, { inputs: any, outputs: any }>(), // Initialize the new map
       localSettings: {
         showDebugValues: false,
         activeTab: 'workspace',

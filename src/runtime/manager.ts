@@ -206,6 +206,15 @@ export class RuntimeManager {
     this.hasLoadedGraph = true;
     this.executorWorker.postMessage(initMsg);
 
+    // Populate local cache with inferred types
+    runInAction(() => {
+        if (msg.inferredTypes) {
+            for (const [nodeId, types] of Object.entries(msg.inferredTypes)) {
+                this.localController.observableState.inferredNodeTypes.set(nodeId, types);
+            }
+        }
+    });
+
     // Populate local cache with compiled configs from the graph
     runInAction(() => {
       for (const [nodeId, instance] of Object.entries(msg.graph.nodes)) {
