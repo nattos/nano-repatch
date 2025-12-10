@@ -16,6 +16,12 @@ import {
 
 import { numberType, midiStreamType } from '../../structor/std-types';
 import { AnyType as anyType } from '../../structor/type-helpers';
+import { defineType } from '../../structor/type-helpers';
+const manySequencesType = defineType({
+  kind: "array",
+  size: "dynamic",
+  element: sequenceStructorType
+});
 import { compileGraph } from '../../builder/compiler';
 import { AppState, GridNode, Connection } from '../../builder/state';
 
@@ -48,7 +54,7 @@ describe('NicePattern Integration', () => {
     version: '1.0.0',
     displayName: 'Pattern',
     definition: pattern,
-    inputs: [{ name: 'seq_in', type: sequenceStructorType, description: 'Input sequence(s)' }],
+    inputs: [{ name: 'seq_in', type: manySequencesType, description: 'Input sequence(s)', allowMultiConnection: true }],
     outputs: [{ name: 'midi_out', type: midiStreamType, description: 'Real-time MIDI stream' }],
     compileConfig: (uiConfig) => ({ fields: {},  }),
   });
@@ -167,7 +173,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
-    const graphDef = compileGraph(appState, new Map(), repository);
+    const result = compileGraph(appState, new Map(), repository);
+    const graphDef = result.graph;
     return new GraphExecutor(graphDef, repository);
   };
 
@@ -247,7 +254,7 @@ describe('NicePattern Integration', () => {
 
 
 
-  it.skip('should process multiple sequence inputs on named port', () => {
+  it('should process multiple sequence inputs on named port', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
         'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
@@ -366,7 +373,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
-    const graphDef = compileGraph(appState, new Map(), repository);
+    const result = compileGraph(appState, new Map(), repository);
+    const graphDef = result.graph;
     const executor = new GraphExecutor(graphDef, repository);
 
     // 1. Note On (60)

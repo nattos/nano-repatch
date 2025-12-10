@@ -45,6 +45,11 @@ export const sequenceStructorType = defineType({
   element: stepStructorType,
   hint: 'step-sequence'
 });
+export const manySequencesType = defineType({
+  kind: "array",
+  size: "dynamic", // Technically Array<Sequence>
+  element: sequenceStructorType
+});
 
 export const layerOutputStructorType = defineType({ kind: "atomic", type: "number" });
 
@@ -173,12 +178,9 @@ export const pattern = defineNode({
   },
   config: {},
   inputs: {
-    seq_in: { type: sequenceStructorType, description: "Input sequence(s)" }
+    seq_in: { type: manySequencesType, description: "Input sequence(s)", allowMultiConnection: true }
   },
   outputs: { midi_out: midiStreamType },
-  autoBroadcast: {
-    seq_in: { combine: 'collect' }
-  },
   isRealtime: () => true,
   createState: () => ({
     sequenceStates: new Map<number, {

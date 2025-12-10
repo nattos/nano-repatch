@@ -27,6 +27,7 @@ export interface PortHint {
   suppressInputEditor?: boolean;
   alwaysShowInputEditor?: boolean;
   suppressLabel?: boolean;
+  allowMultiConnection?: boolean; // Forces collection of all inputs into an array, even if types match.
 }
 
 export type InspectorChangeHandler = (config: Partial<GridNode['config']>) => void;

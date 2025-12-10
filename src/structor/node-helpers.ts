@@ -44,6 +44,7 @@ export interface ExtendedInputDef {
   alwaysShowInputEditor?: boolean;
   suppressLabel?: boolean;
   redirect?: string;
+  allowMultiConnection?: boolean;
 }
 
 export type ExtendedNodeInputsDef = Record<string, StructorType | ExtendedInputDef>;
@@ -171,6 +172,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
       alwaysShowInputEditor: isExtended ? val.alwaysShowInputEditor : undefined,
       suppressLabel: isExtended ? val.suppressLabel : undefined,
       redirect: isExtended ? val.redirect : undefined,
+      allowMultiConnection: isExtended ? val.allowMultiConnection : undefined,
     };
   });
 

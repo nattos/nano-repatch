@@ -266,7 +266,10 @@ export class GraphExecutor {
               const lastValue = values[values.length - 1];
               // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
               // Only collect if input is NOT array (merging scalars or elements).
-              if (isArrayType && !Array.isArray(lastValue)) {
+              // UNLESS explicit allowMultiConnection is set.
+              if (schema && schema.allowMultiConnection) {
+                  inputRecord.fields[port] = values;
+              } else if (isArrayType && !Array.isArray(lastValue)) {
                   // It expects array, but getting scalars -> collect all
                   inputRecord.fields[port] = values;
               } else {
