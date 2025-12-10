@@ -173,8 +173,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
-    const result = compileGraph(appState, new Map(), repository);
-    const graphDef = result.graph;
+    const { graph } = compileGraph(appState, new Map(), repository);
+    const graphDef = graph;
     return new GraphExecutor(graphDef, repository);
   };
 
@@ -373,8 +373,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
-    const result = compileGraph(appState, new Map(), repository);
-    const graphDef = result.graph;
+    const { graph } = compileGraph(appState, new Map(), repository);
+    const graphDef = graph;
     const executor = new GraphExecutor(graphDef, repository);
 
     // 1. Note On (60)

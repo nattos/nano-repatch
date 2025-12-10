@@ -394,15 +394,6 @@ export function compileGraph(
         let outputRecordType: RecordType;
         let finalInputType: RecordType = inputRecordType;
 
-        if (instance.definitionId === 'core.pack') {
-             console.log('Compiler: Processing core.pack', {
-                 id: nodeId,
-                 definitionFound: !!nodeDef,
-                 computeForwardPortsCheck: !!nodeDef?.computeForwardPorts, // Access property on definition
-                 config: instance.defaultConfig
-             });
-        }
-
         try {
              if (nodeDef.computeForwardPorts) {
                   const result = nodeDef.computeForwardPorts(

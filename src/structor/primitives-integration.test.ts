@@ -113,7 +113,7 @@ export const compileAndRun = (
     }
   };
 
-  const graphDef = compileGraph(appState, new Map(), repository);
+  const { graph: graphDef } = compileGraph(appState, new Map(), repository);
   const executor = new GraphExecutor(graphDef, repository);
   // console.log('Execution Order:', (executor as any).executionOrder);
   return { executor, getOutput: () => executor.getGraphOutput('test_out') };
@@ -292,7 +292,7 @@ describe('Primitives Integration', () => {
         }
       };
 
-      const graphDef = compileGraph(appState, new Map(), repository);
+      const { graph: graphDef } = compileGraph(appState, new Map(), repository);
       const executor = new GraphExecutor(graphDef, repository);
       executor.update({ clock: { beat: 0, dt: 0 } });
 

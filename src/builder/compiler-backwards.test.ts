@@ -1,5 +1,6 @@
 
 import { expect } from '@open-wc/testing';
+import { describe, it, beforeEach } from 'vitest';
 import { compileGraph } from './compiler';
 import { AppState, GraphState } from './state';
 import { NodeRepository, NodeType } from '../structor/repository';
@@ -131,9 +132,9 @@ describe('Compiler Two-Phase Pass', () => {
             }
         };
 
-        const result = compileGraph(appState, new Map(), repo);
+        const { graph: result, inferredTypes } = compileGraph(appState, new Map(), repo);
 
-        const packTypes = result.inferredTypes['n1'];
+        const packTypes = inferredTypes['n1'];
         expect(packTypes).to.exist;
 
         // Check Inputs: Should have inferred x, y, z because Sink requires vec3

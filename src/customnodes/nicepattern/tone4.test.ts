@@ -50,7 +50,7 @@ describe('nicepattern.tone4 integration', () => {
             }
         };
 
-        const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+        const { graph: graphDef } = compileGraph(appState, new Map(), defaultNodeRepository);
         const executor = new GraphExecutor(graphDef, defaultNodeRepository);
 
         executor.setInput('input_vec', inputs.vec);

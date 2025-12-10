@@ -65,11 +65,11 @@ export function createNodeHarness<TInputs, TOutputs>(
   // Create graph outputs for each node output
   // We need to know output names.
   // definition.computeOutputTypes() returns RecordType.
-  const outputType = definition.computeOutputTypes(
+  const outputType = definition.computeOutputTypes ? definition.computeOutputTypes(
       { kind: 'record', fields: {} },
       { kind: 'record', fields: {} },
       { beat: 0, dt: 0, broadcast: () => ({ apply: () => {} }) } as any
-  );
+  ) : { kind: 'record', fields: {} } as any;
 
   if (outputType.kind === 'record') {
       for (const name of Object.keys(outputType.fields)) {
@@ -84,7 +84,8 @@ export function createNodeHarness<TInputs, TOutputs>(
       nodes,
       connections,
       inputs: graphInputs,
-      outputs: graphOutputs
+      outputs: graphOutputs,
+      executionOrder: [nodeId]
   };
 
   // Populate nodes in graphDef (GraphDefinition expects NodeInstance, not GridNode)

@@ -139,7 +139,7 @@ describe('Orthomod Node', () => {
       }
     };
 
-    const graphDef = compileGraph(appState, new Map(), repository);
+    const { graph: graphDef } = compileGraph(appState, new Map(), repository);
     const executor = new GraphExecutor(graphDef, repository);
     return { executor, getOutput: () => executor.getNodeOutput('out_node')?.fields?.val };
   };

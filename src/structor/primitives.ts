@@ -225,8 +225,6 @@ export const primitive_pack = definePrimitiveNode({
         const rawConfig = config as any;
         const targetType = rawConfig?.targetType || rawConfig?.fields?.targetType || 'infer';
 
-        // console.log('primitive_pack: computeForwardPorts', { config, targetType });
-
         // If explicit config is set, usage that. Otherwise use inferred.
         let type = targetType !== 'infer' ? targetType : (meta?.inferredType || 'float2');
 

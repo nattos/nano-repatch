@@ -341,7 +341,6 @@ export class RuntimeManager {
       });
 
       if (needsFullRecompile) {
-        console.log('RuntimeManager: Config change triggered full recompile', nodesToSend.map(n => n.id));
         this.recompileAndRun();
       } else {
         this.compilerWorker.postMessage({

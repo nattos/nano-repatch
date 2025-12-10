@@ -101,10 +101,7 @@ const renderTabBarField = (node: GridNode, field: Extract<InspectorFieldDef, { t
       <inspector-tab-bar
         .value=${getValue(node, field.path, field.options[0]?.value)}
         .options=${field.options}
-        @change=${(e: CustomEvent) => {
-            console.log('GenericInspector: TabBar Change', field.path, e.detail);
-            onchange({ [field.path]: e.detail.value });
-        }}
+        @change=${(e: CustomEvent) => onchange({ [field.path]: e.detail.value })}
       ></inspector-tab-bar>
     </div>
   </div>

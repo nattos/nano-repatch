@@ -27,7 +27,7 @@ describe('Node Initialization and Updates', () => {
     };
 
     // 2. Compile
-    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+    const { graph: graphDef } = compileGraph(appState, new Map(), defaultNodeRepository);
 
     // 3. Execute
     const executor = new GraphExecutor(graphDef, defaultNodeRepository);
@@ -60,7 +60,7 @@ describe('Node Initialization and Updates', () => {
         }
       }
     };
-    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+    const { graph: graphDef } = compileGraph(appState, new Map(), defaultNodeRepository);
     const executor = new GraphExecutor(graphDef, defaultNodeRepository);
     executor.update({ clock: { beat: 0, dt: 0 } });
 
@@ -104,7 +104,7 @@ describe('Node Initialization and Updates', () => {
     };
 
     // 2. Compile & Execute
-    const graphDef = compileGraph(appState, new Map(), defaultNodeRepository);
+    const { graph: graphDef } = compileGraph(appState, new Map(), defaultNodeRepository);
     const executor = new GraphExecutor(graphDef, defaultNodeRepository);
     executor.update({ clock: { beat: 0, dt: 0 } });
 

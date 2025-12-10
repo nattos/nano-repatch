@@ -191,7 +191,19 @@ export const pattern = defineNode({
     }>()
   }),
   execute: (inputs, config, context, state) => {
-    const seqs = inputs.seq_in as unknown as Step[][]; // Array of sequences
+    // Inputs are Structors. unpack them.
+    // seq_in is potentially StructorArray (or raw array if defineNode unwraps? assume Structor for now)
+    const seqInInput = inputs.seq_in as any;
+
+    let seqs: any[] = [];
+    if (seqInInput && typeof seqInInput === 'object') {
+        if (Array.isArray(seqInInput)) {
+             seqs = seqInInput;
+        } else if (seqInInput.kind === 'array' && seqInInput.elements) {
+             seqs = seqInInput.elements;
+        }
+    }
+
     const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
@@ -199,13 +211,18 @@ export const pattern = defineNode({
 
     // Process all sequences (both current inputs and previously active ones)
     const seqIndices = new Set<number>();
-    if (Array.isArray(seqs)) {
-        seqs.forEach((_, i) => seqIndices.add(i));
-    }
+    seqs.forEach((_, i) => seqIndices.add(i));
     state.sequenceStates.forEach((_, i) => seqIndices.add(i));
 
     for (const seqIndex of seqIndices) {
-        const seq = (Array.isArray(seqs) ? seqs[seqIndex] : undefined);
+        const seqStructor = seqs[seqIndex];
+        // Unwrap sequence array
+        let seq: any[] | undefined;
+        if (seqStructor) {
+             if (Array.isArray(seqStructor)) seq = seqStructor;
+             else if (seqStructor.kind === 'array') seq = seqStructor.elements;
+             else seq = seqStructor; // Fallback or raw object
+        }
 
         // Initialize state for this sequence if missing
         if (!state.sequenceStates.has(seqIndex)) {
@@ -229,7 +246,23 @@ export const pattern = defineNode({
             continue;
         }
 
-        const currentStep = (seq && seq[currentStepIndex]) ? seq[currentStepIndex] : { noteIndex: null, velocity: 0, hold: false };
+        let currentStep: { noteIndex: number | null, velocity: number, hold: boolean } = { noteIndex: null, velocity: 0, hold: false };
+
+        if (seq && seq[currentStepIndex]) {
+             const rawStep = seq[currentStepIndex];
+             // Unwrap step fields
+             // Check if it's a StructorRecord with fields
+             if (rawStep.fields) {
+                  currentStep = {
+                      noteIndex: rawStep.fields.noteIndex,
+                      velocity: rawStep.fields.velocity ?? 0,
+                      hold: rawStep.fields.hold ?? false
+                  };
+             } else {
+                  // Fallback for raw objects (e.g. from unit tests if they pass raw objects)
+                  currentStep = rawStep;
+             }
+        }
 
         // Check if we need to update:
         // 1. Moved to a new step
@@ -253,9 +286,7 @@ export const pattern = defineNode({
 
             // Trigger conditions:
             // 1. We have a new note (isNoteActive)
-            // 2. AND (Only trigger if state changed to active, avoids retriggering same note same step if update logic runs due to other change?)
-            // Actually, if update logic runs, it means something changed.
-            // But if we just checked 'lastNoteIndex', we are good.
+            // 2. AND (Only trigger if state changed to active)
             const shouldTrigger = isNoteActive && (!isSameNote || !lastHold);
 
             if (shouldRelease && lastNoteIndex !== null) {

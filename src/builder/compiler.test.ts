@@ -37,7 +37,7 @@ describe('Graph Compiler', () => {
     const appState: AppState = { graph };
     const loadedSubgraphs = new Map();
 
-    const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+    const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     expect(Object.keys(compiled.nodes)).toHaveLength(2);
     expect(compiled.nodes['n1'].definitionId).toBe('math.add');
@@ -84,7 +84,7 @@ describe('Graph Compiler', () => {
 
     const appState: AppState = { graph: mainGraph };
 
-    const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+    const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     // Check Nodes
     // Should have: n1, n2, sub1.sub_in, sub1.sub_add, sub1.sub_out
@@ -135,7 +135,7 @@ describe('Graph Compiler', () => {
       const appState: AppState = { graph };
       const loadedSubgraphs = new Map();
 
-      const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+      const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
       // Should have: n1 only (virtual inputs are injected into config)
       expect(Object.keys(compiled.nodes)).toHaveLength(1);
@@ -170,7 +170,7 @@ describe('Graph Compiler', () => {
       const appState: AppState = { graph };
       const loadedSubgraphs = new Map();
 
-      const compiled = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+      const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
       // Should have: n1, n2. NO virtual node for min.
       expect(Object.keys(compiled.nodes)).toHaveLength(2);

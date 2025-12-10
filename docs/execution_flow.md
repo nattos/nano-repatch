@@ -34,26 +34,45 @@ sequenceDiagram
     RM->>RM: checkRealtimeStatus()
 ```
 
-### 2. Configuration Updates (Realtime & Static)
+### 2. Configuration Updates (Realtime vs Structural)
+When the user changes a node parameter (e.g., a slider or dropdown), the system chooses between a lightweight update and a full structural recompile.
 
-When the user changes a node parameter (e.g., a slider), the system attempts to update the running graph without a full recompile.
-
+**Type A: Parameter Update (Lightweight)**
+For simple values (e.g., float slider), we send a config update to the running graph.
 ```mermaid
 sequenceDiagram
     participant UI as Main Thread
-    participant RM as RuntimeManager
     participant CW as Compiler Worker
     participant EW as Executor Worker
 
-    UI->>RM: Config Change (nodeId, values)
-    RM->>CW: postMessage({ type: 'COMPILE_CONFIGS', nodes })
-    Note right of CW: Compiles UI config into<br/>runtime-ready config.
-    CW->>RM: postMessage({ type: 'CONFIGS_COMPILED', configs })
-    RM->>EW: postMessage({ type: 'UPDATE_CONFIG', nodeId, config })
-    Note right of EW: GraphExecutor updates<br/>live node instance.
+    UI->>CW: postMessage({ type: 'COMPILE_CONFIGS', nodes })
+    CW->>UI: postMessage({ type: 'CONFIGS_COMPILED', configs })
+    UI->>EW: postMessage({ type: 'UPDATE_CONFIG', nodeId, config })
 ```
 
-### 3. Execution Loop (The "Heartbeat")
+**Type B: Structural Update (Heavy)**
+If a config change affects ports (e.g., changing 'Pack' node from Float2 to Float4), the node definition returns `true` for `shouldRecompileOnConfigChange`. This triggers a full **Graph Recompilation** (Path #1) to re-run type inference.
+
+### 3. Type Inference & Dynamic Ports
+
+Some nodes (like `Pack`, `Unpack`, `Math`) have dynamic ports that depend on their configuration or connected neighbors.
+
+1.  **Compiler (Inference Pass):**
+    *   **Backward Pass:** Propagates type requirements from outputs to inputs (e.g., "Result connected to Vec4 input -> I should be Vec4").
+    *   **Forward Pass:** Computes actual types based on config and backward hints (e.g., "Config is 'Vec3' -> I am Vec3").
+    *   **Result:** `inferredNodeTypes` map containing exact `RecordType` for inputs/outputs.
+
+2.  **Sync to UI:**
+    *   The `GRAPH_COMPILED` message includes `inferredNodeTypes`.
+    *   `RuntimeManager` updates `LocalState.inferredNodeTypes`.
+
+3.  **UI Rendering (`GraphNode`):**
+    *   The `GraphNode` component reactive render merges:
+        *   **Static Ports:** From `repository.ts` definition.
+        *   **Inferred Ports:** From `LocalState`.
+    *   *Note:* The component creates a fresh merged list each render to avoid mutating the static repository definition.
+
+### 4. Execution Loop (The "Heartbeat")
 
 The Executor Worker runs a high-frequency loop (default 60Hz) to process data and generate signals.
 

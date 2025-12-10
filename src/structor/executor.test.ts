@@ -60,6 +60,7 @@ describe('GraphExecutor', () => {
         inputs: { 'a': { nodeId: 'adder', port: 'a' } }, // Updated to named port
         connections: [{ fromNode: 'ten', fromPort: 'value', toNode: 'adder', toPort: 'b' }], // named ports
         outputs: { 'c': { nodeId: 'adder', port: 'result' } }, // named port
+        executionOrder: ['ten', 'adder']
     };
 
     it('should initialize with default config and perform a full update', () => {
@@ -120,6 +121,7 @@ describe('GraphExecutor', () => {
                 'div': { nodeId: 'fmod', port: 'div' },
                 'mod': { nodeId: 'fmod', port: 'mod' }
             },
+            executionOrder: ['dividend', 'divisor', 'fmod']
         };
 
         const executor = new GraphExecutor(fmodGraph, testRepo);
@@ -143,6 +145,7 @@ describe('GraphExecutor', () => {
             inputs: {},
             connections: [],
             outputs: { 'mod': { nodeId: 'fmod', port: 'mod' } },
+            executionOrder: ['fmod']
         };
 
         const fmodExecutor = new GraphExecutor(fmodGraph, testRepo);

@@ -52,7 +52,8 @@ describe('MIDI Integration', () => {
       'velocity': { nodeId, port: 'velocity' }, // For Note/Mono
       'note': { nodeId, port: 'note' }, // For Mono
       'frequency': { nodeId, port: 'frequency' } // For Mono
-    }
+    },
+    executionOrder: [nodeId]
   });
 
   const createCcEvent = (channel: number, cc: number, value: number): MidiEvent => ({

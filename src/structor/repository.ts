@@ -106,6 +106,11 @@ export interface NodeType {
    * Whether to capture inputs for this node type in the executor.
    */
   inspectInputs?: boolean;
+
+  /**
+   * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
+   */
+  shouldRecompileOnConfigChange?: (config: any) => boolean;
 }
 
 export class NodeRepository {
