@@ -92,6 +92,24 @@ const renderSelectField = (node: GridNode, field: Extract<InspectorFieldDef, { t
   </div>
 `;
 
+import '../../views/inspector-tab-bar';
+
+const renderTabBarField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'tab-bar' }>, onchange: InspectorChangeHandler) => html`
+  <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
+    <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
+    <div style="flex: 1; margin-left: 8px;">
+      <inspector-tab-bar
+        .value=${getValue(node, field.path, field.options[0]?.value)}
+        .options=${field.options}
+        @change=${(e: CustomEvent) => {
+            console.log('GenericInspector: TabBar Change', field.path, e.detail);
+            onchange({ [field.path]: e.detail.value });
+        }}
+      ></inspector-tab-bar>
+    </div>
+  </div>
+`;
+
 export const createGenericInspector = (fields: InspectorFieldDef[]) => {
   return (node: GridNode, onchange: InspectorChangeHandler): TemplateResult => {
     return html`
@@ -103,6 +121,7 @@ export const createGenericInspector = (fields: InspectorFieldDef[]) => {
             case 'slider': return renderSliderField(node, field, onchange);
             case 'boolean': return renderBooleanField(node, field, onchange);
             case 'select': return renderSelectField(node, field, onchange);
+            case 'tab-bar': return renderTabBarField(node, field, onchange);
             default: return html``;
           }
         })}

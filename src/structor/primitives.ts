@@ -155,20 +155,133 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
   }
 };
 
-export const primitive_pack: PrimitiveNodeDefinition = {
+export const primitive_pack = definePrimitiveNode({
     id: 'core.pack',
-    kind: 'primitive',
-    metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct'], description: 'Packs inputs into a record.' },
-    configType: { kind: 'record', fields: {} },
-    computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-        // Pack creates a record from its inputs
-        if (inputType.kind === 'record') {
-            return { kind: 'record', fields: inputType.fields };
-        }
-        return { kind: 'record', fields: {} };
+    metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct', 'vector'], description: 'Packs inputs into a record or vector.' },
+    config: {
+        targetType: { kind: 'atomic', type: 'string', defaultValue: 'infer' }
     },
-    execute: (inputs: StructorRecord) => ({ fields: { result: { kind: 'record', fields: inputs.fields } as any } }) // Output the whole record
-};
+    inputs: {}, // Dynamic
+    outputs: { result: anyType }, // Dynamic
+
+    // UI Configuration (manually attached for now to avoid circular deps)
+    // @ts-ignore
+    ui: {
+        inspector: {
+            fields: [
+                {
+                    type: 'tab-bar',
+                    label: 'Target Type',
+                    path: 'targetType',
+                    options: [
+                        { label: 'Infer', value: 'infer' },
+                        { label: 'Vec2', value: 'float2' },
+                        { label: 'Vec3', value: 'float3' },
+                        { label: 'Vec4', value: 'float4' }
+                    ]
+                }
+            ]
+        }
+    },
+
+    computeBackwardPorts: (outputReqs, config, context) => {
+        const targetType = (config as any)?.targetType || 'infer';
+        let inferredType: 'float2' | 'float3' | 'float4' | null = null;
+
+        if (targetType === 'infer') {
+             // Look at output requirements on 'result' port
+             const resultReq = outputReqs.fields['result'];
+
+             if (resultReq && resultReq.kind === 'record') {
+                 if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z'] && resultReq.fields['w']) {
+                     inferredType = 'float4';
+                 } else if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z']) {
+                     inferredType = 'float3';
+                 } else if (resultReq.fields['x'] && resultReq.fields['y']) {
+                     inferredType = 'float2';
+                 }
+             }
+        } else {
+             inferredType = targetType as any;
+        }
+
+        const inputReqs: any = { kind: 'record', fields: {} };
+        if (inferredType === 'float4') {
+            inputReqs.fields = { x: numberType, y: numberType, z: numberType, w: numberType };
+        } else if (inferredType === 'float3') {
+            inputReqs.fields = { x: numberType, y: numberType, z: numberType };
+        } else if (inferredType === 'float2') {
+             inputReqs.fields = { x: numberType, y: numberType };
+        }
+
+        return {
+            inputRequirements: inputReqs,
+            backwardMetadata: { inferredType }
+        };
+    },
+
+    computeForwardPorts: (inputs, config, context, meta) => {
+        // Defensive read: check both root and fields
+        const rawConfig = config as any;
+        const targetType = rawConfig?.targetType || rawConfig?.fields?.targetType || 'infer';
+
+        // console.log('primitive_pack: computeForwardPorts', { config, targetType });
+
+        // If explicit config is set, usage that. Otherwise use inferred.
+        let type = targetType !== 'infer' ? targetType : (meta?.inferredType || 'float2');
+
+        // Finalize inputs based on type
+        const inputFields: any = {};
+        const outputFields: any = {};
+
+        // If type is not one of the vectors (e.g. unknown inference), fallback to float2?
+        // Or if we have inputs connected?
+        // Let's default to float2 if nothing known.
+        if (!['float2', 'float3', 'float4'].includes(type)) type = 'float2';
+
+        if (type === 'float4') {
+            inputFields.x = numberType;
+            inputFields.y = numberType;
+            inputFields.z = numberType;
+            inputFields.w = numberType;
+            outputFields.result = {
+                kind: 'record',
+                fields: { x: numberType, y: numberType, z: numberType, w: numberType },
+                hint: 'vec4'
+            };
+        } else if (type === 'float3') {
+            inputFields.x = numberType;
+            inputFields.y = numberType;
+            inputFields.z = numberType;
+            outputFields.result = {
+                kind: 'record',
+                fields: { x: numberType, y: numberType, z: numberType },
+                hint: 'vec3'
+            };
+        } else { // float2
+            inputFields.x = numberType;
+            inputFields.y = numberType;
+            outputFields.result = {
+                kind: 'record',
+                fields: { x: numberType, y: numberType },
+                hint: 'vec2'
+            };
+        }
+
+        return {
+            inputs: { kind: 'record', fields: inputFields },
+            outputs: { kind: 'record', fields: outputFields }
+        };
+    },
+
+    execute: (inputs) => {
+        // Inputs are already collected into 'inputs' object by executor
+        // We just need to pack them into 'result'
+        // The forward pass ensures the output type matches the inputs we asked for.
+        // We can just return the inputs object as the result record.
+        return { result: inputs };
+    }
+});
 
 export const primitive_unpack: PrimitiveNodeDefinition = {
     id: 'core.unpack',
@@ -265,6 +378,7 @@ export const primitive_e = definePrimitiveNode({
   metadata: { category: NodeCategory.Math, keywords: ['e', 'euler', 'constant'], description: 'Returns the value of Euler\'s number.' },
   inputs: {},
   outputs: { result: numberType },
+  ui: primitive_pack.ui,
   execute: () => ({ result: Math.E })
 });
 

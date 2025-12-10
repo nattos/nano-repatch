@@ -94,14 +94,10 @@ export interface NodeType {
     displayName?: string;
   } | null;
 
-  /**
-   * Lazy-loaded UI components.
-   * If present, these functions return promises that resolve to the renderer functions.
-   */
   ui?: {
     body?: () => Promise<(node: GridNode, handlers: GraphNodeRenderHandlers) => unknown>;
     getBodyHeight?: () => Promise<(node: GridNode) => number>;
-    inspector?: () => Promise<(node: GridNode, onchange: InspectorChangeHandler) => unknown>;
+    inspector?: (() => Promise<(node: GridNode, onchange: InspectorChangeHandler) => unknown>) | { fields: any[] };
     inputEditor?: () => Promise<(node: GridNode, portName: string, handlers: GraphNodeRenderHandlers) => unknown>;
     getInputEditorHeight?: () => Promise<(node: GridNode, portName: string) => number>;
   };
@@ -660,6 +656,8 @@ defaultNodeRepository.register({
   outputs: [
       { name: 'result', type: AnyType, description: 'Record' }
   ],
+  ui: primitive_pack.ui,
+  shouldRecompileOnConfigChange: () => true,
 });
 
 defaultNodeRepository.register({

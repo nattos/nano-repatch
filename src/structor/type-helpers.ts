@@ -8,7 +8,8 @@ import {
   ExecutionContext,
   Structor,
   BroadcastConfig,
-  NodeMetadata
+  NodeMetadata,
+  AnalysisContext
 } from './structor';
 
 export const NumberType = { kind: 'atomic' as const, type: 'number' as const, defaultValue: 0 };
@@ -174,6 +175,24 @@ export interface TypedNodeOptions<
   reshape?: 'none' | 'vector';
   onMessage?: (state: TState, message: any) => void;
 
+  computeBackwardPorts?: (
+    outputRequirements: RecordType,
+    config: Structor,
+    context: AnalysisContext,
+  ) => {
+    inputRequirements: RecordType;
+    backwardMetadata?: any;
+  };
+
+  computeForwardPorts?: (
+    inputTypes: RecordType,
+    config: Structor,
+    context: AnalysisContext,
+    backwardMetadata?: any,
+  ) => { inputs: RecordType; outputs: RecordType };
+
+  ui?: any;
+
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
     config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
@@ -208,7 +227,10 @@ export function definePrimitiveNode<
     configType,
     isRealtime: options.isRealtime,
     onMessage: options.onMessage,
+    computeBackwardPorts: options.computeBackwardPorts,
+    computeForwardPorts: options.computeForwardPorts,
     computeOutputTypes: () => outputType,
+    ui: options.ui,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
       const processedConfig = fromStructor(rawConfig, configType);

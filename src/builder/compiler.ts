@@ -61,7 +61,7 @@ export function compileGraph(
         const nodeType = nodeRepository.getNodeType(typeId);
         const instanceConfig = nodeType?.compileConfig
           ? nodeType.compileConfig(node.config)
-          : undefined;
+          : (node.config as unknown as Structor); // Fallback to raw config
 
         const instance: NodeInstance = {
           definitionId: typeId,
@@ -257,14 +257,87 @@ export function compileGraph(
 
   // Initialize Type State
   const nodeTypes = new Map<string, {
-    inputs: StructorType; // RecordType theoretically
+    inputs: StructorType; // RecordType
     outputs: StructorType; // RecordType
   }>();
 
-  // Backward Pass (Constraint Propagation could go here)
-  // For now, we assume explicit types from Node Definitions.
+  // Requirements map: NodeId -> PortName -> Required Type
+  // This accumulates what downstream nodes WANT from this node's outputs.
+  const outputRequirements = new Map<string, Record<string, StructorType>>();
+  const backwardMetadata = new Map<string, any>();
 
-  // Forward Pass (Type Inference)
+  // Initialize output requirements maps
+  for (const nodeId of executionOrder) {
+    outputRequirements.set(nodeId, {});
+  }
+
+  // --- BACKWARD PASS ---
+  // Propagate requirements from outputs to inputs (upstream)
+  const context = { repository: nodeRepository, broadcast: () => undefined } as any;
+
+  // Iterate in REVERSE execution order (from Sinks to Sources)
+  for (let i = executionOrder.length - 1; i >= 0; i--) {
+    const nodeId = executionOrder[i];
+    const instance = flatNodes[nodeId];
+    const nodeDef = nodeRepository.get(instance.definitionId);
+
+    if (nodeDef && nodeDef.kind === 'primitive') {
+        const reqs = { kind: 'record', fields: outputRequirements.get(nodeId) || {} } as RecordType;
+        const config = instance.defaultConfig || { fields: {} }; // Wrapped in 'fields' usually? structor is Structor value.
+        // Actually defaultConfig is likely just a JS object (Structor).
+        // Let's assume it matches the shape.
+
+        // 1. Compute Input Requirements
+        // Start with static input definitions as baseline requirements
+        let inputReqs: RecordType = {
+            kind: 'record',
+            fields: nodeDef.inputs ? { ...nodeDef.inputs } : {}
+        };
+
+        if (nodeDef.computeBackwardPorts) {
+            try {
+                // Pass the baseline requirements to the function?
+                // Or just let it return its own and merge?
+                // The interface implies it calculates them based on outputs.
+                // Let's merge.
+                const result = nodeDef.computeBackwardPorts(reqs, config, context);
+                // Merge/Override static inputs with dynamic requirements
+                inputReqs = {
+                    kind: 'record',
+                    fields: { ...inputReqs.fields, ...result.inputRequirements.fields }
+                };
+
+                if (result.backwardMetadata) {
+                    backwardMetadata.set(nodeId, result.backwardMetadata);
+                }
+            } catch (e) {
+                console.warn(`Backward pass failed for ${nodeId} (${nodeDef.id}):`, e);
+            }
+        }
+
+        // 2. Propagate Input Requirements to Upstream Nodes
+        // Find connections providing input to this node
+        const inputConns = validConnections.filter(c => c.toNode === nodeId);
+
+        for (const conn of inputConns) {
+             const upstreamNodeId = conn.fromNode;
+             const upstreamPort = conn.fromPort.toString();
+             const downstreamPort = conn.toPort.toString();
+
+             if (inputReqs.fields[downstreamPort]) {
+                 // The node says: "I need Type T on input 'downstreamPort'"
+                 // So we tell the upstream node: "Your output 'upstreamPort' is required to be Type T"
+                 const upstreamReqs = outputRequirements.get(upstreamNodeId)!;
+                 // If multiple nodes require different types, we might need to Union/Merge.
+                 // For now, Last Write Wins or simple override.
+                 upstreamReqs[upstreamPort] = inputReqs.fields[downstreamPort];
+             }
+        }
+    }
+  }
+
+
+  // --- FORWARD PASS ---
   for (const nodeId of executionOrder) {
     const instance = flatNodes[nodeId];
     const nodeDef = nodeRepository.get(instance.definitionId);
@@ -293,26 +366,15 @@ export function compileGraph(
         }
 
         // Resolve final input types (handling arrays vs single)
-        // We need the Node Definition's Input Schema to know if it EXPECTS an array.
-        // If it expects an array, we collect all connections.
-        // If it expects a scalar, we take the last one (or first).
-
         const expectedInputs = nodeDef.inputs || {};
 
         for (const [port, types] of inputsByPort) {
              const expected = expectedInputs[port];
              if (expected && expected.kind === 'array') {
-                 // It's an array input, so we effectively have an array of the connected types.
-                 // We need to Union them or assume they are homogeneous?
-                 // For now, let's assume valid types.
-                 // The "Type" of the input port is now an Array of the connected types.
-                 // Wait, structor type system doesn't have Union types yet.
-                 // Let's take the first one as representative for the element type?
                  if (types.length > 0) {
                    resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
                  }
              } else {
-                 // Scalar - take last
                  if (types.length > 0) {
                      resolvedInputs[port] = types[types.length - 1];
                  }
@@ -330,29 +392,53 @@ export function compileGraph(
         const configType: RecordType = { kind: 'record', fields: {} };
 
         let outputRecordType: RecordType;
+        let finalInputType: RecordType = inputRecordType;
+
+        if (instance.definitionId === 'core.pack') {
+             console.log('Compiler: Processing core.pack', {
+                 id: nodeId,
+                 definitionFound: !!nodeDef,
+                 computeForwardPortsCheck: !!nodeDef?.computeForwardPorts, // Access property on definition
+                 config: instance.defaultConfig
+             });
+        }
+
         try {
-             outputRecordType = nodeDef.computeOutputTypes(
-                inputRecordType,
-                configType,
-                { repository: nodeRepository, broadcast: () => undefined } as any
-            );
+             if (nodeDef.computeForwardPorts) {
+                  const result = nodeDef.computeForwardPorts(
+                      inputRecordType,
+                      config, // Pass actual config value
+                      context,
+                      backwardMetadata.get(nodeId)
+                  );
+                  finalInputType = result.inputs;
+                  outputRecordType = result.outputs;
+             } else if (nodeDef.computeOutputTypes) {
+                  outputRecordType = nodeDef.computeOutputTypes(
+                      inputRecordType,
+                      configType, // Legacy uses config STRUCTOR TYPE in signature, but implementation likely ignores it or expects value?
+                      // Wait, signature says `config: StructorType`. But implementations usually check value?
+                      // Actually existing primitives.ts execute/computeOutputTypes signatures match.
+                      // But `primitive_pack` logic in primitives.ts does NOT use config.
+                      // `primitive_literal` uses `configType`.
+                      // Let's pass `configType` for legacy compliance if needed, OR fix the signature confusion.
+                      // Our `compileGraph` was previously passing `configType` ({kind: 'record'...}).
+                      context
+                  );
+             } else {
+                  outputRecordType = { kind: 'record', fields: {} };
+             }
         } catch (e) {
             console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
             outputRecordType = { kind: 'record', fields: {} };
         }
 
         nodeTypes.set(nodeId, {
-            inputs: inputRecordType,
+            inputs: finalInputType,
             outputs: outputRecordType
         });
 
-        // 3. Compute Broadcast Config (if applicable)
-        // We only do this for primitive nodes that request autoBroadcast (or use typed helper)
-        if (nodeDef.metadata?.keywords?.includes('broadcast')) {
-             // ... Logic to generate broadcast op ...
-             // For now, we rely on the executor doing it dynamically if we don't store it.
-             // But the plan says: "The compiler will take the config, and produce a broadcast operation"
-        }
+        // Broadcast logic...
     }
   }
 

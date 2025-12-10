@@ -1,5 +1,5 @@
 
-import { GraphDefinition, Structor, StructorRecord, ExecutionContext, PrimitiveNodeDefinition } from "./structor";
+import { GraphDefinition, Structor, StructorRecord, ExecutionContext, PrimitiveNodeDefinition, StructorType } from "./structor";
 import { NodeRepository } from "./repository";
 import { broadcast } from "./broadcast";
 
@@ -14,56 +14,42 @@ export interface NodeState {
 export class GraphExecutor {
   private nodeStates: Map<string, NodeState> = new Map();
   private executionOrder: string[] = [];
-  private downstreamMap: Map<string, string[]> = new Map();
   private graphInputs: Map<string, Structor> = new Map();
   private userNodeStates: Map<string, any> = new Map();
   private inspectedInputs: Map<string, StructorRecord> = new Map();
+  private inferredNodeTypes: Record<string, { inputs: StructorType, outputs: StructorType }> | undefined;
+  private downstreamMap: Map<string, string[]> = new Map();
 
   get graphNodeCount() {
     return this.executionOrder.length;
   }
 
-  constructor(private graph: GraphDefinition, private repository: NodeRepository, initialStates?: Map<string, NodeState>) {
-    this.buildDependencyMaps();
+  constructor(
+      private graph: GraphDefinition,
+      private repository: NodeRepository,
+      initialStates?: Map<string, NodeState>,
+      inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>
+  ) {
+    this.inferredNodeTypes = inferredNodeTypes;
+    this.executionOrder = graph.executionOrder || [];
+
+    // Build downstream map for dirty propagation
+    for (const conn of graph.connections) {
+      if (!this.downstreamMap.has(conn.fromNode)) {
+        this.downstreamMap.set(conn.fromNode, []);
+      }
+      this.downstreamMap.get(conn.fromNode)!.push(conn.toNode);
+    }
+
     this.initializeStates(initialStates);
   }
 
-  private buildDependencyMaps() {
-    const nodeIds = Object.keys(this.graph.nodes);
-    const inDegree: Map<string, number> = new Map();
+  // private compile() { ... } // Removed
 
-    for (const nodeId of nodeIds) {
-      this.downstreamMap.set(nodeId, []);
-      inDegree.set(nodeId, 0);
-    }
-
-    for (const conn of this.graph.connections) {
-      this.downstreamMap.get(conn.fromNode)?.push(conn.toNode);
-      inDegree.set(conn.toNode, (inDegree.get(conn.toNode) || 0) + 1);
-    }
-
-    const queue: string[] = [];
-    for (const nodeId of nodeIds) {
-      if (inDegree.get(nodeId) === 0) {
-        queue.push(nodeId);
-      }
-    }
-
-    while (queue.length > 0) {
-      const u = queue.shift()!;
-      this.executionOrder.push(u);
-      for (const v of this.downstreamMap.get(u) || []) {
-        inDegree.set(v, (inDegree.get(v) || 0) - 1);
-        if (inDegree.get(v) === 0) {
-          queue.push(v);
-        }
-      }
-    }
-
-    if (this.executionOrder.length !== nodeIds.length) {
-      throw new Error("Graph contains a cycle");
-    }
+  public getInferredNodeTypes() {
+      return this.inferredNodeTypes;
   }
+
 
   private initializeStates(initialStates?: Map<string, NodeState>) {
     for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {

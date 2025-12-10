@@ -37,6 +37,7 @@ export type CompilerMainMessage = GraphCompiledMessage | ConfigsCompiledMessage;
 export type InitGraphMessage = {
   type: 'INIT_GRAPH';
   graph: GraphDefinition;
+  inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>; // Added
   isRecompilation?: boolean;
 };
 
@@ -100,4 +101,9 @@ export interface ExecutionUpdateMessage {
 }
 
 // Maps are supported in structured clone (postMessage) in modern browsers.
-export type ExecutorMainMessage = ExecutionUpdateMessage;
+export interface InferredTypesMessage {
+  type: 'INFERRED_TYPES';
+  inferredNodeTypes: Record<string, { inputs: StructorType; outputs: StructorType }>;
+}
+
+export type ExecutorMainMessage = ExecutionUpdateMessage | InferredTypesMessage;

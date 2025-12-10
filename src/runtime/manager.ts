@@ -16,7 +16,8 @@ import {
   ExecutorMainMessage,
   GraphCompiledMessage,
   ConfigsCompiledMessage,
-  ExecutionUpdateMessage
+  ExecutionUpdateMessage,
+  InferredTypesMessage
 } from '../workers/types';
 import { AudioRenderer } from '../audio/audio-renderer';
 import { midiManager } from '../io/midi/manager';
@@ -192,8 +193,20 @@ export class RuntimeManager {
       const msg = event.data;
       if (msg.type === 'EXECUTION_UPDATE') {
         this.handleExecutionUpdate(msg);
+      } else if (msg.type === 'INFERRED_TYPES') {
+        this.handleInferredTypes(msg);
       }
     };
+  }
+
+  private handleInferredTypes(msg: InferredTypesMessage) {
+      runInAction(() => {
+          if (msg.inferredNodeTypes) {
+              for (const [nodeId, types] of Object.entries(msg.inferredNodeTypes)) {
+                  this.localController.observableState.inferredNodeTypes.set(nodeId, types);
+              }
+          }
+      });
   }
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
@@ -201,6 +214,7 @@ export class RuntimeManager {
     const initMsg: ExecutorWorkerMessage = {
       type: 'INIT_GRAPH',
       graph: msg.graph,
+      inferredNodeTypes: msg.inferredTypes,
       isRecompilation: this.hasLoadedGraph
     };
     this.hasLoadedGraph = true;
@@ -321,10 +335,20 @@ export class RuntimeManager {
     }
 
     if (nodesToSend.length > 0) {
-      this.compilerWorker.postMessage({
-        type: 'COMPILE_CONFIGS',
-        nodes: nodesToSend
+      const needsFullRecompile = nodesToSend.some(n => {
+        const type = this.nodeRepository.getNodeType(n.typeId);
+        return type?.shouldRecompileOnConfigChange?.(n.config) ?? false;
       });
+
+      if (needsFullRecompile) {
+        console.log('RuntimeManager: Config change triggered full recompile', nodesToSend.map(n => n.id));
+        this.recompileAndRun();
+      } else {
+        this.compilerWorker.postMessage({
+          type: 'COMPILE_CONFIGS',
+          nodes: nodesToSend
+        });
+      }
     }
   }
 

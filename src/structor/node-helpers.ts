@@ -20,7 +20,8 @@ export type InspectorFieldDef =
   | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number }
   | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number }
   | { type: 'boolean'; label: string; path: string }
-  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[] };
+  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[] }
+  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[] };
 
 export interface GenericInspector {
   fields: InspectorFieldDef[];

@@ -46,7 +46,7 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         oldInputs = executor.getInputs();
       }
 
-      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates);
+      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates, msg.inferredNodeTypes);
 
       if (userNodeStates) {
         executor.setUserNodeStates(userNodeStates);
@@ -59,12 +59,24 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       }
 
       // Lazy connect resolume
-      resolumeManager.connect();
+      // resolumeManager.connect();
 
       // Reset audio context ONLY on new graph load (not recompilation)
       if (!msg.isRecompilation) {
           virtualAudioContext.reset();
       }
+      // Send inferred types back to main thread
+      // We can just use the ones we received if we wanted to echo, but GraphExecutor stores them now.
+      const inferredTypes = executor.getInferredNodeTypes();
+      if (inferredTypes) {
+        // We need to sanitize/serialize the Map
+        // MessagePort maps are fine? Structured clone should handle Map and objects.
+        self.postMessage({
+            type: 'INFERRED_TYPES',
+            inferredNodeTypes: inferredTypes
+        });
+      }
+
       break;
 
     case 'UPDATE_CONFIG':

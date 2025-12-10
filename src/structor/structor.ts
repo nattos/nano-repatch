@@ -137,8 +137,37 @@ export interface PrimitiveNodeDefinition {
   configType?: StructorType;
   inputs?: Record<string, StructorType & { redirect?: string }>; // Exposed for reflection (e.g. tests)
 
-  /** Static analysis function: computes output types from input types. */
-  computeOutputTypes: (
+  /**
+   * BACKWARD PASS: Computes the constraints this node places on its inputs,
+   * based on the requirements placed on its outputs by downstream nodes.
+   * @param outputRequirements The types/constraints expected by downstream nodes.
+   */
+  computeBackwardPorts?: (
+    outputRequirements: RecordType,
+    config: Structor,
+    context: AnalysisContext,
+  ) => {
+    inputRequirements: RecordType;
+    // Arbitrary data to pass to the forward pass (e.g. "I decided to be vec3")
+    backwardMetadata?: any;
+  };
+
+  /**
+   * FORWARD PASS: Computes the final canonical input and output types.
+   * Can use the metadata from the backward pass.
+   */
+  computeForwardPorts?: (
+    inputTypes: RecordType,
+    config: Structor,
+    context: AnalysisContext,
+    backwardMetadata?: any,
+  ) => { inputs: RecordType; outputs: RecordType };
+
+  /**
+   * @deprecated Use computeForwardPorts instead.
+   * Static analysis function: computes output types from input types.
+   */
+  computeOutputTypes?: (
     inputType: RecordType,
     config: StructorType,
     context: AnalysisContext,
@@ -149,12 +178,19 @@ export interface PrimitiveNodeDefinition {
     input: StructorRecord,
     config: Structor,
     context: ExecutionContext,
+    state?: any // State is allowed in Enhanced definition
   ) => ExecuteResult;
 
   isRealtime?: (config: Structor) => boolean;
 
   /** Optional handler for realtime messages from UI */
   onMessage?: (state: any, message: any) => void;
+
+  /**
+   * Optional UI definition for the node.
+   * Can contain inspector fields, body renderers, etc.
+   */
+  ui?: any;
 }
 
 /**
