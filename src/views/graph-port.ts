@@ -34,6 +34,16 @@ export class GraphPort extends MobxLitElement {
       cursor: pointer;
       transition: background-color 0.2s, transform 0.2s;
       z-index: 10;
+      position: relative; /* Ensure pseudo-element positioning */
+    }
+
+    .port::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -4px;
+        right: -4px;
+        bottom: -6px;
     }
 
     .port:hover {

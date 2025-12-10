@@ -458,7 +458,6 @@ export class GraphGrid extends MobxLitElement {
   @property({ type: String })
   activeTool: 'select' | 'pan' = 'select';
 
-  @state()
   private ghostTarget: { x: number, y: number } | null = null;
 
   @state()
@@ -481,19 +480,49 @@ export class GraphGrid extends MobxLitElement {
       () => localController.observableState.inflightPortConnectionOperation,
       (op) => {
         if (op) {
+          // Calculate start position immediately
+          // We need to wait for render? No, op change triggers render, but we want to set coords now.
+          // The SVG exists (it's always there, just hidden/shown).
+          // We might need to wait a tick for 'display: block' to be applied?
+          // No, attributes work even if hidden.
+
+          requestAnimationFrame(() => {
+              const nodeEl = this.shadowRoot?.querySelector(`graph-node[data-id="${op.nodeId}"]`) as HTMLElement;
+              const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
+
+              if (nodeEl && lineEl) {
+                  const nodeRect = nodeEl.getBoundingClientRect();
+                  const gridRect = this.getBoundingClientRect();
+                  const nodeX = nodeRect.left - gridRect.left + this.scrollLeft;
+                  const nodeY = nodeRect.top - gridRect.top + this.scrollTop;
+                  const portY = this.getNodePortY(op.nodeId, op.port, op.type === 'in');
+
+                  let startX = nodeX;
+                  if (op.type === 'out') {
+                      startX += nodeRect.width;
+                  }
+                  const startY = nodeY + portY - 8;
+
+                  lineEl.setAttribute('x1', String(startX));
+                  lineEl.setAttribute('y1', String(startY));
+                  lineEl.setAttribute('x2', String(startX)); // Init to start
+                  lineEl.setAttribute('y2', String(startY));
+              }
+          });
+
           // Verify we have handlers attached
           if (!this._pointerMoveHandler) {
              this._pointerMoveHandler = (e: PointerEvent) => {
-                 const rect = this.getBoundingClientRect();
-                 // Calculate relative position in pixels, but we render in grid units?
-                 // No, wires are rendered in CSS grid, but ghost wire might be absolute overlay.
-                 // Actually, existing wires use grid columns/rows.
-                 // We can render ghost wire as an absolute SVG or div on top.
-                 // Let's get pixel coordinates relative to container.
-                 this.ghostTarget = {
-                     x: e.clientX - rect.left,
-                     y: e.clientY - rect.top
-                 };
+                 const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
+                 if (lineEl) {
+                     const rect = this.getBoundingClientRect();
+                     // Calculate target position relative to grid
+                     const targetX = (e.clientX - rect.left) + this.scrollLeft;
+                     const targetY = (e.clientY - rect.top) + this.scrollTop;
+
+                     lineEl.setAttribute('x2', String(targetX));
+                     lineEl.setAttribute('y2', String(targetY));
+                 }
              };
              this.addEventListener('pointermove', this._pointerMoveHandler);
           }
@@ -1190,67 +1219,22 @@ export class GraphGrid extends MobxLitElement {
 
   private renderGhostWire() {
     const op = localController.observableState.inflightPortConnectionOperation;
-    if (!op || !this.ghostTarget) return null;
+    // Always render the container, but hide/show contents based on op
+    // We update the line coordinates manually in _pointerMoveHandler for performance.
 
-    // Find source node element
-    const nodeEl = this.shadowRoot?.querySelector(`graph-node[data-id="${op.nodeId}"]`) as HTMLElement;
-    if (!nodeEl) return null;
+    // Initial start position calculation (done once per op start, or if op changes)
+    // We can't easily do it "once" here because this is render loop.
+    // But we can render the line visible if op exists.
 
-    const nodeRect = nodeEl.getBoundingClientRect();
-    const gridRect = this.getBoundingClientRect();
+    // Actually, to avoid calculating startX/Y in render loop, we should calculate it in the reaction?
+    // But we need DOM Access to getBoundingClientRect.
+    // Let's keep it simple: Render the SVG if op exists.
+    // The Line attributes will be set by render initially?
+    // No, if we stop re-rendering, we must set them manually.
 
-    // Relative position of node
-    const nodeX = nodeRect.left - gridRect.left + this.scrollLeft;
-    const nodeY = nodeRect.top - gridRect.top + this.scrollTop;
-
-    // Port Offset
-    const portY = this.getNodePortY(op.nodeId, op.port, op.type === 'in');
-
-    // Start Point
-    // Input port on left, Output port on right
-    // Actually, visually:
-    // Input column: Output is on Right.
-    // Node Inputs: Left.
-    // Node Outputs: Right.
-    // Output column: Input is on Left.
-
-    // If op.type === 'out', we draw from Right side.
-    // If op.type === 'in', we draw from Left side.
-
-    let startX = nodeX;
-    if (op.type === 'out') {
-        startX += nodeRect.width;
-    }
-    // If op.type is 'in' (dragging FROM an input? e.g. re-wiring or something),
-    // usually we drag FROM output.
-    // But we support dragging from input port to output port too?
-    // Yes, port drag lets you start from either.
-
-    const startY = nodeY + portY - 8; // Adjust for port center?
-    // getNodePortY returns center Y relative to node top?
-    // "Y = 24 + 8 + (index * 24) + 12" -> This is center of row.
-    // GraphNode header is 24px + 8px padding?
-    // Let's verify visual alignment.
-    // GraphNode renders port at: top: 32px + index*24.
-    // getNodePortY returns: 32 + index*24 + 12. Correct.
-    // But we need to subtract scrollTop from ghostTarget calculation if we included it above?
-    // this.ghostTarget includes scroll?
-    // In pointermove: clientX - rect.left. This is viewport relative?
-    // No, rect.left is element left.
-    // If element is scrolled, clientX is still visual.
-    // But we handle `scrollLeft` in nodeX calculation.
-    // So we need to add `scrollLeft` to ghostTarget too?
-    // e.clientX is screen coord.
-    // ghostTarget X = e.clientX - rect.left. This is "offset in client area".
-    // If we want "absolute grid coordinates", we must Add Scroll.
-
-    const targetX = this.ghostTarget.x + this.scrollLeft;
-    const targetY = this.ghostTarget.y + this.scrollTop;
-
-    // SVG line
     return html`
-        <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: visible;">
-            <line x1="${startX}" y1="${startY}" x2="${targetX}" y2="${targetY}" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2" stroke-dasharray="4" />
+        <svg id="ghost-wire-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: visible; display: ${op ? 'block' : 'none'};">
+            <line id="ghost-wire-line" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255, 255, 255, 0.5)" stroke-width="2" stroke-dasharray="4" />
         </svg>
     `;
   }

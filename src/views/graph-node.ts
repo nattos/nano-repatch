@@ -204,6 +204,7 @@ export class GraphNode extends MobxLitElement {
       white-space: nowrap;
       overflow: hidden;
       padding: 0 var(--node-padding-x); /* Align with port labels */
+      cursor: crosshair; /* Hint at interaction */
     }
 
     .node-title.editing {
@@ -413,6 +414,73 @@ export class GraphNode extends MobxLitElement {
     return html`<div class="debug-chip-wrapper">${formatValue(value, type)}</div>`;
   }
 
+  private handlePointerUp(e: PointerEvent) {
+    // Check if we are dropping a connection onto the node header/body (not specific port)
+    const { inflightPortConnectionOperation } = localController.observableState;
+    if (inflightPortConnectionOperation && inflightPortConnectionOperation.nodeId !== this.node.id) {
+         // Auto-connect logic
+         // If dragging Output -> Connect to First Input
+         // If dragging Input -> Connect to First Output
+
+         const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+         let targetPortName: string | null = null;
+         let targetPortType: 'in' | 'out' | null = null;
+
+         if (inflightPortConnectionOperation.type === 'out') {
+             // Connect to Input
+             // Find first compatible input? Or just first input.
+             // For now, first input.
+             // Verify dynamic ports?
+             // Use inferred types if available (handled in render, but logic should use same source).
+             // Let's use nodeType inputs for now, or check inferred.
+             // Accessing inferred inputs is safer for dynamic nodes.
+             const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
+             // But inferred inputs only show connected ones usually?
+             // Actually, inferred inputs logic in render merges static + dynamic.
+             // Let's use the static definition first, it's safer for "first port".
+             const inputs = nodeType?.inputs || [];
+             if (inputs.length > 0) {
+                 targetPortName = inputs[0].name;
+                 targetPortType = 'in';
+             }
+         } else {
+             // Connect to Output
+             const outputs = nodeType?.outputs || [];
+             if (outputs.length > 0) {
+                 targetPortName = outputs[0].name;
+                 targetPortType = 'out';
+             }
+         }
+
+         if (targetPortName && targetPortType) {
+             e.stopPropagation(); // Handle it!
+
+             if (inflightPortConnectionOperation.type === 'out') {
+                 // Dragged Out -> In
+                 appController.createConnection(
+                     inflightPortConnectionOperation.nodeId,
+                     inflightPortConnectionOperation.port,
+                     this.node.id,
+                     targetPortName
+                 );
+             } else {
+                 // Dragged In -> Out (Reverse connection)
+                 // inflight (Input) is the Destination
+                 // this.node (Output) is the Source
+                 appController.createConnection(
+                     this.node.id,
+                     targetPortName,
+                     inflightPortConnectionOperation.nodeId,
+                     inflightPortConnectionOperation.port
+                 );
+             }
+
+             localController.setInflightPortConnectionOperation(null);
+             return;
+         }
+    }
+  }
+
   private handlePointerDown(e: PointerEvent) {
     // Ignore if clicking on a port or virtual input field
     // We need to check composed path because the target might be inside the shadow DOM of the input
@@ -509,12 +577,14 @@ export class GraphNode extends MobxLitElement {
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('pointerdown', this.handlePointerDown);
+    this.addEventListener('pointerup', this.handlePointerUp);
     this.addEventListener('click', this.handleClick as EventListener);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('pointerdown', this.handlePointerDown);
+    this.removeEventListener('pointerup', this.handlePointerUp);
     this.removeEventListener('click', this.handleClick as EventListener);
   }
 
@@ -1103,7 +1173,7 @@ export class GraphNode extends MobxLitElement {
                             title="${input.description}"
                           ></scalar-slider>
                         `
-                      : html`
+                      : (input.type.kind === 'atomic' && input.type.type === 'string') ? html`
                           <input
                             id="${this.node.id}-${input.name}-virtual-input"
                             type="text"
@@ -1113,6 +1183,10 @@ export class GraphNode extends MobxLitElement {
                             class="virtual-input-field"
                             title="${input.description}"
                           />
+                        ` : html`
+                          <div class="virtual-input-field" style="color: var(--text-muted); font-size: 10px; padding: 0 5px;">
+                            ${(input.type as any).hint || (input.type.kind === 'atomic' ? input.type.type : input.type.kind)}
+                          </div>
                         `}
                     <div class="slider-label" title="${outputName}">${outputName}</div>
                   </div>

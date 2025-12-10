@@ -8,6 +8,7 @@ export class ResolumeManager {
   client: ResolumeClient;
   state: ResolumeComposition;
   ws: ResolumeWebSocket | null = null;
+  isConnecting = false;
 
   private parameterMap: Map<string, ResolumeParameter> = new Map();
   private subscriptions: Map<string, Map<any, ((value: any) => void) | undefined>> = new Map();
@@ -59,9 +60,10 @@ export class ResolumeManager {
   }
 
   async connect() {
-    if (this.isConnected) {
+    if (this.isConnected || this.isConnecting) {
       return;
     }
+    this.isConnecting = true;
     console.log('[ResolumeManager] Connecting...');
     try {
       const info = await this.client.getProductInfo();
@@ -70,10 +72,14 @@ export class ResolumeManager {
       this.ws = this.client.connectWebSocket(
         (data) => this.handleMessage(data),
         (err) => console.error('[ResolumeManager] WS Error:', err),
-        () => console.log('[ResolumeManager] WS Closed')
+        () => {
+             console.log('[ResolumeManager] WS Closed');
+             this.isConnecting = false;
+        }
       );
     } catch (e) {
       console.error('[ResolumeManager] Connection failed:', e);
+      this.isConnecting = false;
     }
   }
 
