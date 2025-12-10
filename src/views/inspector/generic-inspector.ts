@@ -92,17 +92,17 @@ const renderSelectField = (node: GridNode, field: Extract<InspectorFieldDef, { t
   </div>
 `;
 
-import '../../views/inspector-tab-bar';
+import '../../views/ui-option-bar';
 
 const renderTabBarField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'tab-bar' }>, onchange: InspectorChangeHandler) => html`
   <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
     <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
     <div style="flex: 1; margin-left: 8px;">
-      <inspector-tab-bar
+      <ui-option-bar
         .value=${getValue(node, field.path, field.options[0]?.value)}
         .options=${field.options}
         @change=${(e: CustomEvent) => onchange({ [field.path]: e.detail.value })}
-      ></inspector-tab-bar>
+      ></ui-option-bar>
     </div>
   </div>
 `;

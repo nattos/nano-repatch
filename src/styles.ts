@@ -67,6 +67,21 @@ export const globalStyles = [
     font-size: 16px;
   }
 
+  input[type="text"], input[type="number"], select {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: 14px;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+  }
+
   .ui-list {
     display: flex;
     flex-direction: column;
