@@ -603,13 +603,69 @@ const defineAllNode = (
   return definePrimitiveNode({
     id,
     metadata: { category, description: `Apply ${id.split('.').pop()} to all inputs.` },
-    inputs: { values: { kind: 'array', element: numberType, size: 'dynamic' } },
-    outputs: { result: numberType },
-    autoBroadcast: { values: { combine: 'collect' } },
+    // Allow multi-connection to collect multiple inputs into an array
+    inputs: { values: { kind: 'array', element: numberType, size: 'dynamic', allowMultiConnection: true } },
+    outputs: { result: numberType }, // Output is dynamic (scalar or vector)
     execute: (inputs) => {
-      const values = (inputs.values as any[]).flat();
-      if (values.length === 0) return { result: 0 };
-      return { result: values.reduce(op) };
+      // console.log('AllNode Execute:', id, JSON.stringify(inputs));
+      const values = inputs.values as any[];
+      if (!values || values.length === 0) return { result: 0 };
+
+      // Check if first element is array
+      const firstIsArray = Array.isArray(values[0]);
+
+      if (firstIsArray) {
+          // Vector mode
+          // Assume all are same length arrays for now (or taking min length)
+          const length = values[0].length;
+          const result = new Array(length);
+
+          for (let i = 0; i < length; i++) {
+              let val = values[0][i];
+              for (let j = 1; j < values.length; j++) {
+                  // Handle mixed scalar/vector by broadcasting scalar
+                  const operand = Array.isArray(values[j]) ? values[j][i] : values[j];
+                  val = op(val, operand);
+              }
+              result[i] = val;
+          }
+          return { result };
+      } else {
+          // Scalar mode (or mixed starting with scalar)
+          // Just reduce normally, handling mixed if they appear later?
+          // If scalar + vector: 1 + [10, 20] -> [11, 21]?
+          // The current reduce might not handle returning an array if accumulator becomes one.
+          // Let's iterate explicitly to support broadcasting.
+
+           let accumulator: any = values[0];
+
+           for (let i = 1; i < values.length; i++) {
+               const b = values[i];
+
+               if (Array.isArray(accumulator)) {
+                   // Accumulator is vector
+                   const len = accumulator.length;
+                   const next = new Array(len);
+                   for(let k=0; k<len; k++) {
+                       const operand = Array.isArray(b) ? b[k] : b;
+                       next[k] = op(accumulator[k], operand);
+                   }
+                   accumulator = next;
+               } else if (Array.isArray(b)) {
+                    // Accumulator is scalar, B is vector -> broadcast accumulator
+                    const len = b.length;
+                    const next = new Array(len);
+                    for(let k=0; k<len; k++) {
+                        next[k] = op(accumulator, b[k]);
+                    }
+                    accumulator = next;
+               } else {
+                   // Both scalar
+                   accumulator = op(accumulator, b);
+               }
+           }
+           return { result: accumulator };
+      }
     }
   });
 };

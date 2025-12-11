@@ -76,6 +76,14 @@ export class RuntimeManager {
       this.handleInputUpdates(updates);
     });
 
+    this.appController.onInferredTypesUpdate((inferredTypes) => {
+        runInAction(() => {
+            for (const [nodeId, types] of Object.entries(inferredTypes)) {
+                this.localController.observableState.inferredNodeTypes.set(nodeId, types);
+            }
+        });
+    });
+
     // Sync MIDI state to worker
     reaction(
       () => {
@@ -205,6 +213,12 @@ export class RuntimeManager {
               for (const [nodeId, types] of Object.entries(msg.inferredNodeTypes)) {
                   this.localController.observableState.inferredNodeTypes.set(nodeId, types);
               }
+
+              // Persist to graph state
+              this.appController.dispatch([{
+                  type: 'graph.updateInferredTypes',
+                  inferredTypes: msg.inferredNodeTypes
+              }]);
           }
       });
   }
@@ -393,11 +407,7 @@ export class RuntimeManager {
 
     // If not realtime, we should trigger a single execution step to update outputs
     if (!this.isRealtimeGraph) {
-      const stepMsg: ExecutorWorkerMessage = {
-        type: 'CONTROL',
-        action: 'STEP'
-      };
-      this.executorWorker.postMessage(stepMsg);
+      this.scheduleStep();
     }
   }
 
@@ -416,12 +426,38 @@ export class RuntimeManager {
 
     // Trigger step if not realtime
     if (!this.isRealtimeGraph) {
+      this.scheduleStep();
+    }
+  }
+
+  private stepScheduled = false;
+  private lastStepTime = 0;
+
+  private scheduleStep() {
+    if (this.stepScheduled) return;
+
+    const now = performance.now();
+    const timeSinceLast = now - this.lastStepTime;
+    const interval = 1000 / FRAME_RATE;
+
+    if (timeSinceLast >= interval) {
+        this.performStep();
+    } else {
+        this.stepScheduled = true;
+        setTimeout(() => {
+            this.performStep();
+            this.stepScheduled = false;
+        }, interval - timeSinceLast);
+    }
+  }
+
+  private performStep() {
+      this.lastStepTime = performance.now();
       const stepMsg: ExecutorWorkerMessage = {
         type: 'CONTROL',
         action: 'STEP'
       };
       this.executorWorker.postMessage(stepMsg);
-    }
   }
 
 

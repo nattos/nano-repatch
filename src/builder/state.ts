@@ -1,5 +1,6 @@
 import { observable, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
+import { StructorType } from '../structor/structor';
 
 // Enable Immer support for Map and Set
 enableMapSet();
@@ -49,6 +50,7 @@ export interface Connection {
 export interface GraphInnerState {
   nodes: Record<string, GridNode>;
   connections: Record<string, Connection>;
+  inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>;
 }
 
 // An editable graph, including the canonical graph and
@@ -82,7 +84,8 @@ export type AppMutation =
   | { type: 'graph.recompile' }
   | { type: 'graph.recompile' }
   | { type: 'graph.configUpdate', nodeIds: string[] }
-  | { type: 'graph.inputUpdate', nodeId: string, inputs: Record<string, any> };
+  | { type: 'graph.inputUpdate', nodeId: string, inputs: Record<string, any> }
+  | { type: 'graph.updateInferredTypes', inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> };
 
 export interface LongEditCallbacks {
   apply: (controller: AppController) => void;
@@ -139,6 +142,7 @@ export class AppController {
   private configChangeListeners: ((nodeIds: string[]) => void)[] = [];
   private inputUpdateListeners: ((updates: { nodeId: string, inputs: Record<string, any> }[]) => void)[] = [];
   private graphResetListeners: (() => void)[] = [];
+  private inferredTypesUpdateListeners: ((inferredTypes: Record<string, any>) => void)[] = [];
 
   constructor(initialState?: GraphInnerState) {
     const graphState = initialState || { nodes: {}, connections: {} };
@@ -197,6 +201,13 @@ export class AppController {
     this.graphResetListeners.push(listener);
     return () => {
       this.graphResetListeners = this.graphResetListeners.filter(l => l !== listener);
+    };
+  }
+
+  public onInferredTypesUpdate(listener: (inferredTypes: Record<string, any>) => void): () => void {
+    this.inferredTypesUpdateListeners.push(listener);
+    return () => {
+        this.inferredTypesUpdateListeners = this.inferredTypesUpdateListeners.filter(l => l !== listener);
     };
   }
 
@@ -336,6 +347,15 @@ export class AppController {
       for (const listener of this.inputUpdateListeners) {
         try { listener(inputUpdates); } catch (e) { console.error(e); }
       }
+    }
+
+    for(const mutation of mutations) {
+        if (mutation.type === 'graph.updateInferredTypes') {
+            for (const listener of this.inferredTypesUpdateListeners) {
+                try { listener(mutation.inferredTypes); } catch(e) { console.error(e); }
+            }
+            break;
+        }
     }
   }
 
@@ -679,6 +699,14 @@ export class AppController {
     }
 
     mutations.push({ type: 'graph.recompile' });
+
+    if (graphState.inferredNodeTypes) {
+        mutations.push({
+            type: 'graph.updateInferredTypes',
+            inferredTypes: graphState.inferredNodeTypes
+        });
+    }
+
     this.dispatch(mutations);
     // Clear undo stack after loading a new graph
     runInAction(() => {
@@ -798,6 +826,15 @@ export class AppController {
           // No state change, just a signal
           break;
         case 'graph.inputUpdate':
+          // No state change, just a signal
+          break;
+        case 'graph.updateInferredTypes':
+            if (!state.graph.inner.inferredNodeTypes) {
+                state.graph.inner.inferredNodeTypes = {};
+            }
+            // Merge new types
+            Object.assign(state.graph.inner.inferredNodeTypes, mutation.inferredTypes);
+            break;
           // No state change, just a signal
           break;
       }

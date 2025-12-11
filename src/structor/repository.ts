@@ -685,7 +685,7 @@ const registerAllNode = (id: string, displayName: string, def: any) => {
     displayName,
     definition: def,
     inputs: [
-      { name: '', type: { kind: 'array', element: NumberType, size: 'dynamic' }, description: 'Values to process.', suppressInputEditor: true, suppressLabel: true }
+      { name: 'values', type: { kind: 'array', element: NumberType, size: 'dynamic' }, description: 'Values to process.', suppressInputEditor: true, suppressLabel: true, allowMultiConnection: true }
     ],
     outputs: [
       { name: 'result', type: NumberType, description: 'Result' }

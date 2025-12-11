@@ -61,6 +61,16 @@ export class LocalController {
     this.settingsLoaded = this.loadSettings();
   }
 
+  public initializeInferredTypes(graph: GraphState) {
+    if (graph.inner.inferredNodeTypes) {
+        runInAction(() => {
+            for (const [nodeId, types] of Object.entries(graph.inner.inferredNodeTypes!)) {
+                this.observableState.inferredNodeTypes.set(nodeId, types);
+            }
+        });
+    }
+  }
+
   private async loadSettings() {
     const loaded = await settingsManager.loadSettings();
     if (loaded) {
