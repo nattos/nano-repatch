@@ -23,7 +23,7 @@ export class GraphPort extends MobxLitElement {
     :host {
       display: flex;
       align-items: center;
-      height: 20px;
+      height: var(--row-height, 24px);
     }
 
     .port {

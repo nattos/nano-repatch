@@ -46,9 +46,9 @@ export const globalStyles = [
     --accent-color: var(--app-hi-color1);
     --selection-color: rgba(255, 69, 0, 0.2); /* app-hi-color1 with opacity */
     --selection-border: rgba(255, 69, 0, 0.6); /* app-hi-color1 with opacity */
-    --port-color: #777; /* Lighter for visibility on dark transparencies */
-    --port-hover: #777;
-    --port-connected: #00ff00;
+    --port-color: #444; /* Dimmer for better contrast against dark nodes */
+    --port-hover: #555;
+    --port-connected: #4caf50; /* Softer green */
     --input-bg: #444;
     --button-bg: rgba(0, 0, 0, 0.2); /* Darker transparent to sit on gels */
     --button-hover: rgba(255, 255, 255, 0.05);

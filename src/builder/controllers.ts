@@ -25,6 +25,13 @@ reaction(
   { fireImmediately: true, delay: 50 } // Debounce slightly to avoid thrashing on drag
 );
 
+// Listen for inferred types updates and propagate to LocalController
+appController.onInferredTypesUpdate((inferredTypes) => {
+    localController.updateInferredTypes(inferredTypes, (nodeId) => {
+        return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
+    });
+});
+
 // Expose for E2E testing
 (window as any).testing = { appController, localController, runtimeManager, workspaceController };
 

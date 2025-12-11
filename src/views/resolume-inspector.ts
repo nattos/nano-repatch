@@ -4,6 +4,7 @@ import { MobxLitElement } from './mobx-lit-element';
 import { Selectable } from '../builder/local-state';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeEffect, ResolumeParameter } from '../io/resolume/state';
 import { resolumeManager } from '../io/resolume/manager';
+import { appController } from '../builder/controllers';
 
 @customElement('resolume-inspector')
 export class ResolumeInspector extends MobxLitElement {
@@ -386,11 +387,59 @@ export class ResolumeInspector extends MobxLitElement {
         class="parameter-row"
         draggable="true"
         @dragstart=${(e: DragEvent) => this.handleDragStart(e, param)}
+        @dblclick=${(e: MouseEvent) => this.handleDoubleClick(e, param)}
       >
         <span class="label" title="${param.path}">${param.name}</span>
         ${control}
       </div>
     `;
+  }
+
+  private handleDoubleClick(e: MouseEvent, param: ResolumeParameter) {
+    // 1. Find the graph-grid
+    const grid = document.querySelector('graph-grid');
+    if (!grid || !grid.shadowRoot) return;
+
+    // 2. Calculate center of viewport
+    const rect = grid.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // 3. Probe for cell at center
+    const elements = grid.shadowRoot.elementsFromPoint(centerX, centerY);
+    const cell = elements.find(el => (el as Element).classList?.contains('node-cell'));
+
+    if (cell && (cell as HTMLElement).dataset.x && (cell as HTMLElement).dataset.y) {
+       const x = parseInt((cell as HTMLElement).dataset.x || '0');
+       const y = parseInt((cell as HTMLElement).dataset.y || '0');
+
+       // Handle output/input column cases (though unusual for center, safety first)
+       let gridX = x;
+       if ((cell as HTMLElement).dataset.x === 'output') gridX = 20; // Fallback
+       if (x === 0 && (cell as HTMLElement).dataset.x !== '0') gridX = 20; // 'output' case parsed? NaN?
+       if ((cell as HTMLElement).dataset.x === 'output') {
+           gridX = 20;
+       }
+
+       // 4. Create Node
+       // Check for collision with existing nodes
+       const nodes = appController.getState().graph.inner.nodes;
+       let targetY = y;
+       let attempts = 0;
+       const maxAttempts = 10;
+
+       while (attempts < maxAttempts) {
+           const occupied = Object.values(nodes).some(n => n.x === gridX && n.y === targetY);
+           if (!occupied) break;
+           targetY++;
+           attempts++;
+       }
+
+       appController.createNode('resolume.output', gridX, targetY, { path: param.path });
+    } else {
+       // Fallback: Default to center-ish (e.g. 5, 5) if probing fails
+       appController.createNode('resolume.output', 5, 5, { path: param.path });
+    }
   }
 
   private renderRange(param: ResolumeParameter) {

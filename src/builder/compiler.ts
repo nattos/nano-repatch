@@ -89,13 +89,7 @@ export function compileGraph(
         // 1. Determine all potential input ports
         let inputPorts: { name: string, defaultValue?: any }[] = [];
         if (nodeType) {
-          if (nodeType.compilePorts) {
-            // Pass the compiled config (instanceConfig) to compilePorts
-            const ports = nodeType.compilePorts(node, { loadedSubgraphs, compiledConfig: instanceConfig });
-            if (ports) inputPorts = ports.inputs;
-          } else {
-            inputPorts = nodeType.inputs || [];
-          }
+          inputPorts = nodeType.inputs || [];
         }
 
         // 2. Collect all port names to process (defined inputs + any extra keys in config.values)
@@ -273,7 +267,7 @@ export function compileGraph(
 
   // --- BACKWARD PASS ---
   // Propagate requirements from outputs to inputs (upstream)
-  const context = { repository: nodeRepository, broadcast: () => undefined } as any;
+  const context = { repository: nodeRepository, broadcast: () => undefined, loadedSubgraphs } as any;
 
   // Iterate in REVERSE execution order (from Sinks to Sources)
   for (let i = executionOrder.length - 1; i >= 0; i--) {
@@ -346,6 +340,11 @@ export function compileGraph(
         // 1. Gather Input Types from Upstream
         const resolvedInputs: Record<string, StructorType> = {};
 
+        // Initialize with statically defined inputs (to prevent port loss for unconnected ports)
+        if (nodeDef.inputs) {
+            Object.assign(resolvedInputs, nodeDef.inputs);
+        }
+
         // Find connections to this node
         const inputConns = validConnections.filter(c => c.toNode === nodeId);
 
@@ -388,6 +387,7 @@ export function compileGraph(
 
         // 2. Compute Output Types
         const config = instance.defaultConfig || { fields: {} };
+
         // Valid config type placeholder for now
         const configType: RecordType = { kind: 'record', fields: {} };
 

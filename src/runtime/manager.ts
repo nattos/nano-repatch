@@ -76,13 +76,14 @@ export class RuntimeManager {
       this.handleInputUpdates(updates);
     });
 
-    this.appController.onInferredTypesUpdate((inferredTypes) => {
-        runInAction(() => {
-            for (const [nodeId, types] of Object.entries(inferredTypes)) {
-                this.localController.observableState.inferredNodeTypes.set(nodeId, types);
-            }
-        });
-    });
+    // Listened in controllers.ts now
+    // this.appController.onInferredTypesUpdate((inferredTypes) => {
+    //     runInAction(() => {
+    //         for (const [nodeId, types] of Object.entries(inferredTypes)) {
+    //             this.localController.observableState.inferredNodeTypes.set(nodeId, types);
+    //         }
+    //     });
+    // });
 
     // Sync MIDI state to worker
     reaction(
@@ -208,19 +209,12 @@ export class RuntimeManager {
   }
 
   private handleInferredTypes(msg: InferredTypesMessage) {
-      runInAction(() => {
-          if (msg.inferredNodeTypes) {
-              for (const [nodeId, types] of Object.entries(msg.inferredNodeTypes)) {
-                  this.localController.observableState.inferredNodeTypes.set(nodeId, types);
-              }
-
-              // Persist to graph state
-              this.appController.dispatch([{
-                  type: 'graph.updateInferredTypes',
-                  inferredTypes: msg.inferredNodeTypes
-              }]);
-          }
-      });
+      if (msg.inferredNodeTypes) {
+          this.appController.dispatch([{
+              type: 'graph.updateInferredTypes',
+              inferredTypes: msg.inferredNodeTypes
+          }]);
+      }
   }
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
@@ -235,13 +229,13 @@ export class RuntimeManager {
     this.executorWorker.postMessage(initMsg);
 
     // Populate local cache with inferred types
-    runInAction(() => {
-        if (msg.inferredTypes) {
-            for (const [nodeId, types] of Object.entries(msg.inferredTypes)) {
-                this.localController.observableState.inferredNodeTypes.set(nodeId, types);
-            }
-        }
-    });
+    // Populate local cache with inferred types via AppController dispatch
+    if (msg.inferredTypes) {
+        this.appController.dispatch([{
+            type: 'graph.updateInferredTypes',
+            inferredTypes: msg.inferredTypes
+        }]);
+    }
 
     // Populate local cache with compiled configs from the graph
     runInAction(() => {

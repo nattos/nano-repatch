@@ -144,10 +144,46 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
     keywords: ['nested', 'graph'],
     description: 'Executes a nested subgraph.'
   },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-    // In a real implementation, we would look up the subgraph definition and return its output types.
-    // Since we can't access the config value (subgraphId) here, we return Any.
-    return { kind: 'record', fields: { output: { kind: 'atomic', type: 'any' } } };
+  computeForwardPorts: (inputType, config, context) => {
+    // Access loadedSubgraphs from context (injected by compiler)
+    const loadedSubgraphs = (context as any).loadedSubgraphs;
+    if (!loadedSubgraphs) {
+        return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
+    }
+
+    const subgraphId = (config as any).subgraphId;
+    const subgraph = loadedSubgraphs.get(subgraphId);
+
+    if (subgraph) {
+        const subgraphNodes = Object.values(subgraph.inner.nodes) as any[]; // Cast to access config
+
+        // Compute Inputs from Subgraph Inputs
+        const inputFields: Record<string, StructorType> = {};
+        subgraphNodes
+            .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+            .sort((a, b) => a.y - b.y)
+            .forEach(n => {
+                const name = n.config.name || '0';
+                inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+            });
+
+        // Compute Outputs from Subgraph Outputs
+        const outputFields: Record<string, StructorType> = {};
+        subgraphNodes
+            .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+            .sort((a, b) => a.y - b.y)
+            .forEach(n => {
+                const name = n.config.name || '0';
+                outputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+            });
+
+        return {
+            inputs: { kind: 'record', fields: inputFields },
+            outputs: { kind: 'record', fields: outputFields }
+        };
+    }
+
+    return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Subgraph execution logic would go here.
@@ -221,6 +257,7 @@ export const primitive_pack = definePrimitiveNode({
     },
 
     computeForwardPorts: (inputs, config, context, meta) => {
+
         // Defensive read: check both root and fields
         const rawConfig = config as any;
         const targetType = rawConfig?.targetType || rawConfig?.fields?.targetType || 'infer';
@@ -236,6 +273,8 @@ export const primitive_pack = definePrimitiveNode({
         // Or if we have inputs connected?
         // Let's default to float2 if nothing known.
         if (!['float2', 'float3', 'float4'].includes(type)) type = 'float2';
+
+
 
         if (type === 'float4') {
             inputFields.x = numberType;

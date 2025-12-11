@@ -529,8 +529,8 @@ export class AppController {
       // Enforce boundaries for normal nodes (1 <= x <= 50)
       for (const n of nodes) {
         const newX = n.x + constrainedDx;
-        if (newX < 1) {
-          constrainedDx = 1 - n.x;
+        if (newX < 0) {
+          constrainedDx = 0 - n.x;
         } else if (newX > 50) {
           constrainedDx = 50 - n.x;
         }
@@ -778,6 +778,9 @@ export class AppController {
           delete state.graph.inner.nodes[mutation.node.id];
           state.graph.auxiliary.outgoingConnections.delete(mutation.node.id);
           state.graph.auxiliary.incomingConnections.delete(mutation.node.id);
+          if (state.graph.inner.inferredNodeTypes) {
+             delete state.graph.inner.inferredNodeTypes[mutation.node.id];
+          }
           break;
         case 'connection.create':
           state.graph.inner.connections[mutation.connection.id] = mutation.connection;
@@ -834,11 +837,8 @@ export class AppController {
           // No state change, just a signal
           break;
         case 'graph.updateInferredTypes':
-            if (!state.graph.inner.inferredNodeTypes) {
-                state.graph.inner.inferredNodeTypes = {};
-            }
-            // Merge new types
-            Object.assign(state.graph.inner.inferredNodeTypes, mutation.inferredTypes);
+            // Correctly replace the map instead of merging stale keys
+            state.graph.inner.inferredNodeTypes = mutation.inferredTypes;
             break;
           // No state change, just a signal
           break;

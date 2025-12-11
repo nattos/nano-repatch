@@ -1,34 +1,17 @@
 import './graph-node';
-import './graph-connection';
-import { WireRenderer, WireRendererContext } from './wire-renderer';
 import { SmartInput } from '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
-import { css, html, TemplateResult } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
-import { repeat } from 'lit/directives/repeat.js';
+import { html, css } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { reaction } from 'mobx';
-import { AppController, LongEdit, generateId } from '../builder/state';
-import { LocalController } from '../builder/local-state';
+import { LongEdit, generateId } from '../builder/state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
-import { defaultNodeRepository, PortHint } from '../structor/repository';
-import { NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED } from '../constants';
-import { getNodeVisualState } from '../utils/node-width-utils';
-import { calculatePortY } from '../utils/node-width-utils';
+import { defaultNodeRepository } from '../structor/repository';
 import { globalStyles } from '../styles';
 import { GRID_UNIT, GRID_GAP } from '../constants';
-
-
-interface WireInsert {
-    wireId: string;
-    x: number;
-    y: number;
-    gridX: number;
-    gridY: number;
-    orientation: 'vertical' | 'horizontal';
-}
 
 @customElement('graph-grid')
 export class GraphGrid extends MobxLitElement {
@@ -65,19 +48,12 @@ export class GraphGrid extends MobxLitElement {
 
       grid-template-rows:
         [gap-top] var(--grid-gap, 16px)
-        repeat(12, [node] minmax(1px, auto) [gap] var(--grid-gap, 16px));
-
-      /* Revert: Don't force 24px auto-rows */
-      /* grid-auto-rows: 24px; */
+        repeat(12, [node] auto [gap] var(--grid-gap, 16px));
 
       min-width: 100%;
-      justify-content: start;
-      align-content: start;
-      /* min-height: 100%; Removed to prevent row stretching */
+      min-height: 100%;
       gap: 0;
       position: relative;
-      align-content: start;
-      justify-content: start; /* CRITICAL: Prevent auto tracks from expanding to fill width */
     }
 
     .selection-box {
@@ -98,16 +74,7 @@ export class GraphGrid extends MobxLitElement {
       /* background-color: rgba(255, 255, 255, 0.05); */
       /* border: 1px dashed rgba(255, 255, 255, 0.15); */
       min-width: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Force centering override */
-    .cell.node-cell > graph-node {
-        align-self: center;
-        justify-self: center; /* For Grid situations */
-        margin: auto;
+      min-height: 80px;
     }
 
     .cell.gap-cell {
@@ -132,166 +99,6 @@ export class GraphGrid extends MobxLitElement {
       border-left: 1px dashed rgba(255, 255, 255, 0.15);
     }
 
-    .wire-segment {
-        position: absolute;
-        inset: 0;
-        pointer-events: none !important;
-        z-index: 10;
-        margin: auto;
-        cursor: pointer;
-    }
-
-    .wire-segment::after {
-        content: '';
-        position: absolute;
-        background: transparent; /* Debug: cyan to see hitboxes if needed */
-        inset: -8px; /* 16px extra girth, total 18px+ */
-        z-index: 11;
-        cursor: pointer;
-    }
-
-    .wire-hitbox {
-        /* Legacy / Unused? */
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 20;
-    }
-
-    .wire-line {
-        position: relative; /* Relative to hitbox */
-        background-color: var(--wire-color, #888);
-        transition: background-color 0.2s;
-    }
-
-    .wire-segment.selected {
-        z-index: 20;
-    }
-
-    /* Fatter wire rendering for selected state by manipulating children or SVG if present.
-       Since we use border/background logic in wire-renderer:
-       The wire itself is the Div or its children.
-    */
-    .wire-segment.selected > .wire-line {
-         /* Lazy Fatter Strategy: Negative margin + Border */
-         /* This effectively expands the box by 1px on all sides without layout shift */
-         margin: -1px;
-         border: 1px solid var(--wire-color);
-         background-color: var(--wire-color) !important;
-         z-index: 21;
-    }
-
-    /* Old Style Insert Marker: Two Slanted Lines (//) */
-    .wire-insert-pip {
-        position: absolute;
-        width: 14px;
-        height: 14px;
-        background: transparent;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        z-index: 1000;
-    }
-
-    .wire-insert-pip::before,
-    .wire-insert-pip::after {
-        content: '';
-        position: absolute;
-        top: -2px; /* Extend slightly beyond wire */
-        bottom: -2px;
-        width: 2px;
-        background-color: var(--pip-color, var(--accent-color));
-        transform: skewX(-20deg);
-    }
-
-    .wire-insert-pip::before {
-        left: 3px;
-    }
-
-    .wire-insert-pip::after {
-        right: 3px;
-    }
-
-    /* Orientation adjustment if needed */
-    .wire-insert-pip.vertical {
-        /* On vertical wire, we might want lines to cross horizontally?
-           "//" usually means cut perpendicular.
-           If wire is vertical | , cut should be = or // rotated?
-           Let's stick to standard // orientation regardless, strictly visual marker.
-        */
-    }
-    .wire-hitbox[style*="width: 6px"] .wire-line {
-        width: 1px;
-        height: 100%;
-    }
-
-    /* Horizontal Line in Hitbox */
-    .wire-hitbox[style*="height: 6px"] .wire-line {
-        width: 100%;
-        height: 1px;
-    }
-
-    /* Vertical Line in Hitbox */
-    .wire-hitbox[style*="width: 6px"] .wire-line {
-        width: 2px;
-        height: 100%;
-    }
-    .wire-hitbox[style*="width: 6px"] .wire-line {
-        width: 1px;
-        height: 100%;
-    }
-
-    .wire-segment.h .wire-line {
-        height: 1px;
-        width: 100%;
-        top: 50%;
-    }
-
-    .wire-segment.v .wire-line {
-        width: 1px;
-        height: 100%;
-        left: 50%;
-    }
-
-    /* Corners - simple approach: Two lines? Or SVG inside div?
-       User said "DO NOT construct an SVG to connect up paths", but using a static small SVG icon for a corner is standard?
-       Or use borders.
-    */
-    .wire-corner {
-        width: 50%;
-        height: 50%;
-        border: 1px solid var(--wire-color, #888);
-        position: absolute;
-        box-sizing: border-box;
-    }
-    /* TR: Bottom-Left Border? No.
-       TR goes from Left (Horizontal) to Bottom (Vertical).
-       So it occupies bottom-left quadrant?
-       Wait, typical corner TR:
-       Right and Top.
-       My types: CornerTR meant "top-right of the L"?
-       If coming from Left -> Down. That's a "7".
-       Visual center is pivot.
-       Line from Left-Center to Center.
-       Line from Center to Bottom-Center.
-
-       Let's just use two vars/divs for corners if pure DOM.
-    */
-
-    .wire-segment.tr .wire-line.h { width: 50%; left: 0; top: 50%; }
-    .wire-segment.tr .wire-line.v { height: 50%; left: 50%; top: 50%; }
-
-    .wire-segment.tl .wire-line.h { width: 50%; right: 0; top: 50%; }
-    .wire-segment.tl .wire-line.v { height: 50%; left: 50%; top: 50%; }
-
-    .wire-segment.br .wire-line.h { width: 50%; left: 0; top: 50%; }
-    .wire-segment.br .wire-line.v { height: 50%; left: 50%; bottom: 50%; }
-
-    .wire-segment.bl .wire-line.h { width: 50%; right: 0; top: 50%; }
-    .wire-segment.bl .wire-line.v { height: 50%; left: 50%; bottom: 50%; }
-
     .cell.gap-c::after {
       content: '';
       position: absolute;
@@ -311,22 +118,36 @@ export class GraphGrid extends MobxLitElement {
     }
 
     /* Wire Styles (moved from GraphConnection) */
-
-
-    /* Hit area for easier clicking */
-    /* Hit area for easier clicking */
-    /* Hit area attached to the visible lines themselves */
-    .wire-line {
-        pointer-events: auto !important;
-        cursor: pointer;
+    graph-connection {
+      display: contents;
     }
 
-    .wire-line::after {
+    .wire-segment {
+      background-color: var(--wire-color, #888);
+      pointer-events: auto;
+      transition: background-color 0.2s;
+      z-index: 5; /* Below nodes (10) but above background */
+      cursor: pointer;
+      position: relative; /* For lane offsets */
+    }
+
+    .wire-segment:hover {
+      filter: brightness(1.2);
+    }
+
+    graph-connection[selected] .wire-segment {
+      background-color: #fff !important;
+      z-index: 20;
+    }
+
+    /* Hit area for easier clicking */
+    .wire-segment::after {
       content: '';
       position: absolute;
-      inset: -8px; /* Hitbox extrusion */
-      pointer-events: auto !important;
-      z-index: 20;
+      top: -5px;
+      left: -5px;
+      right: -5px;
+      bottom: -5px;
     }
 
     .popup-container {
@@ -338,10 +159,8 @@ export class GraphGrid extends MobxLitElement {
     }
   `];
 
-  @state()
-  private selectionBox: { x: number, y: number, w: number, h: number } | null = null;
-  @state()
-  private pendingWireInsert: WireInsert | null = null;
+  @property({ attribute: false })
+  selectionBox: { x: number, y: number, w: number, h: number } | null = null;
 
   @state()
   popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string, isNew?: boolean, connectionId?: string } | null = null;
@@ -371,10 +190,8 @@ export class GraphGrid extends MobxLitElement {
     const path = e.composedPath();
     const isNode = path.some(el => (el as Element).tagName === 'GRAPH-NODE');
     const isConnection = path.some(el => (el as Element).tagName === 'GRAPH-CONNECTION');
-    // Also ignore wires (divs with .wire-segment class)
-    const isWire = path.some(el => (el as Element).classList?.contains('wire-segment'));
 
-    if (isNode || isConnection || isWire) return;
+    if (isNode || isConnection) return;
 
     // Start rubberband selection
     const rect = this.getBoundingClientRect();
@@ -461,11 +278,11 @@ export class GraphGrid extends MobxLitElement {
         if (rawX === 'output') {
           initialValue = 'io.output'; // Default for output column
           gridX = 20; // Arbitrary high number for output column
-        } else if (rawX === 'input') {
-          initialValue = 'io.input';
-          gridX = 0;
         } else {
           gridX = parseInt(rawX || '0');
+          if (gridX === 0) {
+            initialValue = 'io.input'; // Default for input column
+          }
         }
 
         // Create node transactionally via LongEdit
@@ -643,10 +460,11 @@ export class GraphGrid extends MobxLitElement {
 
   private ghostTarget: { x: number, y: number } | null = null;
 
+  @state()
+  private pendingWireInsert: { connectionId: string, gridX: number, gridY: number, px: number, py: number } | null = null;
 
   private _pointerMoveHandler: ((e: PointerEvent) => void) | null = null;
   private _pointerUpHandler: ((e: PointerEvent) => void) | null = null;
-  private _keyDownHandler: ((e: KeyboardEvent) => void) | null = null;
 
   private disposers: (() => void)[] = [];
 
@@ -719,17 +537,8 @@ export class GraphGrid extends MobxLitElement {
               this.addEventListener('pointerup', this._pointerUpHandler);
           }
 
-          if (!this._keyDownHandler) {
-              this._keyDownHandler = this.handleKeyDown.bind(this);
-              window.addEventListener('keydown', this._keyDownHandler);
-          }
         } else {
            // Cleanup
-           // ... cleanup if op is null?
-           // Actually the disposer handles the reaction cleanup, but global listeners
-           // set above (pointermove/up) should be removed if op cancels?
-           // The reaction fires on op change.
-           // If op becomes null, we should remove pointer listeners.
            if (this._pointerMoveHandler) {
                this.removeEventListener('pointermove', this._pointerMoveHandler);
                this._pointerMoveHandler = null;
@@ -738,24 +547,11 @@ export class GraphGrid extends MobxLitElement {
                this.removeEventListener('pointerup', this._pointerUpHandler);
                this._pointerUpHandler = null;
            }
-           // Keep keydown listener as it is global for the component, not just for inflight op?
-           // Wait, splicing insert point works independently of inflight connection!
-           // pendingWireInsert is for EXISTING wires.
-           // So keydown should be attached PERMANENTLY when component is connected.
            this.ghostTarget = null;
         }
       },
       { fireImmediately: true }
     ));
-
-
-
-
-      // Separate permanent keydown listener for wire interaction
-      if (!this._keyDownHandler) {
-          this._keyDownHandler = this.handleKeyDown.bind(this);
-          window.addEventListener('keydown', this._keyDownHandler);
-      }
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('dblclick', this.handleDblClick);
     this.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -791,12 +587,6 @@ export class GraphGrid extends MobxLitElement {
     this.removeEventListener('scroll', this.handleScroll);
     this.removeEventListener('dragover', this.handleDragOver);
     this.removeEventListener('drop', this.handleDrop);
-
-    if (this._keyDownHandler) {
-        window.removeEventListener('keydown', this._keyDownHandler);
-        this._keyDownHandler = null;
-    }
-
     this.resizeObserver.disconnect();
   }
 
@@ -945,12 +735,30 @@ export class GraphGrid extends MobxLitElement {
 
     // Check if key is alphanumeric
     if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // Resolve grid cell directly from pendingWireInsert
-        // We now store gridX/gridY in the insert structure.
-        const { gridX: foundX, gridY: foundY } = this.pendingWireInsert;
+        // Resolve grid cell
+        const { px, py } = this.pendingWireInsert;
+        const cells = this.shadowRoot?.querySelectorAll('.node-cell');
+        let foundX = -1;
+        let foundY = -1;
+
+        // Simple search
+        // We know cell rects.
+        const gridRect = this.getBoundingClientRect();
+
+        cells?.forEach(cell => {
+             const rect = cell.getBoundingClientRect();
+             const cellX = rect.left - gridRect.left + this.scrollLeft;
+             const cellY = rect.top - gridRect.top + this.scrollTop;
+
+             if (px >= cellX && px < cellX + rect.width &&
+                 py >= cellY && py < cellY + rect.height) {
+                 foundX = (cell as HTMLElement).dataset.x === 'output' ? 20 : parseInt((cell as HTMLElement).dataset.x || '0');
+                 foundY = parseInt((cell as HTMLElement).dataset.y || '0');
+             }
+        });
 
         if (foundX !== -1) {
-             const cx = appController.observableState.graph.inner.connections[this.pendingWireInsert.wireId];
+             const cx = appController.observableState.graph.inner.connections[this.pendingWireInsert.connectionId];
              if (!cx) {
                  this.pendingWireInsert = null;
                  return;
@@ -966,7 +774,7 @@ export class GraphGrid extends MobxLitElement {
 
              const generatedId = generateId('node');
              const initialValue = e.key;
-             const connectionId = this.pendingWireInsert.wireId;
+             const connectionId = this.pendingWireInsert.connectionId;
 
              // Start Long Edit with Creation + Rewire Logic
              this.popupLongEdit = appController.beginLongEdit({
@@ -1001,8 +809,8 @@ export class GraphGrid extends MobxLitElement {
              localController.queueSelectPaths([generatedId]);
 
              this.popup = {
-                  x: this.pendingWireInsert.x,
-                  y: this.pendingWireInsert.y - 40,
+                  x: this.pendingWireInsert.px,
+                  y: this.pendingWireInsert.py - 40,
                   gridX: foundX,
                   gridY: foundY,
                   initialValue: e.key,
@@ -1017,119 +825,43 @@ export class GraphGrid extends MobxLitElement {
   }
 
   private renderPendingWirePip() {
-     const op = this.pendingWireInsert;
-     // If no specific op, check selection
-     if (!op) {
-         // Auto-calculate logic here?
-         // No, verify logic creates op on click.
-         // If "select right near the wire" doesn't show it, it means click handler failed to find cell.
+      if (!this.pendingWireInsert) return null;
+      // Check if selected?
+      const isSelected = localController.observableState.selection.has(this.pendingWireInsert.connectionId);
+      if (!isSelected) {
+          // If lost selection, clear pending
+          setTimeout(() => {
+             if (this.pendingWireInsert && !localController.observableState.selection.has(this.pendingWireInsert!.connectionId)) {
+                 this.pendingWireInsert = null;
+             }
+          }, 0);
+          return null;
+      }
 
-         // User Request: "Basically always show up when selected"
-         // If we have selected wire(s), show pip at the last known or "closest" point?
-         // Selection can change via Undo/Redo or marquee.
-         // If single wire selected, we could show it at center?
-         // But we lack (x,y) context unless derived from mouse.
-         // Wait, verify if `pendingWireInsert` persists?
-     }
-     if (!this.pendingWireInsert) return null;
+      const orientation = (this.pendingWireInsert as any).orientation || 'vertical';
+      // 'vertical' means the wire is horizontal, so the cursor should be vertical.
 
-     const { x, y, wireId } = this.pendingWireInsert;
-     const isSelected = localController.observableState.selection.has(wireId);
+      const size = 14;
 
-     if (!isSelected) {
-         return null;
-     }
-
-     let color = 'var(--accent-color)';
-     const connections = appController.observableState.graph.inner.connections;
-     const conn = connections[wireId];
-     if (conn) {
-         color = cssColorFromHash(`${conn.fromPort}-${conn.toPort}`);
-     }
-
-     const orientation = this.pendingWireInsert.orientation || 'vertical';
-
-     return html`<div class="wire-insert-pip ${orientation}"
-                     style="left: ${x}px; top: ${y}px; --pip-color: ${color};"></div>`;
-  }
-
-  private onWireClick(wireId: string, e: MouseEvent) {
-      // 1. Select Wire
-      localController.queueSelectPaths([wireId], e.shiftKey || e.ctrlKey || e.metaKey);
-
-      // 2. Calculate Snap Point
-      const gridRect = this.getBoundingClientRect();
-      const px = e.clientX - gridRect.left + this.scrollLeft;
-      const py = e.clientY - gridRect.top + this.scrollTop;
-
-      // Find Closest Cell
-      const cells = this.shadowRoot?.querySelectorAll('.cell');
-      let bestDist = Infinity;
-      let bestX = px;
-      let bestY = py;
-      let bestGridX = -1;
-      let bestGridY = -1;
-
-      // Prioritize "gap" cells for insertion?
-      // Actually standard nodes are 80px wide. Gap 16px.
-      // We usually want to splice comfortably.
-      // If we blindly look for cells, we find closest center.
-
-      cells?.forEach(cell => {
-          const r = cell.getBoundingClientRect();
-          // Relative to grid container (including scroll)
-          const cx = r.left - gridRect.left + this.scrollLeft + r.width / 2;
-          const cy = r.top - gridRect.top + this.scrollTop + r.height / 2;
-
-          const dist = Math.sqrt(Math.pow(px - cx, 2) + Math.pow(py - cy, 2));
-          if (dist < bestDist) {
-              bestDist = dist;
-              bestX = cx;
-              bestY = cy;
-
-              const ds = (cell as HTMLElement).dataset;
-              // Extract grid coords
-              // Note: Gaps might not have x/y set in dataset?
-              // The render loop sets data-x/y on .node-cell only?
-              // Let's check render loop:
-              // .gap-cell doesn't have data-x/y.
-              // So for splicing, if we snap to a gap, we might fail to find grid coords for a node?
-              // But we can infer from style grids?
-              // Or just default to "closest node cell logic"?
-              // If we splice in a gap, we probably want to splice AT that gap location (insert row/col?)
-              // No, user just inserts a node. It should push layout.
-
-              if (ds.x !== undefined && ds.y !== undefined) {
-                  bestGridX = ds.x === 'output' ? 20 : parseInt(ds.x);
-                  bestGridY = parseInt(ds.y);
-              } else {
-                 // Try to infer from style?
-                 // grid-column: N; grid-row: M;
-                 // But col idx != x idx.
-                 // let's rely on node-cell priority.
-              }
-          }
-      });
-
-      // Determine orientation based on wire segment aspect
-      // Segment logic was in `onWireClick` (GraphGrid.old.ts).
-      // Here we assume vertical bar cursor for Horizontal wire.
-      const target = e.target as HTMLElement;
-      const tRect = target.getBoundingClientRect();
-      // Wire width > height = Horizontal Wire -> Vertical Bar to slice it.
-      const isHorizontalWire = tRect.width > tRect.height;
-      const orientation = isHorizontalWire ? 'vertical' : 'horizontal';
-
-      this.pendingWireInsert = {
-          x: bestX,
-          y: bestY,
-          gridX: bestGridX,
-          gridY: bestGridY,
-          wireId,
-          orientation
-      };
-      // Force update
-      this.requestUpdate();
+      return html`
+        <div style="
+            position: absolute;
+            left: ${this.pendingWireInsert.px - size/2}px;
+            top: ${this.pendingWireInsert.py - size/2}px;
+            width: ${size}px;
+            height: ${size}px;
+            pointer-events: none;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            transform: ${orientation === 'vertical' ? 'rotate(0deg)' : 'rotate(90deg)'};
+        ">
+            <div style="width: 2px; height: 100%; background: #fff; transform: skewX(-20deg); box-shadow: 0 0 2px rgba(0,0,0,0.5);"></div>
+            <div style="width: 2px; height: 100%; background: #fff; transform: skewX(-20deg); box-shadow: 0 0 2px rgba(0,0,0,0.5);"></div>
+        </div>
+      `;
   }
 
   private handlePopupPreview(e: CustomEvent) {
@@ -1248,18 +980,19 @@ export class GraphGrid extends MobxLitElement {
 
   private getNodeHeight(nodeId: string): number {
     const node = appController.observableState.graph.inner.nodes[nodeId];
-    if (!node) return 0;
+    if (!node) return 80;
 
     const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
     let inputs = nodeType?.inputs || [];
     let outputs = nodeType?.outputs || [];
 
-    // Use Effective Ports (Inferred > Repo)
-    const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
-
-    if (effectiveType) {
-        inputs = effectiveType.inputs;
-        outputs = effectiveType.outputs;
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
+      if (dynamicInfo) {
+        inputs = dynamicInfo.inputs;
+        outputs = dynamicInfo.outputs;
+      }
     }
 
     // Calculate ports height
@@ -1302,9 +1035,9 @@ export class GraphGrid extends MobxLitElement {
                  // HACK: For debug.scope, we know it's 96px.
                  // We can check if the input has a specific tag or type?
                  // Or just check if it's `debug.scope` and `value` port?
-                     if (node.config.typeId === 'debug.scope' && input.name === 'value') {
-                         h = 96;
-                     }
+                 if (node.config.typeId === 'debug.scope' && input.name === 'value') {
+                     h = 96;
+                 }
              }
         }
 
@@ -1337,7 +1070,16 @@ export class GraphGrid extends MobxLitElement {
   }
 
   private getRowHeight(gridY: number): number {
-    return localController.observableState.gridMetrics.rows.get(gridY) || 80;
+    const nodes = Object.values(appController.observableState.graph.inner.nodes);
+    const rowNodes = nodes.filter(n => n.y === gridY);
+    if (rowNodes.length === 0) return 80; // Default
+
+    let maxH = 0;
+    for (const node of rowNodes) {
+        const h = this.getNodeHeight(node.id);
+        if (h > maxH) maxH = h;
+    }
+    return maxH;
   }
 
   private getNodeWidth(nodeId: string): number {
@@ -1349,13 +1091,13 @@ export class GraphGrid extends MobxLitElement {
     let outputs = nodeType?.outputs || [];
 
     // Dynamic ports check
-    // Dynamic ports check
-    // Use Effective Ports (Inferred > Repo)
-    const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
-
-    if (effectiveType) {
-        inputs = effectiveType.inputs;
-        outputs = effectiveType.outputs;
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
+      if (dynamicInfo) {
+        inputs = dynamicInfo.inputs;
+        outputs = dynamicInfo.outputs;
+      }
     }
 
     const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
@@ -1389,13 +1131,14 @@ export class GraphGrid extends MobxLitElement {
     if (!node) return 40; // Default center-ish
 
     const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
-    // Use Effective Ports (Inferred > Repo)
-    const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
-
     let ports = isInput ? (nodeType?.inputs || []) : (nodeType?.outputs || []);
 
-    if (effectiveType) {
-        ports = isInput ? effectiveType.inputs : effectiveType.outputs;
+    if (nodeType?.compilePorts) {
+      const compiledConfig = localController.observableState.compiledNodeConfigs.get(nodeId);
+      const dynamicInfo = nodeType.compilePorts(node, { loadedSubgraphs: localController.observableState.loadedSubgraphs, compiledConfig });
+      if (dynamicInfo) {
+        ports = isInput ? dynamicInfo.inputs : dynamicInfo.outputs;
+      }
     }
 
     const index = ports.findIndex(p => p.name === portName);
@@ -1432,17 +1175,16 @@ export class GraphGrid extends MobxLitElement {
     const cols = Math.max(maxNodeX + 3, 8);
 
     // Input Column (x=0)
-    // Input Column (x=0)
     for (let y = 0; y < rows; y++) {
       const rowHeight = this.getRowHeight(y);
-      cells.push(html`<div class="cell node-cell" data-x="input" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
+      cells.push(html`<div class="cell node-cell" data-x="0" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
       // Gap below input?
       cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
     }
 
-    // Main Grid (x=0..cols)
-    for (let x = 0; x <= cols; x++) {
-      const colIdx = 2 * x + 3;
+    // Main Grid (x=1..cols)
+    for (let x = 1; x <= cols; x++) {
+      const colIdx = 2 * x + 1;
 
       for (let y = 0; y < rows; y++) {
         const rowIdx = 2 * y + 2;
@@ -1497,42 +1239,8 @@ export class GraphGrid extends MobxLitElement {
     `;
   }
 
-
-
   render() {
     const { nodes, connections } = appController.observableState.graph.inner;
-
-    // Register selectables for all connections (Immediate Mode)
-    Object.values(connections).forEach(conn => {
-        localController.defineSelectable({
-            path: conn.id,
-            renderInspectorContent: () => html`
-                <h3>Connection</h3>
-                <div class="field">
-                    <label>From Port:</label>
-                    <input
-                        type="text"
-                        .value=${conn.fromPort.toString()}
-                        @input=${(e: Event) => {
-                            const target = e.target as HTMLInputElement;
-                            appController.setConnectionPorts(conn.id, { fromPort: target.value });
-                        }}
-                    />
-                </div>
-                <div class="field">
-                    <label>To Port:</label>
-                    <input
-                        type="text"
-                        .value=${conn.toPort.toString()}
-                        @input=${(e: Event) => {
-                            const target = e.target as HTMLInputElement;
-                            appController.setConnectionPorts(conn.id, { toPort: target.value });
-                        }}
-                    />
-                </div>
-            `
-        });
-    });
 
     // Output Column calculation for node placement
     let maxNodeX = 0;
@@ -1566,41 +1274,340 @@ export class GraphGrid extends MobxLitElement {
       <div class="grid-container" tabindex="-1">
         ${this.renderGridCells()}
 
-        ${Object.values(connections).map(conn => {
-             // Register selectable for Inspector
-             // FIXME: This causes infinite render loop because it updates observable state during render.
-             // localController.defineSelectable({
-             //    path: conn.id,
-             //    renderInspectorContent: () => html`...`
-             // });
-            return '';
-        })}
+        ${Object.values(connections).flatMap(conn => {
+      const wireLayout = localController.observableState.wireLayout.wires[conn.id];
+      const isSelected = localController.observableState.selection.has(conn.id);
+      const color = cssColorFromHash(`${conn.fromPort}-${conn.toPort}`);
 
-        ${(() => {
-            const wireCtx: WireRendererContext = {
-                nodes,
-                connections,
-                gridMetrics: localController.observableState.gridMetrics,
-                inferredNodeTypes: localController.observableState.inferredNodeTypes,
-                effectiveNodeTypes: localController.observableState.effectiveNodeTypes,
-                incomingConnections: appController.observableState.graph.auxiliary.incomingConnections,
-                selection: localController.observableState.selection,
-                onWireClick: this.onWireClick.bind(this),
-                onWireDblClick: (wireId, e) => {
-                    if (this.pendingWireInsert && this.pendingWireInsert.wireId === wireId) {
-                        this.pendingWireInsert = null;
-                    }
-                    this.dispatchEvent(new CustomEvent('connection-delete', { detail: { connectionId: wireId } }));
-                }
-            };
-            const renderer = new WireRenderer(wireCtx);
-            const segments = localController.observableState.wireLayout.segments || [];
-            return renderer.render(segments);
-        })()}
+      // Register selectable
+      localController.defineSelectable({
+        path: conn.id,
+        renderInspectorContent: () => html`
+              <h3>Connection</h3>
+              <div class="field">
+                <label>From Port:</label>
+                <input
+                  data-testid="from-port-input"
+                  type="text"
+                  .value=${conn.fromPort.toString()}
+                  @input=${(e: Event) => {
+            const target = e.target as HTMLInputElement;
+            appController.setConnectionPorts(conn.id, { fromPort: target.value });
+          }}
+                />
+              </div>
+              <div class="field">
+                <label>To Port:</label>
+                <input
+                  data-testid="to-port-input"
+                  type="text"
+                  .value=${conn.toPort.toString()}
+                  @input=${(e: Event) => {
+            const target = e.target as HTMLInputElement;
+            appController.setConnectionPorts(conn.id, { toPort: target.value });
+          }}
+                />
+              </div>
+            `
+      });
+
+      const elements = [];
+
+      if (wireLayout && wireLayout.path.length > 0) {
+        // Iterate ALL points to include terminal segments inside nodes
+        for (let i = 0; i < wireLayout.path.length; i++) {
+          const curr = wireLayout.path[i];
+          const prev = i > 0 ? wireLayout.path[i - 1] : null;
+          const next = i < wireLayout.path.length - 1 ? wireLayout.path[i + 1] : null;
+          const col = Math.round(2 * curr.x + 1);
+          const row = Math.round(2 * curr.y + 2);
+
+          // Determine Row Type and Metrics
+          const isNodeRow = (row % 2 === 0);
+          // For Node Rows, we use the actual row height for vertical segments,
+          // but we center horizontal lanes based on the standard node height (GRID_UNIT).
+          // This ensures wires pass through the "top" part of tall nodes, aligning with standard nodes.
+          const cellHeight = isNodeRow ? this.getRowHeight(curr.y) : GRID_GAP;
+          const cellCenterY = isNodeRow ? (GRID_UNIT / 2) : (GRID_GAP / 2);
+
+          // Identify neighbors
+          let leftNeighbor = null;
+          let rightNeighbor = null;
+          let topNeighbor = null;
+          let bottomNeighbor = null;
+
+          if (prev) {
+            if (prev.x < curr.x) leftNeighbor = prev;
+            else if (prev.x > curr.x) rightNeighbor = prev;
+            else if (prev.y < curr.y) topNeighbor = prev;
+            else if (prev.y > curr.y) bottomNeighbor = prev;
+          }
+
+          if (next) {
+            if (next.x < curr.x) leftNeighbor = next;
+            else if (next.x > curr.x) rightNeighbor = next;
+            else if (next.y < curr.y) topNeighbor = next;
+            else if (next.y > curr.y) bottomNeighbor = next;
+          }
+
+          // Lane Logic
+          const getLane = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
+            const k1 = `${p1.x},${p1.y}`;
+            const k2 = `${p2.x},${p2.y}`;
+            const key = k1 < k2 ? `${k1}:${k2}` : `${k2}:${k1}`;
+            return wireLayout.lanes[key];
+          };
+
+          const getLaneOffset = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
+            const lane = getLane(p1, p2);
+            if (lane) return lane.index * 10 - (lane.count - 1) * 10 / 2;
+            return 0;
+          };
+
+          let laneX = 0;
+          let laneY = 0;
+
+          if (topNeighbor) laneX = getLaneOffset(curr, topNeighbor);
+          else if (bottomNeighbor) laneX = getLaneOffset(curr, bottomNeighbor);
+
+          if (leftNeighbor) {
+            if (leftNeighbor !== prev && leftNeighbor !== next) laneY = 0;
+            else laneY = getLaneOffset(curr, leftNeighbor);
+          } else if (rightNeighbor) {
+            laneY = getLaneOffset(curr, rightNeighbor);
+          }
+
+          const commonStyle = `
+                grid-column: ${col};
+                grid-row: ${row};
+                background-color: ${isSelected ? '#fff' : color};
+                position: relative;
+                z-index: ${isSelected ? 20 : 5};
+              `;
+
+          const handleClick = (e: MouseEvent) => {
+            e.stopPropagation();
+            this.focus();
+            localController.queueSelectPaths([conn.id], e.shiftKey || e.ctrlKey || e.metaKey);
+
+            const gridRect = this.getBoundingClientRect();
+            const px = e.clientX - gridRect.left + this.scrollLeft;
+            const py = e.clientY - gridRect.top + this.scrollTop;
+
+            // Find Cell Center Logic
+            // Iterate cells is simplest given dynamic layout
+            const cells = this.shadowRoot?.querySelectorAll('.cell');
+            let centerX = px;
+            let centerY = py;
+            let foundX = -1;
+            let foundY = -1;
+            let orientation = 'vertical'; // Default cursor style (vertical bar)
+
+            // Determine if segment is horizontal or vertical based on element aspect
+            const segRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            if (segRect.width > segRect.height) {
+                orientation = 'vertical'; // Horizontal wire -> Vertical Bar cursor
+            } else {
+                orientation = 'horizontal'; // Vertical wire -> Horizontal Bar cursor
+            }
+
+            cells?.forEach(cell => {
+                 const rect = cell.getBoundingClientRect();
+                 const cellX = rect.left - gridRect.left + this.scrollLeft;
+                 const cellY = rect.top - gridRect.top + this.scrollTop;
+
+                 // Expand hit test slightly or check containment?
+                 // Point should be inside.
+                 if (px >= cellX && px < cellX + rect.width &&
+                     py >= cellY && py < cellY + rect.height) {
+
+                     // Found cell!
+                     const ds = (cell as HTMLElement).dataset;
+                     foundX = ds.x === undefined ? -1 : (ds.x === 'output' ? 20 : parseInt(ds.x));
+                     foundY = ds.y === undefined ? -1 : parseInt(ds.y);
+
+                     // Center in CELL
+                     const cX = cellX + rect.width / 2;
+                     const cY = cellY + rect.height / 2;
+
+                     // Center on WIRE
+                     // If Horizontal Wire: Use Cell Center X, Wire Center Y (py is click on wire, so use click Y or segment center?)
+                     // Actually, user wants "centered directly on the wire".
+                     // Segment center Y?
+                     const segCenterY = (segRect.top - gridRect.top + this.scrollTop) + segRect.height / 2;
+                     const segCenterX = (segRect.left - gridRect.left + this.scrollLeft) + segRect.width / 2;
+
+                     if (orientation === 'vertical') {
+                         // Horizontal Wire
+                         centerX = cX;
+                         centerY = segCenterY;
+                     } else {
+                         // Vertical Wire
+                         centerX = segCenterX;
+                         centerY = cY;
+                     }
+                 }
+            });
+
+            if (foundX !== -1 && foundY !== -1) {
+                this.pendingWireInsert = {
+                    connectionId: conn.id,
+                    px: centerX,
+                    py: centerY,
+                    gridX: foundX,
+                    gridY: foundY,
+                    orientation
+                } as any;
+            } else {
+                this.pendingWireInsert = null;
+            }
+          };
+
+          const handleDblClick = (e: MouseEvent) => {
+            e.stopPropagation();
+            // Remove pending insert if deleting this wire
+            if (this.pendingWireInsert && this.pendingWireInsert.connectionId === conn.id) {
+                this.pendingWireInsert = null;
+            }
+            this.dispatchEvent(new CustomEvent('connection-delete', { detail: { connectionId: conn.id } }));
+          };
+
+          // --- Port Alignment & Vertical Connector Logic ---
+
+          // Determine absolute Y positions for Left and Right connection points
+          // Default to Lane Y (relative to cell center)
+          let leftAbsY = cellCenterY + laneY;
+          let rightAbsY = cellCenterY + laneY;
+
+          // Override if connecting to Start Node (Left side of Gap 1)
+          if (i === 1 && leftNeighbor === prev) {
+             const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+             const rowHeight = this.getRowHeight(prev!.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+
+             const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+             leftAbsY = nodeOffsetY + startPortY - 6; // Bias up by half pip height (adjusted from 7)
+          }
+
+          // Override for Start Node (i=0) - Right connection
+          if (i === 0) {
+             const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+             const rowHeight = this.getRowHeight(curr.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+             const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+             rightAbsY = nodeOffsetY + startPortY - 6;
+          }
+
+          // Override if connecting to End Node (Right side of Gap last-1)
+          if (i === wireLayout.path.length - 2 && rightNeighbor === next) {
+             const nodeHeight = this.getNodeHeight(conn.toNodeId);
+             const rowHeight = this.getRowHeight(next!.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+
+             const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+             rightAbsY = nodeOffsetY + endPortY - 6; // Bias up by half pip height (adjusted from 7)
+          }
+
+          // Override for End Node (i=last) - Left connection
+          if (i === wireLayout.path.length - 1) {
+             const nodeHeight = this.getNodeHeight(conn.toNodeId);
+             const rowHeight = this.getRowHeight(curr.y);
+             const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+             const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+             leftAbsY = nodeOffsetY + endPortY - 6;
+          }
+
+          // Render Segments
+
+          // LEFT SEGMENT
+          if (leftNeighbor) {
+            let y = leftAbsY;
+            let style = `${commonStyle} width: calc(50% + ${laneX}px); height: 2px; justify-self: start; align-self: start; top: ${y}px;`;
+
+            // Special case: If i=last (End Node), left neighbor is the Gap.
+            // We draw the segment to the edge of the centered node.
+            if (i === wireLayout.path.length - 1) {
+               const nodeWidth = this.getNodeWidth(conn.toNodeId);
+               style = `${commonStyle} width: calc(50% - ${nodeWidth / 2}px); height: 2px; justify-self: start; align-self: start; top: ${y}px;`;
+            }
+
+            elements.push(html`<div class="wire-segment" style="${style}" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          // RIGHT SEGMENT
+          if (rightNeighbor) {
+            let y = rightAbsY;
+            let style = `${commonStyle} width: calc(50% - ${laneX}px); height: 2px; justify-self: end; align-self: start; top: ${y}px;`;
+
+            // Special case: If i=0 (Start Node), right neighbor is Gap.
+            // We draw the segment from the edge of the centered node.
+            if (i === 0) {
+               const nodeWidth = this.getNodeWidth(conn.fromNodeId);
+               style = `${commonStyle} width: calc(50% - ${nodeWidth / 2}px); height: 2px; justify-self: end; align-self: start; top: ${y}px;`;
+            }
+
+            elements.push(html`<div class="wire-segment" style="${style}" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          // VERTICAL SEGMENTS (Turns)
+          // If topNeighbor, we draw line up.
+          if (topNeighbor) {
+             // From center(laneX, laneY) to top.
+             // top: 0. height: cellCenterY + laneY.
+             // align-self: start.
+
+             let h = cellCenterY + laneY + 1;
+             let top = 0;
+
+             // Override if i=last (End Node) and wire comes from Top
+             if (i === wireLayout.path.length - 1) {
+                 const nodeHeight = this.getNodeHeight(conn.toNodeId);
+                 const rowHeight = this.getRowHeight(curr.y);
+                 const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+                 const endPortY = this.getNodePortY(conn.toNodeId, conn.toPort.toString(), true);
+                 h = nodeOffsetY + endPortY - 6;
+             }
+
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; transform: translateX(${laneX}px); top: ${top}px;" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          if (bottomNeighbor) {
+             // From center(laneX, laneY) to bottom.
+             // top: cellCenterY + laneY. height: remaining.
+             // align-self: start.
+
+             let top = cellCenterY + laneY;
+             let h = cellHeight - top;
+
+             // Override if i=0 (Start Node) and wire goes to Bottom
+             if (i === 0) {
+                 const nodeHeight = this.getNodeHeight(conn.fromNodeId);
+                 const rowHeight = this.getRowHeight(curr.y);
+                 const nodeOffsetY = (rowHeight - nodeHeight) / 2;
+                 const startPortY = this.getNodePortY(conn.fromNodeId, conn.fromPort.toString(), false);
+                 top = nodeOffsetY + startPortY - 6;
+                 h = cellHeight - top;
+             }
+
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; top: ${top}px; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+
+          // VERTICAL CONNECTOR (Gap Adjustment)
+          // If leftAbsY != rightAbsY, and we have Left & Right neighbors (Straight-ish wire through cell)
+          if (leftNeighbor && rightNeighbor && Math.abs(leftAbsY - rightAbsY) > 1) {
+             const minY = Math.min(leftAbsY, rightAbsY) + 1;
+             const h = Math.abs(leftAbsY - rightAbsY) + 2; // +2 for overlap
+             // Position at center + laneX
+             elements.push(html`<div class="wire-segment" style="${commonStyle} width: 2px; height: ${h}px; justify-self: center; align-self: start; top: ${minY - 1}px; transform: translateX(${laneX}px);" @click=${handleClick} @dblclick=${handleDblClick}></div>`);
+          }
+        }
+      }
+
+      return elements;
+    })}
 
 
-
-    ${repeat(Object.values(nodes), node => node.id, node => {
+        ${Object.values(nodes).map(node => {
       const isQueued = localController.observableState.queuedSelection.has(node.id);
       const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(node.id) || [];
 
@@ -1608,15 +1615,9 @@ export class GraphGrid extends MobxLitElement {
       let col = 0;
       if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') col = 1;
       else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') col = outputCol;
-      else col = 2 * node.x + 3;
+      else col = 2 * node.x + 1;
 
       const row = 2 * node.y + 2;
-
-      // Calculate Span based on actual visual state (Minimal/Compressed/Normal)
-      // This prevents wide nodes (like math.add) from expanding the column width
-      // and breaking alignment for other nodes in the same column.
-      const span = 1; // calculateNodeSpan(node); REVERTED: Nodes MUST fill exactly one cell.
-      const isSelected = localController.observableState.selection.has(node.id);
 
       return html`
             <graph-node
@@ -1625,7 +1626,8 @@ export class GraphGrid extends MobxLitElement {
               .isQueued=${isQueued}
               .x=${node.x}
               .y=${node.y}
-              style="grid-column: ${col} / span ${span}; grid-row: ${row}; z-index: ${isSelected ? 10 : 1}; justify-self: center; align-self: center;"
+              style="grid-column: ${col}; grid-row: ${row}; z-index: 10;"
+              data-id="${node.id}"
             ></graph-node>
           `;
     })}

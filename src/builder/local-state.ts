@@ -1,9 +1,12 @@
 import { HTMLTemplateResult } from 'lit';
 import { observable, makeObservable, action, runInAction, toJS } from 'mobx';
-import { LayoutResult, WireDef, computeWireLayout } from '../layout/wire-layout';
-import { GraphState } from './state';
+import { computeWireLayout, LayoutResult } from '../layout/wire-layout';
+import { GraphState, Connection, GridNode } from './state';
 import { settingsManager } from './settings-manager';
 import { StructorType } from '../structor/structor';
+import { defaultNodeRepository, PortHint } from '../structor/repository';
+import { NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED } from '../constants';
+import { getNodeVisualState, NodeVisualState, calculatePortY, calculateNodeHeight } from '../utils/node-width-utils';
 
 // Part 4: Local Controller (UI State)
 
@@ -15,7 +18,11 @@ export interface LocalState {
   loadedSubgraphs: Map<string, GraphState>;
   compiledNodeConfigs: Map<string, any>; // Cache for worker-compiled configs
   inferredNodeTypes: Map<string, { inputs: StructorType, outputs: StructorType }>;
+  effectiveNodeTypes: Map<string, { inputs: PortHint[], outputs: PortHint[] }>; // Cache for resolved UI Ports
+
+  gridMetrics: GridMetrics; // Comprehensive Grid State
   wireLayout: LayoutResult;
+  layoutVersion: number;
 
   // Serialized settings.
   localSettings: LocalSettings;
@@ -36,9 +43,26 @@ export interface SelectableHandle {
   select(): void;
 }
 
+export interface CellMetric {
+    width: number;
+    height: number;
+    visualState: NodeVisualState;
+    portInputCount: number;
+    portOutputCount: number;
+}
+
+export interface GridMetrics {
+    cells: Map<string, CellMetric>; // Key "x,y"
+    columns: Map<number, NodeVisualState>; // Column Index -> Widest State
+    columnWidths: Map<number, number>; // Column Index -> Max Width in px
+    rows: Map<number, number>; // Row Index -> Max Height in px
+    rowOffsets: Map<number, number>; // Row Index -> Accum. Pixels from Top (for Node Top)
+}
+
+// ... existing code ...
+
 export class LocalController {
   public observableState: LocalState;
-
   public settingsLoaded: Promise<void>;
 
   constructor() {
@@ -49,8 +73,18 @@ export class LocalController {
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
       compiledNodeConfigs: new Map<string, any>(),
-      wireLayout: { wires: {} },
+      wireLayout: { wires: {}, segments: [] },
+      layoutVersion: 0,
+
       inferredNodeTypes: new Map<string, { inputs: any, outputs: any }>(), // Initialize the new map
+      effectiveNodeTypes: new Map<string, { inputs: PortHint[], outputs: PortHint[] }>(),
+      gridMetrics: {
+          cells: new Map(),
+          columns: new Map(),
+          columnWidths: new Map(),
+          rows: new Map(),
+          rowOffsets: new Map()
+      },
       localSettings: {
         showDebugValues: false,
         activeTab: 'workspace',
@@ -66,9 +100,96 @@ export class LocalController {
         runInAction(() => {
             for (const [nodeId, types] of Object.entries(graph.inner.inferredNodeTypes!)) {
                 this.observableState.inferredNodeTypes.set(nodeId, types);
+                this.recomputeEffectivePorts(nodeId, graph.inner.nodes[nodeId]?.config.typeId);
             }
         });
     }
+  }
+
+  @action
+  public updateInferredTypes(inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }>, typeLookup: (nodeId: string) => string | undefined) {
+      for (const [nodeId, types] of Object.entries(inferredTypes)) {
+          this.observableState.inferredNodeTypes.set(nodeId, types);
+
+          const typeId = typeLookup(nodeId);
+          if (typeId) {
+             this.recomputeEffectivePorts(nodeId, typeId);
+          }
+      }
+  }
+
+  // --- Port Computation (Single Source of Truth) ---
+  @action
+  public recomputeEffectivePorts(nodeId: string, typeId: string): void {
+      if (!typeId) return;
+
+      const nodeType = defaultNodeRepository.getNodeType(typeId);
+      const inferredType = this.observableState.inferredNodeTypes.get(nodeId);
+
+      // Default: Use Repository
+      let inputs: PortHint[] = nodeType?.inputs ? [...nodeType.inputs] : [];
+      let outputs: PortHint[] = nodeType?.outputs ? [...nodeType.outputs] : [];
+
+      // Logic: Inferred > Repository
+      // If Inferred exists and is valid (Record with fields), it becomes the Primary Source.
+
+      // 1. Outputs
+      if (inferredType && inferredType.outputs && (inferredType.outputs as any).kind === 'record' && (inferredType.outputs as any).fields) {
+          const fields = (inferredType.outputs as any).fields;
+          // Only override if fields exist
+          if (Object.keys(fields).length > 0) {
+             outputs = Object.entries(fields).map(([name, type]) => {
+                 // Try to match with Repo Metadata
+                 const repoPort = nodeType?.outputs?.find(p => p.name === name);
+                 return {
+                     name,
+                     type: type as StructorType,
+                     description: repoPort?.description || name,
+                     ...repoPort // Spread other props like suppressLabel
+                 };
+             });
+          }
+      }
+
+      // 2. Inputs Union Strategy (Repo + Inferred)
+      // Start with a copy of Repo inputs
+      let inputMap = new Map<string, PortHint>();
+      inputs.forEach(p => inputMap.set(p.name, p));
+
+      if (inferredType && inferredType.inputs && (inferredType.inputs as any).kind === 'record' && (inferredType.inputs as any).fields) {
+          const fields = (inferredType.inputs as any).fields;
+          Object.entries(fields).forEach(([name, type]) => {
+              // If exists, update type? Or keep Repo type?
+              // Inferred is usually more specific (e.g. 'float' vs 'any'), so update type.
+              // But keep Description/Metadata from Repo.
+              const existing = inputMap.get(name);
+              inputMap.set(name, {
+                  name,
+                  type: type as StructorType,
+                  description: existing?.description || name,
+                  defaultValue: (type as any).defaultValue ?? existing?.defaultValue,
+                  ...existing // Spread repo props (like suppressLabel)
+              });
+          });
+      }
+
+      // Convert back to array
+      inputs = Array.from(inputMap.values());
+
+      // Sort: Repo Order first, then New Ports Alphabetical
+      if (nodeType?.inputs) {
+          inputs.sort((a, b) => {
+              const idxA = nodeType.inputs!.findIndex(p => p.name === a.name);
+              const idxB = nodeType.inputs!.findIndex(p => p.name === b.name);
+
+              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+              if (idxA !== -1) return -1; // A in Repo, B New -> A first
+              if (idxB !== -1) return 1;  // B in Repo, A New -> B first
+              return a.name.localeCompare(b.name); // Both New -> Alphabetical
+          });
+      }
+
+      this.observableState.effectiveNodeTypes.set(nodeId, { inputs, outputs });
   }
 
   private async loadSettings() {
@@ -89,69 +210,209 @@ export class LocalController {
   }
 
 
+  // ... existing code ...
+
   @action
   public updateWireLayout(graph: GraphState): void {
-    const wires: WireDef[] = [];
-    const nodes = graph.inner.nodes;
+      const { nodes, connections } = graph.inner;
+      const obstacles = Object.values(nodes).map(n => {
+          let portCount = 1; // Default min height
 
-    for (const conn of Object.values(graph.inner.connections)) {
-      const fromNode = nodes[conn.fromNodeId];
-      const toNode = nodes[conn.toNodeId];
+          const effective = this.observableState.effectiveNodeTypes.get(n.id);
+          if (effective) {
+              portCount = Math.max(effective.inputs.length, effective.outputs.length);
+          } else {
+              const type = defaultNodeRepository.getNodeType(n.config.typeId);
+              if (type) {
+                  const i = type.inputs?.length || 0;
+                  const o = type.outputs?.length || 0;
+                  portCount = Math.max(i, o);
+              }
+          }
+          // Height: Header(1) + Ports.
+          return { x: n.x, y: n.y, height: portCount + 1 };
+      });
 
-      if (fromNode && toNode) {
-        // Simple port position estimation (center of node for now, or we can refine later)
-        // Actually, we should use the grid coordinates.
-        // Input/Output nodes have fixed positions in the grid logic (column 0 or last).
-        // But for routing, we just need start/end points.
-        // We need to know the actual grid coordinates.
-        // For pinned nodes (input/output), we need to handle them carefully.
-        // But the layout engine works on integer grid points.
-        // Let's assume standard nodes are at x,y.
-        // TODO: Refine start/end points based on ports?
-        // For now, let's just route from node center to node center (or close to it).
-        // Actually, the wire layout engine expects integer grid points.
-        // Nodes occupy x,y.
-        // Let's route from (fromNode.x + 1, fromNode.y) to (toNode.x, toNode.y).
-        // This assumes left-to-right flow.
-        let startX = fromNode.x;
-        let startY = fromNode.y;
-        let endX = toNode.x;
-        let endY = toNode.y;
 
-        // Handle pinned nodes
-        if (fromNode.config.typeId === 'io.input') {
-          startX = 0;
-        } else if (fromNode.config.typeId === 'io.output') {
-          startX = 21; // Pinned to right
-        }
+      const wires = Object.values(connections).map(c => {
+          const fromNode = nodes[c.fromNodeId];
+          const toNode = nodes[c.toNodeId];
 
-        if (toNode.config.typeId === 'io.input') {
-          endX = 0;
-        } else if (toNode.config.typeId === 'io.output') {
-          endX = 21; // Pinned to right
-        }
+          let startOffset = 1; // Default to 'mid'ish
+          let endOffset = 1;
 
-        wires.push({
-          id: conn.id,
-          start: { x: startX, y: startY }, // Output is on the right
-          end: { x: endX, y: endY }, // Input is on the left
-          fromNodeId: conn.fromNodeId,
-          fromPort: conn.fromPort.toString(),
-          toNodeId: conn.toNodeId,
-          toPort: conn.toPort.toString(),
-        });
+          // Helper to find index
+          const getPortIndex = (node: GridNode, portName: string, isInput: boolean) => {
+              // Retrieve Cached Effective Ports (Single Source of Truth)
+              const effectiveType = this.observableState.effectiveNodeTypes.get(node.id);
+              if (!effectiveType) {
+                  // Fallback (Should rarely happen if initialized correctly)
+                  const repoType = defaultNodeRepository.getNodeType(node.config.typeId);
+                  const ports = isInput ? repoType?.inputs : repoType?.outputs;
+                  if (ports) {
+                      const idx = ports.findIndex(p => p.name === portName);
+                      if (idx !== -1) return idx;
+                  }
+                  // Numeric fallback
+                  const i = parseInt(portName, 10);
+                  if (!isNaN(i)) return i;
+                  return -1;
+              }
+              const ports = isInput ? effectiveType.inputs : effectiveType.outputs;
+              return ports.findIndex(p => p.name === portName);
+          };
+
+          const fromIdx = getPortIndex(fromNode, c.fromPort.toString(), false);
+          const toIdx = getPortIndex(toNode, c.toPort.toString(), true);
+
+          // Calculate Centering Offsets
+          // Mirrors WireRenderer logic
+          const getCenteringOffset = (node: GridNode) => {
+              const rowHeight = this.observableState.gridMetrics.rows.get(node.y) || 80;
+              // Re-calculate node height or cache it?
+              // Ideally cache in gridMetrics.cells, but here we can re-calc or lookup.
+              // Lookup from cells is safer if populated.
+              const cell = this.observableState.gridMetrics.cells.get(`${node.x},${node.y}`);
+              const nodeHeight = cell ? cell.height : 80;
+
+              if (rowHeight > nodeHeight) {
+                  return (rowHeight - nodeHeight) / 2;
+              }
+              return 0;
+          };
+
+          const fromCenter = getCenteringOffset(fromNode);
+          const toCenter = getCenteringOffset(toNode);
+
+          // Calculate Logical Lane Offset (Rem)
+          // Formula: rem = index + Math.round((centeringOffset + 23) / 24)
+          // Fallback: If port not found (idx -1), default to 0 (Main/Top Port) to respect centering.
+
+          const startBaseIndex = fromIdx === -1 ? 0 : fromIdx;
+          startOffset = startBaseIndex + Math.round((fromCenter + 23) / 24);
+
+          const endBaseIndex = toIdx === -1 ? 0 : toIdx;
+          endOffset = endBaseIndex + Math.round((toCenter + 23) / 24);
+
+          console.log(`WireDef: ${c.id} From=${fromNode?.config.typeId}:${c.fromPort} Offset=${startOffset} To=${toNode?.config.typeId}:${c.toPort} Offset=${endOffset}`);
+
+          return {
+              id: c.id,
+              start: { x: fromNode.x, y: fromNode.y },
+              end: { x: toNode.x, y: toNode.y },
+              fromPort: c.fromPort.toString(),
+              toPort: c.toPort.toString(),
+              startOffset,
+              endOffset
+          };
+      });
+
+      const result = computeWireLayout(wires, { obstacles });
+
+      runInAction(() => {
+          // Update Metrics FIRST to ensure offsets are correct for the new layout
+          this.updateGridMetrics(graph);
+          this.observableState.wireLayout = result;
+          this.observableState.layoutVersion++;
+      });
+  }
+
+  @action
+  public updateGridMetrics(graph: GraphState): void {
+      const { nodes, connections } = graph.inner;
+
+      const metrics: GridMetrics = {
+          cells: new Map(),
+          columns: new Map(),
+          columnWidths: new Map(),
+          rows: new Map(),
+          rowOffsets: new Map()
+      };
+
+      // Pre-calculate incoming connections for all nodes to perform heuristic
+      const incomingConnections = new Map<string, Set<string>>();
+      Object.values(connections).forEach(c => {
+          if (!incomingConnections.has(c.toNodeId)) {
+              incomingConnections.set(c.toNodeId, new Set());
+          }
+          incomingConnections.get(c.toNodeId)!.add(c.toPort.toString());
+      });
+
+      Object.values(nodes).forEach(node => {
+         const col = node.x;
+         const row = node.y;
+         const key = `${col},${row}`;
+
+         // Determine Node Properties
+         const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+         // Use Effective Types (Single Source of Truth)
+         const effective = this.observableState.effectiveNodeTypes.get(node.id); // Ensure this is up to date!
+
+         let inputs: PortHint[] = effective?.inputs || (nodeType?.inputs ? [...nodeType.inputs] : []);
+         let outputs: PortHint[] = effective?.outputs || (nodeType?.outputs ? [...nodeType.outputs] : []);
+
+         const connectedPorts = incomingConnections.get(node.id) || new Set<string>();
+         const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
+
+         // Helper logic from node-width-utils
+         const state = getNodeVisualState(inputs, outputs, connectedPorts, hasCustomBody);
+
+         let width = NODE_WIDTH_NORMAL;
+         if (node.config.width) {
+             width = node.config.width;
+         } else {
+             if (state === 'minimal') width = NODE_WIDTH_MINIMAL;
+             else if (state === 'compressed') width = NODE_WIDTH_COMPRESSED;
+             else width = NODE_WIDTH_NORMAL;
+         }
+
+         // Calculate Height using shared utility
+         const estimatedHeight = calculateNodeHeight(
+             node,
+             nodeType,
+             connectedPorts,
+             inputs,
+             outputs
+         );
+
+         metrics.cells.set(key, {
+             width,
+             height: estimatedHeight,
+             visualState: state,
+             portInputCount: inputs.length,
+             portOutputCount: outputs.length
+         });
+
+         // Column Metrics
+         const currentWidth = metrics.columnWidths.get(col) || 0;
+         if (width > currentWidth) metrics.columnWidths.set(col, width);
+
+         // Column Visual State Priority: Normal > Compressed > Minimal
+         const currentState = metrics.columns.get(col) || 'minimal';
+         if (state === 'normal') metrics.columns.set(col, 'normal');
+         else if (state === 'compressed' && currentState !== 'normal') metrics.columns.set(col, 'compressed');
+         else if (state === 'minimal' && !metrics.columns.has(col)) metrics.columns.set(col, 'minimal');
+
+         // Row Metrics
+         const currentRowHeight = metrics.rows.get(row) || 0;
+         if (estimatedHeight > currentRowHeight) metrics.rows.set(row, estimatedHeight);
+      });
+
+      try {
+          // Post-Process: Calculate Row Offsets
+          let currentY = 16;
+          const maxRow = Math.max(...Array.from(metrics.rows.keys()), -1);
+          for (let r = 0; r <= maxRow; r++) {
+              metrics.rowOffsets.set(r, currentY);
+              // Default to 80px for empty/collapsed rows so the Grid Layout remains stable
+              const h = metrics.rows.get(r) || 80;
+              currentY += h + 16;
+          }
+      } catch (e) {
+          console.error("Error calculating rowOffsets", e);
       }
-    }
 
-    const obstacles = Object.values(nodes).map(n => ({ x: n.x, y: n.y }));
-
-    // For now, we don't track granular changes, so we don't pass changedWireIds.
-    // But we pass previousResult to allow for potential future optimizations or stability.
-    const result = computeWireLayout(wires, {
-      obstacles,
-      previousResult: this.observableState.wireLayout
-    });
-    this.observableState.wireLayout = result;
+      this.observableState.gridMetrics = metrics;
   }
 
   public defineSelectable(selectable: Selectable): SelectableHandle {

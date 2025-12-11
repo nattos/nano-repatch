@@ -13,5 +13,175 @@
       }
     }
   },
-  "connections": {}
+  "connections": {},
+  "inferredNodeTypes": {
+    "node-ff507760-1c01-423e-9e19-72515bc66ea4": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-7861a54a-9b96-4684-a7b8-56d689bb970e": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-7545cfe0-b2a4-4ff5-9e11-e4b0c952abf8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-8f79ede3-612f-4c98-9f64-b36205ffe5ec": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-6a4256ab-cd70-4409-be3b-fb340380f7da": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "min": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-c50d13c3-0999-4b63-8144-5611546ca79a": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "easing": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-08ac1d7d-d39a-499b-9ca4-e8e5b66a8a83": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    }
+  }
 }

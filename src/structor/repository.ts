@@ -13,7 +13,6 @@ import {
 import type { GraphState, GridNode } from '../builder/state';
 
 import { AnyType, NumberType } from './type-helpers';
-import { midiStreamType } from './std-types';
 
 export interface PortHint {
   name: string; // Corresponds to tag. Empty string for default/untagged.
@@ -59,9 +58,15 @@ export interface NodeType {
 
   /**
    * Returns the exact pixel height required for the custom body.
-   * Required if renderBody is defined and takes up space.
+   * If provided, this is used for layout calculations instead of heuristics.
    */
   getBodyHeight?: (node: GridNode) => number;
+
+  /**
+   * For dynamic nodes (like Subgraphs), allows resolving actual ports at runtime
+   * based on internal state or sub-graph definition.
+   */
+  compilePorts?: (node: GridNode, context: any) => { inputs: PortHint[], outputs: PortHint[] };
 
   /**
    * A custom Lit-element renderer for the node's inspector content.
@@ -84,15 +89,7 @@ export interface NodeType {
    */
   getInputEditorHeight?: (node: GridNode, portName: string) => number;
 
-  /**
-   * A function to dynamically get the ports for a node, possibly using a cached compiled config.
-   * Used for nodes like subgraphs or expressions where ports depend on internal state or code.
-   */
-  compilePorts?: (node: GridNode, context: { loadedSubgraphs: Map<string, GraphState>, compiledConfig?: Structor, inferredType?: { inputs: StructorType, outputs: StructorType } }) => {
-    inputs: PortHint[];
-    outputs: PortHint[];
-    displayName?: string;
-  } | null;
+
 
   ui?: {
     body?: () => Promise<(node: GridNode, handlers: GraphNodeRenderHandlers) => unknown>;
@@ -148,6 +145,21 @@ defaultNodeRepository.register({
   ],
   outputs: [
     { name: 'result', type: NumberType, description: 'Sum' }
+  ]
+});
+
+defaultNodeRepository.register({
+  id: 'math.fmod',
+  version: '1.0.0',
+  displayName: 'FMod',
+  definition: primitive_fmod,
+  inputs: [
+    { name: 'dividend', type: NumberType, description: 'Dividend' },
+    { name: 'divisor', type: NumberType, description: 'Divisor' }
+  ],
+  outputs: [
+    { name: 'div', type: NumberType, description: 'Floor Division' },
+    { name: 'mod', type: NumberType, description: 'Modulo' }
   ]
 });
 
@@ -622,33 +634,7 @@ defaultNodeRepository.register({
   definition: primitive_subgraph,
   inputs: [],
   outputs: [],
-  compilePorts: (node, { loadedSubgraphs }) => {
-    const subgraphId = node.config.subgraphId;
-    const subgraph = loadedSubgraphs.get(subgraphId);
-    if (subgraph) {
-      const subgraphNodes = Object.values(subgraph.inner.nodes);
-      const inputs = subgraphNodes
-        .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input') // Support both for now
-        .sort((a, b) => a.y - b.y)
-        .map(n => ({ name: n.config.name || '0', description: 'Subgraph Input', type: AnyType }));
 
-      const outputs = subgraphNodes
-        .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output') // Support both for now
-        .sort((a, b) => a.y - b.y)
-        .map(n => ({ name: n.config.name || '0', description: 'Subgraph Output', type: AnyType }));
-
-      return {
-        inputs,
-        outputs,
-        displayName: `Subgraph: ${subgraphId}`
-      };
-    }
-    return {
-      inputs: [],
-      outputs: [],
-      displayName: `Subgraph (Not Found)`
-    };
-  },
 });
 
 

@@ -7,7 +7,9 @@ import { appController, localController, runtimeManager } from '../builder/contr
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
+import '../structor/repository.ui'; // Import UI repository side-effects
 import { parseFloatOr } from '../utils/utils';
+import { getNodeVisualState, shouldShowInputEditor } from '../utils/node-width-utils';
 import '../components/smart-input';
 import './scalar-slider';
 import { NodeCatalog } from '../structor/node-catalog';
@@ -102,7 +104,8 @@ export class GraphNode extends MobxLitElement {
       border: 2px solid transparent;
       transition: border-color 0.2s;
       box-sizing: border-box;
-      place-self: center;
+      box-sizing: border-box;
+      /* place-self: start; Removed to allow grid alignment */
       /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
     }
@@ -260,20 +263,19 @@ export class GraphNode extends MobxLitElement {
       padding: 5px 0;
       pointer-events: all; /* Re-enable pointer events for ports */
       gap: 0; /* No gap, use fixed height */
+      top: 0px;
     }
 
     .inputs {
       align-items: flex-start;
       position: relative;
       left: ${PIP_OFFSET_X}px; /* Move pips out to hang off node */
-      top: 2px; /* Adjust vertical alignment */
     }
 
     .outputs {
       align-items: flex-end;
       position: relative;
       right: ${PIP_OFFSET_X}px; /* Move pips out */
-      top: 2px; /* Adjust vertical alignment */
     }
 
     .virtual-inputs-container {
@@ -506,8 +508,72 @@ export class GraphNode extends MobxLitElement {
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
       },
       accept: (e, delta) => {
-        let dx = Math.round(delta[0] / 110);
-        let dy = Math.round(delta[1] / 110);
+        // Calculate Grid Delta using Metrics (Variable Width/Height)
+        const metrics = localController.observableState.gridMetrics;
+        const GRID_GAP = 16; // from constants
+
+        // --- Calculate DX ---
+        let dx = 0;
+        let pixelAccum = 0;
+        const targetPixelX = delta[0];
+
+        if (targetPixelX > 0) {
+            // Dragging Right
+            let col = this.node.x;
+            while (true) {
+                // Width of current column + Gap
+                const width = (metrics.columnWidths.get(col) || 80) + GRID_GAP;
+                if (pixelAccum + (width / 2) > targetPixelX) break; // Snap point
+                pixelAccum += width;
+                dx++;
+                col++;
+                // Safety break
+                if (dx > 50) break;
+            }
+        } else if (targetPixelX < 0) {
+            // Dragging Left
+            let col = this.node.x;
+            while (true) {
+                // Width of PREVIOUS column + Gap (traversing left)
+                const prevCol = col - 1;
+                const width = (metrics.columnWidths.get(prevCol) || 80) + GRID_GAP;
+                if (pixelAccum - (width / 2) < targetPixelX) break; // Snap point (negative)
+                pixelAccum -= width;
+                dx--;
+                col--;
+                if (dx < -50) break;
+            }
+        }
+
+        // --- Calculate DY ---
+        let dy = 0;
+        pixelAccum = 0;
+        const targetPixelY = delta[1];
+
+        if (targetPixelY > 0) {
+            // Dragging Down
+            let row = this.node.y;
+            while (true) {
+                const height = (metrics.rows.get(row) || 80) + GRID_GAP;
+                if (pixelAccum + (height / 2) > targetPixelY) break;
+                pixelAccum += height;
+                dy++;
+                row++;
+                if (dy > 50) break;
+            }
+        } else if (targetPixelY < 0) {
+            // Dragging Up
+            let row = this.node.y;
+            while (true) {
+                const prevRow = row - 1;
+                const height = (metrics.rows.get(prevRow) || 80) + GRID_GAP;
+                if (pixelAccum - (height / 2) < targetPixelY) break;
+                pixelAccum -= height;
+                dy--;
+                row--;
+                if (dy < -50) break;
+            }
+        }
 
         const selectedNodeIds = Array.from(localController.observableState.selection.keys())
           .filter(id => id.startsWith('node-'));
@@ -742,12 +808,7 @@ export class GraphNode extends MobxLitElement {
     `;
   }
 
-  private shouldShowInputEditor(input: PortHint, isConnected: boolean): boolean {
-    if (input.alwaysShowInputEditor) return true;
-    if (isConnected) return false;
-    if (input.suppressInputEditor) return false;
-    return true;
-  }
+
 
   private currentTypeId: string | null = null;
 
@@ -860,44 +921,19 @@ export class GraphNode extends MobxLitElement {
       this.dataset.id = this.node.id;
 
       // Re-calculate state for host attribute
+      // Re-calculate state for host attribute
       const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+      const effectiveType = localController.observableState.effectiveNodeTypes.get(this.node.id);
+
       let inputs: PortHint[] = [];
       let outputs: PortHint[] = [];
 
-      if (nodeType) {
-        inputs = [...(nodeType.inputs || [])];
-        outputs = [...(nodeType.outputs || [])];
-
-        const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
-
-        // Merge Inferred Outputs (this is the source of truth for dynamic outputs)
-        if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
-          const inferredOutputs = inferredType.outputs.fields;
-
-            if (outputs.length === 0) {
-              outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
-                  name,
-                  type,
-                  description: name
-              }));
-            }
-        }
-
-        // Determine Input list: Static + Connected Dynamic
-        if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
-          const connectedInputs = inferredType.inputs.fields;
-          const staticInputNames = new Set(inputs.map(i => i.name));
-
-          for (const [name, type] of Object.entries(connectedInputs)) {
-            if (!staticInputNames.has(name)) {
-              inputs.push({
-                  name,
-                  type,
-                  description: name
-              });
-            }
-          }
-        }
+      if (effectiveType) {
+          inputs = effectiveType.inputs;
+          outputs = effectiveType.outputs;
+      } else if (nodeType) {
+          inputs = [...(nodeType.inputs || [])];
+          outputs = [...(nodeType.outputs || [])];
       }
 
       // Use passed property or fallback to store (though prop should be primary)
@@ -908,24 +944,13 @@ export class GraphNode extends MobxLitElement {
         return conn ? conn.toPort : null;
       }).filter(port => port !== null));
 
-      let hasVisibleSliders = false;
-      inputs.forEach(input => {
-        const isConnected = connectedPorts.has(input.name);
-        if (this.shouldShowInputEditor(input, isConnected)) {
-          hasVisibleSliders = true;
-        }
-      });
-
       const hasCustomBody = !!(nodeType?.renderBody || this.loadedBodyRenderer);
 
       let state = 'normal';
-      if (!hasVisibleSliders && !hasCustomBody) {
-        if (inputs.length <= 1 && outputs.length <= 1) {
-          state = 'minimal';
-        } else {
-          state = 'compressed';
-        }
-      }
+      // Use shared utility
+      // connectedPorts is Set<string> effectively
+      state = getNodeVisualState(inputs, outputs, connectedPorts as Set<string>, hasCustomBody);
+
 
       this.dataset.state = state;
 
@@ -936,7 +961,7 @@ export class GraphNode extends MobxLitElement {
       inputs.forEach(input => {
         const isConnected = connectedPorts.has(input.name);
         let height = ROW_HEIGHT;
-        if (this.shouldShowInputEditor(input, isConnected)) {
+        if (shouldShowInputEditor(input, isConnected)) {
           const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
           if (customHeight) {
             height = Math.max(ROW_HEIGHT, customHeight);
@@ -985,44 +1010,20 @@ export class GraphNode extends MobxLitElement {
     });
 
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    const effectiveType = localController.observableState.effectiveNodeTypes.get(this.node.id);
+
     let inputs: PortHint[] = [];
     let outputs: PortHint[] = [];
     let displayName = this.node.config.typeId;
 
-    if (nodeType) {
+    if (effectiveType) {
+        inputs = effectiveType.inputs;
+        outputs = effectiveType.outputs;
+        displayName = nodeType?.displayName || this.node.config.typeId;
+    } else if (nodeType) {
         inputs = [...(nodeType.inputs || [])];
         outputs = [...(nodeType.outputs || [])];
         displayName = nodeType.displayName || this.node.config.typeId;
-
-        const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
-
-        // Merge Inferred Outputs (Source of Truth for Dynamic Outputs)
-        if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
-          const inferredOutputs = inferredType.outputs.fields;
-          if (outputs.length === 0) {
-            outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
-                name,
-                type,
-                description: name
-            }));
-          }
-        }
-
-        // Merge Inferred Inputs (Static + Dynamic Connected)
-        if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
-          const connectedInputs = inferredType.inputs.fields;
-          const staticInputNames = new Set(inputs.map(i => i.name));
-
-          for (const [name, type] of Object.entries(connectedInputs)) {
-            if (!staticInputNames.has(name)) {
-                inputs.push({
-                    name,
-                    type,
-                    description: name
-                });
-            }
-          }
-        }
     }
 
     // Get current incoming connections to this node
@@ -1036,22 +1037,11 @@ export class GraphNode extends MobxLitElement {
     const typeColor = cssColorFromHash(this.node.config.typeId);
 
     // Determine State (Logic duplicated from updated() for render consistency)
-    let hasVisibleSliders = false;
-    inputs.forEach(input => {
-      const isConnected = connectedPorts.has(input.name);
-      if (this.shouldShowInputEditor(input, isConnected)) {
-        hasVisibleSliders = true;
-      }
-    });
+    const hasCustomBody = !!(nodeType?.renderBody || this.loadedBodyRenderer);
+    const state = getNodeVisualState(inputs, outputs, connectedPorts as Set<string>, hasCustomBody);
 
-    let state = 'normal';
-    if (!hasVisibleSliders) {
-      if (inputs.length <= 1 && outputs.length <= 1) {
-        state = 'minimal';
-      } else {
-          state = 'compressed';
-      }
-    }
+    // Reflect state to host for styling
+    this.dataset.state = state;
 
     // Compute Layout
     // Constants imported from ../constants
@@ -1067,7 +1057,7 @@ export class GraphNode extends MobxLitElement {
         if (input) {
           if (input.suppressLabel) return true;
           const isConnected = connectedPorts.has(input.name);
-          if (this.shouldShowInputEditor(input, isConnected)) {
+          if (shouldShowInputEditor(input, isConnected)) {
             // If we are showing an editor, we hide the label
             return true;
           }
@@ -1082,7 +1072,7 @@ export class GraphNode extends MobxLitElement {
         if (outputIndex !== -1 && outputIndex < inputs.length) {
           const input = inputs[outputIndex];
           const isConnected = connectedPorts.has(input.name);
-          if (this.shouldShowInputEditor(input, isConnected)) {
+          if (shouldShowInputEditor(input, isConnected)) {
             // Corresponding input has an editor, so hide output label too
             return true;
           }
@@ -1109,7 +1099,7 @@ export class GraphNode extends MobxLitElement {
       `);
 
       // Render Editor (if disconnected)
-      if (this.shouldShowInputEditor(input, isConnected)) {
+      if (shouldShowInputEditor(input, isConnected)) {
         const customHeight = nodeType?.getInputEditorHeight?.(this.node, input.name);
         if (customHeight) {
           height = Math.max(ROW_HEIGHT, customHeight);

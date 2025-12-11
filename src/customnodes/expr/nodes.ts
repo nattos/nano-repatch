@@ -85,47 +85,7 @@ export const expressionNode = defineNode({
       return { result: null };
     }
   },
-  // Dynamic ports based on compiled graph
-  compilePorts: (node, context) => {
-    // Use the cached compiled config if available (from worker)
-    // Or fallback to parsing if necessary (but prefer cache)
-    const compiledConfig = context.compiledConfig;
-    let graph: ExecutionGraph | null = null;
 
-    if (compiledConfig && compiledConfig.fields && compiledConfig.fields.graph) {
-      graph = compiledConfig.fields.graph;
-    } else {
-      // Fallback: Check local cache or compile on the fly (main thread)
-      // This ensures ports (and wires) don't disappear before worker returns.
-      // But we rely on graphCache to make it fast if repeated.
-      const code = node.config.code || '';
-      if (!code.trim()) {
-        return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
-      }
-      graph = getCompiledGraph(code);
-    }
-
-    if (!graph) return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
-
-    try {
-      const inputs: PortHint[] = [];
-      for (const node of Object.values(graph.nodes)) {
-        if (node.op === 'input') {
-          // Avoid duplicates
-          if (!inputs.find(i => i.name === node.params.key)) {
-            inputs.push({ name: node.params.key, type: NumberType, description: `Variable: ${node.params.key}` });
-          }
-        }
-      }
-
-      return {
-        inputs,
-        outputs: [{ name: 'result', type: AnyType }]
-      };
-    } catch (e) {
-      return { inputs: [], outputs: [{ name: 'result', type: AnyType }] };
-    }
-  }
 });
 
 registerNode(expressionNode);

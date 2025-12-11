@@ -78,7 +78,7 @@ export interface EnhancedNodeOptions<
   displayName?: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
-  compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
 
@@ -98,7 +98,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   compileConfig?: (uiConfig: any) => any;
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: ExtendedNodeOutputsDef;
-  compilePorts?: (node: any, context: { loadedSubgraphs?: Map<string, any>, compiledConfig?: any }) => { inputs: PortHint[]; outputs: PortHint[]; displayName?: string; } | null;
+
   inspectInputs?: boolean;
   // onMessage is inherited from PrimitiveNodeDefinition
 }
@@ -151,7 +151,7 @@ export function defineNode<
     compileConfig: options.compileConfig,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
-    compilePorts: options.compilePorts,
+
     inspectInputs: options.inspectInputs
   };
 }
@@ -196,7 +196,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inputs,
     outputs,
     compileConfig: def.compileConfig,
-    compilePorts: def.compilePorts,
+
     inspectInputs: def.inspectInputs,
   };
 
