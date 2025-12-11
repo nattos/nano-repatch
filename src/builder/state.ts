@@ -282,11 +282,16 @@ export class AppController {
       this.applyMutationsToObservable(mutations);
 
       if (!isUndoRedo) {
-        const inverseMutations = this.createInverse(mutations);
-        runInAction(() => {
-          this.undoStack.push(inverseMutations);
-          this.redoStack = [];
-        });
+        // Filter out mutations that shouldn't be in history
+        const mutationsForHistory = mutations.filter(m => m.type !== 'graph.updateInferredTypes');
+
+        if (mutationsForHistory.length > 0) {
+            const inverseMutations = this.createInverse(mutationsForHistory);
+            runInAction(() => {
+              this.undoStack.push(inverseMutations);
+              this.redoStack = [];
+            });
+        }
       }
     }
 

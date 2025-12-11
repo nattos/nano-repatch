@@ -872,31 +872,31 @@ export class GraphNode extends MobxLitElement {
 
         // Merge Inferred Outputs (this is the source of truth for dynamic outputs)
         if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
-            const inferredOutputs = inferredType.outputs.fields;
+          const inferredOutputs = inferredType.outputs.fields;
 
-             if (outputs.length === 0) {
-                  outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
-                      name,
-                      type,
-                      description: name
-                  }));
-             }
+            if (outputs.length === 0) {
+              outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
+                  name,
+                  type,
+                  description: name
+              }));
+            }
         }
 
         // Determine Input list: Static + Connected Dynamic
         if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
-            const connectedInputs = inferredType.inputs.fields;
-            const staticInputNames = new Set(inputs.map(i => i.name));
+          const connectedInputs = inferredType.inputs.fields;
+          const staticInputNames = new Set(inputs.map(i => i.name));
 
-            for (const [name, type] of Object.entries(connectedInputs)) {
-                if (!staticInputNames.has(name)) {
-                    inputs.push({
-                        name,
-                        type,
-                        description: name
-                    });
-                }
+          for (const [name, type] of Object.entries(connectedInputs)) {
+            if (!staticInputNames.has(name)) {
+              inputs.push({
+                  name,
+                  type,
+                  description: name
+              });
             }
+          }
         }
       }
 
@@ -998,30 +998,30 @@ export class GraphNode extends MobxLitElement {
 
         // Merge Inferred Outputs (Source of Truth for Dynamic Outputs)
         if (inferredType && inferredType.outputs && inferredType.outputs.kind === 'record') {
-            const inferredOutputs = inferredType.outputs.fields;
-            if (outputs.length === 0) {
-                 outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
-                     name,
-                     type,
-                     description: name
-                 }));
-            }
+          const inferredOutputs = inferredType.outputs.fields;
+          if (outputs.length === 0) {
+            outputs = Object.entries(inferredOutputs).map(([name, type]) => ({
+                name,
+                type,
+                description: name
+            }));
+          }
         }
 
         // Merge Inferred Inputs (Static + Dynamic Connected)
         if (inferredType && inferredType.inputs && inferredType.inputs.kind === 'record') {
-            const connectedInputs = inferredType.inputs.fields;
-            const staticInputNames = new Set(inputs.map(i => i.name));
+          const connectedInputs = inferredType.inputs.fields;
+          const staticInputNames = new Set(inputs.map(i => i.name));
 
-            for (const [name, type] of Object.entries(connectedInputs)) {
-                if (!staticInputNames.has(name)) {
-                    inputs.push({
-                        name,
-                        type,
-                        description: name
-                    });
-                }
+          for (const [name, type] of Object.entries(connectedInputs)) {
+            if (!staticInputNames.has(name)) {
+                inputs.push({
+                    name,
+                    type,
+                    description: name
+                });
             }
+          }
         }
     }
 
