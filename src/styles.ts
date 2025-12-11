@@ -61,6 +61,7 @@ export const globalStyles = [
     --header-height: 24px;
     --node-padding-x: 16px;
     --node-padding-y: 8px;
+    --node-content-width: 240px; /* NODE_WIDTH_NORMAL - 2*PADDING */
 
     color: var(--app-text-color2);
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
