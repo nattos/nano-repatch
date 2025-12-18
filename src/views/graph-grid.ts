@@ -85,7 +85,7 @@ export class GraphGrid extends MobxLitElement {
       background-color: var(--selection-color);
       border: 1px solid var(--selection-border);
       pointer-events: none;
-      z-index: 100;
+      z-index: 200;
     }
 
     .cell {
@@ -1726,7 +1726,7 @@ export class GraphGrid extends MobxLitElement {
               .isQueued=${isQueued}
               .x=${node.x}
               .y=${node.y}
-              style="grid-column: ${col} / span ${span}; grid-row: ${row}; z-index: ${isSelected ? 10 : 1}; justify-self: center; align-self: center;"
+              style="grid-column: ${col} / span ${span}; grid-row: ${row}; z-index: ${isSelected ? 110 : 100}; justify-self: center; align-self: center;"
             ></graph-node>
           `;
   }

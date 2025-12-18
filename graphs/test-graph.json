@@ -39,18 +39,18 @@
       "config": {
         "typeId": "nicepattern.orthomod",
         "values": {
-          "curve": 3.7,
+          "curve": 3.6,
           "manual_phase": -1,
-          "decay": 0.76,
+          "decay": 0.32,
           "resolution": 5,
-          "relcurve": 3.8
+          "relcurve": 1.6
         },
         "seed": 22158
       }
     },
     "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
       "id": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
-      "x": 7,
+      "x": 8,
       "y": 1,
       "config": {
         "typeId": "nicepattern.tone_synth_layer",
@@ -74,19 +74,19 @@
     },
     "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361": {
       "id": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
-      "x": 7,
+      "x": 8,
       "y": 3,
       "config": {
         "typeId": "nicepattern.tone4",
         "values": {
-          "root": 48.09
+          "root": 48.17
         }
       }
     },
     "node-e21fdc33-39ec-476a-935c-61e183532725": {
       "id": "node-e21fdc33-39ec-476a-935c-61e183532725",
-      "x": 6,
-      "y": 2,
+      "x": 7,
+      "y": 3,
       "config": {
         "typeId": "math.all.add",
         "values": {}
@@ -99,7 +99,7 @@
       "config": {
         "typeId": "nicepattern.magneto",
         "values": {
-          "sustain": 0.4486049107142857,
+          "sustain": 1,
           "peak": 0.9,
           "attack": 0.01,
           "decay": 0.14,
@@ -127,7 +127,7 @@
       "config": {
         "typeId": "math.map",
         "values": {
-          "outMin": 0.8,
+          "outMin": 0.78,
           "outMax": 1
         }
       }
@@ -171,20 +171,6 @@
       "toNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
       "toPort": "midi_in"
     },
-    "conn-e12962b1-bfd7-4f5f-bb21-705752fdaa44": {
-      "id": "conn-e12962b1-bfd7-4f5f-bb21-705752fdaa44",
-      "fromNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
-      "fromPort": "vec",
-      "toNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
-      "toPort": ""
-    },
-    "conn-d49f396b-6030-4250-827b-5e06de6a2473": {
-      "id": "conn-d49f396b-6030-4250-827b-5e06de6a2473",
-      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
-      "fromPort": "vec",
-      "toNodeId": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
-      "toPort": "vec"
-    },
     "conn-fa701981-3075-4402-89a6-0aced175c1c9": {
       "id": "conn-fa701981-3075-4402-89a6-0aced175c1c9",
       "fromNodeId": "node-e37020b4-af5d-4907-a674-edb9421a50a4",
@@ -212,6 +198,34 @@
       "fromPort": "vec",
       "toNodeId": "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f",
       "toPort": "record"
+    },
+    "conn-e4e0f191-a93a-48d9-9166-86a8b353a3e1": {
+      "id": "conn-e4e0f191-a93a-48d9-9166-86a8b353a3e1",
+      "fromNodeId": "node-e37020b4-af5d-4907-a674-edb9421a50a4",
+      "fromPort": "stream",
+      "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
+      "toPort": "midi_in"
+    },
+    "conn-10844a6f-ad70-48a4-952e-cffa45d7941a": {
+      "id": "conn-10844a6f-ad70-48a4-952e-cffa45d7941a",
+      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
+      "fromPort": "vec",
+      "toNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
+      "toPort": "values"
+    },
+    "conn-08bc85b9-64e5-437b-817f-7ec142e4a04c": {
+      "id": "conn-08bc85b9-64e5-437b-817f-7ec142e4a04c",
+      "fromNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
+      "fromPort": "vec",
+      "toNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
+      "toPort": "values"
+    },
+    "conn-5c21018e-a372-4421-9e0c-da607ce1ab6d": {
+      "id": "conn-5c21018e-a372-4421-9e0c-da607ce1ab6d",
+      "fromNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
+      "fromPort": "result",
+      "toNodeId": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
+      "toPort": "vec"
     }
   },
   "inferredNodeTypes": {
