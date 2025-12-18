@@ -11,6 +11,8 @@ export const NODE_PADDING_Y = 8;
 
 // Derived Constants
 export const GRID_STEP = GRID_UNIT + GRID_GAP;
+export const GRID_MIN_COLS = 8;
+export const GRID_OUTPUT_COL_PADDING = 3;
 
 // Node Widths
 export const NODE_WIDTH_MINIMAL = GRID_UNIT; // 80px

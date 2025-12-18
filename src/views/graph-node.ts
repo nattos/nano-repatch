@@ -485,13 +485,13 @@ export class GraphNode extends MobxLitElement {
   }
 
   private handlePointerDown(e: PointerEvent) {
-    // Ignore if clicking on a port or virtual input field
-    // We need to check composed path because the target might be inside the shadow DOM of the input
+    // Ignore if clicking on a port circle or virtual input field
+    // We need to check composedPath to drill into Shadow DOM
     const path = e.composedPath();
-    const isPort = path.some(el => (el as HTMLElement).tagName?.toLowerCase() === 'graph-port');
+    const isPortCircle = path.some(el => (el as Element).classList?.contains('port'));
     const isInteractiveContent = path.some(el => (el as HTMLElement).classList?.contains('virtual-inputs-container'));
 
-    if (isPort || isInteractiveContent) {
+    if (isPortCircle || isInteractiveContent) {
       return;
     }
 

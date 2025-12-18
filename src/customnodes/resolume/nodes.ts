@@ -25,7 +25,7 @@ export const resolumeInputNode = defineNode({
     path: stringType
   },
   outputs: {
-    value: numberType
+    value: { type: numberType, suppressLabel: true }
   },
   autoBroadcast: false,
   isRealtime: () => true, // Inputs change over time

@@ -18,7 +18,7 @@ import { NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED } from '..
 import { getNodeVisualState } from '../utils/node-width-utils';
 import { calculatePortY } from '../utils/node-width-utils';
 import { globalStyles } from '../styles';
-import { GRID_UNIT, GRID_GAP } from '../constants';
+import { GRID_UNIT, GRID_GAP, GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING } from '../constants';
 
 
 interface WireInsert {
@@ -1600,7 +1600,7 @@ export class GraphGrid extends MobxLitElement {
       if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') continue;
       if (node.x > maxNodeX) maxNodeX = node.x;
     }
-    const cols = Math.max(maxNodeX + 3, 8);
+    const cols = Math.max(maxNodeX + GRID_OUTPUT_COL_PADDING, GRID_MIN_COLS);
     const outputCol = 2 * cols + 3;
 
     return html`

@@ -5,7 +5,10 @@ import { GraphState, Connection, GridNode } from './state';
 import { settingsManager } from './settings-manager';
 import { StructorType } from '../structor/structor';
 import { defaultNodeRepository, PortHint } from '../structor/repository';
-import { NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED } from '../constants';
+import {
+  NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED,
+  GRID_UNIT, GRID_GAP, GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING
+} from '../constants';
 import { getNodeVisualState, NodeVisualState, calculatePortY, calculateNodeHeight } from '../utils/node-width-utils';
 
 // Part 4: Local Controller (UI State)
@@ -240,6 +243,30 @@ export class LocalController {
     this.updateGridMetrics(graph);
 
     // 2. Prepare payload for worker
+    // We virtualize Input/Output columns to align with WireRenderer logic.
+    // CSS Grid: 1=Input, 2=Gap, 3=Node0 (x=0).
+    // WireRenderer expects: seg.x + 2 = GridCol.
+    // So for Input (Col 1), we need seg.x = -1.
+    // For Output (Col Last), we need seg.x relative to max.
+
+    // Find grid bounds
+    let maxNodeX = 0;
+    Object.values(nodes).forEach(n => {
+      if (n.config.typeId !== 'io.output' && n.config.typeId !== 'resolume.output' && n.config.typeId !== 'io.input' && n.config.typeId !== 'resolume.input') {
+        if (n.x > maxNodeX) maxNodeX = n.x;
+      }
+    });
+
+    const getVirtualX = (n: GridNode) => {
+      if (n.config.typeId === 'io.input' || n.config.typeId === 'resolume.input') return -1;
+      // Output needs to be far enough right.
+      // If Nodes go up to maxNodeX.
+      // GraphGrid uses `const cols = Math.max(maxNodeX + GRID_OUTPUT_COL_PADDING, GRID_MIN_COLS);`
+      // So we should match that padding logic.
+      if (n.config.typeId === 'io.output' || n.config.typeId === 'resolume.output') return Math.max(maxNodeX + GRID_OUTPUT_COL_PADDING, GRID_MIN_COLS);
+      return n.x;
+    };
+
     const obstacles = Object.values(nodes).map(n => {
       let portCount = 1; // Default min height
 
@@ -254,8 +281,8 @@ export class LocalController {
           portCount = Math.max(i, o);
         }
       }
-      // Height: Header(1) + Ports.
-      return { x: n.x, y: n.y, height: portCount + 1 };
+
+      return { x: getVirtualX(n), y: n.y, height: portCount + 1 };
     });
 
 
@@ -328,8 +355,8 @@ export class LocalController {
 
       return {
         id: c.id,
-        start: { x: fromNode.x, y: fromNode.y },
-        end: { x: toNode.x, y: toNode.y },
+        start: { x: getVirtualX(fromNode), y: fromNode.y },
+        end: { x: getVirtualX(toNode), y: toNode.y },
         fromPort: c.fromPort.toString(),
         toPort: c.toPort.toString(),
         startOffset,
