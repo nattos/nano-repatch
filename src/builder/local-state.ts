@@ -65,6 +65,9 @@ export class LocalController {
   public observableState: LocalState;
   public settingsLoaded: Promise<void>;
 
+
+  private layoutWorker: Worker;
+
   constructor() {
     this.observableState = observable({
       selection: new Map<string, Selectable>(),
@@ -91,6 +94,21 @@ export class LocalController {
       },
     });
     makeObservable(this);
+
+    // Initialize Worker
+    this.layoutWorker = new Worker(new URL('../workers/wire-layout.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+
+    this.layoutWorker.onmessage = (event) => {
+      const { type, layout } = event.data;
+      if (type === 'LAYOUT_RESULT') {
+        runInAction(() => {
+          this.observableState.wireLayout = layout;
+          this.observableState.layoutVersion++;
+        });
+      }
+    };
 
     this.settingsLoaded = this.loadSettings();
   }
@@ -215,6 +233,11 @@ export class LocalController {
   @action
   public updateWireLayout(graph: GraphState): void {
     const { nodes, connections } = graph.inner;
+
+    // 1. Synchronously update metrics so the App has correct sizes immediately
+    this.updateGridMetrics(graph);
+
+    // 2. Prepare payload for worker
     const obstacles = Object.values(nodes).map(n => {
       let portCount = 1; // Default min height
 
@@ -237,6 +260,11 @@ export class LocalController {
     const wires = Object.values(connections).map(c => {
       const fromNode = nodes[c.fromNodeId];
       const toNode = nodes[c.toNodeId];
+
+      if (!fromNode || !toNode) {
+        // Guard against deleted nodes mid-update
+        return null;
+      }
 
       let startOffset = 1; // Default to 'mid'ish
       let endOffset = 1;
@@ -305,15 +333,13 @@ export class LocalController {
         startOffset,
         endOffset
       };
-    });
+    }).filter(w => w !== null) as any[]; // TODO: Import WireDef properly if needed, trusting type inference for now or casting
 
-    const result = computeWireLayout(wires, { obstacles });
-
-    runInAction(() => {
-      // Update Metrics FIRST to ensure offsets are correct for the new layout
-      this.updateGridMetrics(graph);
-      this.observableState.wireLayout = result;
-      this.observableState.layoutVersion++;
+    // Send to worker
+    this.layoutWorker.postMessage({
+      type: 'LAYOUT_REQUEST',
+      wires,
+      options: { obstacles }
     });
   }
 

@@ -114,3 +114,21 @@ export interface InferredTypesMessage {
 }
 
 export type ExecutorMainMessage = ExecutionUpdateMessage | InferredTypesMessage;
+
+// --- Layout Worker Messages ---
+
+import { WireDef, LayoutOptions, LayoutResult } from '../layout/wire-layout';
+
+export type WireLayoutRequest = {
+  type: 'LAYOUT_REQUEST';
+  wires: WireDef[];
+  options: LayoutOptions;
+};
+
+export type WireLayoutResult = {
+  type: 'LAYOUT_RESULT';
+  layout: LayoutResult;
+};
+
+export type WiringWorkerMessage = WireLayoutRequest;
+export type WiringMainMessage = WireLayoutResult;
