@@ -321,6 +321,24 @@ export class GraphGrid extends MobxLitElement {
         cursor: pointer;
     }
 
+    .drag-preview {
+      /* Slanted hashed pattern */
+      background-image: repeating-linear-gradient(
+        45deg,
+        transparent 0px,
+        transparent 3px,
+        var(--selection-color, rgba(255, 69, 0, 0.1)) 3px,
+        var(--selection-color, rgba(255, 69, 0, 0.1)) 4px
+      );
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.8;
+      /* Ensure it fills the grid cell */
+      width: 100%;
+      height: 100%;
+    }
+
     .wire-line::after {
       content: '';
       position: absolute;
@@ -1522,16 +1540,6 @@ export class GraphGrid extends MobxLitElement {
       }
     }
 
-    // Output Column
-    const outputCol = 2 * cols + 3;
-    for (let y = 0; y < rows; y++) {
-      const rowHeight = this.getRowHeight(y);
-      cells.push(html`<div class="cell node-cell" data-x="output" data-y="${y}" style="grid-column: ${outputCol}; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
-      cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${outputCol}; grid-row: ${2 * y + 3};"></div>`);
-      // Gap to left of output
-      cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
-      cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${outputCol - 1}; grid-row: ${2 * y + 3};"></div>`);
-    }
     return cells;
   }
 
@@ -1659,7 +1667,41 @@ export class GraphGrid extends MobxLitElement {
 
 
     ${repeat(Object.values(nodes), node => node.id, node => this.renderGraphNode(node, outputCol))}
+    ${this.renderDragPreview(outputCol)}
       </div>
+    `;
+  }
+
+  private renderDragPreview(outputCol: number) {
+    const preview = localController.observableState.dragPreview;
+    if (!preview) return '';
+
+    // Calculate grid position for regular nodes
+    const col = 2 * preview.x + 3;
+    const row = 2 * preview.y + 2;
+
+    // TODO: Handle height? For now assuming 1x1 cell + gap handling?
+    // Grid row height is variable.
+    // If preview.y points to a valid row, it uses that row's height.
+    // If it extrapolates, it uses auto/minmax?
+    // But RenderGridCells creates rows up to 'rows'.
+    // If we drag beyond known rows, CSS Grid implicit rows take over?
+    // We didn't define grid-auto-rows.
+    // But we defined `grid-template-rows`.
+    // If `row` exceeds defined rows, it might be 0 height or default.
+    // `GraphGrid` CSS has `grid-auto-rows: minmax(1px, auto)` commented out, but actually:
+    // `grid-template-rows` is explicit loop.
+    // We might need to ensure the preview has height if outside?
+    // But `getGridCell` extrapolates logic.
+    // If `preview.y` > existing rows, we are in "Empty Space".
+    // We rely on Grid Container expanding?
+    // Let's assume it works or just renders 0 height if row doesn't exist.
+    // Actually, `grid-row` placement forces the grid to expand.
+    // And size? `min-height: 80px`.
+    // Let's force min-height style.
+
+    return html`
+      <div class="drag-preview" style="grid-column: ${col}; grid-row: ${row}; min-height: 80px;"></div>
     `;
   }
 

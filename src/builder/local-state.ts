@@ -27,6 +27,7 @@ export interface LocalState {
   wireLayout: LayoutResult;
   layoutVersion: number;
   viewport: { x: number, y: number, w: number, h: number };
+  dragPreview: { x: number, y: number, w: number, h: number } | null;
 
   // Serialized settings.
   localSettings: LocalSettings;
@@ -61,6 +62,7 @@ export interface GridMetrics {
   columnWidths: Map<number, number>; // Column Index -> Max Width in px
   rows: Map<number, number>; // Row Index -> Max Height in px
   rowOffsets: Map<number, number>; // Row Index -> Accum. Pixels from Top (for Node Top)
+  colOffsets: Map<number, number>; // Col Index -> Accum. Pixels from Left (for Node Left)
 }
 
 // ... existing code ...
@@ -86,12 +88,14 @@ export class LocalController {
       inferredNodeTypes: new Map<string, { inputs: any, outputs: any }>(), // Initialize the new map
       effectiveNodeTypes: new Map<string, { inputs: PortHint[], outputs: PortHint[] }>(),
       viewport: { x: 0, y: 0, w: 0, h: 0 },
+      dragPreview: null,
       gridMetrics: {
         cells: new Map(),
         columns: new Map(),
         columnWidths: new Map(),
         rows: new Map(),
-        rowOffsets: new Map()
+        rowOffsets: new Map(),
+        colOffsets: new Map()
       },
       localSettings: {
         showDebugValues: false,
@@ -381,7 +385,8 @@ export class LocalController {
       columns: new Map(),
       columnWidths: new Map(),
       rows: new Map(),
-      rowOffsets: new Map()
+      rowOffsets: new Map(),
+      colOffsets: new Map()
     };
 
     // Pre-calculate incoming connections for all nodes to perform heuristic
@@ -462,6 +467,15 @@ export class LocalController {
         // Default to 80px for empty/collapsed rows so the Grid Layout remains stable
         const h = metrics.rows.get(r) || 80;
         currentY += h + 16;
+      }
+      // Post-Process: Calculate Col Offsets
+      // Approximation: Input Col 120px + Gap 16px
+      let currentX = 136;
+      const maxCol = Math.max(...Array.from(metrics.columnWidths.keys()), -1);
+      for (let c = 0; c <= maxCol; c++) {
+        metrics.colOffsets.set(c, currentX);
+        const w = metrics.columnWidths.get(c) || 80;
+        currentX += w + 16; // Width + Gap
       }
     } catch (e) {
       console.error("Error calculating rowOffsets", e);
@@ -550,6 +564,11 @@ export class LocalController {
     this.observableState.viewport = { x, y, w, h };
   }
 
+  @action
+  public setDragPreview(preview: { x: number, y: number, w: number, h: number } | null): void {
+    this.observableState.dragPreview = preview;
+  }
+
   public getViewportCenterGridCoordinates(): { x: number, y: number } {
     // We don't track Pan/Zoom in LocalState yet (it's in GraphGrid DOM state usually).
     // BUT, the prompt implies "It should know how to compute the current viewport".
@@ -636,5 +655,79 @@ export class LocalController {
 
     // Let's implement the simpler version: returning a reasonable default if complex logic fails.
     return { x: 5, y: gridY };
+  }
+
+  public getGridCellFromPixels(x: number, y: number): { x: number, y: number } {
+    const { rowOffsets, colOffsets, rows, columnWidths } = this.observableState.gridMetrics;
+
+    // Find Row (Y)
+    let gridY = 0;
+    const maxRow = Math.max(...Array.from(rows.keys()), -1);
+    for (let r = 0; r <= maxRow; r++) {
+      const top = rowOffsets.get(r) || 0;
+      const h = rows.get(r) || 80;
+      if (y >= top && y < top + h + 16) {
+        gridY = r;
+        break;
+      }
+      if (r === maxRow && y >= top + h + 16) {
+        // Below last row
+        // Extrapolate?
+        const diff = y - (top + h + 16);
+        const stride = 80 + 16;
+        gridY = maxRow + 1 + Math.floor(diff / stride);
+      }
+    }
+
+    // Find Column (X)
+    let gridX = 0;
+    const maxCol = Math.max(...Array.from(columnWidths.keys()), -1);
+
+    // Initial check for Input/Output columns?
+    // Input is virtual -1? or managed separately?
+    // Our colOffsets logic starts at 136 (Col 0).
+    // If x < 136, it's input?
+    // Or negative?
+    // Let's check logic:
+    // colOffsets sets col 0 at 136.
+    // So if x < 136, it's Input Column area.
+    // If x > last col, it's Output Column area?
+    // We want the node to SNAP to valid columns.
+    // Can we drop on Input/Output manually?
+    // Usually user inserts there.
+    // Let's snap to closest standard column `0..maxCol`.
+    // Or extrapolate columns too?
+    // If standard "Node Area" is being used, we snap to closest.
+
+    if (x < 136) {
+      gridX = 0; // Snap to first column if too far left
+      // Or return -1 if we support drag to input?
+      // Primitives usually live in standard grid.
+    } else {
+      let found = false;
+      for (let c = 0; c <= maxCol; c++) {
+        const left = colOffsets.get(c) || 0;
+        const w = columnWidths.get(c) || 80;
+        if (x >= left && x < left + w + 16) {
+          gridX = c;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // To the right of last column
+        const lastLeft = colOffsets.get(maxCol) || 136;
+        const lastW = columnWidths.get(maxCol) || 80;
+        const rightEdge = lastLeft + lastW + 16;
+        if (x >= rightEdge) {
+          // Extrapolate
+          const diff = x - rightEdge;
+          const stride = 80 + 16;
+          gridX = maxCol + 1 + Math.floor(diff / stride);
+        }
+      }
+    }
+
+    return { x: gridX, y: gridY };
   }
 }

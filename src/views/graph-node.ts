@@ -503,12 +503,35 @@ export class GraphNode extends MobxLitElement {
     // Track if a drag actually occurred
     let dragOccurred = false;
 
+    // Resolve Grid Host for coordinate mapping
+    const gridHost = (this.getRootNode() as ShadowRoot)?.host as HTMLElement;
+
     new PointerDragOp(e, this, {
       move: (e, delta) => {
         dragOccurred = true;
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
+
+        // Calculate Snapped Grid Position for Preview
+        if (gridHost) {
+          const rect = this.getBoundingClientRect();
+          const gridRect = gridHost.getBoundingClientRect();
+          const centerX = rect.left + (rect.width / 2);
+          const centerY = rect.top + (rect.height / 2);
+          const relativeX = centerX - gridRect.left + gridHost.scrollLeft;
+          const relativeY = centerY - gridRect.top + gridHost.scrollTop;
+
+          const cell = localController.getGridCellFromPixels(relativeX, relativeY);
+          localController.setDragPreview({ x: cell.x, y: cell.y, w: 1, h: 1 });
+        }
       },
-      accept: (e, delta) => this.handleDragAccept(e, delta)
+      accept: (e, delta) => {
+        localController.setDragPreview(null);
+        this.handleDragAccept(e, delta);
+      },
+      cancel: () => {
+        localController.setDragPreview(null);
+        this.style.transform = '';
+      }
     });
   }
 
