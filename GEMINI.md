@@ -227,3 +227,31 @@ The circular dependency was caused by **dynamic imports of UI components** withi
 ### Verification
 
 *   **Build Success:** `npm run build` now completes successfully (Exit code: 0).
+
+## Unit Test Stabilization (As of 2025-12-18)
+
+This entry documents the stabilization of the unit test suite (`npm test`), resolving failures in subgraph integration, inspector logic, and environment compatibility.
+
+### Bug Fixes
+
+1.  **Subgraph Integration Test:**
+    *   **Issue:** `views/subgraph-integration.test.ts` was failing to render dynamic ports because the test mocked `inferredNodeTypes` directly without triggering `localController`'s effective port recomputation logic.
+    *   **Fix:** Updated the test to use `localController.updateInferredTypes` instead of manual map manipulation, ensuring proper state propagation.
+
+2.  **Connection Inspector Test:**
+    *   **Issue:** `views/connection-inspector.test.ts` caused an infinite render loop (timeout) because `GraphGrid` created a new `Selectable` object reference on every render for every connection, triggering MobX reactions endlessly.
+    *   **Fix:** Implemented a `connectionSelectables` cache in `GraphGrid` to ensure stable `Selectable` references for connections.
+
+3.  **Environment Mocks:**
+    *   **Issue:** Tests relying on browser APIs (Monaco Editor, Web MIDI) failed in the JSDOM environment.
+    *   **Fix:** Added global mocks in `src/vitest.setup.ts` for:
+        *   `navigator.requestMIDIAccess` (via `Object.defineProperty`)
+        *   `document.queryCommandSupported` / `execCommand` (for Monaco)
+
+4.  **Expression Node Compilation:**
+    *   **Issue:** `expr-optimization.test.ts` failed because `expressionNode` lacked a `compilePorts` method to generate dynamic ports from code.
+    *   **Fix:** Implemented `compilePorts` in `src/customnodes/expr/nodes.ts` and updated `node-helpers.ts` to support it.
+
+### Verification
+
+*   **All Unit Tests Passing:** `npm run test` now passes all 230+ tests (excluding E2E tests which are skipped by Vitest config).

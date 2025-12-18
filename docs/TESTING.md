@@ -37,3 +37,12 @@ The project utilizes two distinct testing frameworks, each serving a specific pu
 
 *   **Primitives:** `src/structor/primitives-integration.test.ts` verifies the execution of primitive nodes in a compiled graph.
 *   **Subgraphs:** `src/views/subgraph-integration.test.ts` verifies dynamic port generation and virtual inputs.
+
+## 5. Environment Mocks
+
+Unit tests run in a JSDOM environment via Vitest. To support browser APIs not typically present in JSDOM, global mocks are configured in `src/vitest.setup.ts`:
+
+*   **HTMLCanvasElement:** `getContext` is mocked for 2D contexts.
+*   **Web MIDI API:** `navigator.requestMIDIAccess` is mocked (using `Object.defineProperty`).
+*   **Monaco Editor:** `document.queryCommandSupported` and `document.execCommand` are mocked to prevent clipboard errors.
+*   **AudioContext:** `window.AudioContext` and `window.OfflineAudioContext` are mocked.
