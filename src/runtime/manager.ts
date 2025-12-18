@@ -164,10 +164,10 @@ export class RuntimeManager {
 
     // Initial sync
     setTimeout(() => {
-        this.executorWorker.postMessage({
-            type: 'UPDATE_AUDIO_STATE',
-            state: this.audioRenderer.state
-        } as ExecutorWorkerMessage);
+      this.executorWorker.postMessage({
+        type: 'UPDATE_AUDIO_STATE',
+        state: this.audioRenderer.state
+      } as ExecutorWorkerMessage);
     }, 100);
   }
 
@@ -208,13 +208,18 @@ export class RuntimeManager {
     };
   }
 
+  private lastInferredTypesJson = '';
   private handleInferredTypes(msg: InferredTypesMessage) {
-      if (msg.inferredNodeTypes) {
-          this.appController.dispatch([{
-              type: 'graph.updateInferredTypes',
-              inferredTypes: msg.inferredNodeTypes
-          }]);
-      }
+    if (msg.inferredNodeTypes) {
+      const json = JSON.stringify(msg.inferredNodeTypes);
+      if (json === this.lastInferredTypesJson) return;
+      this.lastInferredTypesJson = json;
+
+      this.appController.dispatch([{
+        type: 'graph.updateInferredTypes',
+        inferredTypes: msg.inferredNodeTypes
+      }]);
+    }
   }
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
@@ -231,10 +236,10 @@ export class RuntimeManager {
     // Populate local cache with inferred types
     // Populate local cache with inferred types via AppController dispatch
     if (msg.inferredTypes) {
-        this.appController.dispatch([{
-            type: 'graph.updateInferredTypes',
-            inferredTypes: msg.inferredTypes
-        }]);
+      this.appController.dispatch([{
+        type: 'graph.updateInferredTypes',
+        inferredTypes: msg.inferredTypes
+      }]);
     }
 
     // Populate local cache with compiled configs from the graph
@@ -435,23 +440,23 @@ export class RuntimeManager {
     const interval = 1000 / FRAME_RATE;
 
     if (timeSinceLast >= interval) {
-        this.performStep();
+      this.performStep();
     } else {
-        this.stepScheduled = true;
-        setTimeout(() => {
-            this.performStep();
-            this.stepScheduled = false;
-        }, interval - timeSinceLast);
+      this.stepScheduled = true;
+      setTimeout(() => {
+        this.performStep();
+        this.stepScheduled = false;
+      }, interval - timeSinceLast);
     }
   }
 
   private performStep() {
-      this.lastStepTime = performance.now();
-      const stepMsg: ExecutorWorkerMessage = {
-        type: 'CONTROL',
-        action: 'STEP'
-      };
-      this.executorWorker.postMessage(stepMsg);
+    this.lastStepTime = performance.now();
+    const stepMsg: ExecutorWorkerMessage = {
+      type: 'CONTROL',
+      action: 'STEP'
+    };
+    this.executorWorker.postMessage(stepMsg);
   }
 
 

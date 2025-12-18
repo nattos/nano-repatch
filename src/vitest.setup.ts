@@ -76,3 +76,18 @@ if (!globalThis.indexedDB) {
 if (!(globalThis as any).showDirectoryPicker) {
   (globalThis as any).showDirectoryPicker = vi.fn();
 }
+
+// Mock document.queryCommandSupported and execCommand for Monaco
+document.queryCommandSupported = document.queryCommandSupported || (() => false);
+
+// Mock Web MIDI API
+if (!navigator.requestMIDIAccess) {
+  Object.defineProperty(navigator, 'requestMIDIAccess', {
+    value: vi.fn().mockResolvedValue({
+      inputs: new Map(),
+      outputs: new Map(),
+      onstatechange: null,
+    }),
+    writable: true,
+  });
+}

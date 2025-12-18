@@ -78,6 +78,7 @@ export interface EnhancedNodeOptions<
   displayName?: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
+  compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
@@ -96,6 +97,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   displayName: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
+  compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: ExtendedNodeOutputsDef;
 
@@ -115,23 +117,23 @@ export function defineNode<
   const simpleInputs: NodeInputsDef = {};
   for (const [key, val] of Object.entries(options.inputs || {})) {
     if ('kind' in (val as any)) {
-       // It's StructorType
-       simpleInputs[key] = val as StructorType;
+      // It's StructorType
+      simpleInputs[key] = val as StructorType;
     } else if ('type' in (val as any)) {
-       // It's ExtendedInputDef
-       const type = (val as ExtendedInputDef).type;
-       simpleInputs[key] = { ...type, redirect: (val as ExtendedInputDef).redirect };
+      // It's ExtendedInputDef
+      const type = (val as ExtendedInputDef).type;
+      simpleInputs[key] = { ...type, redirect: (val as ExtendedInputDef).redirect };
     }
   }
 
   // 2. Strip down outputs to NodeOutputsDef
   const simpleOutputs: NodeOutputsDef = {};
   for (const [key, val] of Object.entries(options.outputs || {})) {
-      if ('kind' in (val as any)) {
-          simpleOutputs[key] = val as StructorType;
-      } else if ('type' in (val as any)) {
-          simpleOutputs[key] = (val as ExtendedOutputDef).type;
-      }
+    if ('kind' in (val as any)) {
+      simpleOutputs[key] = val as StructorType;
+    } else if ('type' in (val as any)) {
+      simpleOutputs[key] = (val as ExtendedOutputDef).type;
+    }
   }
 
   const primitiveDef = definePrimitiveNode({
@@ -149,6 +151,7 @@ export function defineNode<
     displayName: options.displayName || options.id,
     aliases: options.aliases,
     compileConfig: options.compileConfig,
+    compilePorts: options.compilePorts,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
 
@@ -178,13 +181,13 @@ export function registerNode(def: EnhancedNodeDefinition) {
   });
 
   const outputs: PortHint[] = Object.entries(def.extendedOutputs || {}).map(([name, val]: [string, any]) => {
-      const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
-      const type = isExtended ? val.type : val;
-      return {
-        name,
-        type,
-        description: isExtended ? val.description : undefined
-      };
+    const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
+    const type = isExtended ? val.type : val;
+    return {
+      name,
+      type,
+      description: isExtended ? val.description : undefined
+    };
   });
 
   const nodeType: NodeType = {
@@ -196,6 +199,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inputs,
     outputs,
     compileConfig: def.compileConfig,
+    compilePorts: def.compilePorts,
 
     inspectInputs: def.inspectInputs,
   };

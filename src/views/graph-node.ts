@@ -420,66 +420,66 @@ export class GraphNode extends MobxLitElement {
     // Check if we are dropping a connection onto the node header/body (not specific port)
     const { inflightPortConnectionOperation } = localController.observableState;
     if (inflightPortConnectionOperation && inflightPortConnectionOperation.nodeId !== this.node.id) {
-         // Auto-connect logic
-         // If dragging Output -> Connect to First Input
-         // If dragging Input -> Connect to First Output
+      // Auto-connect logic
+      // If dragging Output -> Connect to First Input
+      // If dragging Input -> Connect to First Output
 
-         const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
-         let targetPortName: string | null = null;
-         let targetPortType: 'in' | 'out' | null = null;
+      const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+      let targetPortName: string | null = null;
+      let targetPortType: 'in' | 'out' | null = null;
 
-         if (inflightPortConnectionOperation.type === 'out') {
-             // Connect to Input
-             // Find first compatible input? Or just first input.
-             // For now, first input.
-             // Verify dynamic ports?
-             // Use inferred types if available (handled in render, but logic should use same source).
-             // Let's use nodeType inputs for now, or check inferred.
-             // Accessing inferred inputs is safer for dynamic nodes.
-             const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
-             // But inferred inputs only show connected ones usually?
-             // Actually, inferred inputs logic in render merges static + dynamic.
-             // Let's use the static definition first, it's safer for "first port".
-             const inputs = nodeType?.inputs || [];
-             if (inputs.length > 0) {
-                 targetPortName = inputs[0].name;
-                 targetPortType = 'in';
-             }
-         } else {
-             // Connect to Output
-             const outputs = nodeType?.outputs || [];
-             if (outputs.length > 0) {
-                 targetPortName = outputs[0].name;
-                 targetPortType = 'out';
-             }
-         }
+      if (inflightPortConnectionOperation.type === 'out') {
+        // Connect to Input
+        // Find first compatible input? Or just first input.
+        // For now, first input.
+        // Verify dynamic ports?
+        // Use inferred types if available (handled in render, but logic should use same source).
+        // Let's use nodeType inputs for now, or check inferred.
+        // Accessing inferred inputs is safer for dynamic nodes.
+        const inferredType = localController.observableState.inferredNodeTypes.get(this.node.id);
+        // But inferred inputs only show connected ones usually?
+        // Actually, inferred inputs logic in render merges static + dynamic.
+        // Let's use the static definition first, it's safer for "first port".
+        const inputs = nodeType?.inputs || [];
+        if (inputs.length > 0) {
+          targetPortName = inputs[0].name;
+          targetPortType = 'in';
+        }
+      } else {
+        // Connect to Output
+        const outputs = nodeType?.outputs || [];
+        if (outputs.length > 0) {
+          targetPortName = outputs[0].name;
+          targetPortType = 'out';
+        }
+      }
 
-         if (targetPortName && targetPortType) {
-             e.stopPropagation(); // Handle it!
+      if (targetPortName && targetPortType) {
+        e.stopPropagation(); // Handle it!
 
-             if (inflightPortConnectionOperation.type === 'out') {
-                 // Dragged Out -> In
-                 appController.createConnection(
-                     inflightPortConnectionOperation.nodeId,
-                     inflightPortConnectionOperation.port,
-                     this.node.id,
-                     targetPortName
-                 );
-             } else {
-                 // Dragged In -> Out (Reverse connection)
-                 // inflight (Input) is the Destination
-                 // this.node (Output) is the Source
-                 appController.createConnection(
-                     this.node.id,
-                     targetPortName,
-                     inflightPortConnectionOperation.nodeId,
-                     inflightPortConnectionOperation.port
-                 );
-             }
+        if (inflightPortConnectionOperation.type === 'out') {
+          // Dragged Out -> In
+          appController.createConnection(
+            inflightPortConnectionOperation.nodeId,
+            inflightPortConnectionOperation.port,
+            this.node.id,
+            targetPortName
+          );
+        } else {
+          // Dragged In -> Out (Reverse connection)
+          // inflight (Input) is the Destination
+          // this.node (Output) is the Source
+          appController.createConnection(
+            this.node.id,
+            targetPortName,
+            inflightPortConnectionOperation.nodeId,
+            inflightPortConnectionOperation.port
+          );
+        }
 
-             localController.setInflightPortConnectionOperation(null);
-             return;
-         }
+        localController.setInflightPortConnectionOperation(null);
+        return;
+      }
     }
   }
 
@@ -507,99 +507,93 @@ export class GraphNode extends MobxLitElement {
         dragOccurred = true;
         this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
       },
-      accept: (e, delta) => {
-        // Calculate Grid Delta using Metrics (Variable Width/Height)
-        const metrics = localController.observableState.gridMetrics;
-        const GRID_GAP = 16; // from constants
-
-        // --- Calculate DX ---
-        let dx = 0;
-        let pixelAccum = 0;
-        const targetPixelX = delta[0];
-
-        if (targetPixelX > 0) {
-            // Dragging Right
-            let col = this.node.x;
-            while (true) {
-                // Width of current column + Gap
-                const width = (metrics.columnWidths.get(col) || 80) + GRID_GAP;
-                if (pixelAccum + (width / 2) > targetPixelX) break; // Snap point
-                pixelAccum += width;
-                dx++;
-                col++;
-                // Safety break
-                if (dx > 50) break;
-            }
-        } else if (targetPixelX < 0) {
-            // Dragging Left
-            let col = this.node.x;
-            while (true) {
-                // Width of PREVIOUS column + Gap (traversing left)
-                const prevCol = col - 1;
-                const width = (metrics.columnWidths.get(prevCol) || 80) + GRID_GAP;
-                if (pixelAccum - (width / 2) < targetPixelX) break; // Snap point (negative)
-                pixelAccum -= width;
-                dx--;
-                col--;
-                if (dx < -50) break;
-            }
-        }
-
-        // --- Calculate DY ---
-        let dy = 0;
-        pixelAccum = 0;
-        const targetPixelY = delta[1];
-
-        if (targetPixelY > 0) {
-            // Dragging Down
-            let row = this.node.y;
-            while (true) {
-                const height = (metrics.rows.get(row) || 80) + GRID_GAP;
-                if (pixelAccum + (height / 2) > targetPixelY) break;
-                pixelAccum += height;
-                dy++;
-                row++;
-                if (dy > 50) break;
-            }
-        } else if (targetPixelY < 0) {
-            // Dragging Up
-            let row = this.node.y;
-            while (true) {
-                const prevRow = row - 1;
-                const height = (metrics.rows.get(prevRow) || 80) + GRID_GAP;
-                if (pixelAccum - (height / 2) < targetPixelY) break;
-                pixelAccum -= height;
-                dy--;
-                row--;
-                if (dy < -50) break;
-            }
-        }
-
-        const selectedNodeIds = Array.from(localController.observableState.selection.keys())
-          .filter(id => id.startsWith('node-'));
-
-        const { dx: constrainedDx, dy: constrainedDy } = appController.calculateConstrainedMove(selectedNodeIds, dx, dy);
-
-        appController.moveNodes(selectedNodeIds, constrainedDx, constrainedDy);
-
-        this.style.transform = '';
-      },
-      cancel: () => {
-        this.style.transform = '';
-      },
-      complete: () => {
-        // If drag occurred, we set a flag on the element to prevent the click handler
-        // from changing selection.
-        if (dragOccurred) {
-          this.dataset.dragged = 'true';
-          // Clear the flag after a short timeout to allow the click event to process (and ignore)
-          setTimeout(() => {
-            delete this.dataset.dragged;
-          }, 0);
-        }
-      }
+      accept: (e, delta) => this.handleDragAccept(e, delta)
     });
   }
+
+  private handleDragAccept(e: MouseEvent, delta: [number, number]) {
+    // Calculate Grid Delta using Metrics (Variable Width/Height)
+    const metrics = localController.observableState.gridMetrics;
+    const GRID_GAP = 16; // from constants
+
+    // --- Calculate DX ---
+    let dx = 0;
+    let pixelAccum = 0;
+    const targetPixelX = delta[0];
+
+    if (targetPixelX > 0) {
+      // Dragging Right
+      let col = this.node.x;
+      while (true) {
+        // Width of current column + Gap
+        const width = (metrics.columnWidths.get(col) || 80) + GRID_GAP;
+        if (pixelAccum + (width / 2) > targetPixelX) break; // Snap point
+        pixelAccum += width;
+        dx++;
+        col++;
+        // Safety break
+        if (dx > 50) break;
+      }
+    } else if (targetPixelX < 0) {
+      // Dragging Left
+      let col = this.node.x;
+      while (true) {
+        // Width of PREVIOUS column + Gap (traversing left)
+        const prevCol = col - 1;
+        const width = (metrics.columnWidths.get(prevCol) || 80) + GRID_GAP;
+        if (pixelAccum - (width / 2) < targetPixelX) break; // Snap point (negative)
+        pixelAccum -= width;
+        dx--;
+        col--;
+        if (dx < -50) break;
+      }
+    }
+
+    // --- Calculate DY ---
+    let dy = 0;
+    pixelAccum = 0;
+    const targetPixelY = delta[1];
+
+    if (targetPixelY > 0) {
+      // Dragging Down
+      let row = this.node.y;
+      while (true) {
+        const height = (metrics.rows.get(row) || 80) + GRID_GAP;
+        if (pixelAccum + (height / 2) > targetPixelY) break;
+        pixelAccum += height;
+        dy++;
+        row++;
+        if (dy > 50) break;
+      }
+    } else if (targetPixelY < 0) {
+      // Dragging Up
+      let row = this.node.y;
+      while (true) {
+        const prevRow = row - 1;
+        const height = (metrics.rows.get(prevRow) || 80) + GRID_GAP;
+        if (pixelAccum - (height / 2) < targetPixelY) break;
+        pixelAccum -= height;
+        dy--;
+        row--;
+        if (dy < -50) break;
+      }
+    }
+
+    const selectedNodeIds = Array.from(localController.observableState.selection.keys())
+      .filter(id => id.startsWith('node-'));
+
+    const { dx: constrainedDx, dy: constrainedDy } = appController.calculateConstrainedMove(selectedNodeIds, dx, dy);
+
+    appController.moveNodes(selectedNodeIds, constrainedDx, constrainedDy);
+
+    this.style.transform = '';
+
+    this.dataset.dragged = 'true';
+    setTimeout(() => {
+      delete this.dataset.dragged;
+    }, 0);
+  }
+
 
 
   private handleClick(e: MouseEvent) {
@@ -609,11 +603,11 @@ export class GraphNode extends MobxLitElement {
       const element = el as HTMLElement;
       if (!element.classList) return false;
       return element.tagName?.toLowerCase() === 'graph-port' ||
-             element.classList.contains('virtual-inputs-container') ||
-             element.tagName?.toLowerCase() === 'input' ||
-             element.tagName?.toLowerCase() === 'select' ||
-             element.tagName?.toLowerCase() === 'smart-input' ||
-             element.tagName?.toLowerCase() === 'scalar-slider';
+        element.classList.contains('virtual-inputs-container') ||
+        element.tagName?.toLowerCase() === 'input' ||
+        element.tagName?.toLowerCase() === 'select' ||
+        element.tagName?.toLowerCase() === 'smart-input' ||
+        element.tagName?.toLowerCase() === 'scalar-slider';
     });
 
     if (isInteractive) return;
@@ -628,13 +622,13 @@ export class GraphNode extends MobxLitElement {
     const nodeSelectionCount = Array.from(currentSelection.keys()).filter(k => k.startsWith('node-')).length;
 
     if (isSelected && nodeSelectionCount > 1) {
-        // We are clicking on a node that is part of a group selection.
-        // We want to narrow the selection to just this node (default behavior),
-        // BUT we want to remember the group selection for a potential double click.
-        localController.setLastGroupSelection(new Set(currentSelection.keys()));
+      // We are clicking on a node that is part of a group selection.
+      // We want to narrow the selection to just this node (default behavior),
+      // BUT we want to remember the group selection for a potential double click.
+      localController.setLastGroupSelection(new Set(currentSelection.keys()));
     } else if (e.detail === 1) { // Only clear on single click
-        // Clicking a single node or something else: clear the group memory.
-        localController.setLastGroupSelection(null);
+      // Clicking a single node or something else: clear the group memory.
+      localController.setLastGroupSelection(null);
     }
 
     localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
@@ -888,10 +882,10 @@ export class GraphNode extends MobxLitElement {
           nodeType.renderInputEditor = renderer;
         }
         if (nodeType.ui.getInputEditorHeight) {
-           const heightFn = await nodeType.ui.getInputEditorHeight();
-           if (!nodeType.getInputEditorHeight) {
-             nodeType.getInputEditorHeight = heightFn;
-           }
+          const heightFn = await nodeType.ui.getInputEditorHeight();
+          if (!nodeType.getInputEditorHeight) {
+            nodeType.getInputEditorHeight = heightFn;
+          }
         }
       } catch (e) {
         console.error('Failed to load input editor renderer', e);
@@ -929,11 +923,11 @@ export class GraphNode extends MobxLitElement {
       let outputs: PortHint[] = [];
 
       if (effectiveType) {
-          inputs = effectiveType.inputs;
-          outputs = effectiveType.outputs;
+        inputs = effectiveType.inputs;
+        outputs = effectiveType.outputs;
       } else if (nodeType) {
-          inputs = [...(nodeType.inputs || [])];
-          outputs = [...(nodeType.outputs || [])];
+        inputs = [...(nodeType.inputs || [])];
+        outputs = [...(nodeType.outputs || [])];
       }
 
       // Use passed property or fallback to store (though prop should be primary)
@@ -1017,13 +1011,13 @@ export class GraphNode extends MobxLitElement {
     let displayName = this.node.config.typeId;
 
     if (effectiveType) {
-        inputs = effectiveType.inputs;
-        outputs = effectiveType.outputs;
-        displayName = nodeType?.displayName || this.node.config.typeId;
+      inputs = effectiveType.inputs;
+      outputs = effectiveType.outputs;
+      displayName = nodeType?.displayName || this.node.config.typeId;
     } else if (nodeType) {
-        inputs = [...(nodeType.inputs || [])];
-        outputs = [...(nodeType.outputs || [])];
-        displayName = nodeType.displayName || this.node.config.typeId;
+      inputs = [...(nodeType.inputs || [])];
+      outputs = [...(nodeType.outputs || [])];
+      displayName = nodeType.displayName || this.node.config.typeId;
     }
 
     // Get current incoming connections to this node
@@ -1050,36 +1044,7 @@ export class GraphNode extends MobxLitElement {
     const inputElements: any[] = [];
     const virtualInputElements: any[] = [];
 
-    // Helper to check if a port label should be hidden
-    const shouldHideLabel = (portName: string, type: 'in' | 'out') => {
-      if (type === 'in') {
-        const input = inputs.find(i => i.name === portName);
-        if (input) {
-          if (input.suppressLabel) return true;
-          const isConnected = connectedPorts.has(input.name);
-          if (shouldShowInputEditor(input, isConnected)) {
-            // If we are showing an editor, we hide the label
-            return true;
-          }
-        }
-      }
 
-      if (type === 'out') {
-        const output = outputs.find(o => o.name === portName);
-        if (output && output.suppressLabel) return true;
-
-        const outputIndex = outputs.findIndex(o => o.name === portName);
-        if (outputIndex !== -1 && outputIndex < inputs.length) {
-          const input = inputs[outputIndex];
-          const isConnected = connectedPorts.has(input.name);
-          if (shouldShowInputEditor(input, isConnected)) {
-            // Corresponding input has an editor, so hide output label too
-            return true;
-          }
-        }
-      }
-      return false;
-    };
 
     inputs.forEach((input, index) => {
       const isConnected = connectedPorts.has(input.name);
@@ -1093,7 +1058,7 @@ export class GraphNode extends MobxLitElement {
             .name=${input.name}
             type="in"
             .description=${input.description || ''}
-            ?hideLabel="${shouldHideLabel(input.name, 'in')}"
+            ?hideLabel="${this.shouldHideLabel(input.name, 'in', outputs, inputs, connectedPorts)}"
           ></graph-port>
         </div>
       `);
@@ -1148,7 +1113,7 @@ export class GraphNode extends MobxLitElement {
                             title="${input.description}"
                           ></scalar-slider>
                         `
-                      : (input.type.kind === 'atomic' && input.type.type === 'string') ? html`
+              : (input.type.kind === 'atomic' && input.type.type === 'string') ? html`
                           <input
                             id="${this.node.id}-${input.name}-virtual-input"
                             type="text"
@@ -1193,20 +1158,7 @@ export class GraphNode extends MobxLitElement {
             ${inputElements}
           </div>
           <div class="outputs">
-            ${outputs.map((output, index) => {
-      return html`
-                <div class="port-wrapper" style="top: ${HEADER_HEIGHT + index * ROW_HEIGHT}px; position: absolute; right: 0;">
-                  ${this.renderDebugValue(output.name)}
-                  <graph-port
-                    .nodeId=${this.node.id}
-                    .name=${output.name}
-                    type="out"
-                    .description=${output.description || ''}
-                    ?hideLabel="${shouldHideLabel(output.name, 'out')}"
-                  ></graph-port>
-                </div>
-              `;
-    })}
+            ${this.renderOutputs(outputs, inputs, connectedPorts)}
           </div>
         </div>
         <div class="node-main-content">
@@ -1259,5 +1211,52 @@ export class GraphNode extends MobxLitElement {
         </div>
       </div>
     `;
+  }
+
+  private renderOutputs(outputs: PortHint[], inputs: PortHint[], connectedPorts: Set<any>) {
+    return outputs.map((output, index) => {
+      return html`
+            <div class="port-wrapper" style="top: ${HEADER_HEIGHT + index * ROW_HEIGHT}px; position: absolute; right: 0;">
+              ${this.renderDebugValue(output.name)}
+              <graph-port
+                .nodeId=${this.node.id}
+                .name=${output.name}
+                type="out"
+                .description=${output.description || ''}
+                ?hideLabel="${this.shouldHideLabel(output.name, 'out', outputs, inputs, connectedPorts)}"
+              ></graph-port>
+            </div>
+          `;
+    });
+  }
+
+  private shouldHideLabel(portName: string, type: 'in' | 'out', outputs: PortHint[], inputs: PortHint[], connectedPorts: Set<any>): boolean {
+    if (type === 'in') {
+      const input = inputs.find(i => i.name === portName);
+      if (input) {
+        if (input.suppressLabel) return true;
+        const isConnected = connectedPorts.has(input.name);
+        if (shouldShowInputEditor(input, isConnected)) {
+          // If we are showing an editor, we hide the label
+          return true;
+        }
+      }
+    }
+
+    if (type === 'out') {
+      const output = outputs.find(o => o.name === portName);
+      if (output && output.suppressLabel) return true;
+
+      const outputIndex = outputs.findIndex(o => o.name === portName);
+      if (outputIndex !== -1 && outputIndex < inputs.length) {
+        const input = inputs[outputIndex];
+        const isConnected = connectedPorts.has(input.name);
+        if (shouldShowInputEditor(input, isConnected)) {
+          // Corresponding input has an editor, so hide output label too
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

@@ -16,12 +16,12 @@ describe('AppController Refactoring', () => {
       expect(dy).toBe(5);
     });
 
-    it('should clamp movement to left boundary (x=1)', () => {
+    it('should clamp movement to left boundary (x=0)', () => {
       const node = controller.createNode('test', 2, 10);
       // Try to move left by 5 (would be -3)
       const { dx } = controller.calculateConstrainedMove([node.id], -5, 0);
-      // Should stop at x=1. Current x=2. dx should be -1.
-      expect(dx).toBe(-1);
+      // Should stop at x=0. Current x=2. dx should be -2.
+      expect(dx).toBe(-2);
     });
 
     it('should clamp movement to right boundary (x=50)', () => {

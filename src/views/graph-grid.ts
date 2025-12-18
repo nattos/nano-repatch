@@ -8,8 +8,8 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { appController, localController, runtimeManager } from '../builder/controllers';
 import { reaction } from 'mobx';
-import { AppController, LongEdit, generateId } from '../builder/state';
-import { LocalController } from '../builder/local-state';
+import { AppController, LongEdit, generateId, GridNode } from '../builder/state';
+import { LocalController, Selectable } from '../builder/local-state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
@@ -22,12 +22,12 @@ import { GRID_UNIT, GRID_GAP } from '../constants';
 
 
 interface WireInsert {
-    wireId: string;
-    x: number;
-    y: number;
-    gridX: number;
-    gridY: number;
-    orientation: 'vertical' | 'horizontal';
+  wireId: string;
+  x: number;
+  y: number;
+  gridX: number;
+  gridY: number;
+  orientation: 'vertical' | 'horizontal';
 }
 
 @customElement('graph-grid')
@@ -473,14 +473,14 @@ export class GraphGrid extends MobxLitElement {
 
         // Start Long Edit FIRST
         this.popupLongEdit = appController.beginLongEdit({
-           apply: (c) => {
-               // Always Create the node with the fixed ID
-               c.createNode(initialValue, gridX, y, { id: generatedId });
-           },
-           cancel: () => {
-               this.popupLongEdit = null;
-               // No manual cleanup needed! canceling reverts the creation.
-           }
+          apply: (c) => {
+            // Always Create the node with the fixed ID
+            c.createNode(initialValue, gridX, y, { id: generatedId });
+          },
+          cancel: () => {
+            this.popupLongEdit = null;
+            // No manual cleanup needed! canceling reverts the creation.
+          }
         });
 
         // Select it (it exists in observable state now)
@@ -538,34 +538,34 @@ export class GraphGrid extends MobxLitElement {
         // Check for group deletion
         const lastGroup = localController.observableState.lastGroupSelection;
         if (lastGroup && lastGroup.has(id)) {
-            // Delete entire group
-            const nodesToDelete = Array.from(lastGroup).filter(itemId => itemId.startsWith('node-'));
-            // We should use a bulk delete operation if available, or just loop.
-            // appController.deleteNode handles one.
-            // Let's create a bulk delete mutation logic in controller?
-            // Or just loop here. The controller dispatches mutations, but ideally they are transactional.
-            // AppController doesn't have deleteNodes(plural).
-            // But we can wrap in transaction?
-            // appController.transaction... is private? No, public.
-            // But we can just issue multiple delete calls, each triggers recompile.
-            // Better to add deleteNodes to controller or just loop.
-            // Given recompile cost, better to batch.
-            // appController.deleteNodes? It doesn't exist.
-            // Let's loop for now, optimizing later if needed.
-            // Actually, `appController.deleteNode` triggers recompile.
-            // We can add `deleteNodes` to AppController or just use the loop.
-            // Let's assume loop is OK for QoL prototype.
-            // But wait, if I delete the first node, and it triggers recompile/layout... the other nodes might shift or state update?
-            // Safer to do it in one go.
+          // Delete entire group
+          const nodesToDelete = Array.from(lastGroup).filter(itemId => itemId.startsWith('node-'));
+          // We should use a bulk delete operation if available, or just loop.
+          // appController.deleteNode handles one.
+          // Let's create a bulk delete mutation logic in controller?
+          // Or just loop here. The controller dispatches mutations, but ideally they are transactional.
+          // AppController doesn't have deleteNodes(plural).
+          // But we can wrap in transaction?
+          // appController.transaction... is private? No, public.
+          // But we can just issue multiple delete calls, each triggers recompile.
+          // Better to add deleteNodes to controller or just loop.
+          // Given recompile cost, better to batch.
+          // appController.deleteNodes? It doesn't exist.
+          // Let's loop for now, optimizing later if needed.
+          // Actually, `appController.deleteNode` triggers recompile.
+          // We can add `deleteNodes` to AppController or just use the loop.
+          // Let's assume loop is OK for QoL prototype.
+          // But wait, if I delete the first node, and it triggers recompile/layout... the other nodes might shift or state update?
+          // Safer to do it in one go.
 
-            // Let's just delete the specific node if no group logic.
-            // Wait, I should implement `deleteNodes` in AppController for atomic op?
-            // Or just use `transaction`.
-            appController.transaction(() => {
-                nodesToDelete.forEach(nid => appController.deleteNode(nid));
-            });
-            localController.setLastGroupSelection(null);
-            return;
+          // Let's just delete the specific node if no group logic.
+          // Wait, I should implement `deleteNodes` in AppController for atomic op?
+          // Or just use `transaction`.
+          appController.transaction(() => {
+            nodesToDelete.forEach(nid => appController.deleteNode(nid));
+          });
+          localController.setLastGroupSelection(null);
+          return;
         }
 
         // Splice Deletion Check
@@ -573,35 +573,35 @@ export class GraphGrid extends MobxLitElement {
         // splice them together.
         const node = appController.observableState.graph.inner.nodes[id];
         if (node) {
-             const connections = Object.values(appController.observableState.graph.inner.connections);
+          const connections = Object.values(appController.observableState.graph.inner.connections);
 
-             // Get node type to find default ports
-             // Default ports are usually inputs[0] and outputs[0]
-             const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
+          // Get node type to find default ports
+          // Default ports are usually inputs[0] and outputs[0]
+          const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
 
-             // Define 'default ports'
-             // If node has no inputs or outputs defined, we can't splice.
-             // But many primitives use 'in'/'out' or 'value'.
-             // We'll trust the catalog definition.
-             const firstInputName = nodeType?.inputs?.[0]?.name;
-             const firstOutputName = nodeType?.outputs?.[0]?.name;
+          // Define 'default ports'
+          // If node has no inputs or outputs defined, we can't splice.
+          // But many primitives use 'in'/'out' or 'value'.
+          // We'll trust the catalog definition.
+          const firstInputName = nodeType?.inputs?.[0]?.name;
+          const firstOutputName = nodeType?.outputs?.[0]?.name;
 
-             if (firstInputName && firstOutputName) {
-                 const inputConns = connections.filter(c => c.toNodeId === id && c.toPort === firstInputName);
-                 const outputConns = connections.filter(c => c.fromNodeId === id && c.fromPort === firstOutputName);
+          if (firstInputName && firstOutputName) {
+            const inputConns = connections.filter(c => c.toNodeId === id && c.toPort === firstInputName);
+            const outputConns = connections.filter(c => c.fromNodeId === id && c.fromPort === firstOutputName);
 
-                 if (inputConns.length === 1 && outputConns.length === 1) {
-                     // Eligible for splice!
-                     const inConn = inputConns[0];
-                     const outConn = outputConns[0];
+            if (inputConns.length === 1 && outputConns.length === 1) {
+              // Eligible for splice!
+              const inConn = inputConns[0];
+              const outConn = outputConns[0];
 
-                     appController.transaction((c) => {
-                         c.deleteNode(id);
-                         c.createConnection(inConn.fromNodeId, inConn.fromPort, outConn.toNodeId, outConn.toPort);
-                     });
-                     return;
-                 }
-             }
+              appController.transaction((c) => {
+                c.deleteNode(id);
+                c.createConnection(inConn.fromNodeId, inConn.fromPort, outConn.toNodeId, outConn.toPort);
+              });
+              return;
+            }
+          }
         }
 
         appController.deleteNode(id);
@@ -651,7 +651,7 @@ export class GraphGrid extends MobxLitElement {
   private disposers: (() => void)[] = [];
 
   private addDisposer(d: () => void) {
-      this.disposers.push(d);
+    this.disposers.push(d);
   }
 
   connectedCallback() {
@@ -669,80 +669,80 @@ export class GraphGrid extends MobxLitElement {
           // No, attributes work even if hidden.
 
           requestAnimationFrame(() => {
-              const nodeEl = this.shadowRoot?.querySelector(`graph-node[data-id="${op.nodeId}"]`) as HTMLElement;
-              const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
+            const nodeEl = this.shadowRoot?.querySelector(`graph-node[data-id="${op.nodeId}"]`) as HTMLElement;
+            const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
 
-              if (nodeEl && lineEl) {
-                  const nodeRect = nodeEl.getBoundingClientRect();
-                  const gridRect = this.getBoundingClientRect();
-                  const nodeX = nodeRect.left - gridRect.left + this.scrollLeft;
-                  const nodeY = nodeRect.top - gridRect.top + this.scrollTop;
-                  const portY = this.getNodePortY(op.nodeId, op.port, op.type === 'in');
+            if (nodeEl && lineEl) {
+              const nodeRect = nodeEl.getBoundingClientRect();
+              const gridRect = this.getBoundingClientRect();
+              const nodeX = nodeRect.left - gridRect.left + this.scrollLeft;
+              const nodeY = nodeRect.top - gridRect.top + this.scrollTop;
+              const portY = this.getNodePortY(op.nodeId, op.port, op.type === 'in');
 
-                  let startX = nodeX;
-                  if (op.type === 'out') {
-                      startX += nodeRect.width;
-                  }
-                  const startY = nodeY + portY - 8;
-
-                  lineEl.setAttribute('x1', String(startX));
-                  lineEl.setAttribute('y1', String(startY));
-                  lineEl.setAttribute('x2', String(startX)); // Init to start
-                  lineEl.setAttribute('y2', String(startY));
+              let startX = nodeX;
+              if (op.type === 'out') {
+                startX += nodeRect.width;
               }
+              const startY = nodeY + portY - 8;
+
+              lineEl.setAttribute('x1', String(startX));
+              lineEl.setAttribute('y1', String(startY));
+              lineEl.setAttribute('x2', String(startX)); // Init to start
+              lineEl.setAttribute('y2', String(startY));
+            }
           });
 
           // Verify we have handlers attached
           if (!this._pointerMoveHandler) {
-             this._pointerMoveHandler = (e: PointerEvent) => {
-                 const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
-                 if (lineEl) {
-                     const rect = this.getBoundingClientRect();
-                     // Calculate target position relative to grid
-                     const targetX = (e.clientX - rect.left) + this.scrollLeft;
-                     const targetY = (e.clientY - rect.top) + this.scrollTop;
+            this._pointerMoveHandler = (e: PointerEvent) => {
+              const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
+              if (lineEl) {
+                const rect = this.getBoundingClientRect();
+                // Calculate target position relative to grid
+                const targetX = (e.clientX - rect.left) + this.scrollLeft;
+                const targetY = (e.clientY - rect.top) + this.scrollTop;
 
-                     lineEl.setAttribute('x2', String(targetX));
-                     lineEl.setAttribute('y2', String(targetY));
-                 }
-             };
-             this.addEventListener('pointermove', this._pointerMoveHandler);
+                lineEl.setAttribute('x2', String(targetX));
+                lineEl.setAttribute('y2', String(targetY));
+              }
+            };
+            this.addEventListener('pointermove', this._pointerMoveHandler);
           }
 
           if (!this._pointerUpHandler) {
-              this._pointerUpHandler = (e: PointerEvent) => {
-                  // If this bubbles to grid, it means it wasn't handled by a port.
-                  // Cancel operation.
-                  localController.setInflightPortConnectionOperation(null);
-                  this.ghostTarget = null;
-              };
-              this.addEventListener('pointerup', this._pointerUpHandler);
+            this._pointerUpHandler = (e: PointerEvent) => {
+              // If this bubbles to grid, it means it wasn't handled by a port.
+              // Cancel operation.
+              localController.setInflightPortConnectionOperation(null);
+              this.ghostTarget = null;
+            };
+            this.addEventListener('pointerup', this._pointerUpHandler);
           }
 
           if (!this._keyDownHandler) {
-              this._keyDownHandler = this.handleKeyDown.bind(this);
-              window.addEventListener('keydown', this._keyDownHandler);
+            this._keyDownHandler = this.handleKeyDown.bind(this);
+            window.addEventListener('keydown', this._keyDownHandler);
           }
         } else {
-           // Cleanup
-           // ... cleanup if op is null?
-           // Actually the disposer handles the reaction cleanup, but global listeners
-           // set above (pointermove/up) should be removed if op cancels?
-           // The reaction fires on op change.
-           // If op becomes null, we should remove pointer listeners.
-           if (this._pointerMoveHandler) {
-               this.removeEventListener('pointermove', this._pointerMoveHandler);
-               this._pointerMoveHandler = null;
-           }
-           if (this._pointerUpHandler) {
-               this.removeEventListener('pointerup', this._pointerUpHandler);
-               this._pointerUpHandler = null;
-           }
-           // Keep keydown listener as it is global for the component, not just for inflight op?
-           // Wait, splicing insert point works independently of inflight connection!
-           // pendingWireInsert is for EXISTING wires.
-           // So keydown should be attached PERMANENTLY when component is connected.
-           this.ghostTarget = null;
+          // Cleanup
+          // ... cleanup if op is null?
+          // Actually the disposer handles the reaction cleanup, but global listeners
+          // set above (pointermove/up) should be removed if op cancels?
+          // The reaction fires on op change.
+          // If op becomes null, we should remove pointer listeners.
+          if (this._pointerMoveHandler) {
+            this.removeEventListener('pointermove', this._pointerMoveHandler);
+            this._pointerMoveHandler = null;
+          }
+          if (this._pointerUpHandler) {
+            this.removeEventListener('pointerup', this._pointerUpHandler);
+            this._pointerUpHandler = null;
+          }
+          // Keep keydown listener as it is global for the component, not just for inflight op?
+          // Wait, splicing insert point works independently of inflight connection!
+          // pendingWireInsert is for EXISTING wires.
+          // So keydown should be attached PERMANENTLY when component is connected.
+          this.ghostTarget = null;
         }
       },
       { fireImmediately: true }
@@ -751,11 +751,11 @@ export class GraphGrid extends MobxLitElement {
 
 
 
-      // Separate permanent keydown listener for wire interaction
-      if (!this._keyDownHandler) {
-          this._keyDownHandler = this.handleKeyDown.bind(this);
-          window.addEventListener('keydown', this._keyDownHandler);
-      }
+    // Separate permanent keydown listener for wire interaction
+    if (!this._keyDownHandler) {
+      this._keyDownHandler = this.handleKeyDown.bind(this);
+      window.addEventListener('keydown', this._keyDownHandler);
+    }
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('dblclick', this.handleDblClick);
     this.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -793,8 +793,8 @@ export class GraphGrid extends MobxLitElement {
     this.removeEventListener('drop', this.handleDrop);
 
     if (this._keyDownHandler) {
-        window.removeEventListener('keydown', this._keyDownHandler);
-        this._keyDownHandler = null;
+      window.removeEventListener('keydown', this._keyDownHandler);
+      this._keyDownHandler = null;
     }
 
     this.resizeObserver.disconnect();
@@ -864,74 +864,74 @@ export class GraphGrid extends MobxLitElement {
       // Ensure we apply the FINAL selected typeId, because the user might have
       // clicked a suggestion different from the currently previewed one.
       this.popupLongEdit.applyAgain((c) => {
-          // Re-create node if new (same logic as handlePopupPreview)
-          if (this.popup!.isNew) {
-               c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
-          } else {
-               c.setNodeConfig(this.popup!.nodeId!, { typeId });
-          }
+        // Re-create node if new (same logic as handlePopupPreview)
+        if (this.popup!.isNew) {
+          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
+        } else {
+          c.setNodeConfig(this.popup!.nodeId!, { typeId });
+        }
 
-          // Re-wire connections (same logic as handlePopupPreview)
-          const connectionId = (this.popup as any).connectionId;
-          if (connectionId) {
-                const oldConn = appController.observableState.graph.inner.connections[connectionId];
-                if (oldConn) {
-                    const nodeType = defaultNodeRepository.getNodeType(typeId);
-                    const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                    const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
+        // Re-wire connections (same logic as handlePopupPreview)
+        const connectionId = (this.popup as any).connectionId;
+        if (connectionId) {
+          const oldConn = appController.observableState.graph.inner.connections[connectionId];
+          if (oldConn) {
+            const nodeType = defaultNodeRepository.getNodeType(typeId);
+            const firstInput = nodeType?.inputs?.[0]?.name || 'in';
+            const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
 
-                    c.deleteConnection(connectionId);
-                    c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
-                    c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-                }
+            c.deleteConnection(connectionId);
+            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
+            c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
           }
+        }
       });
       this.popupLongEdit.accept();
       this.popupLongEdit = null;
     } else if (targetNodeId) {
-       // Just set config if no long edit active (rare if we were previewing)
-       appController.setNodeConfig(targetNodeId, { typeId });
+      // Just set config if no long edit active (rare if we were previewing)
+      appController.setNodeConfig(targetNodeId, { typeId });
     } else {
-       // No node yet (User typed fast and hit commit without preview, or pure creation)
-       // Create it now
-       const { gridX, gridY } = this.popup;
-       try {
-           const newNode = appController.createNode(typeId, gridX, gridY);
-           targetNodeId = newNode.id;
-           localController.queueSelectPaths([targetNodeId]);
-       } catch (e) {
-           console.error("Failed to create node:", e);
-           this.popup = null;
-           return;
-       }
+      // No node yet (User typed fast and hit commit without preview, or pure creation)
+      // Create it now
+      const { gridX, gridY } = this.popup;
+      try {
+        const newNode = appController.createNode(typeId, gridX, gridY);
+        targetNodeId = newNode.id;
+        localController.queueSelectPaths([targetNodeId]);
+      } catch (e) {
+        console.error("Failed to create node:", e);
+        this.popup = null;
+        return;
+      }
     }
 
     // Now handle connection splitting if applicable
     // This applies whether we reused a preview node or created a new one
     const connectionId = (this.popup as any).connectionId;
     if (connectionId && targetNodeId) {
-         try {
-             // Handle Wire Split
-             const oldConn = appController.observableState.graph.inner.connections[connectionId];
-             if (oldConn) {
-                 const nodeType = defaultNodeRepository.getNodeType(typeId);
-                 const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                 const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
+      try {
+        // Handle Wire Split
+        const oldConn = appController.observableState.graph.inner.connections[connectionId];
+        if (oldConn) {
+          const nodeType = defaultNodeRepository.getNodeType(typeId);
+          const firstInput = nodeType?.inputs?.[0]?.name || 'in';
+          const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
 
-                 appController.transaction((c) => {
-                     // Delete old
-                     c.deleteConnection(connectionId);
+          appController.transaction((c) => {
+            // Delete old
+            c.deleteConnection(connectionId);
 
-                     // Connect Old Start -> New Node
-                     c.createConnection(oldConn.fromNodeId, oldConn.fromPort, targetNodeId!, firstInput);
+            // Connect Old Start -> New Node
+            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, targetNodeId!, firstInput);
 
-                     // Connect New Node -> Old End
-                     c.createConnection(targetNodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-                 });
-             }
-         } catch(e) {
-             console.error("Failed to split connection:", e);
-         }
+            // Connect New Node -> Old End
+            c.createConnection(targetNodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
+          });
+        }
+      } catch (e) {
+        console.error("Failed to split connection:", e);
+      }
     }
 
     // Defer popup removal
@@ -945,191 +945,191 @@ export class GraphGrid extends MobxLitElement {
 
     // Check if key is alphanumeric
     if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // Resolve grid cell directly from pendingWireInsert
-        // We now store gridX/gridY in the insert structure.
-        const { gridX: foundX, gridY: foundY } = this.pendingWireInsert;
+      // Resolve grid cell directly from pendingWireInsert
+      // We now store gridX/gridY in the insert structure.
+      const { gridX: foundX, gridY: foundY } = this.pendingWireInsert;
 
-        if (foundX !== -1) {
-             const cx = appController.observableState.graph.inner.connections[this.pendingWireInsert.wireId];
-             if (!cx) {
-                 this.pendingWireInsert = null;
-                 return;
-             }
-
-             // Show Popup
-             // We need to position popup near click
-             // We reuse popup struct but maybe need to extend it to carry connection info?
-             if (!cx) {
-                 this.pendingWireInsert = null;
-                 return;
-             }
-
-             const generatedId = generateId('node');
-             const initialValue = e.key;
-             const connectionId = this.pendingWireInsert.wireId;
-
-             // Start Long Edit with Creation + Rewire Logic
-             this.popupLongEdit = appController.beginLongEdit({
-                 apply: (c) => {
-                     // 1. Create Node (default hub for now, will be updated by handlePopupPreview immediately after input?)
-                     // Actually, 'initialValue' is just the first char.
-                     // The popup will be initialized with this char.
-                     // The node type defaults to hub until committed or updated.
-                     // Wait, smart-input usually sends `preview` event with matched type.
-                     // So we create a default node here.
-                     c.createNode('util.hub', foundX, foundY, { id: generatedId });
-
-                     // 2. Initial Rewire (assume Hub behaviors)
-                     // Or shoud we wait for preview?
-                     // If we rewire now, we use hub ports.
-                     const oldConn = appController.observableState.graph.inner.connections[connectionId];
-                     if (oldConn) {
-                         const nodeType = defaultNodeRepository.getNodeType('util.hub');
-                         const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                         const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-                         c.deleteConnection(connectionId);
-                         c.createConnection(oldConn.fromNodeId, oldConn.fromPort, generatedId, firstInput);
-                         c.createConnection(generatedId, firstOutput, oldConn.toNodeId, oldConn.toPort);
-                     }
-                 },
-                 cancel: () => {
-                     this.popupLongEdit = null;
-                 }
-             });
-
-             localController.queueSelectPaths([generatedId]);
-
-             this.popup = {
-                  x: this.pendingWireInsert.x,
-                  y: this.pendingWireInsert.y - 40,
-                  gridX: foundX,
-                  gridY: foundY,
-                  initialValue: e.key,
-                  connectionId,
-                  nodeId: generatedId,
-                  isNew: true
-             };
-
-             this.pendingWireInsert = null;
+      if (foundX !== -1) {
+        const cx = appController.observableState.graph.inner.connections[this.pendingWireInsert.wireId];
+        if (!cx) {
+          this.pendingWireInsert = null;
+          return;
         }
+
+        // Show Popup
+        // We need to position popup near click
+        // We reuse popup struct but maybe need to extend it to carry connection info?
+        if (!cx) {
+          this.pendingWireInsert = null;
+          return;
+        }
+
+        const generatedId = generateId('node');
+        const initialValue = e.key;
+        const connectionId = this.pendingWireInsert.wireId;
+
+        // Start Long Edit with Creation + Rewire Logic
+        this.popupLongEdit = appController.beginLongEdit({
+          apply: (c) => {
+            // 1. Create Node (default hub for now, will be updated by handlePopupPreview immediately after input?)
+            // Actually, 'initialValue' is just the first char.
+            // The popup will be initialized with this char.
+            // The node type defaults to hub until committed or updated.
+            // Wait, smart-input usually sends `preview` event with matched type.
+            // So we create a default node here.
+            c.createNode('util.hub', foundX, foundY, { id: generatedId });
+
+            // 2. Initial Rewire (assume Hub behaviors)
+            // Or shoud we wait for preview?
+            // If we rewire now, we use hub ports.
+            const oldConn = appController.observableState.graph.inner.connections[connectionId];
+            if (oldConn) {
+              const nodeType = defaultNodeRepository.getNodeType('util.hub');
+              const firstInput = nodeType?.inputs?.[0]?.name || 'in';
+              const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
+
+              c.deleteConnection(connectionId);
+              c.createConnection(oldConn.fromNodeId, oldConn.fromPort, generatedId, firstInput);
+              c.createConnection(generatedId, firstOutput, oldConn.toNodeId, oldConn.toPort);
+            }
+          },
+          cancel: () => {
+            this.popupLongEdit = null;
+          }
+        });
+
+        localController.queueSelectPaths([generatedId]);
+
+        this.popup = {
+          x: this.pendingWireInsert.x,
+          y: this.pendingWireInsert.y - 40,
+          gridX: foundX,
+          gridY: foundY,
+          initialValue: e.key,
+          connectionId,
+          nodeId: generatedId,
+          isNew: true
+        };
+
+        this.pendingWireInsert = null;
+      }
     }
   }
 
   private renderPendingWirePip() {
-     const op = this.pendingWireInsert;
-     // If no specific op, check selection
-     if (!op) {
-         // Auto-calculate logic here?
-         // No, verify logic creates op on click.
-         // If "select right near the wire" doesn't show it, it means click handler failed to find cell.
+    const op = this.pendingWireInsert;
+    // If no specific op, check selection
+    if (!op) {
+      // Auto-calculate logic here?
+      // No, verify logic creates op on click.
+      // If "select right near the wire" doesn't show it, it means click handler failed to find cell.
 
-         // User Request: "Basically always show up when selected"
-         // If we have selected wire(s), show pip at the last known or "closest" point?
-         // Selection can change via Undo/Redo or marquee.
-         // If single wire selected, we could show it at center?
-         // But we lack (x,y) context unless derived from mouse.
-         // Wait, verify if `pendingWireInsert` persists?
-     }
-     if (!this.pendingWireInsert) return null;
+      // User Request: "Basically always show up when selected"
+      // If we have selected wire(s), show pip at the last known or "closest" point?
+      // Selection can change via Undo/Redo or marquee.
+      // If single wire selected, we could show it at center?
+      // But we lack (x,y) context unless derived from mouse.
+      // Wait, verify if `pendingWireInsert` persists?
+    }
+    if (!this.pendingWireInsert) return null;
 
-     const { x, y, wireId } = this.pendingWireInsert;
-     const isSelected = localController.observableState.selection.has(wireId);
+    const { x, y, wireId } = this.pendingWireInsert;
+    const isSelected = localController.observableState.selection.has(wireId);
 
-     if (!isSelected) {
-         return null;
-     }
+    if (!isSelected) {
+      return null;
+    }
 
-     let color = 'var(--accent-color)';
-     const connections = appController.observableState.graph.inner.connections;
-     const conn = connections[wireId];
-     if (conn) {
-         color = cssColorFromHash(`${conn.fromPort}-${conn.toPort}`);
-     }
+    let color = 'var(--accent-color)';
+    const connections = appController.observableState.graph.inner.connections;
+    const conn = connections[wireId];
+    if (conn) {
+      color = cssColorFromHash(`${conn.fromPort}-${conn.toPort}`);
+    }
 
-     const orientation = this.pendingWireInsert.orientation || 'vertical';
+    const orientation = this.pendingWireInsert.orientation || 'vertical';
 
-     return html`<div class="wire-insert-pip ${orientation}"
+    return html`<div class="wire-insert-pip ${orientation}"
                      style="left: ${x}px; top: ${y}px; --pip-color: ${color};"></div>`;
   }
 
   private onWireClick(wireId: string, e: MouseEvent) {
-      // 1. Select Wire
-      localController.queueSelectPaths([wireId], e.shiftKey || e.ctrlKey || e.metaKey);
+    // 1. Select Wire
+    localController.queueSelectPaths([wireId], e.shiftKey || e.ctrlKey || e.metaKey);
 
-      // 2. Calculate Snap Point
-      const gridRect = this.getBoundingClientRect();
-      const px = e.clientX - gridRect.left + this.scrollLeft;
-      const py = e.clientY - gridRect.top + this.scrollTop;
+    // 2. Calculate Snap Point
+    const gridRect = this.getBoundingClientRect();
+    const px = e.clientX - gridRect.left + this.scrollLeft;
+    const py = e.clientY - gridRect.top + this.scrollTop;
 
-      // Find Closest Cell
-      const cells = this.shadowRoot?.querySelectorAll('.cell');
-      let bestDist = Infinity;
-      let bestX = px;
-      let bestY = py;
-      let bestGridX = -1;
-      let bestGridY = -1;
+    // Find Closest Cell
+    const cells = this.shadowRoot?.querySelectorAll('.cell');
+    let bestDist = Infinity;
+    let bestX = px;
+    let bestY = py;
+    let bestGridX = -1;
+    let bestGridY = -1;
 
-      // Prioritize "gap" cells for insertion?
-      // Actually standard nodes are 80px wide. Gap 16px.
-      // We usually want to splice comfortably.
-      // If we blindly look for cells, we find closest center.
+    // Prioritize "gap" cells for insertion?
+    // Actually standard nodes are 80px wide. Gap 16px.
+    // We usually want to splice comfortably.
+    // If we blindly look for cells, we find closest center.
 
-      cells?.forEach(cell => {
-          const r = cell.getBoundingClientRect();
-          // Relative to grid container (including scroll)
-          const cx = r.left - gridRect.left + this.scrollLeft + r.width / 2;
-          const cy = r.top - gridRect.top + this.scrollTop + r.height / 2;
+    cells?.forEach(cell => {
+      const r = cell.getBoundingClientRect();
+      // Relative to grid container (including scroll)
+      const cx = r.left - gridRect.left + this.scrollLeft + r.width / 2;
+      const cy = r.top - gridRect.top + this.scrollTop + r.height / 2;
 
-          const dist = Math.sqrt(Math.pow(px - cx, 2) + Math.pow(py - cy, 2));
-          if (dist < bestDist) {
-              bestDist = dist;
-              bestX = cx;
-              bestY = cy;
+      const dist = Math.sqrt(Math.pow(px - cx, 2) + Math.pow(py - cy, 2));
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestX = cx;
+        bestY = cy;
 
-              const ds = (cell as HTMLElement).dataset;
-              // Extract grid coords
-              // Note: Gaps might not have x/y set in dataset?
-              // The render loop sets data-x/y on .node-cell only?
-              // Let's check render loop:
-              // .gap-cell doesn't have data-x/y.
-              // So for splicing, if we snap to a gap, we might fail to find grid coords for a node?
-              // But we can infer from style grids?
-              // Or just default to "closest node cell logic"?
-              // If we splice in a gap, we probably want to splice AT that gap location (insert row/col?)
-              // No, user just inserts a node. It should push layout.
+        const ds = (cell as HTMLElement).dataset;
+        // Extract grid coords
+        // Note: Gaps might not have x/y set in dataset?
+        // The render loop sets data-x/y on .node-cell only?
+        // Let's check render loop:
+        // .gap-cell doesn't have data-x/y.
+        // So for splicing, if we snap to a gap, we might fail to find grid coords for a node?
+        // But we can infer from style grids?
+        // Or just default to "closest node cell logic"?
+        // If we splice in a gap, we probably want to splice AT that gap location (insert row/col?)
+        // No, user just inserts a node. It should push layout.
 
-              if (ds.x !== undefined && ds.y !== undefined) {
-                  bestGridX = ds.x === 'output' ? 20 : parseInt(ds.x);
-                  bestGridY = parseInt(ds.y);
-              } else {
-                 // Try to infer from style?
-                 // grid-column: N; grid-row: M;
-                 // But col idx != x idx.
-                 // let's rely on node-cell priority.
-              }
-          }
-      });
+        if (ds.x !== undefined && ds.y !== undefined) {
+          bestGridX = ds.x === 'output' ? 20 : parseInt(ds.x);
+          bestGridY = parseInt(ds.y);
+        } else {
+          // Try to infer from style?
+          // grid-column: N; grid-row: M;
+          // But col idx != x idx.
+          // let's rely on node-cell priority.
+        }
+      }
+    });
 
-      // Determine orientation based on wire segment aspect
-      // Segment logic was in `onWireClick` (GraphGrid.old.ts).
-      // Here we assume vertical bar cursor for Horizontal wire.
-      const target = e.target as HTMLElement;
-      const tRect = target.getBoundingClientRect();
-      // Wire width > height = Horizontal Wire -> Vertical Bar to slice it.
-      const isHorizontalWire = tRect.width > tRect.height;
-      const orientation = isHorizontalWire ? 'vertical' : 'horizontal';
+    // Determine orientation based on wire segment aspect
+    // Segment logic was in `onWireClick` (GraphGrid.old.ts).
+    // Here we assume vertical bar cursor for Horizontal wire.
+    const target = e.target as HTMLElement;
+    const tRect = target.getBoundingClientRect();
+    // Wire width > height = Horizontal Wire -> Vertical Bar to slice it.
+    const isHorizontalWire = tRect.width > tRect.height;
+    const orientation = isHorizontalWire ? 'vertical' : 'horizontal';
 
-      this.pendingWireInsert = {
-          x: bestX,
-          y: bestY,
-          gridX: bestGridX,
-          gridY: bestGridY,
-          wireId,
-          orientation
-      };
-      // Force update
-      this.requestUpdate();
+    this.pendingWireInsert = {
+      x: bestX,
+      y: bestY,
+      gridX: bestGridX,
+      gridY: bestGridY,
+      wireId,
+      orientation
+    };
+    // Force update
+    this.requestUpdate();
   }
 
   private handlePopupPreview(e: CustomEvent) {
@@ -1138,95 +1138,95 @@ export class GraphGrid extends MobxLitElement {
 
     // Phase 1: Create Node if it doesn't exist (Live Preview for Wire Insert)
     if (!this.popup.nodeId) {
-        // We are previewing a creation type.
-        // Create the node FOR REAL (it's the only way to render it currently)
-        // We mark it as 'isNew' in popup so we know to delete it if cancelled.
+      // We are previewing a creation type.
+      // Create the node FOR REAL (it's the only way to render it currently)
+      // We mark it as 'isNew' in popup so we know to delete it if cancelled.
 
-        try {
-            const newNode = appController.createNode(typeId, this.popup.gridX, this.popup.gridY);
+      try {
+        const newNode = appController.createNode(typeId, this.popup.gridX, this.popup.gridY);
 
-            // Update Popup State
-            this.popup = {
-                ...this.popup,
-                nodeId: newNode.id,
-                isNew: true
-            };
+        // Update Popup State
+        this.popup = {
+          ...this.popup,
+          nodeId: newNode.id,
+          isNew: true
+        };
 
-            // Select it?
-            // localController.queueSelectPaths([newNode.id]);
-            // Maybe not needed if we are editing?
+        // Select it?
+        // localController.queueSelectPaths([newNode.id]);
+        // Maybe not needed if we are editing?
 
-            // Start Long Edit immediately for this new node
-            this.popupLongEdit = appController.beginLongEdit({
-                apply: (c) => {
-                    c.setNodeConfig(newNode.id, { typeId });
+        // Start Long Edit immediately for this new node
+        this.popupLongEdit = appController.beginLongEdit({
+          apply: (c) => {
+            c.setNodeConfig(newNode.id, { typeId });
 
-                    // Live Rewire: If inserting on a wire, split the connection now!
-                    const connectionId = (this.popup as any).connectionId;
-                    if (connectionId) {
-                         const oldConn = appController.observableState.graph.inner.connections[connectionId];
-                         if (oldConn) {
-                             // Use default ports from repository or fallback
-                             const nodeType = defaultNodeRepository.getNodeType(typeId);
-                             const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                             const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
+            // Live Rewire: If inserting on a wire, split the connection now!
+            const connectionId = (this.popup as any).connectionId;
+            if (connectionId) {
+              const oldConn = appController.observableState.graph.inner.connections[connectionId];
+              if (oldConn) {
+                // Use default ports from repository or fallback
+                const nodeType = defaultNodeRepository.getNodeType(typeId);
+                const firstInput = nodeType?.inputs?.[0]?.name || 'in';
+                const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
 
-                             c.deleteConnection(connectionId);
-                             c.createConnection(oldConn.fromNodeId, oldConn.fromPort, newNode.id, firstInput);
-                             c.createConnection(newNode.id, firstOutput, oldConn.toNodeId, oldConn.toPort);
-                         }
-                    }
-                },
-                cancel: () => {
-                    this.popupLongEdit = null;
-                    // handlePopupCancel will handle deletion of 'isNew' node
-                }
-            });
+                c.deleteConnection(connectionId);
+                c.createConnection(oldConn.fromNodeId, oldConn.fromPort, newNode.id, firstInput);
+                c.createConnection(newNode.id, firstOutput, oldConn.toNodeId, oldConn.toPort);
+              }
+            }
+          },
+          cancel: () => {
+            this.popupLongEdit = null;
+            // handlePopupCancel will handle deletion of 'isNew' node
+          }
+        });
 
-        } catch (e) {
-            console.error("Failed to create preview node:", e);
-        }
-        return;
+      } catch (e) {
+        console.error("Failed to create preview node:", e);
+      }
+      return;
     }
 
     // Phase 2: Update Existing Node (or just-created preview node)
     if (this.popup.nodeId) {
-        const applyCallback = (c: any) => {
-            // CRITICAL FIX: If this is a new node created in this transaction,
-            // we MUST re-create it every time apply() runs, because the previous runs (and creation) are rolled back.
-            if (this.popup!.isNew) {
-                c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
-            } else {
-                // Just update config for existing nodes
-                c.setNodeConfig(this.popup!.nodeId!, { typeId });
-            }
-
-            // Live Rewire
-            const connectionId = (this.popup as any).connectionId;
-            if (connectionId) {
-                 const oldConn = appController.observableState.graph.inner.connections[connectionId];
-                 if (oldConn) {
-                     const nodeType = defaultNodeRepository.getNodeType(typeId);
-                     const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                     const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-                     c.deleteConnection(connectionId);
-                     c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
-                     c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-                 }
-            }
-        };
-
-        if (!this.popupLongEdit) {
-            this.popupLongEdit = appController.beginLongEdit({
-                apply: applyCallback,
-                cancel: () => {
-                    this.popupLongEdit = null;
-                }
-            });
+      const applyCallback = (c: any) => {
+        // CRITICAL FIX: If this is a new node created in this transaction,
+        // we MUST re-create it every time apply() runs, because the previous runs (and creation) are rolled back.
+        if (this.popup!.isNew) {
+          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
         } else {
-            this.popupLongEdit.applyAgain(applyCallback);
+          // Just update config for existing nodes
+          c.setNodeConfig(this.popup!.nodeId!, { typeId });
         }
+
+        // Live Rewire
+        const connectionId = (this.popup as any).connectionId;
+        if (connectionId) {
+          const oldConn = appController.observableState.graph.inner.connections[connectionId];
+          if (oldConn) {
+            const nodeType = defaultNodeRepository.getNodeType(typeId);
+            const firstInput = nodeType?.inputs?.[0]?.name || 'in';
+            const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
+
+            c.deleteConnection(connectionId);
+            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
+            c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
+          }
+        }
+      };
+
+      if (!this.popupLongEdit) {
+        this.popupLongEdit = appController.beginLongEdit({
+          apply: applyCallback,
+          cancel: () => {
+            this.popupLongEdit = null;
+          }
+        });
+      } else {
+        this.popupLongEdit.applyAgain(applyCallback);
+      }
     }
   }
 
@@ -1258,8 +1258,8 @@ export class GraphGrid extends MobxLitElement {
     const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
 
     if (effectiveType) {
-        inputs = effectiveType.inputs;
-        outputs = effectiveType.outputs;
+      inputs = effectiveType.inputs;
+      outputs = effectiveType.outputs;
     }
 
     // Calculate ports height
@@ -1270,45 +1270,45 @@ export class GraphGrid extends MobxLitElement {
 
     let totalInputHeight = 0;
     inputs.forEach(input => {
-        // Check if input editor would be shown?
-        // GraphNode logic: if (alwaysShow || !connected && !suppress)
-        // We need connections to know if connected.
-        const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
-        const isConnected = incoming.some(cid => {
-            const c = appController.observableState.graph.inner.connections[cid];
-            return c && c.toPort === input.name;
-        });
+      // Check if input editor would be shown?
+      // GraphNode logic: if (alwaysShow || !connected && !suppress)
+      // We need connections to know if connected.
+      const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
+      const isConnected = incoming.some(cid => {
+        const c = appController.observableState.graph.inner.connections[cid];
+        return c && c.toPort === input.name;
+      });
 
-        let h = 24; // ROW_HEIGHT
+      let h = 24; // ROW_HEIGHT
 
-        // Check for custom input editor height
-        // We need to know if the editor is actually shown.
-        // Logic: if (alwaysShow || !connected && !suppress)
+      // Check for custom input editor height
+      // We need to know if the editor is actually shown.
+      // Logic: if (alwaysShow || !connected && !suppress)
 
-        const showEditor = (input.alwaysShowInputEditor || (!isConnected && !input.suppressInputEditor));
+      const showEditor = (input.alwaysShowInputEditor || (!isConnected && !input.suppressInputEditor));
 
-        if (showEditor) {
-             // Try to get custom height
-             if (nodeType?.getInputEditorHeight) {
-                 h = nodeType.getInputEditorHeight(node, input.name);
-             } else if (nodeType?.ui?.getInputEditorHeight) {
-                 // This is async/lazy, we can't await here easily.
-                 // But typically if it's loaded, we might have access?
-                 // For now, let's hardcode a check for known large inputs if needed,
-                 // or rely on the fact that we should have the height if it's registered.
-                 // Actually, `getInputEditorHeight` in `ui` returns a Promise of a function.
-                 // We can't use it synchronously.
+      if (showEditor) {
+        // Try to get custom height
+        if (nodeType?.getInputEditorHeight) {
+          h = nodeType.getInputEditorHeight(node, input.name);
+        } else if (nodeType?.ui?.getInputEditorHeight) {
+          // This is async/lazy, we can't await here easily.
+          // But typically if it's loaded, we might have access?
+          // For now, let's hardcode a check for known large inputs if needed,
+          // or rely on the fact that we should have the height if it's registered.
+          // Actually, `getInputEditorHeight` in `ui` returns a Promise of a function.
+          // We can't use it synchronously.
 
-                 // HACK: For debug.scope, we know it's 96px.
-                 // We can check if the input has a specific tag or type?
-                 // Or just check if it's `debug.scope` and `value` port?
-                     if (node.config.typeId === 'debug.scope' && input.name === 'value') {
-                         h = 96;
-                     }
-             }
+          // HACK: For debug.scope, we know it's 96px.
+          // We can check if the input has a specific tag or type?
+          // Or just check if it's `debug.scope` and `value` port?
+          if (node.config.typeId === 'debug.scope' && input.name === 'value') {
+            h = 96;
+          }
         }
+      }
 
-        totalInputHeight += h;
+      totalInputHeight += h;
     });
 
     const totalOutputHeight = outputs.length * 24;
@@ -1324,7 +1324,7 @@ export class GraphGrid extends MobxLitElement {
     // Let's assume if it has a custom body, it's at least 96px?
     let estimatedBodyHeight = bodyHeight;
     if (estimatedBodyHeight === 0 && (nodeType?.renderBody || nodeType?.ui?.body)) {
-        estimatedBodyHeight = 96;
+      estimatedBodyHeight = 96;
     }
 
     // Check minimal state
@@ -1354,8 +1354,8 @@ export class GraphGrid extends MobxLitElement {
     const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
 
     if (effectiveType) {
-        inputs = effectiveType.inputs;
-        outputs = effectiveType.outputs;
+      inputs = effectiveType.inputs;
+      outputs = effectiveType.outputs;
     }
 
     const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
@@ -1366,15 +1366,15 @@ export class GraphGrid extends MobxLitElement {
 
     const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
     const connectedPorts = new Set(incoming.map(cid => {
-        const c = appController.observableState.graph.inner.connections[cid];
-        return c ? c.toPort : null;
+      const c = appController.observableState.graph.inner.connections[cid];
+      return c ? c.toPort : null;
     }));
 
     const hasVisibleSliders = inputs.some(input => {
-        if (input.alwaysShowInputEditor) return true;
-        if (connectedPorts.has(input.name)) return false;
-        if (input.suppressInputEditor) return false;
-        return true;
+      if (input.alwaysShowInputEditor) return true;
+      if (connectedPorts.has(input.name)) return false;
+      if (input.suppressInputEditor) return false;
+      return true;
     });
 
     if (hasCustomBody || hasVisibleSliders) return 272;
@@ -1395,7 +1395,7 @@ export class GraphGrid extends MobxLitElement {
     let ports = isInput ? (nodeType?.inputs || []) : (nodeType?.outputs || []);
 
     if (effectiveType) {
-        ports = isInput ? effectiveType.inputs : effectiveType.outputs;
+      ports = isInput ? effectiveType.inputs : effectiveType.outputs;
     }
 
     const index = ports.findIndex(p => p.name === portName);
@@ -1408,6 +1408,53 @@ export class GraphGrid extends MobxLitElement {
     // Pip Offset Y (from row top): 12
     // Y = 24 + 8 + (index * 24) + 12
     return 24 + 8 + (index * 24) + 12;
+    return 24 + 8 + (index * 24) + 12;
+  }
+
+  private connectionSelectables = new Map<string, Selectable>();
+
+  private getConnectionSelectable(connectionId: string): Selectable {
+    if (!this.connectionSelectables.has(connectionId)) {
+      this.connectionSelectables.set(connectionId, {
+        path: connectionId,
+        renderInspectorContent: () => this.renderConnectionInspector(connectionId)
+      });
+    }
+    return this.connectionSelectables.get(connectionId)!;
+  }
+
+  private renderConnectionInspector(connectionId: string) {
+    // Look up connection dynamically to ensure fresh state
+    const conn = appController.observableState.graph.inner.connections[connectionId];
+    if (!conn) return undefined;
+
+    return html`
+              <h3>Connection</h3>
+              <div class="field">
+                  <label>From Port:</label>
+                  <input
+                      data-testid="from-port-input"
+                      type="text"
+                      .value=${conn.fromPort.toString()}
+                      @input=${(e: Event) => {
+        const target = e.target as HTMLInputElement;
+        appController.setConnectionPorts(conn.id, { fromPort: target.value });
+      }}
+                  />
+              </div>
+              <div class="field">
+                  <label>To Port:</label>
+                  <input
+                      data-testid="to-port-input"
+                      type="text"
+                      .value=${conn.toPort.toString()}
+                      @input=${(e: Event) => {
+        const target = e.target as HTMLInputElement;
+        appController.setConnectionPorts(conn.id, { toPort: target.value });
+      }}
+                  />
+              </div>
+          `;
   }
 
   private renderGridCells() {
@@ -1420,9 +1467,9 @@ export class GraphGrid extends MobxLitElement {
 
     for (const node of Object.values(nodes)) {
       if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') {
-          // Track Y for output nodes so we have enough rows, but ignore X
-          if (node.y > maxNodeY) maxNodeY = node.y;
-          continue;
+        // Track Y for output nodes so we have enough rows, but ignore X
+        if (node.y > maxNodeY) maxNodeY = node.y;
+        continue;
       }
       if (node.x > maxNodeX) maxNodeX = node.x;
       if (node.y > maxNodeY) maxNodeY = node.y;
@@ -1504,9 +1551,9 @@ export class GraphGrid extends MobxLitElement {
 
     // Register selectables for all connections (Immediate Mode)
     Object.values(connections).forEach(conn => {
-        localController.defineSelectable({
-            path: conn.id,
-            renderInspectorContent: () => html`
+      localController.defineSelectable({
+        path: conn.id,
+        renderInspectorContent: () => html`
                 <h3>Connection</h3>
                 <div class="field">
                     <label>From Port:</label>
@@ -1514,9 +1561,9 @@ export class GraphGrid extends MobxLitElement {
                         type="text"
                         .value=${conn.fromPort.toString()}
                         @input=${(e: Event) => {
-                            const target = e.target as HTMLInputElement;
-                            appController.setConnectionPorts(conn.id, { fromPort: target.value });
-                        }}
+            const target = e.target as HTMLInputElement;
+            appController.setConnectionPorts(conn.id, { fromPort: target.value });
+          }}
                     />
                 </div>
                 <div class="field">
@@ -1525,13 +1572,13 @@ export class GraphGrid extends MobxLitElement {
                         type="text"
                         .value=${conn.toPort.toString()}
                         @input=${(e: Event) => {
-                            const target = e.target as HTMLInputElement;
-                            appController.setConnectionPorts(conn.id, { toPort: target.value });
-                        }}
+            const target = e.target as HTMLInputElement;
+            appController.setConnectionPorts(conn.id, { toPort: target.value });
+          }}
                     />
                 </div>
             `
-        });
+      });
     });
 
     // Output Column calculation for node placement
@@ -1566,59 +1613,58 @@ export class GraphGrid extends MobxLitElement {
       <div class="grid-container" tabindex="-1">
         ${this.renderGridCells()}
 
-        ${Object.values(connections).map(conn => {
-             // Register selectable for Inspector
-             // FIXME: This causes infinite render loop because it updates observable state during render.
-             // localController.defineSelectable({
-             //    path: conn.id,
-             //    renderInspectorContent: () => html`...`
-             // });
-            return '';
-        })}
+
+    ${Object.values(connections).map(conn => {
+      // Register selectable for Inspector with caching to avoid infinite loops
+      const selectable = this.getConnectionSelectable(conn.id);
+      localController.defineSelectable(selectable);
+      return '';
+    })}
 
         ${(() => {
-            const wireCtx: WireRendererContext = {
-                nodes,
-                connections,
-                gridMetrics: localController.observableState.gridMetrics,
-                inferredNodeTypes: localController.observableState.inferredNodeTypes,
-                effectiveNodeTypes: localController.observableState.effectiveNodeTypes,
-                incomingConnections: appController.observableState.graph.auxiliary.incomingConnections,
-                selection: localController.observableState.selection,
-                onWireClick: this.onWireClick.bind(this),
-                onWireDblClick: (wireId, e) => {
-                    if (this.pendingWireInsert && this.pendingWireInsert.wireId === wireId) {
-                        this.pendingWireInsert = null;
-                    }
-                    this.dispatchEvent(new CustomEvent('connection-delete', { detail: { connectionId: wireId } }));
-                }
-            };
-            const renderer = new WireRenderer(wireCtx);
-            const segments = localController.observableState.wireLayout.segments || [];
-            return renderer.render(segments);
-        })()}
+        const wireCtx: WireRendererContext = {
+          nodes,
+          connections,
+          gridMetrics: localController.observableState.gridMetrics,
+          inferredNodeTypes: localController.observableState.inferredNodeTypes,
+          effectiveNodeTypes: localController.observableState.effectiveNodeTypes,
+          incomingConnections: appController.observableState.graph.auxiliary.incomingConnections,
+          selection: localController.observableState.selection,
+          onWireClick: this.onWireClick.bind(this),
+          onWireDblClick: (wireId, e) => {
+            if (this.pendingWireInsert && this.pendingWireInsert.wireId === wireId) {
+              this.pendingWireInsert = null;
+            }
+            this.dispatchEvent(new CustomEvent('connection-delete', { detail: { connectionId: wireId } }));
+          }
+        };
+        const renderer = new WireRenderer(wireCtx);
+        const segments = localController.observableState.wireLayout.segments || [];
+        return renderer.render(segments);
+      })()}
 
 
 
-    ${repeat(Object.values(nodes), node => node.id, node => {
-      const isQueued = localController.observableState.queuedSelection.has(node.id);
-      const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(node.id) || [];
+    ${repeat(Object.values(nodes), node => node.id, node => this.renderGraphNode(node, outputCol))}
+      </div>
+    `;
+  }
 
-      // Calculate grid position
-      let col = 0;
-      if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') col = 1;
-      else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') col = outputCol;
-      else col = 2 * node.x + 3;
+  private renderGraphNode(node: GridNode, outputCol: number) {
+    const isQueued = localController.observableState.queuedSelection.has(node.id);
+    const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(node.id) || [];
 
-      const row = 2 * node.y + 2;
+    // Calculate grid position
+    let col = 0;
+    if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') col = 1;
+    else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') col = outputCol;
+    else col = 2 * node.x + 3;
 
-      // Calculate Span based on actual visual state (Minimal/Compressed/Normal)
-      // This prevents wide nodes (like math.add) from expanding the column width
-      // and breaking alignment for other nodes in the same column.
-      const span = 1; // calculateNodeSpan(node); REVERTED: Nodes MUST fill exactly one cell.
-      const isSelected = localController.observableState.selection.has(node.id);
+    const row = 2 * node.y + 2;
+    const span = 1;
+    const isSelected = localController.observableState.selection.has(node.id);
 
-      return html`
+    return html`
             <graph-node
               .node=${node}
               .incomingConnections=${incomingConnections}
@@ -1628,8 +1674,5 @@ export class GraphGrid extends MobxLitElement {
               style="grid-column: ${col} / span ${span}; grid-row: ${row}; z-index: ${isSelected ? 10 : 1}; justify-self: center; align-self: center;"
             ></graph-node>
           `;
-    })}
-      </div>
-    `;
   }
 }

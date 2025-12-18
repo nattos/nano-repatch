@@ -27,9 +27,7 @@ export class WireRenderer {
     }
 
     render(segments: WireSegment[]): TemplateResult[] {
-        // Debug Offsets
-        const offsets = Array.from(this.ctx.gridMetrics.rowOffsets.entries()).sort((a,b)=>a[0]-b[0]).map(([k,v]) => `${k}:${v}`).join(', ');
-        console.log('RowOffsets:', offsets);
+
 
         return segments.map(seg => {
             const LOGICAL_Y_SCALE = 32;
@@ -45,12 +43,12 @@ export class WireRenderer {
             const nodeTopAbs = this.ctx.gridMetrics.rowOffsets.get(logicalSlot) ?? (16 + (logicalSlot * 96));
             let remOffset = 8;
             if (rem < GAP_LANE_INDEX) {
-                 remOffset = 16 + (rem * 24);
+                remOffset = 16 + (rem * 24);
             } else {
-                 // Hybrid Logic: If h=0, target Top (Boundary). Else target Center.
-                 // Gap Row Top = Node Top + h.
-                 // Center is 9px into Gap Row.
-                 remOffset = (h !== undefined && h > 0) ? (h + 9) : 9;
+                // Hybrid Logic: If h=0, target Top (Boundary). Else target Center.
+                // Gap Row Top = Node Top + h.
+                // Center is 9px into Gap Row.
+                remOffset = (h !== undefined && h > 0) ? (h + 9) : 9;
             }
             const gridAbsY = nodeTopAbs + remOffset;
 
@@ -65,29 +63,29 @@ export class WireRenderer {
                     const fromNode = this.ctx.nodes[conn.fromNodeId];
                     const toNode = this.ctx.nodes[conn.toNodeId];
                     if (fromNode && toNode) {
-                         const absFrom = this.getAbsolutePortY(fromNode, conn.fromPort.toString(), false);
-                         const absTo = this.getAbsolutePortY(toNode, conn.toPort.toString(), true);
+                        const absFrom = this.getAbsolutePortY(fromNode, conn.fromPort.toString(), false);
+                        const absTo = this.getAbsolutePortY(toNode, conn.toPort.toString(), true);
 
-                         // Determine Node Top in Pixels
-                         const segAbsY = gridAbsY; // Re-use
+                        // Determine Node Top in Pixels
+                        const segAbsY = gridAbsY; // Re-use
 
-                         const TOLERANCE_PX = 12; // Snap if within 12px (half row)
+                        const TOLERANCE_PX = 12; // Snap if within 12px (half row)
 
-                         const isStart = seg.type === 'start';
-                         const isEnd = seg.type === 'end';
+                        const isStart = seg.type === 'start';
+                        const isEnd = seg.type === 'end';
 
-                         if (isStart && absFrom !== undefined) {
-                             targetAbsY = absFrom;
-                         } else if (isEnd && absTo !== undefined) {
-                             targetAbsY = absTo;
-                         } else {
-                             // Fallback for mid-segments
-                             if (absFrom !== undefined && Math.abs(segAbsY - absFrom) <= TOLERANCE_PX) {
-                                 targetAbsY = absFrom;
-                             } else if (absTo !== undefined && Math.abs(segAbsY - absTo) <= TOLERANCE_PX) {
-                                 targetAbsY = absTo;
-                             }
-                         }
+                        if (isStart && absFrom !== undefined) {
+                            targetAbsY = absFrom;
+                        } else if (isEnd && absTo !== undefined) {
+                            targetAbsY = absTo;
+                        } else {
+                            // Fallback for mid-segments
+                            if (absFrom !== undefined && Math.abs(segAbsY - absFrom) <= TOLERANCE_PX) {
+                                targetAbsY = absFrom;
+                            } else if (absTo !== undefined && Math.abs(segAbsY - absTo) <= TOLERANCE_PX) {
+                                targetAbsY = absTo;
+                            }
+                        }
                     }
                 }
             }
@@ -104,40 +102,40 @@ export class WireRenderer {
             const baseNodeRow = logicalSlot * 2 + 2;
 
             if (rem < GAP_LANE_INDEX) {
-                 // Node Row (0..30)
-                 gridRow = baseNodeRow;
-                 yOffsetPx = 16 + (rem * 24);
+                // Node Row (0..30)
+                gridRow = baseNodeRow;
+                yOffsetPx = 16 + (rem * 24);
             } else {
-                 // Gap Row (31)
-                 gridRow = baseNodeRow + 1;
-                 yOffsetPx = 9; // Center of 16px
+                // Gap Row (31)
+                gridRow = baseNodeRow + 1;
+                yOffsetPx = 9; // Center of 16px
             }
 
             let rowTopAbs = 0;
             // Resolve Target Logic (Override if direct connection to Port)
             if (targetAbsY !== undefined) {
-                 // Align to Port Absolute
-                 const isGap = (rem === GAP_LANE_INDEX);
+                // Align to Port Absolute
+                const isGap = (rem === GAP_LANE_INDEX);
 
-                 const storedOffset = this.ctx.gridMetrics.rowOffsets.get(logicalSlot);
-                 if (storedOffset !== undefined) {
-                     if (isGap) {
-                         rowTopAbs = storedOffset + (h || 80);
-                     } else {
-                         rowTopAbs = storedOffset;
-                     }
-                 } else {
-                     // Fallback
-                     const pairTop = 16 + (logicalSlot * 96);
-                     rowTopAbs = isGap ? (pairTop + 80) : pairTop;
-                 }
+                const storedOffset = this.ctx.gridMetrics.rowOffsets.get(logicalSlot);
+                if (storedOffset !== undefined) {
+                    if (isGap) {
+                        rowTopAbs = storedOffset + (h || 80);
+                    } else {
+                        rowTopAbs = storedOffset;
+                    }
+                } else {
+                    // Fallback
+                    const pairTop = 16 + (logicalSlot * 96);
+                    rowTopAbs = isGap ? (pairTop + 80) : pairTop;
+                }
 
-                 // CRITICAL: Only snap Trace H-Line to Port if deviation is small (< 3px)
-                 // Otherwise, keep Trace at Logical Y and use Jog to connect.
-                 const diff = targetAbsY - gridAbsY;
-                 if (Math.abs(diff) < 3) {
-                     yOffsetPx = (targetAbsY - 1) - rowTopAbs;
-                 }
+                // CRITICAL: Only snap Trace H-Line to Port if deviation is small (< 3px)
+                // Otherwise, keep Trace at Logical Y and use Jog to connect.
+                const diff = targetAbsY - gridAbsY;
+                if (Math.abs(diff) < 3) {
+                    yOffsetPx = (targetAbsY - 1) - rowTopAbs;
+                }
             }
 
             const visualOffset = yOffsetPx;
@@ -156,33 +154,33 @@ export class WireRenderer {
                     const fromNode = this.ctx.nodes[conn.fromNodeId];
                     const toNode = this.ctx.nodes[conn.toNodeId];
                     if (fromNode && toNode) {
-                         const logicFromX = fromNode.x * 2 + 1;
-                         const logicToX = toNode.x * 2 + 1;
+                        const logicFromX = fromNode.x * 2 + 1;
+                        const logicToX = toNode.x * 2 + 1;
 
-                         const fromRow = fromNode.y * 2 + 2;
-                         const toRow = toNode.y * 2 + 2;
-                         const segRow = gridRow;
+                        const fromRow = fromNode.y * 2 + 2;
+                        const toRow = toNode.y * 2 + 2;
+                        const segRow = gridRow;
 
-                         const isFromRow = Math.abs(segRow - fromRow) < 1.0;
-                         const isToRow = Math.abs(segRow - toRow) < 1.0;
+                        const isFromRow = Math.abs(segRow - fromRow) < 1.0;
+                        const isToRow = Math.abs(segRow - toRow) < 1.0;
 
-                         const fromNodeTop = this.ctx.gridMetrics.rowOffsets.get(fromNode.y) ?? (16 + (fromNode.y * 96));
-                         const toNodeTop = this.ctx.gridMetrics.rowOffsets.get(toNode.y) ?? (16 + (toNode.y * 96));
+                        const fromNodeTop = this.ctx.gridMetrics.rowOffsets.get(fromNode.y) ?? (16 + (fromNode.y * 96));
+                        const toNodeTop = this.ctx.gridMetrics.rowOffsets.get(toNode.y) ?? (16 + (toNode.y * 96));
 
-                         const absFrom = this.getAbsolutePortY(fromNode, conn.fromPort.toString(), false);
-                         const absTo = this.getAbsolutePortY(toNode, conn.toPort.toString(), true);
+                        const absFrom = this.getAbsolutePortY(fromNode, conn.fromPort.toString(), false);
+                        const absTo = this.getAbsolutePortY(toNode, conn.toPort.toString(), true);
 
-                         const fromVisualOffset = (absFrom !== undefined) ? (absFrom - fromNodeTop) : -999;
-                         const toVisualOffset = (absTo !== undefined) ? (absTo - toNodeTop) : -999;
+                        const fromVisualOffset = (absFrom !== undefined) ? (absFrom - fromNodeTop) : -999;
+                        const toVisualOffset = (absTo !== undefined) ? (absTo - toNodeTop) : -999;
 
-                         const isFromAligned = Math.abs(visualOffset - fromVisualOffset) < 10.0;
-                         const isToAligned = Math.abs(visualOffset - toVisualOffset) < 10.0;
+                        const isFromAligned = Math.abs(visualOffset - fromVisualOffset) < 10.0;
+                        const isToAligned = Math.abs(visualOffset - toVisualOffset) < 10.0;
 
-                         const isAfterSource = fromNode && seg.x === logicFromX + 1 && isFromRow && isFromAligned;
-                         const isBeforeDest = toNode && seg.x === logicToX - 1 && isToRow && isToAligned;
+                        const isAfterSource = fromNode && seg.x === logicFromX + 1 && isFromRow && isFromAligned;
+                        const isBeforeDest = toNode && seg.x === logicToX - 1 && isToRow && isToAligned;
 
-                         if (isAfterSource) leftTrim = 0;
-                         if (isBeforeDest) rightTrim = 0;
+                        if (isAfterSource) leftTrim = 0;
+                        if (isBeforeDest) rightTrim = 0;
                     }
                 }
             }
@@ -200,11 +198,11 @@ export class WireRenderer {
                     if (r === -1) return 0; // Top of Cell (connected to Gap above)
 
                     if (r < GAP_LANE_INDEX) {
-                         return 15 + (r * 24);
+                        return 15 + (r * 24);
                     }
                     if (r === GAP_LANE_INDEX) {
-                         // Target Gap
-                         return (h !== undefined && h > 0) ? h + 8 : 0;
+                        // Target Gap
+                        return (h !== undefined && h > 0) ? h + 8 : 0;
                     }
                     return 8; // Fallback
                 }
@@ -219,24 +217,24 @@ export class WireRenderer {
 
             // Inner Line Rendering Helpers
             const renderH = (extraStyle: string = '') => {
-                 return html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; ${extraStyle}"></div>`;
+                return html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; ${extraStyle}"></div>`;
             };
 
             const renderV = () => {
-                 let top = '0';
-                 let height = '100%';
-                 if (clipTopPx !== undefined) {
-                     top = `${clipTopPx}px`;
-                     if (clipBotPx !== undefined) {
-                         height = `${clipBotPx - clipTopPx}px`;
-                     } else {
-                         height = `calc(100% - ${clipTopPx}px)`;
-                     }
-                 } else if (clipBotPx !== undefined) {
-                     height = `${clipBotPx}px`;
-                 }
+                let top = '0';
+                let height = '100%';
+                if (clipTopPx !== undefined) {
+                    top = `${clipTopPx}px`;
+                    if (clipBotPx !== undefined) {
+                        height = `${clipBotPx - clipTopPx}px`;
+                    } else {
+                        height = `calc(100% - ${clipTopPx}px)`;
+                    }
+                } else if (clipBotPx !== undefined) {
+                    height = `${clipBotPx}px`;
+                }
 
-                 return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${height}; left: calc(50% - 1px); top: ${top}; --wire-color: ${color};"></div>`;
+                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${height}; left: calc(50% - 1px); top: ${top}; --wire-color: ${color};"></div>`;
             };
 
             const renderCornerH_Left = (trim: number) => html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; left: ${trim}px; width: calc(50% - ${trim}px);"></div>`;
@@ -284,72 +282,72 @@ export class WireRenderer {
             };
 
             if (seg.type === 'h') {
-                 lines = renderH(`width: calc(100% - ${leftTrim + rightTrim}px); left: ${leftTrim}px;`);
+                lines = renderH(`width: calc(100% - ${leftTrim + rightTrim}px); left: ${leftTrim}px;`);
             }
             else if (seg.type === 'v') {
-                 lines = renderV();
+                lines = renderV();
             }
             else if (seg.type === 'start') {
-                 const jog = renderJog(false);
-                 const nodeColIndex = (seg.x - 1) / 2;
-                 const cellWidth = this.ctx.gridMetrics.columnWidths.get(nodeColIndex) || 272;
-                 let nodeWidth = 272;
-                 if (seg.wireId) {
-                     const conn = this.ctx.connections[seg.wireId];
-                     if (conn) {
-                         const node = this.ctx.nodes[conn.fromNodeId];
-                         if (node) {
-                             const metric = this.ctx.gridMetrics.cells.get(`${node.x},${node.y}`);
-                             if (metric) nodeWidth = metric.width;
-                         }
-                     }
-                 }
-                 if (cellWidth > nodeWidth) {
-                     const halfNode = nodeWidth / 2;
-                     lines = html`${jog}${renderH(`left: calc(50% + ${halfNode}px); width: calc(50% - ${halfNode}px);`)}`;
-                 } else {
-                     if (jog) lines = jog;
-                     else lines = html``;
-                 }
+                const jog = renderJog(false);
+                const nodeColIndex = (seg.x - 1) / 2;
+                const cellWidth = this.ctx.gridMetrics.columnWidths.get(nodeColIndex) || 272;
+                let nodeWidth = 272;
+                if (seg.wireId) {
+                    const conn = this.ctx.connections[seg.wireId];
+                    if (conn) {
+                        const node = this.ctx.nodes[conn.fromNodeId];
+                        if (node) {
+                            const metric = this.ctx.gridMetrics.cells.get(`${node.x},${node.y}`);
+                            if (metric) nodeWidth = metric.width;
+                        }
+                    }
+                }
+                if (cellWidth > nodeWidth) {
+                    const halfNode = nodeWidth / 2;
+                    lines = html`${jog}${renderH(`left: calc(50% + ${halfNode}px); width: calc(50% - ${halfNode}px);`)}`;
+                } else {
+                    if (jog) lines = jog;
+                    else lines = html``;
+                }
             }
             else if (seg.type === 'end') {
-                 const jog = renderJog(true);
-                 const nodeColIndex = (seg.x - 1) / 2;
-                 const cellWidth = this.ctx.gridMetrics.columnWidths.get(nodeColIndex) || 272;
-                 let nodeWidth = 272;
-                 if (seg.wireId) {
-                     const conn = this.ctx.connections[seg.wireId];
-                     if (conn) {
-                         const node = this.ctx.nodes[conn.toNodeId];
-                         if (node) {
-                             const metric = this.ctx.gridMetrics.cells.get(`${node.x},${node.y}`);
-                             if (metric) nodeWidth = metric.width;
-                         }
-                     }
-                 }
-                 if (cellWidth > nodeWidth) {
-                     const halfNode = nodeWidth / 2;
-                     lines = html`${jog}${renderH(`left: 0; width: calc(50% - ${halfNode}px);`)}`;
-                 } else {
-                     if (jog) lines = jog;
-                     else lines = html``;
-                 }
+                const jog = renderJog(true);
+                const nodeColIndex = (seg.x - 1) / 2;
+                const cellWidth = this.ctx.gridMetrics.columnWidths.get(nodeColIndex) || 272;
+                let nodeWidth = 272;
+                if (seg.wireId) {
+                    const conn = this.ctx.connections[seg.wireId];
+                    if (conn) {
+                        const node = this.ctx.nodes[conn.toNodeId];
+                        if (node) {
+                            const metric = this.ctx.gridMetrics.cells.get(`${node.x},${node.y}`);
+                            if (metric) nodeWidth = metric.width;
+                        }
+                    }
+                }
+                if (cellWidth > nodeWidth) {
+                    const halfNode = nodeWidth / 2;
+                    lines = html`${jog}${renderH(`left: 0; width: calc(50% - ${halfNode}px);`)}`;
+                } else {
+                    if (jog) lines = jog;
+                    else lines = html``;
+                }
             }
             else if (seg.type === 'ctl') {
-                 const t = clampTrim(rightTrim, true);
-                 lines = html`${renderCornerH_Right(t)}${renderCornerV_Bottom()}`;
+                const t = clampTrim(rightTrim, true);
+                lines = html`${renderCornerH_Right(t)}${renderCornerV_Bottom()}`;
             }
             else if (seg.type === 'ctr') {
-                 const t = clampTrim(leftTrim, true);
-                 lines = html`${renderCornerH_Left(t)}${renderCornerV_Bottom()}`;
+                const t = clampTrim(leftTrim, true);
+                lines = html`${renderCornerH_Left(t)}${renderCornerV_Bottom()}`;
             }
             else if (seg.type === 'cbl') {
-                 const t = clampTrim(rightTrim, true);
-                 lines = html`${renderCornerH_Right(t)}${renderCornerV_Top()}`;
+                const t = clampTrim(rightTrim, true);
+                lines = html`${renderCornerH_Right(t)}${renderCornerV_Top()}`;
             }
             else if (seg.type === 'cbr') {
-                 const t = clampTrim(leftTrim, true);
-                 lines = html`${renderCornerH_Left(t)}${renderCornerV_Top()}`;
+                const t = clampTrim(leftTrim, true);
+                lines = html`${renderCornerH_Left(t)}${renderCornerV_Top()}`;
             }
 
             const isEndpoint = seg.type === 'start' || seg.type === 'end';
@@ -364,15 +362,15 @@ export class WireRenderer {
                      data-port-level="${portLevel}"
                      style="${style} ${endpointStyle}"
                      @click=${(e: MouseEvent) => {
-                         if (isEndpoint) return;
-                         e.stopPropagation();
-                         this.ctx.onWireClick(seg.wireId, e);
-                     }}
+                    if (isEndpoint) return;
+                    e.stopPropagation();
+                    this.ctx.onWireClick(seg.wireId, e);
+                }}
                      @dblclick=${(e: MouseEvent) => {
-                         if (isEndpoint) return;
-                        e.stopPropagation();
-                        this.ctx.onWireDblClick(seg.wireId, e);
-                     }}
+                    if (isEndpoint) return;
+                    e.stopPropagation();
+                    this.ctx.onWireDblClick(seg.wireId, e);
+                }}
                 >
                     ${lines}
                 </div>
@@ -393,7 +391,7 @@ export class WireRenderer {
         let ports: PortHint[] | undefined;
 
         if (!effectiveType) {
-             // Fallback: This should ideally not happen if LocalController initializes correctly.
+            // Fallback: This should ideally not happen if LocalController initializes correctly.
             ports = isInput ? repoType?.inputs : repoType?.outputs;
 
             if (ports && Array.isArray(ports)) {
@@ -405,15 +403,15 @@ export class WireRenderer {
         }
 
         if (index === -1) {
-             // Numeric Fallback (e.g. Dynamic Ports or Legacy)
-             if (ports) {
-                 const i = parseInt(portName, 10);
-                 if (!isNaN(i) && i >= 0 && i < ports.length) index = i;
-             }
-             if (index === -1 && !isNaN(parseInt(portName, 10))) {
-                  // Pure numeric index fallback (legacy wires)
-                  index = parseInt(portName, 10);
-             }
+            // Numeric Fallback (e.g. Dynamic Ports or Legacy)
+            if (ports) {
+                const i = parseInt(portName, 10);
+                if (!isNaN(i) && i >= 0 && i < ports.length) index = i;
+            }
+            if (index === -1 && !isNaN(parseInt(portName, 10))) {
+                // Pure numeric index fallback (legacy wires)
+                index = parseInt(portName, 10);
+            }
         }
 
         if (index === -1) return undefined;
@@ -429,11 +427,11 @@ export class WireRenderer {
         // (Visual Centering Logic mirrors GraphGrid render)
         const rowHeight = this.ctx.gridMetrics.rows.get(node.y) || 80;
         const nodeHeight = calculateNodeHeight(
-             node,
-             repoType,
-             this.ctx.incomingConnections.get(node.id) ? new Set(this.ctx.incomingConnections.get(node.id)) : new Set(),
-             effectiveType?.inputs,
-             effectiveType?.outputs
+            node,
+            repoType,
+            this.ctx.incomingConnections.get(node.id) ? new Set(this.ctx.incomingConnections.get(node.id)) : new Set(),
+            effectiveType?.inputs,
+            effectiveType?.outputs
         );
 
         let centeringOffset = 0;

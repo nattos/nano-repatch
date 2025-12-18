@@ -62,6 +62,29 @@ export const expressionNode = defineNode({
       untagged: []
     };
   },
+  compilePorts: (node, context) => {
+    const code = node.config.code || '';
+    const graph = getCompiledGraph(code);
+
+    // Find all input nodes
+    const inputNames = new Set<string>();
+    for (const node of Object.values(graph.nodes)) {
+      if (node.op === 'input') {
+        inputNames.add(node.params.key);
+      }
+    }
+
+    const inputs = Array.from(inputNames).map(name => ({
+      name,
+      type: NumberType, // Assume numbers for math expressions
+      description: `Variable ${name}`
+    }));
+
+    return {
+      inputs,
+      outputs: [{ name: 'result', type: AnyType, description: 'Result' }]
+    };
+  },
   execute: (inputs, config, context) => {
     // The executor worker receives the Compiled config.
     // So config.fields.graph should be present.
@@ -70,8 +93,8 @@ export const expressionNode = defineNode({
     const graph = (config as { graph: ExecutionGraph | undefined }).graph;
 
     if (!graph || !graph.rootId) {
-       // Fallback or empty
-       return { result: 0 };
+      // Fallback or empty
+      return { result: 0 };
     }
 
     // Prepare inputs

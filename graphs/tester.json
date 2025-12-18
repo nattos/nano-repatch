@@ -1,20 +1,250 @@
 {
   "nodes": {
-    "node-ff507760-1c01-423e-9e19-72515bc66ea4": {
-      "id": "node-ff507760-1c01-423e-9e19-72515bc66ea4",
+    "node-086a2695-b24c-43b5-97e3-162225501aab": {
+      "id": "node-086a2695-b24c-43b5-97e3-162225501aab",
       "x": 1,
-      "y": 2,
+      "y": 4,
       "config": {
-        "typeId": "data.float",
-        "values": {
-          "value": 0.4
-        },
-        "name": "Float"
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-c7cb5787-d050-4091-9dae-e967af4d1187": {
+      "id": "node-c7cb5787-d050-4091-9dae-e967af4d1187",
+      "x": 3,
+      "y": 4,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-ad6053c3-338b-4364-b41c-81a513f06904": {
+      "id": "node-ad6053c3-338b-4364-b41c-81a513f06904",
+      "x": 2,
+      "y": 1,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-8f248c77-4fc4-429b-8cf3-4b70ad23a3a7": {
+      "id": "node-8f248c77-4fc4-429b-8cf3-4b70ad23a3a7",
+      "x": 4,
+      "y": 1,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-3b442fb9-9d53-4a27-af4d-9ca9aecc7665": {
+      "id": "node-3b442fb9-9d53-4a27-af4d-9ca9aecc7665",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-258aa81f-c1e8-42c6-a3f0-3481d9e9e180": {
+      "id": "node-258aa81f-c1e8-42c6-a3f0-3481d9e9e180",
+      "x": 3,
+      "y": 3,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-0c28ee4d-1486-4cb1-be32-dfd18885c46c": {
+      "id": "node-0c28ee4d-1486-4cb1-be32-dfd18885c46c",
+      "x": 5,
+      "y": 4,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-eabd05d4-d2c5-481f-b18c-9cef51e5474d": {
+      "id": "node-eabd05d4-d2c5-481f-b18c-9cef51e5474d",
+      "x": 3,
+      "y": 6,
+      "config": {
+        "typeId": "math.clamp",
+        "values": {}
+      }
+    },
+    "node-eb367508-2bef-46d4-ab42-177a7b429959": {
+      "id": "node-eb367508-2bef-46d4-ab42-177a7b429959",
+      "x": 1,
+      "y": 6,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-c57eb17d-aa91-42a8-a211-e5f8dd08668c": {
+      "id": "node-c57eb17d-aa91-42a8-a211-e5f8dd08668c",
+      "x": 1,
+      "y": 8,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
+      }
+    },
+    "node-f8e48dcd-76b7-460c-8f93-6ef4ecd964b6": {
+      "id": "node-f8e48dcd-76b7-460c-8f93-6ef4ecd964b6",
+      "x": 1,
+      "y": 9,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
+    },
+    "node-14d59e9a-1032-4a15-a904-d639749c75d0": {
+      "id": "node-14d59e9a-1032-4a15-a904-d639749c75d0",
+      "x": 3,
+      "y": 9,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
+    },
+    "node-a0a5cd10-0279-4bb8-9b67-1ea161d83ebe": {
+      "id": "node-a0a5cd10-0279-4bb8-9b67-1ea161d83ebe",
+      "x": 3,
+      "y": 8,
+      "config": {
+        "typeId": "math.fmod",
+        "values": {}
       }
     }
   },
-  "connections": {},
+  "connections": {
+    "conn-36994e4f-c75d-4116-934d-32115cc1a3b3": {
+      "id": "conn-36994e4f-c75d-4116-934d-32115cc1a3b3",
+      "fromNodeId": "node-086a2695-b24c-43b5-97e3-162225501aab",
+      "fromPort": "mod",
+      "toNodeId": "node-c7cb5787-d050-4091-9dae-e967af4d1187",
+      "toPort": "divisor"
+    },
+    "conn-046ded2c-28d9-47b9-b3dc-91b2d318aaf8": {
+      "id": "conn-046ded2c-28d9-47b9-b3dc-91b2d318aaf8",
+      "fromNodeId": "node-ad6053c3-338b-4364-b41c-81a513f06904",
+      "fromPort": "value",
+      "toNodeId": "node-8f248c77-4fc4-429b-8cf3-4b70ad23a3a7",
+      "toPort": "value"
+    },
+    "conn-69628dc3-0339-4e2a-854c-55bfd535fe2c": {
+      "id": "conn-69628dc3-0339-4e2a-854c-55bfd535fe2c",
+      "fromNodeId": "node-3b442fb9-9d53-4a27-af4d-9ca9aecc7665",
+      "fromPort": "div",
+      "toNodeId": "node-258aa81f-c1e8-42c6-a3f0-3481d9e9e180",
+      "toPort": "dividend"
+    },
+    "conn-138d8ea4-da57-48d3-afb0-f15ae1d2db32": {
+      "id": "conn-138d8ea4-da57-48d3-afb0-f15ae1d2db32",
+      "fromNodeId": "node-c7cb5787-d050-4091-9dae-e967af4d1187",
+      "fromPort": "mod",
+      "toNodeId": "node-0c28ee4d-1486-4cb1-be32-dfd18885c46c",
+      "toPort": "value"
+    },
+    "conn-7bffbe0f-1d0e-4868-a50e-cd06db12f6eb": {
+      "id": "conn-7bffbe0f-1d0e-4868-a50e-cd06db12f6eb",
+      "fromNodeId": "node-eb367508-2bef-46d4-ab42-177a7b429959",
+      "fromPort": "value",
+      "toNodeId": "node-eabd05d4-d2c5-481f-b18c-9cef51e5474d",
+      "toPort": "min"
+    },
+    "conn-5c6dcb36-4108-434e-977f-03cd4e3a3f24": {
+      "id": "conn-5c6dcb36-4108-434e-977f-03cd4e3a3f24",
+      "fromNodeId": "node-f8e48dcd-76b7-460c-8f93-6ef4ecd964b6",
+      "fromPort": "result",
+      "toNodeId": "node-14d59e9a-1032-4a15-a904-d639749c75d0",
+      "toPort": "b"
+    },
+    "conn-969c3a38-400c-4734-a1e9-f75f312e386b": {
+      "id": "conn-969c3a38-400c-4734-a1e9-f75f312e386b",
+      "fromNodeId": "node-c57eb17d-aa91-42a8-a211-e5f8dd08668c",
+      "fromPort": "mod",
+      "toNodeId": "node-a0a5cd10-0279-4bb8-9b67-1ea161d83ebe",
+      "toPort": "dividend"
+    }
+  },
   "inferredNodeTypes": {
+    "node-c1b45187-6bbf-4d04-82da-dda1f9a26d04": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-850d6403-be67-4d18-97f2-efe20918fd19": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-4f3af9cf-db22-4ee3-9579-8099edb728d6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
     "node-ff507760-1c01-423e-9e19-72515bc66ea4": {
       "inputs": {
         "kind": "record",
@@ -179,6 +409,3579 @@
             "kind": "atomic",
             "type": "number",
             "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-021bd2a0-78ca-4935-a320-7803de332d29": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-de05f302-6fea-43cf-9bad-7843f9ac5909": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-47b199b5-25e0-4f18-b7c5-ed9246f8b0cc": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3fa2b771-1ff4-4811-a1a0-4abe15903006": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c36481a7-794b-4d33-be18-29be4cff2ada": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-08740168-5385-4908-b620-1f4f235414e5": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-6ced487a-67d8-4810-a026-4548689de4ec": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-a48fa4ed-dfcd-42e7-8a68-d871ab2bdf6b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-54382135-6117-473a-9568-808dd40cc66a": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-bbca4553-e720-4cda-b9d6-fa21c38e57b2": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-3d2ee5f4-3c36-4630-80e2-06c34aa37839": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-5ad345cb-e169-4ba1-9f78-e8030b1a8055": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3a999c90-4371-46a2-85cd-9e86bec32538": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-e807c396-faea-42e2-8b56-945975d8bcf6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-eee3ba4f-3972-42f6-8e12-243a8dad4ccf": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-c8a1de1b-eb7a-412a-a010-e0724e08f12b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c3c0fe7f-13a3-446f-b5ef-67986baf993f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-502206e1-770d-4bdc-9dd6-df6d64f1a4e2": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-5adee3b4-bff0-4dc0-b940-babd9d713673": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-849a5d2c-e8f7-4733-93c7-31b5f6be5c0e": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-a19f1d25-9e0c-4a3b-8d4a-08e45e295cce": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-04a2876c-e10a-4ec4-9611-6c4861d4bd19": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-416dc36f-6235-419b-9ab8-9662702b42b9": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-d58a901d-a315-4080-ade1-d77e77588595": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-83ad5471-640b-4277-8636-2d59a1a5f799": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-37799004-6817-4949-92d3-1618aa4e34e8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-d92f0b45-2446-48e5-9a6b-9442d8486a20": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-e5404976-2a8f-48b6-b65a-7bd1f9bf1063": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-b639094f-2dad-42ea-864c-dfef8240293f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-8c41eef0-9e40-4dd4-998d-d2d891fa2197": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-fd8736d3-14c8-415a-ad69-5b05d7f3f6a8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-8cca49f6-e4fc-4af5-bac9-9ace79190064": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-6f7dddca-73f2-457c-95a6-cd28832bdafb": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e3c9601f-c08a-41da-8837-4144cbe44779": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-7a5b0954-2814-49fd-97be-17ea1bed4455": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-9072d843-1121-48bc-bb04-2a554c2288da": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3771fc69-c8fb-49a6-8c7e-05707d3864f7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-086a2695-b24c-43b5-97e3-162225501aab": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-c7cb5787-d050-4091-9dae-e967af4d1187": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-b1e80b9f-024c-4bc8-9e95-eff447fbbfd8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0ba37e6c-ab78-4575-870d-f243afb2f96f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0c22aa2b-0a6f-414d-a13e-4ea532d74a4b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-2271f87e-3ebd-4cc8-a808-a50add2f9c24": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-9aa5310e-a695-422e-b810-e81f5fcb83e3": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e244509b-ad2d-49ea-b8c6-4dc056f3b12f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-42b65103-59fd-4bb7-959a-6120ae10fc61": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-64294f39-a160-411d-85a8-f4f0b7dd0183": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e59f1ef6-195a-42b9-a144-1cd677f8f8c0": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-1c4d7820-81c9-4556-9146-b20a04089093": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-81ea0400-0de2-4b8e-8370-778f200a7b7a": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-fe4b0a00-8e20-4543-a3af-3610abc7654f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-ad6053c3-338b-4364-b41c-81a513f06904": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-8f248c77-4fc4-429b-8cf3-4b70ad23a3a7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3b442fb9-9d53-4a27-af4d-9ca9aecc7665": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-258aa81f-c1e8-42c6-a3f0-3481d9e9e180": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-cf68da5f-291e-47a8-b3fe-dc95720ad062": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "seq_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "noteIndex": {
+                  "kind": "atomic",
+                  "type": "any"
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "hold": {
+                  "kind": "atomic",
+                  "type": "boolean"
+                }
+              },
+              "untagged": []
+            },
+            "hint": "step-sequence"
+          }
+        }
+      }
+    },
+    "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "out": {
+            "kind": "atomic",
+            "type": "number"
+          }
+        }
+      }
+    },
+    "node-70a66d18-f570-4d0e-9571-6cef9e7703f7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "seq_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "noteIndex": {
+                  "kind": "atomic",
+                  "type": "any"
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "hold": {
+                  "kind": "atomic",
+                  "type": "boolean"
+                }
+              },
+              "untagged": []
+            },
+            "hint": "step-sequence"
+          }
+        }
+      }
+    },
+    "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "out": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "seq_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "noteIndex": {
+                    "kind": "atomic",
+                    "type": "any"
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "hold": {
+                    "kind": "atomic",
+                    "type": "boolean"
+                  }
+                },
+                "untagged": []
+              },
+              "hint": "step-sequence"
+            },
+            "size": 2
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "midi_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "type": {
+                  "kind": "atomic",
+                  "type": "string"
+                },
+                "channel": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "deviceId": {
+                  "kind": "atomic",
+                  "type": "string",
+                  "optional": true
+                },
+                "time": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "note": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "cc": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "value": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                }
+              },
+              "hint": "midi"
+            },
+            "hint": "midi-stream"
+          }
+        }
+      }
+    },
+    "node-97f68c74-48d2-418e-9472-3cb20dfe52e2": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e37020b4-af5d-4907-a674-edb9421a50a4": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "stream": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "stream": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "type": {
+                  "kind": "atomic",
+                  "type": "string"
+                },
+                "channel": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "deviceId": {
+                  "kind": "atomic",
+                  "type": "string",
+                  "optional": true
+                },
+                "time": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "note": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "cc": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "value": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                }
+              },
+              "hint": "midi"
+            },
+            "hint": "midi-stream"
+          }
+        }
+      }
+    },
+    "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "midi_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "env": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          },
+          "ch1": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch2": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch3": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch4": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-49a7c64a-7948-4062-a1b1-82d39f474e2c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "midi_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          },
+          "peak": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "env": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          },
+          "ch1": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch2": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch3": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch4": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e21fdc33-39ec-476a-935c-61e183532725": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "element": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "size": 4,
+              "hint": "vec4"
+            },
+            "size": 1
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {}
+      }
+    },
+    "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-1f826a73-2afc-4264-b4cc-73c0c74fd51d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-25e77064-d17d-4509-a25b-65e09d06c19e": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-5c0fbd62-d5ab-48f7-9470-d4d92bf90adf": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-030628c6-555d-4e85-ada4-7e961f007d3b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "record",
+            "fields": {}
+          }
+        }
+      }
+    },
+    "node-cde2bbf4-2756-4ea0-9854-48f8320a37dd": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-16b9104a-01af-4589-8664-53288cb6d070": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-53f31035-0e41-4719-95cc-3c9c0e6ebad2": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-cb04f59d-b32f-4703-bf2a-edb5e99fdf30": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0a1f8512-a9fe-41d6-b963-1d14645d3b39": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-ef3cafdc-ae2b-45de-9e68-e3e7ab10805f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-0c28ee4d-1486-4cb1-be32-dfd18885c46c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-7ea9e749-34f0-4bb4-bede-d99742a2d66d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "b": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-eabd05d4-d2c5-481f-b18c-9cef51e5474d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "min": {
+            "kind": "atomic",
+            "type": "any"
+          },
+          "max": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 1
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-5dd77911-92a8-4dc8-9fa8-a313cc50a8ac": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-eb367508-2bef-46d4-ab42-177a7b429959": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c57eb17d-aa91-42a8-a211-e5f8dd08668c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-a0a5cd10-0279-4bb8-9b67-1ea161d83ebe": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "dividend": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-f8e48dcd-76b7-460c-8f93-6ef4ecd964b6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-1e9f309f-a9b7-4fa3-a7ac-7803e3ca5405": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-2598d8a1-07d9-4d24-8d62-12d8a51d971c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-9bcc418f-49ad-449b-abd0-d1ebd113fd41": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-8f485e72-1f5e-408c-ab77-159490639823": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-14d59e9a-1032-4a15-a904-d639749c75d0": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-217bda97-b23e-4be0-912d-4741841d8c7c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-1337940c-ae5a-43bc-b781-1cd2abf3949b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-d8e44eaf-1f3b-4c91-a73e-2996a2cb7af9": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-bfdf469d-4072-460f-bba7-09f53b5615a6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-185d16ef-afd9-4bef-a0b1-acdf42f4d3a4": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0b8d003e-f80b-44e2-b2d3-23999e5e61a9": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "env": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          },
+          "ch1": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch2": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch3": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch4": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-ec7a8f50-0569-471b-ac79-ab38fcb85e90": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {}
+      }
+    },
+    "node-ac62428c-2fec-4a36-ac9d-23c74337cc9e": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {}
+      }
+    },
+    "node-c9c22f5c-0d3e-48c4-b7f9-73355efaa740": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-78e693ea-06e0-457c-ac00-fd2da32d27ff": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    },
+    "node-859db143-a025-43aa-9691-0b3e5621983b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        },
+        "hint": "vec4"
+      }
+    },
+    "node-d66f5099-288b-4b16-958a-32fcef548315": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    },
+    "node-6e8089cb-e551-4099-820b-d0234cca73ed": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-8af71d71-b4cc-428e-a795-f29b8c99ad25": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-08a37f7e-347e-4723-90a3-5702048eeb5d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        },
+        "hint": "vec4"
+      }
+    },
+    "node-702872f8-a238-44f8-ad32-2a6447a9ce99": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3178f95d-5a4b-4aff-825c-e0b45d42a7b5": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-d9a0f85f-2f19-4b09-bf4d-b4195f72aa7b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "min": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-55aaa70d-a978-4d68-b117-84a790d63d55": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-b465375c-0155-4fe3-aaff-69958b073bed": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-d9402c4b-b1b5-4d24-a3c1-101a62b5bd9b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-20ef08c9-80a5-41f9-8153-8655f0017a69": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3f79548f-d46f-49a4-8c0d-74ff9b0594b4": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-f23d458a-cd8b-4113-b5ad-279f1ff825a5": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-9cd0f357-c04d-4d44-b420-dfb7071ea00a": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "divisor": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-6cc235da-3bc1-40de-81ca-abd3d18415ec": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-5a1cf0c7-5bec-43f6-a4b5-a8f4a07661be": {
+      "inputs": {
+        "kind": "record",
+        "fields": {}
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "div": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mod": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-bfa849bb-1804-47be-b906-bf09488a88e7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    },
+    "node-7a3d051a-c3e1-4184-8c76-cf0dec8e8f48": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-b7f917ef-f7ab-444f-b136-dd2ac570eda6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-3670156a-002f-4e85-976b-015380905343": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-c5ac7789-0340-451a-9e18-55e38c25059a": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-07172651-80e1-4703-b183-73b7d225e037": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        },
+        "hint": "vec4"
+      }
+    },
+    "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    },
+    "node-011ad7cf-f814-4945-a2e5-1994f6c693d6": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c64980b7-0cf0-4f03-b94a-94bc69e930db": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-e1b24af2-6524-4a50-8854-87de10454524": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-1681474a-e6d7-4762-9d41-9eb052018668": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c449a0d4-1b6d-4f27-abef-503d43dd7b46": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-22a474d9-7cd6-43d8-87ff-d15785450f9f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-e42754b5-f0a8-49ce-b9b9-4122a8358f50": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          },
+          "easing": {
+            "kind": "record",
+            "fields": {
+              "domain": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "range": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "segments": {
+                "kind": "array",
+                "element": {
+                  "kind": "record",
+                  "fields": {
+                    "id": {
+                      "kind": "atomic",
+                      "type": "string"
+                    },
+                    "weight": {
+                      "kind": "atomic",
+                      "type": "number",
+                      "defaultValue": 0
+                    },
+                    "curve": {
+                      "kind": "record",
+                      "fields": {
+                        "type": {
+                          "kind": "atomic",
+                          "type": "string"
+                        },
+                        "value": {
+                          "kind": "atomic",
+                          "type": "number",
+                          "defaultValue": 0,
+                          "optional": true
+                        },
+                        "points": {
+                          "kind": "array",
+                          "element": {
+                            "kind": "record",
+                            "fields": {
+                              "x": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              },
+                              "y": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              }
+                            }
+                          },
+                          "optional": true,
+                          "size": "dynamic"
+                        }
+                      }
+                    }
+                  }
+                },
+                "size": "dynamic"
+              }
+            },
+            "hint": "curve",
+            "optional": true
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "any"
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-c2909b12-bd33-4de6-80b6-54187db7f9d8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-458eab81-c306-47c6-adc5-d21104d26589": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          },
+          "easing": {
+            "kind": "record",
+            "fields": {
+              "domain": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "range": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "segments": {
+                "kind": "array",
+                "element": {
+                  "kind": "record",
+                  "fields": {
+                    "id": {
+                      "kind": "atomic",
+                      "type": "string"
+                    },
+                    "weight": {
+                      "kind": "atomic",
+                      "type": "number",
+                      "defaultValue": 0
+                    },
+                    "curve": {
+                      "kind": "record",
+                      "fields": {
+                        "type": {
+                          "kind": "atomic",
+                          "type": "string"
+                        },
+                        "value": {
+                          "kind": "atomic",
+                          "type": "number",
+                          "defaultValue": 0,
+                          "optional": true
+                        },
+                        "points": {
+                          "kind": "array",
+                          "element": {
+                            "kind": "record",
+                            "fields": {
+                              "x": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              },
+                              "y": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              }
+                            }
+                          },
+                          "optional": true,
+                          "size": "dynamic"
+                        }
+                      }
+                    }
+                  }
+                },
+                "size": "dynamic"
+              }
+            },
+            "hint": "curve",
+            "optional": true
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-0bfffa7f-99d2-46a2-8689-491100dd85bf": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
           }
         }
       }

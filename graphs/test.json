@@ -219,26 +219,21 @@
     }
   },
   "inferredNodeTypes": {
-    "node-ff507760-1c01-423e-9e19-72515bc66ea4": {
+    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
       "inputs": {
         "kind": "record",
-        "fields": {}
-      },
-      "outputs": {
-        "kind": "record",
         "fields": {
-          "value": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
             "kind": "atomic",
             "type": "number",
             "defaultValue": 0
           }
         }
-      }
-    },
-    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
-      "inputs": {
-        "kind": "record",
-        "fields": {}
       },
       "outputs": {
         "kind": "record",
@@ -254,7 +249,18 @@
     "node-7861a54a-9b96-4684-a7b8-56d689bb970e": {
       "inputs": {
         "kind": "record",
-        "fields": {}
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
       },
       "outputs": {
         "kind": "record",
@@ -270,7 +276,91 @@
     "node-7545cfe0-b2a4-4ff5-9e11-e4b0c952abf8": {
       "inputs": {
         "kind": "record",
-        "fields": {}
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "easing": {
+            "kind": "record",
+            "fields": {
+              "domain": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "range": {
+                "kind": "array",
+                "element": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "size": 2
+              },
+              "segments": {
+                "kind": "array",
+                "element": {
+                  "kind": "record",
+                  "fields": {
+                    "id": {
+                      "kind": "atomic",
+                      "type": "string"
+                    },
+                    "weight": {
+                      "kind": "atomic",
+                      "type": "number",
+                      "defaultValue": 0
+                    },
+                    "curve": {
+                      "kind": "record",
+                      "fields": {
+                        "type": {
+                          "kind": "atomic",
+                          "type": "string"
+                        },
+                        "value": {
+                          "kind": "atomic",
+                          "type": "number",
+                          "defaultValue": 0,
+                          "optional": true
+                        },
+                        "points": {
+                          "kind": "array",
+                          "element": {
+                            "kind": "record",
+                            "fields": {
+                              "x": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              },
+                              "y": {
+                                "kind": "atomic",
+                                "type": "number",
+                                "defaultValue": 0
+                              }
+                            }
+                          },
+                          "optional": true,
+                          "size": "dynamic"
+                        }
+                      }
+                    }
+                  }
+                },
+                "size": "dynamic"
+              }
+            },
+            "hint": "curve",
+            "optional": true
+          }
+        }
       },
       "outputs": {
         "kind": "record",
@@ -287,6 +377,16 @@
       "inputs": {
         "kind": "record",
         "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
           "value": {
             "kind": "atomic",
             "type": "number",
@@ -331,10 +431,20 @@
       "inputs": {
         "kind": "record",
         "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
           "min": {
             "kind": "atomic",
             "type": "number",
             "defaultValue": 0
+          },
+          "max": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 1
           }
         }
       },
@@ -353,6 +463,11 @@
       "inputs": {
         "kind": "record",
         "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
           "easing": {
             "kind": "atomic",
             "type": "number",
@@ -374,7 +489,18 @@
     "node-08ac1d7d-d39a-499b-9ca4-e8e5b66a8a83": {
       "inputs": {
         "kind": "record",
-        "fields": {}
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
       },
       "outputs": {
         "kind": "record",

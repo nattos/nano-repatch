@@ -1,0 +1,112 @@
+{
+  "nodes": {
+    "node-bfa849bb-1804-47be-b906-bf09488a88e7": {
+      "id": "node-bfa849bb-1804-47be-b906-bf09488a88e7",
+      "x": 3,
+      "y": 1,
+      "config": {
+        "typeId": "core.pack",
+        "values": {},
+        "targetType": "float4"
+      }
+    },
+    "node-7a3d051a-c3e1-4184-8c76-cf0dec8e8f48": {
+      "id": "node-7a3d051a-c3e1-4184-8c76-cf0dec8e8f48",
+      "x": 1,
+      "y": 1,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-fbb4b059-3bc4-43ca-a2af-44022b873807": {
+      "id": "conn-fbb4b059-3bc4-43ca-a2af-44022b873807",
+      "fromNodeId": "node-7a3d051a-c3e1-4184-8c76-cf0dec8e8f48",
+      "fromPort": "value",
+      "toNodeId": "node-bfa849bb-1804-47be-b906-bf09488a88e7",
+      "toPort": "y"
+    }
+  },
+  "inferredNodeTypes": {
+    "node-7a3d051a-c3e1-4184-8c76-cf0dec8e8f48": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-bfa849bb-1804-47be-b906-bf09488a88e7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    }
+  }
+}

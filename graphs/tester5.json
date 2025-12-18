@@ -1,0 +1,36 @@
+{
+  "nodes": {
+    "node-4c994aae-bbb9-4cfc-99e7-1cf03033e053": {
+      "id": "node-4c994aae-bbb9-4cfc-99e7-1cf03033e053",
+      "x": 0,
+      "y": 2,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    }
+  },
+  "connections": {},
+  "inferredNodeTypes": {
+    "node-4c994aae-bbb9-4cfc-99e7-1cf03033e053": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    }
+  }
+}

@@ -45,12 +45,13 @@ describe('GraphNode Subgraph Integration', () => {
     };
 
     // Simulate Compiler Worker result (since client-side compilation is removed)
-    runInAction(() => {
-        localController.observableState.inferredNodeTypes.set(node.id, {
-            inputs: { kind: 'record', fields: { 'MyInput': { kind: 'atomic', type: 'any' } } },
-            outputs: { kind: 'record', fields: { 'MyOutput': { kind: 'atomic', type: 'any' } } }
-        });
-    });
+    // Simulate Compiler Worker result
+    localController.updateInferredTypes({
+      [node.id]: {
+        inputs: { kind: 'record', fields: { 'MyInput': { kind: 'atomic', type: 'any' } } },
+        outputs: { kind: 'record', fields: { 'MyOutput': { kind: 'atomic', type: 'any' } } }
+      }
+    }, (id) => id === node.id ? node.config.typeId : undefined);
 
     const el = await fixture(html`<graph-node .node=${node}></graph-node>`);
     await (el as LitElement).updateComplete;

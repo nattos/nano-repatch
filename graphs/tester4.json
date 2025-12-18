@@ -1,0 +1,223 @@
+{
+  "nodes": {
+    "node-3670156a-002f-4e85-976b-015380905343": {
+      "id": "node-3670156a-002f-4e85-976b-015380905343",
+      "x": 4,
+      "y": 1,
+      "config": {
+        "typeId": "math.map",
+        "values": {}
+      }
+    },
+    "node-07172651-80e1-4703-b183-73b7d225e037": {
+      "id": "node-07172651-80e1-4703-b183-73b7d225e037",
+      "x": 2,
+      "y": 1,
+      "config": {
+        "typeId": "core.unpack",
+        "values": {}
+      }
+    },
+    "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010": {
+      "id": "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010",
+      "x": 1,
+      "y": 1,
+      "config": {
+        "typeId": "core.pack",
+        "values": {},
+        "targetType": "float4"
+      }
+    }
+  },
+  "connections": {
+    "conn-77c6f167-1551-4b2b-b44d-ee2aa9eca858": {
+      "id": "conn-77c6f167-1551-4b2b-b44d-ee2aa9eca858",
+      "fromNodeId": "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010",
+      "fromPort": "result",
+      "toNodeId": "node-07172651-80e1-4703-b183-73b7d225e037",
+      "toPort": "record"
+    },
+    "conn-3e563874-be93-4977-95ad-0a296ccb8992": {
+      "id": "conn-3e563874-be93-4977-95ad-0a296ccb8992",
+      "fromNodeId": "node-07172651-80e1-4703-b183-73b7d225e037",
+      "fromPort": "x",
+      "toNodeId": "node-3670156a-002f-4e85-976b-015380905343",
+      "toPort": "value"
+    },
+    "conn-f4bf7f8f-85bd-45fb-9973-9d3197cb1190": {
+      "id": "conn-f4bf7f8f-85bd-45fb-9973-9d3197cb1190",
+      "fromNodeId": "node-07172651-80e1-4703-b183-73b7d225e037",
+      "fromPort": "y",
+      "toNodeId": "node-3670156a-002f-4e85-976b-015380905343",
+      "toPort": "inMin"
+    },
+    "conn-79cd55a7-3e5c-4a32-a40c-60850886b979": {
+      "id": "conn-79cd55a7-3e5c-4a32-a40c-60850886b979",
+      "fromNodeId": "node-07172651-80e1-4703-b183-73b7d225e037",
+      "fromPort": "z",
+      "toNodeId": "node-3670156a-002f-4e85-976b-015380905343",
+      "toPort": "inMax"
+    }
+  },
+  "inferredNodeTypes": {
+    "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      }
+    },
+    "node-07172651-80e1-4703-b183-73b7d225e037": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "record",
+            "fields": {
+              "x": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "y": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "z": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "w": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              }
+            },
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        },
+        "hint": "vec4"
+      }
+    },
+    "node-3670156a-002f-4e85-976b-015380905343": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    }
+  }
+}

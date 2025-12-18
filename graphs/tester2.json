@@ -1,0 +1,275 @@
+{
+  "nodes": {
+    "node-7a5b0954-2814-49fd-97be-17ea1bed4455": {
+      "id": "node-7a5b0954-2814-49fd-97be-17ea1bed4455",
+      "x": 4,
+      "y": 3,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-9072d843-1121-48bc-bb04-2a554c2288da": {
+      "id": "node-9072d843-1121-48bc-bb04-2a554c2288da",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-b1e80b9f-024c-4bc8-9e95-eff447fbbfd8": {
+      "id": "node-b1e80b9f-024c-4bc8-9e95-eff447fbbfd8",
+      "x": 1,
+      "y": 1,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-0ba37e6c-ab78-4575-870d-f243afb2f96f": {
+      "id": "node-0ba37e6c-ab78-4575-870d-f243afb2f96f",
+      "x": 4,
+      "y": 1,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-0c22aa2b-0a6f-414d-a13e-4ea532d74a4b": {
+      "id": "node-0c22aa2b-0a6f-414d-a13e-4ea532d74a4b",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-2271f87e-3ebd-4cc8-a808-a50add2f9c24": {
+      "id": "node-2271f87e-3ebd-4cc8-a808-a50add2f9c24",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    },
+    "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3": {
+      "id": "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3",
+      "x": 3,
+      "y": 1,
+      "config": {
+        "typeId": "math.add",
+        "values": {}
+      }
+    },
+    "node-c2909b12-bd33-4de6-80b6-54187db7f9d8": {
+      "id": "node-c2909b12-bd33-4de6-80b6-54187db7f9d8",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "util.hub",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-ea7bd9c1-e448-45ad-b059-8a5c09a3a833": {
+      "id": "conn-ea7bd9c1-e448-45ad-b059-8a5c09a3a833",
+      "fromNodeId": "node-7a5b0954-2814-49fd-97be-17ea1bed4455",
+      "fromPort": "value",
+      "toNodeId": "node-9072d843-1121-48bc-bb04-2a554c2288da",
+      "toPort": "value"
+    },
+    "conn-ba362b15-4bb9-4725-afd6-a08d5639568d": {
+      "id": "conn-ba362b15-4bb9-4725-afd6-a08d5639568d",
+      "fromNodeId": "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3",
+      "fromPort": "result",
+      "toNodeId": "node-0ba37e6c-ab78-4575-870d-f243afb2f96f",
+      "toPort": "value"
+    },
+    "conn-1ca4254f-51c4-404e-b390-a1eda51673e4": {
+      "id": "conn-1ca4254f-51c4-404e-b390-a1eda51673e4",
+      "fromNodeId": "node-0c22aa2b-0a6f-414d-a13e-4ea532d74a4b",
+      "fromPort": "value",
+      "toNodeId": "node-2271f87e-3ebd-4cc8-a808-a50add2f9c24",
+      "toPort": "value"
+    },
+    "conn-ead0983e-42e2-455f-b128-e94ed0a65d78": {
+      "id": "conn-ead0983e-42e2-455f-b128-e94ed0a65d78",
+      "fromNodeId": "node-b1e80b9f-024c-4bc8-9e95-eff447fbbfd8",
+      "fromPort": "value",
+      "toNodeId": "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3",
+      "toPort": "a"
+    }
+  },
+  "inferredNodeTypes": {
+    "node-7a5b0954-2814-49fd-97be-17ea1bed4455": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-b1e80b9f-024c-4bc8-9e95-eff447fbbfd8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0c22aa2b-0a6f-414d-a13e-4ea532d74a4b": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-c2909b12-bd33-4de6-80b6-54187db7f9d8": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-9072d843-1121-48bc-bb04-2a554c2288da": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-5f4234c0-f827-4b3d-b478-6bd9612c27c3": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "a": {
+            "kind": "atomic",
+            "type": "any"
+          },
+          "b": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-2271f87e-3ebd-4cc8-a808-a50add2f9c24": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "node-0ba37e6c-ab78-4575-870d-f243afb2f96f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "any"
+          }
+        }
+      }
+    }
+  }
+}

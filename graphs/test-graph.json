@@ -213,5 +213,845 @@
       "toNodeId": "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f",
       "toPort": "record"
     }
+  },
+  "inferredNodeTypes": {
+    "node-cf68da5f-291e-47a8-b3fe-dc95720ad062": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "density": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0.5
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "seq_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "noteIndex": {
+                  "kind": "atomic",
+                  "type": "any"
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "hold": {
+                  "kind": "atomic",
+                  "type": "boolean"
+                }
+              },
+              "untagged": []
+            },
+            "hint": "step-sequence"
+          }
+        }
+      }
+    },
+    "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "midi_in": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "type": {
+                  "kind": "atomic",
+                  "type": "string"
+                },
+                "channel": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "deviceId": {
+                  "kind": "atomic",
+                  "type": "string",
+                  "optional": true
+                },
+                "time": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "note": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "cc": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "value": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                }
+              },
+              "hint": "midi"
+            },
+            "hint": "midi-stream"
+          },
+          "prev_layer": {
+            "kind": "atomic",
+            "type": "number"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "out": {
+            "kind": "atomic",
+            "type": "number"
+          }
+        }
+      }
+    },
+    "node-70a66d18-f570-4d0e-9571-6cef9e7703f7": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "density": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0.5
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "seq_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "noteIndex": {
+                  "kind": "atomic",
+                  "type": "any"
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "hold": {
+                  "kind": "atomic",
+                  "type": "boolean"
+                }
+              },
+              "untagged": []
+            },
+            "hint": "step-sequence"
+          }
+        }
+      }
+    },
+    "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "freq": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "out": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-39c8489d-cf8b-40e2-9ff3-c198a53a70a9": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "seq_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "noteIndex": {
+                    "kind": "atomic",
+                    "type": "any"
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "hold": {
+                    "kind": "atomic",
+                    "type": "boolean"
+                  }
+                },
+                "untagged": []
+              },
+              "hint": "step-sequence"
+            },
+            "size": 2
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "midi_out": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "type": {
+                  "kind": "atomic",
+                  "type": "string"
+                },
+                "channel": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "deviceId": {
+                  "kind": "atomic",
+                  "type": "string",
+                  "optional": true
+                },
+                "time": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "note": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "cc": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "value": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                }
+              },
+              "hint": "midi"
+            },
+            "hint": "midi-stream"
+          }
+        }
+      }
+    },
+    "node-97f68c74-48d2-418e-9472-3cb20dfe52e2": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "value": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "inMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMin": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "outMax": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e37020b4-af5d-4907-a674-edb9421a50a4": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "stream": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          },
+          "pitch": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "stream": {
+            "kind": "array",
+            "size": "dynamic",
+            "element": {
+              "kind": "record",
+              "fields": {
+                "type": {
+                  "kind": "atomic",
+                  "type": "string"
+                },
+                "channel": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0
+                },
+                "deviceId": {
+                  "kind": "atomic",
+                  "type": "string",
+                  "optional": true
+                },
+                "time": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "note": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "velocity": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "cc": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                },
+                "value": {
+                  "kind": "atomic",
+                  "type": "number",
+                  "defaultValue": 0,
+                  "optional": true
+                }
+              },
+              "hint": "midi"
+            },
+            "hint": "midi-stream"
+          }
+        }
+      }
+    },
+    "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "midi_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          },
+          "decay": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "curve": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "relcurve": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "resolution": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "manual_phase": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "env": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          },
+          "ch1": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch2": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch3": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch4": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-49a7c64a-7948-4062-a1b1-82d39f474e2c": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "midi_in": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "size": "dynamic",
+              "element": {
+                "kind": "record",
+                "fields": {
+                  "type": {
+                    "kind": "atomic",
+                    "type": "string"
+                  },
+                  "channel": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0
+                  },
+                  "deviceId": {
+                    "kind": "atomic",
+                    "type": "string",
+                    "optional": true
+                  },
+                  "time": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "note": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "velocity": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "cc": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  },
+                  "value": {
+                    "kind": "atomic",
+                    "type": "number",
+                    "defaultValue": 0,
+                    "optional": true
+                  }
+                },
+                "hint": "midi"
+              },
+              "hint": "midi-stream"
+            },
+            "size": 1
+          },
+          "attack": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "decay": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "sustain": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "release": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "peak": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "mag_flux": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "spring_k": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "damping": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "env": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          },
+          "ch1": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch2": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch3": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "ch4": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-e21fdc33-39ec-476a-935c-61e183532725": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "values": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": "dynamic",
+            "allowMultiConnection": true
+          },
+          "": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "result": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    },
+    "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "vec": {
+            "kind": "array",
+            "element": {
+              "kind": "array",
+              "element": {
+                "kind": "atomic",
+                "type": "number",
+                "defaultValue": 0
+              },
+              "size": 4,
+              "hint": "vec4"
+            },
+            "size": 1
+          },
+          "root": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "gain": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {}
+      }
+    },
+    "node-8922dd92-0a00-4cf0-8228-79ad2dcb001f": {
+      "inputs": {
+        "kind": "record",
+        "fields": {
+          "record": {
+            "kind": "array",
+            "element": {
+              "kind": "atomic",
+              "type": "number",
+              "defaultValue": 0
+            },
+            "size": 4,
+            "hint": "vec4"
+          }
+        }
+      },
+      "outputs": {
+        "kind": "record",
+        "fields": {
+          "x": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "y": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "z": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          },
+          "w": {
+            "kind": "atomic",
+            "type": "number",
+            "defaultValue": 0
+          }
+        }
+      }
+    }
   }
 }
