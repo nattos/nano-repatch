@@ -644,15 +644,29 @@ export class AppController {
   public setNodeConfig(nodeId: string, configUpdate: Partial<GridNode['config']>): void {
     const state = this.getState();
     const fromConfig: Partial<any> = {};
+    const toConfig: Partial<any> = {};
     const currentNode = state.graph.inner.nodes[nodeId] as GridNode | undefined;
+
     if (currentNode) {
       for (const key in configUpdate) {
         if (Object.prototype.hasOwnProperty.call(configUpdate, key)) {
-          fromConfig[key] = currentNode.config[key];
+          const newValue = configUpdate[key];
+          const oldValue = currentNode.config[key];
+
+          // Simple strict equality check
+          // For complex objects/arrays, we might trigger update anyway, which is safe.
+          // But for primitives like typeId (string), this prevents redundant updates.
+          if (newValue !== oldValue) {
+            fromConfig[key] = oldValue;
+            toConfig[key] = newValue;
+          }
         }
       }
     }
-    this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: configUpdate }]);
+
+    if (Object.keys(toConfig).length > 0) {
+      this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: toConfig }]);
+    }
   }
 
   public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {

@@ -223,10 +223,10 @@ export class RuntimeManager {
       if (json === this.lastInferredTypesJson) return;
       this.lastInferredTypesJson = json;
 
-      this.appController.dispatch([{
-        type: 'graph.updateInferredTypes',
-        inferredTypes: msg.inferredNodeTypes
-      }]);
+      // DIRECT UPDATE
+      this.localController.updateInferredTypes(msg.inferredNodeTypes, (nodeId) => {
+        return this.appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
+      });
     }
   }
 
@@ -241,13 +241,12 @@ export class RuntimeManager {
     this.hasLoadedGraph = true;
     this.executorWorker.postMessage(initMsg);
 
-    // Populate local cache with inferred types
-    // Populate local cache with inferred types via AppController dispatch
+    // Populate local cache with inferred types directly
+    // DIRECT UPDATE to avoid AppController.dispatch() which triggers LongEdit re-application loops
     if (msg.inferredTypes) {
-      this.appController.dispatch([{
-        type: 'graph.updateInferredTypes',
-        inferredTypes: msg.inferredTypes
-      }]);
+      this.localController.updateInferredTypes(msg.inferredTypes, (nodeId) => {
+        return this.appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
+      });
     }
 
     // Populate local cache with compiled configs from the graph

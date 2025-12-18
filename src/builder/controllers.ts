@@ -31,11 +31,13 @@ reaction(
 );
 
 // Listen for inferred types updates and propagate to LocalController
-appController.onInferredTypesUpdate((inferredTypes) => {
-  localController.updateInferredTypes(inferredTypes, (nodeId) => {
-    return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
-  });
-});
+// Listen for inferred types updates and propagate to LocalController
+// DEPRECATED: RuntimeManager now updates LocalController directly to avoid LongEdit loops.
+// appController.onInferredTypesUpdate((inferredTypes) => {
+//   localController.updateInferredTypes(inferredTypes, (nodeId) => {
+//     return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
+//   });
+// });
 
 // Expose for E2E testing
 (window as any).testing = { appController, localController, runtimeManager, workspaceController };
