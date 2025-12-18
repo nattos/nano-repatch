@@ -619,7 +619,7 @@ defaultNodeRepository.register({
   definition: primitive_input,
   inputs: [],
   outputs: [
-    { name: '0', type: AnyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
+    { name: 'value', type: AnyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
   ],
   compileConfig: (uiConfig) => uiConfig?.values?.['0'],
 });
@@ -633,7 +633,9 @@ defaultNodeRepository.register({
   inputs: [
     { name: '0', type: AnyType, description: 'The output value.', suppressInputEditor: true, suppressLabel: true }
   ],
-  outputs: [],
+  outputs: [
+    { name: 'value', type: AnyType, description: 'The graph output value.', suppressInputEditor: true, suppressLabel: true }
+  ],
 });
 
 defaultNodeRepository.register({

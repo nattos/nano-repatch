@@ -105,14 +105,14 @@ export const primitive_input: PrimitiveNodeDefinition = {
     description: 'Graph input node.'
   },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
-    // Identity: Output type is same as input type of 'val' (injected by executor) or config type
-    const valType = inputType.fields['val'] || config || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'val': valType } };
+    // Identity: Output type is same as input type of 'value' (injected by executor) or config type
+    const valType = inputType.fields['value'] || config || { kind: 'atomic', type: 'any' };
+    return { kind: 'record', fields: { 'value': valType } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    // Identity: Output value is input 'val' OR config value (from slider)
-    const val = input.fields['val'] !== undefined ? input.fields['val'] : config;
-    return { fields: { 'val': val } };
+    // Identity: Output value is input 'value' OR config value (from slider)
+    const val = input.fields['value'] !== undefined ? input.fields['value'] : config;
+    return { fields: { 'value': val } };
   }
 };
 
@@ -126,13 +126,13 @@ export const primitive_output: PrimitiveNodeDefinition = {
   },
   computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
     // Identity: Output type is same as input type of 'val'
-    const valType = inputType.fields['val'] || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'val': valType } };
+    const valType = inputType.fields['value'] || { kind: 'atomic', type: 'any' };
+    return { kind: 'record', fields: { 'value': valType } };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Identity: Output value is input 'val'
-    const val = input.fields['val'];
-    return { fields: { 'val': val } };
+    const val = input.fields['value'];
+    return { fields: { 'value': val } };
   }
 };
 
@@ -148,39 +148,39 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
     // Access loadedSubgraphs from context (injected by compiler)
     const loadedSubgraphs = (context as any).loadedSubgraphs;
     if (!loadedSubgraphs) {
-        return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
+      return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
     }
 
     const subgraphId = (config as any).subgraphId;
     const subgraph = loadedSubgraphs.get(subgraphId);
 
     if (subgraph) {
-        const subgraphNodes = Object.values(subgraph.inner.nodes) as any[]; // Cast to access config
+      const subgraphNodes = Object.values(subgraph.inner.nodes) as any[]; // Cast to access config
 
-        // Compute Inputs from Subgraph Inputs
-        const inputFields: Record<string, StructorType> = {};
-        subgraphNodes
-            .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
-            .sort((a, b) => a.y - b.y)
-            .forEach(n => {
-                const name = n.config.name || '0';
-                inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
-            });
+      // Compute Inputs from Subgraph Inputs
+      const inputFields: Record<string, StructorType> = {};
+      subgraphNodes
+        .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+        .sort((a, b) => a.y - b.y)
+        .forEach(n => {
+          const name = n.config.name || '0';
+          inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+        });
 
-        // Compute Outputs from Subgraph Outputs
-        const outputFields: Record<string, StructorType> = {};
-        subgraphNodes
-            .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-            .sort((a, b) => a.y - b.y)
-            .forEach(n => {
-                const name = n.config.name || '0';
-                outputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
-            });
+      // Compute Outputs from Subgraph Outputs
+      const outputFields: Record<string, StructorType> = {};
+      subgraphNodes
+        .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+        .sort((a, b) => a.y - b.y)
+        .forEach(n => {
+          const name = n.config.name || '0';
+          outputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+        });
 
-        return {
-            inputs: { kind: 'record', fields: inputFields },
-            outputs: { kind: 'record', fields: outputFields }
-        };
+      return {
+        inputs: { kind: 'record', fields: inputFields },
+        outputs: { kind: 'record', fields: outputFields }
+      };
     }
 
     return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
@@ -192,211 +192,211 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
 };
 
 export const primitive_pack = definePrimitiveNode({
-    id: 'core.pack',
-    metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct', 'vector'], description: 'Packs inputs into a record or vector.' },
-    config: {
-        targetType: { kind: 'atomic', type: 'string', defaultValue: 'infer' }
-    },
-    inputs: {}, // Dynamic
-    outputs: { result: anyType }, // Dynamic
+  id: 'core.pack',
+  metadata: { category: NodeCategory.Core, keywords: ['pack', 'record', 'struct', 'vector'], description: 'Packs inputs into a record or vector.' },
+  config: {
+    targetType: { kind: 'atomic', type: 'string', defaultValue: 'infer' }
+  },
+  inputs: {}, // Dynamic
+  outputs: { result: anyType }, // Dynamic
 
-    // UI Configuration (manually attached for now to avoid circular deps)
-    // @ts-ignore
-    ui: {
-        inspector: {
-            fields: [
-                {
-                    type: 'tab-bar',
-                    label: 'Target Type',
-                    path: 'targetType',
-                    options: [
-                        { label: 'Infer', value: 'infer' },
-                        { label: 'Vec2', value: 'float2' },
-                        { label: 'Vec3', value: 'float3' },
-                        { label: 'Vec4', value: 'float4' }
-                    ]
-                }
-            ]
+  // UI Configuration (manually attached for now to avoid circular deps)
+  // @ts-ignore
+  ui: {
+    inspector: {
+      fields: [
+        {
+          type: 'tab-bar',
+          label: 'Target Type',
+          path: 'targetType',
+          options: [
+            { label: 'Infer', value: 'infer' },
+            { label: 'Vec2', value: 'float2' },
+            { label: 'Vec3', value: 'float3' },
+            { label: 'Vec4', value: 'float4' }
+          ]
         }
-    },
-
-    computeBackwardPorts: (outputReqs, config, context) => {
-        const targetType = (config as any)?.targetType || 'infer';
-        let inferredType: 'float2' | 'float3' | 'float4' | null = null;
-
-        if (targetType === 'infer') {
-             // Look at output requirements on 'result' port
-             const resultReq = outputReqs.fields['result'];
-
-             if (resultReq && resultReq.kind === 'record') {
-                 if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z'] && resultReq.fields['w']) {
-                     inferredType = 'float4';
-                 } else if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z']) {
-                     inferredType = 'float3';
-                 } else if (resultReq.fields['x'] && resultReq.fields['y']) {
-                     inferredType = 'float2';
-                 }
-             }
-        } else {
-             inferredType = targetType as any;
-        }
-
-        const inputReqs: any = { kind: 'record', fields: {} };
-        if (inferredType === 'float4') {
-            inputReqs.fields = { x: numberType, y: numberType, z: numberType, w: numberType };
-        } else if (inferredType === 'float3') {
-            inputReqs.fields = { x: numberType, y: numberType, z: numberType };
-        } else if (inferredType === 'float2') {
-             inputReqs.fields = { x: numberType, y: numberType };
-        }
-
-        return {
-            inputRequirements: inputReqs,
-            backwardMetadata: { inferredType }
-        };
-    },
-
-    computeForwardPorts: (inputs, config, context, meta) => {
-
-        // Defensive read: check both root and fields
-        const rawConfig = config as any;
-        const targetType = rawConfig?.targetType || rawConfig?.fields?.targetType || 'infer';
-
-        // If explicit config is set, usage that. Otherwise use inferred.
-        let type = targetType !== 'infer' ? targetType : (meta?.inferredType || 'float2');
-
-        // Finalize inputs based on type
-        const inputFields: any = {};
-        const outputFields: any = {};
-
-        // If type is not one of the vectors (e.g. unknown inference), fallback to float2?
-        // Or if we have inputs connected?
-        // Let's default to float2 if nothing known.
-        if (!['float2', 'float3', 'float4'].includes(type)) type = 'float2';
-
-
-
-        if (type === 'float4') {
-            inputFields.x = numberType;
-            inputFields.y = numberType;
-            inputFields.z = numberType;
-            inputFields.w = numberType;
-            outputFields.result = {
-                kind: 'record',
-                fields: { x: numberType, y: numberType, z: numberType, w: numberType },
-                hint: 'vec4'
-            };
-        } else if (type === 'float3') {
-            inputFields.x = numberType;
-            inputFields.y = numberType;
-            inputFields.z = numberType;
-            outputFields.result = {
-                kind: 'record',
-                fields: { x: numberType, y: numberType, z: numberType },
-                hint: 'vec3'
-            };
-        } else { // float2
-            inputFields.x = numberType;
-            inputFields.y = numberType;
-            outputFields.result = {
-                kind: 'record',
-                fields: { x: numberType, y: numberType },
-                hint: 'vec2'
-            };
-        }
-
-        return {
-            inputs: { kind: 'record', fields: inputFields },
-            outputs: { kind: 'record', fields: outputFields }
-        };
-    },
-
-    execute: (inputs) => {
-        // Inputs are already collected into 'inputs' object by executor
-        // We just need to pack them into 'result'
-        // The forward pass ensures the output type matches the inputs we asked for.
-        // We can just return the inputs object as the result record.
-        return { result: inputs };
+      ]
     }
+  },
+
+  computeBackwardPorts: (outputReqs, config, context) => {
+    const targetType = (config as any)?.targetType || 'infer';
+    let inferredType: 'float2' | 'float3' | 'float4' | null = null;
+
+    if (targetType === 'infer') {
+      // Look at output requirements on 'result' port
+      const resultReq = outputReqs.fields['result'];
+
+      if (resultReq && resultReq.kind === 'record') {
+        if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z'] && resultReq.fields['w']) {
+          inferredType = 'float4';
+        } else if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z']) {
+          inferredType = 'float3';
+        } else if (resultReq.fields['x'] && resultReq.fields['y']) {
+          inferredType = 'float2';
+        }
+      }
+    } else {
+      inferredType = targetType as any;
+    }
+
+    const inputReqs: any = { kind: 'record', fields: {} };
+    if (inferredType === 'float4') {
+      inputReqs.fields = { x: numberType, y: numberType, z: numberType, w: numberType };
+    } else if (inferredType === 'float3') {
+      inputReqs.fields = { x: numberType, y: numberType, z: numberType };
+    } else if (inferredType === 'float2') {
+      inputReqs.fields = { x: numberType, y: numberType };
+    }
+
+    return {
+      inputRequirements: inputReqs,
+      backwardMetadata: { inferredType }
+    };
+  },
+
+  computeForwardPorts: (inputs, config, context, meta) => {
+
+    // Defensive read: check both root and fields
+    const rawConfig = config as any;
+    const targetType = rawConfig?.targetType || rawConfig?.fields?.targetType || 'infer';
+
+    // If explicit config is set, usage that. Otherwise use inferred.
+    let type = targetType !== 'infer' ? targetType : (meta?.inferredType || 'float2');
+
+    // Finalize inputs based on type
+    const inputFields: any = {};
+    const outputFields: any = {};
+
+    // If type is not one of the vectors (e.g. unknown inference), fallback to float2?
+    // Or if we have inputs connected?
+    // Let's default to float2 if nothing known.
+    if (!['float2', 'float3', 'float4'].includes(type)) type = 'float2';
+
+
+
+    if (type === 'float4') {
+      inputFields.x = numberType;
+      inputFields.y = numberType;
+      inputFields.z = numberType;
+      inputFields.w = numberType;
+      outputFields.result = {
+        kind: 'record',
+        fields: { x: numberType, y: numberType, z: numberType, w: numberType },
+        hint: 'vec4'
+      };
+    } else if (type === 'float3') {
+      inputFields.x = numberType;
+      inputFields.y = numberType;
+      inputFields.z = numberType;
+      outputFields.result = {
+        kind: 'record',
+        fields: { x: numberType, y: numberType, z: numberType },
+        hint: 'vec3'
+      };
+    } else { // float2
+      inputFields.x = numberType;
+      inputFields.y = numberType;
+      outputFields.result = {
+        kind: 'record',
+        fields: { x: numberType, y: numberType },
+        hint: 'vec2'
+      };
+    }
+
+    return {
+      inputs: { kind: 'record', fields: inputFields },
+      outputs: { kind: 'record', fields: outputFields }
+    };
+  },
+
+  execute: (inputs) => {
+    // Inputs are already collected into 'inputs' object by executor
+    // We just need to pack them into 'result'
+    // The forward pass ensures the output type matches the inputs we asked for.
+    // We can just return the inputs object as the result record.
+    return { result: inputs };
+  }
 });
 
 export const primitive_unpack: PrimitiveNodeDefinition = {
-    id: 'core.unpack',
-    kind: 'primitive',
-    metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record or fixed-length vector into outputs.' },
-    configType: { kind: 'record', fields: {} },
-    inputs: { record: anyType },
-    // Outputs: Dynamic based on input record type
-    computeOutputTypes: (inputType, config, context) => {
-        const input = inputType.fields['record'];
-        if (!input) return { kind: 'record', fields: {} };
+  id: 'core.unpack',
+  kind: 'primitive',
+  metadata: { category: NodeCategory.Core, keywords: ['unpack', 'destructure', 'split'], description: 'Unpacks a record or fixed-length vector into outputs.' },
+  configType: { kind: 'record', fields: {} },
+  inputs: { record: anyType },
+  // Outputs: Dynamic based on input record type
+  computeOutputTypes: (inputType, config, context) => {
+    const input = inputType.fields['record'];
+    if (!input) return { kind: 'record', fields: {} };
 
-        if (input.kind === 'record') {
-            return input;
-        }
-
-        if (input.kind === 'array' && typeof input.size === 'number' && input.size <= 16) {
-             const size = input.size;
-             const fields: Record<string, StructorType> = {};
-
-             if (size === 2) {
-                 fields['x'] = input.element;
-                 fields['y'] = input.element;
-             } else if (size === 3) {
-                 fields['x'] = input.element;
-                 fields['y'] = input.element;
-                 fields['z'] = input.element;
-             } else if (size === 4) {
-                 fields['x'] = input.element;
-                 fields['y'] = input.element;
-                 fields['z'] = input.element;
-                 fields['w'] = input.element;
-             } else {
-                 for(let i=0; i<size; i++) {
-                     fields[i.toString()] = input.element;
-                 }
-             }
-             return { kind: 'record', fields };
-        }
-
-        return { kind: 'record', fields: {} };
-    },
-    execute: (input) => {
-        const record = input.fields['record'];
-        if (!record) return { fields: {} };
-
-        // Handle Record
-        if (typeof record === 'object' && 'fields' in record) {
-             return record as StructorRecord;
-        }
-
-        // Handle Array (Vector)
-        if (Array.isArray(record)) {
-            const size = record.length;
-            const fields: Record<string, any> = {};
-
-            if (size === 2) {
-                 fields['x'] = record[0];
-                 fields['y'] = record[1];
-            } else if (size === 3) {
-                 fields['x'] = record[0];
-                 fields['y'] = record[1];
-                 fields['z'] = record[2];
-            } else if (size === 4) {
-                 fields['x'] = record[0];
-                 fields['y'] = record[1];
-                 fields['z'] = record[2];
-                 fields['w'] = record[3];
-            } else {
-                 for(let i=0; i<size; i++) {
-                     if (i < 16) fields[i.toString()] = record[i];
-                 }
-            }
-            return { fields };
-        }
-
-        return { fields: {} };
+    if (input.kind === 'record') {
+      return input;
     }
+
+    if (input.kind === 'array' && typeof input.size === 'number' && input.size <= 16) {
+      const size = input.size;
+      const fields: Record<string, StructorType> = {};
+
+      if (size === 2) {
+        fields['x'] = input.element;
+        fields['y'] = input.element;
+      } else if (size === 3) {
+        fields['x'] = input.element;
+        fields['y'] = input.element;
+        fields['z'] = input.element;
+      } else if (size === 4) {
+        fields['x'] = input.element;
+        fields['y'] = input.element;
+        fields['z'] = input.element;
+        fields['w'] = input.element;
+      } else {
+        for (let i = 0; i < size; i++) {
+          fields[i.toString()] = input.element;
+        }
+      }
+      return { kind: 'record', fields };
+    }
+
+    return { kind: 'record', fields: {} };
+  },
+  execute: (input) => {
+    const record = input.fields['record'];
+    if (!record) return { fields: {} };
+
+    // Handle Record
+    if (typeof record === 'object' && 'fields' in record) {
+      return record as StructorRecord;
+    }
+
+    // Handle Array (Vector)
+    if (Array.isArray(record)) {
+      const size = record.length;
+      const fields: Record<string, any> = {};
+
+      if (size === 2) {
+        fields['x'] = record[0];
+        fields['y'] = record[1];
+      } else if (size === 3) {
+        fields['x'] = record[0];
+        fields['y'] = record[1];
+        fields['z'] = record[2];
+      } else if (size === 4) {
+        fields['x'] = record[0];
+        fields['y'] = record[1];
+        fields['z'] = record[2];
+        fields['w'] = record[3];
+      } else {
+        for (let i = 0; i < size; i++) {
+          if (i < 16) fields[i.toString()] = record[i];
+        }
+      }
+      return { fields };
+    }
+
+    return { fields: {} };
+  }
 };
 
 
@@ -654,56 +654,56 @@ const defineAllNode = (
       const firstIsArray = Array.isArray(values[0]);
 
       if (firstIsArray) {
-          // Vector mode
-          // Assume all are same length arrays for now (or taking min length)
-          const length = values[0].length;
-          const result = new Array(length);
+        // Vector mode
+        // Assume all are same length arrays for now (or taking min length)
+        const length = values[0].length;
+        const result = new Array(length);
 
-          for (let i = 0; i < length; i++) {
-              let val = values[0][i];
-              for (let j = 1; j < values.length; j++) {
-                  // Handle mixed scalar/vector by broadcasting scalar
-                  const operand = Array.isArray(values[j]) ? values[j][i] : values[j];
-                  val = op(val, operand);
-              }
-              result[i] = val;
+        for (let i = 0; i < length; i++) {
+          let val = values[0][i];
+          for (let j = 1; j < values.length; j++) {
+            // Handle mixed scalar/vector by broadcasting scalar
+            const operand = Array.isArray(values[j]) ? values[j][i] : values[j];
+            val = op(val, operand);
           }
-          return { result };
+          result[i] = val;
+        }
+        return { result };
       } else {
-          // Scalar mode (or mixed starting with scalar)
-          // Just reduce normally, handling mixed if they appear later?
-          // If scalar + vector: 1 + [10, 20] -> [11, 21]?
-          // The current reduce might not handle returning an array if accumulator becomes one.
-          // Let's iterate explicitly to support broadcasting.
+        // Scalar mode (or mixed starting with scalar)
+        // Just reduce normally, handling mixed if they appear later?
+        // If scalar + vector: 1 + [10, 20] -> [11, 21]?
+        // The current reduce might not handle returning an array if accumulator becomes one.
+        // Let's iterate explicitly to support broadcasting.
 
-           let accumulator: any = values[0];
+        let accumulator: any = values[0];
 
-           for (let i = 1; i < values.length; i++) {
-               const b = values[i];
+        for (let i = 1; i < values.length; i++) {
+          const b = values[i];
 
-               if (Array.isArray(accumulator)) {
-                   // Accumulator is vector
-                   const len = accumulator.length;
-                   const next = new Array(len);
-                   for(let k=0; k<len; k++) {
-                       const operand = Array.isArray(b) ? b[k] : b;
-                       next[k] = op(accumulator[k], operand);
-                   }
-                   accumulator = next;
-               } else if (Array.isArray(b)) {
-                    // Accumulator is scalar, B is vector -> broadcast accumulator
-                    const len = b.length;
-                    const next = new Array(len);
-                    for(let k=0; k<len; k++) {
-                        next[k] = op(accumulator, b[k]);
-                    }
-                    accumulator = next;
-               } else {
-                   // Both scalar
-                   accumulator = op(accumulator, b);
-               }
-           }
-           return { result: accumulator };
+          if (Array.isArray(accumulator)) {
+            // Accumulator is vector
+            const len = accumulator.length;
+            const next = new Array(len);
+            for (let k = 0; k < len; k++) {
+              const operand = Array.isArray(b) ? b[k] : b;
+              next[k] = op(accumulator[k], operand);
+            }
+            accumulator = next;
+          } else if (Array.isArray(b)) {
+            // Accumulator is scalar, B is vector -> broadcast accumulator
+            const len = b.length;
+            const next = new Array(len);
+            for (let k = 0; k < len; k++) {
+              next[k] = op(accumulator, b[k]);
+            }
+            accumulator = next;
+          } else {
+            // Both scalar
+            accumulator = op(accumulator, b);
+          }
+        }
+        return { result: accumulator };
       }
     }
   });

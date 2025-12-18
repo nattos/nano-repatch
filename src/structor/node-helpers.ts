@@ -189,7 +189,8 @@ export function registerNode(def: EnhancedNodeDefinition) {
     return {
       name,
       type,
-      description: isExtended ? val.description : undefined
+      description: isExtended ? val.description : undefined,
+      suppressLabel: isExtended ? val.suppressLabel : undefined,
     };
   });
 
