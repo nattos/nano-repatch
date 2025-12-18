@@ -1,7 +1,7 @@
 import { html, TemplateResult } from 'lit';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { defaultNodeRepository, PortHint } from '../structor/repository';
-import { calculatePortY, calculateNodeHeight } from '../utils/node-width-utils';
+import { calculatePortY } from '../utils/node-width-utils';
 import { WireSegment } from '../layout/wire-layout';
 import { Connection, GridNode } from '../builder/state';
 import { Selectable, GridMetrics } from '../builder/local-state';
@@ -213,7 +213,7 @@ export class WireRenderer {
             const clipBotPx = resolveClip(seg.clipBotRem, isGapRow);
 
             // Debug Log
-            console.log(`WireSeg[${seg.id}] Type=${seg.type} X=${seg.x} Y=${seg.y.toFixed(2)} AbsY=${gridAbsY} Off=${yOffsetPx} Row=${gridRow} ClipT=${clipTopPx} ClipB=${clipBotPx}`);
+            // console.log(`WireSeg[${seg.id}] Type=${seg.type} X=${seg.x} Y=${seg.y.toFixed(2)} AbsY=${gridAbsY} Off=${yOffsetPx} Row=${gridRow} ClipT=${clipTopPx} ClipB=${clipBotPx}`);
 
             // Inner Line Rendering Helpers
             const renderH = (extraStyle: string = '') => {
@@ -423,16 +423,13 @@ export class WireRenderer {
 
         // Apply Centering Offset
         // If Row Height > Node Height, the node is centered.
-        // We need to calculate Node Height here to determine offset.
-        // (Visual Centering Logic mirrors GraphGrid render)
+        // We use the CACHED node height from GridMetrics to avoid expensive re-calc.
         const rowHeight = this.ctx.gridMetrics.rows.get(node.y) || 80;
-        const nodeHeight = calculateNodeHeight(
-            node,
-            repoType,
-            this.ctx.incomingConnections.get(node.id) ? new Set(this.ctx.incomingConnections.get(node.id)) : new Set(),
-            effectiveType?.inputs,
-            effectiveType?.outputs
-        );
+
+        // Look up cached cell metric
+        const cellKey = `${node.x},${node.y}`;
+        const cellMetric = this.ctx.gridMetrics.cells.get(cellKey);
+        const nodeHeight = cellMetric ? cellMetric.height : 80; // Fallback to 80 if not ready
 
         let centeringOffset = 0;
         if (rowHeight > nodeHeight) {

@@ -5,47 +5,47 @@
  */
 
 export interface GridPoint {
-  x: number;
-  y: number;
+    x: number;
+    y: number;
 }
 
 export interface WireDef {
-  id: string;
-  start: GridPoint; // Node coordinates (x,y)
-  end: GridPoint;   // Node coordinates (x,y)
-  fromPort: string;
-  toPort: string;
-  startOffset?: number; // Row offset from start node top
-  endOffset?: number;   // Row offset from end node top
+    id: string;
+    start: GridPoint; // Node coordinates (x,y)
+    end: GridPoint;   // Node coordinates (x,y)
+    fromPort: string;
+    toPort: string;
+    startOffset?: number; // Row offset from start node top
+    endOffset?: number;   // Row offset from end node top
 }
 
 export enum SegmentType {
-  Horizontal = 'h',
-  Vertical = 'v',
-  CornerTL = 'ctl',
-  CornerTR = 'ctr',
-  CornerBL = 'cbl',
-  CornerBR = 'cbr',
-  Start = 'start', // Stub?
-  End = 'end'
+    Horizontal = 'h',
+    Vertical = 'v',
+    CornerTL = 'ctl',
+    CornerTR = 'ctr',
+    CornerBL = 'cbl',
+    CornerBR = 'cbr',
+    Start = 'start', // Stub?
+    End = 'end'
 }
 
 export interface WireSegment {
-  id: string;
-  wireId: string;
-  x: number;
-  y: number;
-  type: SegmentType;
-  lane?: number;
-  totalLanes?: number;
-  length?: number;
-  clipTopRem?: number; // If set, clip vertical top to this Rem's offset
-  clipBotRem?: number; // If set, clip vertical bot to this Rem's offset
+    id: string;
+    wireId: string;
+    x: number;
+    y: number;
+    type: SegmentType;
+    lane?: number;
+    totalLanes?: number;
+    length?: number;
+    clipTopRem?: number; // If set, clip vertical top to this Rem's offset
+    clipBotRem?: number; // If set, clip vertical bot to this Rem's offset
 }
 
 export interface LayoutResult {
-  segments: WireSegment[];
-  wires: Record<string, { path: GridPoint[] }>;
+    segments: WireSegment[];
+    wires: Record<string, { path: GridPoint[] }>;
 }
 
 // Obstacle Map: "x,y" -> Set of Logical Lanes blocked?
@@ -142,7 +142,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
         const startP = { x: wire.start.x * 2 + 2, y: wire.start.y * LOGICAL_Y_SCALE + (wire.startOffset || 0) };
         const endP = { x: wire.end.x * 2, y: wire.end.y * LOGICAL_Y_SCALE + (wire.endOffset || 0) };
 
-        console.log(`WireLayout Input: ${wire.id} StartP Y=${startP.y} (Offset ${wire.startOffset}) EndP Y=${endP.y} (Offset ${wire.endOffset})`);
+        // console.log(`WireLayout Input: ${wire.id} StartP Y=${startP.y} (Offset ${wire.startOffset}) EndP Y=${endP.y} (Offset ${wire.endOffset})`);
         let path: GridPoint[] = [];
 
         // Simple case: Direct connection?
@@ -175,7 +175,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 }
 
                 // Pop lowest fScore
-                openSet.sort((a,b) => (fScore.get(getKey(a)) || Infinity) - (fScore.get(getKey(b)) || Infinity));
+                openSet.sort((a, b) => (fScore.get(getKey(a)) || Infinity) - (fScore.get(getKey(b)) || Infinity));
                 const current = openSet.shift()!;
                 const currentKey = getKey(current);
 
@@ -205,11 +205,11 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 if (isGapColumn) {
                     // Up
                     if (current.y > searchMinY) {
-                         neighbors.push({ x: current.x, y: current.y - 1 });
+                        neighbors.push({ x: current.x, y: current.y - 1 });
                     }
                     // Down
                     if (current.y < searchMaxY) {
-                         neighbors.push({ x: current.x, y: current.y + 1 });
+                        neighbors.push({ x: current.x, y: current.y + 1 });
                     }
                 }
 
@@ -278,21 +278,21 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
 
         // Check if path found
         if (path.length === 0) {
-             // Fallback
-             path = [startP, endP];
+            // Fallback
+            path = [startP, endP];
         }
 
         // Original path deduplication and grid usage tracking (kept for now, might be redundant if pathToSegments handles it)
         if (path.length > 0) {
-             const dedup: GridPoint[] = [path[0]];
-             for (let i = 1; i < path.length; i++) {
-                 const prev = dedup[dedup.length - 1];
-                 const curr = path[i];
-                 if (!pointsEqual(prev, curr)) {
-                     dedup.push(curr);
-                 }
-             }
-             path = dedup;
+            const dedup: GridPoint[] = [path[0]];
+            for (let i = 1; i < path.length; i++) {
+                const prev = dedup[dedup.length - 1];
+                const curr = path[i];
+                if (!pointsEqual(prev, curr)) {
+                    dedup.push(curr);
+                }
+            }
+            path = dedup;
         }
 
         wirePaths[wire.id] = { path };
@@ -331,7 +331,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
         // Input is always on Left side of End Node.
         const endNode = toLogical(wire.end);
         const endStubY = endNode.y + (wire.endOffset || 0);
-        console.log(`WireLayout: ${wire.id} EndStub Y=${endStubY} NodeY=${endNode.y} Offset=${wire.endOffset}`);
+        // console.log(`WireLayout: ${wire.id} EndStub Y=${endStubY} NodeY=${endNode.y} Offset=${wire.endOffset}`);
         segments.push({
             id: `${wire.id}-end`,
             wireId: wire.id,
@@ -351,55 +351,55 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
             currentUsage.set(k, index + 1);
 
             // Determine Type
-            const prev = i > 0 ? path[i-1] : null;
-            const next = i < path.length - 1 ? path[i+1] : null;
+            const prev = i > 0 ? path[i - 1] : null;
+            const next = i < path.length - 1 ? path[i + 1] : null;
 
             let type = SegmentType.Horizontal;
 
             if (prev && next) {
-               const dx1 = p.x - prev.x;
-               const dy1 = p.y - prev.y;
-               const dx2 = next.x - p.x;
-               const dy2 = next.y - p.y;
+                const dx1 = p.x - prev.x;
+                const dy1 = p.y - prev.y;
+                const dx2 = next.x - p.x;
+                const dy2 = next.y - p.y;
 
-               if (dx1 !== 0 && dx2 !== 0) type = SegmentType.Horizontal;
-               else if (dy1 !== 0 && dy2 !== 0) type = SegmentType.Vertical;
-               else {
-                   // Corner
-                   // dx1=1 (Right), dy2=1 (Down) -> TL logic?
-                   // If coming from left, going down.
-                   // Visual: Only occupies Right-Half Horizontal, Bottom-Half Vertical.
-                   // If we map to my CSS classes:
-                   // .tl (Top-Left visual corner) -> Right-Half H, Bottom-Half V. -> ┐
-                   // My CSS .tl actually renders ┘ (Bottom Right shape).
-                   // Let's fix CSS or Map correctly.
-                   // Corner names are ambiguous.
-                   // Let's iterate:
-                   // 1. Right then Down (dx1=1, dy2=1): Entrance Left, Exit Bottom. Shape ┐.
-                   //    Needs: line-left-to-center, line-center-to-bottom.
-                   //    My CSS .tl: right:0 (occupies Right half?), top:50. left:50, top:50 (Bottom half?).
-                   //    Actually `right:0 + width:50%` -> Occupies Right side (Left side is empty).
-                   //    `top:50 + height:50%` -> Occupies Bottom side.
-                   //    So .tl CSS makes ┘.
-                   //    I need ┐. That is Left side + Bottom side? No.
-                   //    Left-to-Center -> Left side.
-                   //    Center-to-Bottom -> Bottom side.
-                   //    So left:0, width:50% + top:50, height:50%.
+                if (dx1 !== 0 && dx2 !== 0) type = SegmentType.Horizontal;
+                else if (dy1 !== 0 && dy2 !== 0) type = SegmentType.Vertical;
+                else {
+                    // Corner
+                    // dx1=1 (Right), dy2=1 (Down) -> TL logic?
+                    // If coming from left, going down.
+                    // Visual: Only occupies Right-Half Horizontal, Bottom-Half Vertical.
+                    // If we map to my CSS classes:
+                    // .tl (Top-Left visual corner) -> Right-Half H, Bottom-Half V. -> ┐
+                    // My CSS .tl actually renders ┘ (Bottom Right shape).
+                    // Let's fix CSS or Map correctly.
+                    // Corner names are ambiguous.
+                    // Let's iterate:
+                    // 1. Right then Down (dx1=1, dy2=1): Entrance Left, Exit Bottom. Shape ┐.
+                    //    Needs: line-left-to-center, line-center-to-bottom.
+                    //    My CSS .tl: right:0 (occupies Right half?), top:50. left:50, top:50 (Bottom half?).
+                    //    Actually `right:0 + width:50%` -> Occupies Right side (Left side is empty).
+                    //    `top:50 + height:50%` -> Occupies Bottom side.
+                    //    So .tl CSS makes ┘.
+                    //    I need ┐. That is Left side + Bottom side? No.
+                    //    Left-to-Center -> Left side.
+                    //    Center-to-Bottom -> Bottom side.
+                    //    So left:0, width:50% + top:50, height:50%.
 
-                   // Let's use generic names based on flow:
-                   // RB (Right-Bottom): In Right, Out Bottom? No.
-                   // Let's stick to the Enums and I will fix CSS in GraphGrid to match.
+                    // Let's use generic names based on flow:
+                    // RB (Right-Bottom): In Right, Out Bottom? No.
+                    // Let's stick to the Enums and I will fix CSS in GraphGrid to match.
 
-                   // Case: Right then Down (dx1=1, dy2=1). In Left, Out Bottom.
-                   // Type: Corner_DownRight ?
-                   // Let's use standard: CornerTL, CornerTR, etc.
-                   // And assume standard visual meanings: ┌ ┐ └ ┘
-                   // ┌ = TL. (Bottom-Right quadrant occupied).
-                   // ┐ = TR. (Bottom-Left quadrant occupied).
-                   // └ = BL. (Top-Right quadrant occupied).
-                   // ┘ = BR. (Top-Left quadrant occupied).
+                    // Case: Right then Down (dx1=1, dy2=1). In Left, Out Bottom.
+                    // Type: Corner_DownRight ?
+                    // Let's use standard: CornerTL, CornerTR, etc.
+                    // And assume standard visual meanings: ┌ ┐ └ ┘
+                    // ┌ = TL. (Bottom-Right quadrant occupied).
+                    // ┐ = TR. (Bottom-Left quadrant occupied).
+                    // └ = BL. (Top-Right quadrant occupied).
+                    // ┘ = BR. (Top-Left quadrant occupied).
 
-                   // In Left, Out Bottom (Right then Down): Shape ┐ (TR).
+                    // In Left, Out Bottom (Right then Down): Shape ┐ (TR).
                     if (dx1 === 1 && dy2 > 0) type = SegmentType.CornerTR;
 
                     // In Left, Out Top (Right then Up, dy2=-1): Shape ┘ (BR).
@@ -422,7 +422,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
 
                     // In Bottom, Out Left (Up then Left, dy1=-1, dx2=-1): Shape ┐ (TR).
                     else if (dy1 < 0 && dx2 === -1) type = SegmentType.CornerTR;
-               }
+                }
             } else if (!prev) {
                 // First segment of path (in Gap)
                 // Connects FROM Start Node (Left)
@@ -491,32 +491,32 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 // Check Prev (Up)
                 if (prev) {
                     if (prev.x === p.x && prev.y < p.y) {
-                         const prevGridY = Math.floor(prev.y / LOGICAL_Y_SCALE);
-                         if (prevGridY === gridY) {
-                             if ((prev.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
-                                 clipTopRem = prev.y % LOGICAL_Y_SCALE;
-                              }
-                         } else if (prevGridY === gridY - 1) {
-                             // Crossing Boundary from Previous Line
-                             // If prev was Gap Lane (31)?
-                             if ((prev.y % LOGICAL_Y_SCALE) === GAP_LANE_INDEX) {
-                                 clipTopRem = -1; // Special flag for Top of Cell
-                             }
-                         }
+                        const prevGridY = Math.floor(prev.y / LOGICAL_Y_SCALE);
+                        if (prevGridY === gridY) {
+                            if ((prev.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
+                                clipTopRem = prev.y % LOGICAL_Y_SCALE;
+                            }
+                        } else if (prevGridY === gridY - 1) {
+                            // Crossing Boundary from Previous Line
+                            // If prev was Gap Lane (31)?
+                            if ((prev.y % LOGICAL_Y_SCALE) === GAP_LANE_INDEX) {
+                                clipTopRem = -1; // Special flag for Top of Cell
+                            }
+                        }
                     }
                 }
-                 // Check Next (Down)
+                // Check Next (Down)
                 if (next) {
                     if (next.x === p.x && next.y > p.y) {
-                         const nextGridY = Math.floor(next.y / LOGICAL_Y_SCALE);
-                         if (nextGridY === gridY) {
-                             if ((next.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
-                                 clipBotRem = next.y % LOGICAL_Y_SCALE;
-                             } else if ((next.y % LOGICAL_Y_SCALE) === GAP_LANE_INDEX) {
-                                 // Jump to Gap!
-                                 clipBotRem = GAP_LANE_INDEX;
-                             }
-                         }
+                        const nextGridY = Math.floor(next.y / LOGICAL_Y_SCALE);
+                        if (nextGridY === gridY) {
+                            if ((next.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
+                                clipBotRem = next.y % LOGICAL_Y_SCALE;
+                            } else if ((next.y % LOGICAL_Y_SCALE) === GAP_LANE_INDEX) {
+                                // Jump to Gap!
+                                clipBotRem = GAP_LANE_INDEX;
+                            }
+                        }
                     }
                 }
 
@@ -543,10 +543,10 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                     if (next.x === p.x && next.y < p.y) {
                         const nextGridY = Math.floor(next.y / LOGICAL_Y_SCALE);
                         if (nextGridY === gridY) {
-                             if ((next.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
-                                 clipTopRem = next.y % LOGICAL_Y_SCALE;
-                             }
-                         }
+                            if ((next.y % LOGICAL_Y_SCALE) < GAP_LANE_INDEX) {
+                                clipTopRem = next.y % LOGICAL_Y_SCALE;
+                            }
+                        }
                     }
                 }
             } else {
@@ -565,7 +565,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 x: p.x,
                 y: p.y,
                 type,
-                lane: index+1, // Naive lane
+                lane: index + 1, // Naive lane
                 totalLanes: total,
                 length: 1,
                 clipTopRem,
@@ -652,12 +652,12 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                         }
                     }
                 } else if (c.type === SegmentType.CornerTL || c.type === SegmentType.CornerTR) {
-                     // Bottom Leg
-                     for (const v of verticals) {
-                         if (extendsLower(v.clipBotRem, c.clipBotRem)) {
-                             c.clipBotRem = v.clipBotRem;
-                         }
-                     }
+                    // Bottom Leg
+                    for (const v of verticals) {
+                        if (extendsLower(v.clipBotRem, c.clipBotRem)) {
+                            c.clipBotRem = v.clipBotRem;
+                        }
+                    }
                 }
             }
 
@@ -694,7 +694,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                         merged.clipTopRem = v.clipTopRem;
                     }
                     if (extendsLower(v.clipBotRem, merged.clipBotRem)) {
-                         merged.clipBotRem = v.clipBotRem;
+                        merged.clipBotRem = v.clipBotRem;
                     }
                 }
                 coalescedSegments.push(merged);
