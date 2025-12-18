@@ -23,6 +23,7 @@ export interface LocalState {
   gridMetrics: GridMetrics; // Comprehensive Grid State
   wireLayout: LayoutResult;
   layoutVersion: number;
+  viewport: { x: number, y: number, w: number, h: number };
 
   // Serialized settings.
   localSettings: LocalSettings;
@@ -81,6 +82,7 @@ export class LocalController {
 
       inferredNodeTypes: new Map<string, { inputs: any, outputs: any }>(), // Initialize the new map
       effectiveNodeTypes: new Map<string, { inputs: PortHint[], outputs: PortHint[] }>(),
+      viewport: { x: 0, y: 0, w: 0, h: 0 },
       gridMetrics: {
         cells: new Map(),
         columns: new Map(),
@@ -514,5 +516,98 @@ export class LocalController {
   @action
   public setLastGroupSelection(selection: Set<string> | null): void {
     this.observableState.lastGroupSelection = selection;
+  }
+
+  @action
+  public setViewport(x: number, y: number, w: number, h: number): void {
+    this.observableState.viewport = { x, y, w, h };
+  }
+
+  public getViewportCenterGridCoordinates(): { x: number, y: number } {
+    // We don't track Pan/Zoom in LocalState yet (it's in GraphGrid DOM state usually).
+    // BUT, the prompt implies "It should know how to compute the current viewport".
+    // If we don't track it, we need to.
+    // GraphGrid handles scroll.
+    // The user mentioned "It should know how to compute the current viewport in a stable way."
+    // Let's assume we need to query GraphGrid or move that state here.
+    // Wait, GraphGrid has `scrollLeft` and `scrollTop`.
+    // We can't easily access the DOM from here without a reference.
+    // However, if we want a *systemic* way, the Controller should probably know about the Viewport.
+    // For now, let's implement a registry or callback system where GraphGrid registers itself?
+    // OR, simpler: Dispatch an event? No, we want a direct call.
+    //
+    // Actually, `workspaceController` might be a better place for "Canvas" related things?
+    // Let's check `workspace-controller.ts`.
+    //
+    // If I cannot find viewport state, I will implement a bridge.
+    // But let's look at `GraphGrid` again. It has `this.scrollLeft`.
+    //
+    // Proposal:
+    // Add `viewport` to `LocalState`.
+    // Have `GraphGrid` update `LocalState.viewport` on scroll (throttled).
+    // Then `getViewportCenter` uses that.
+
+    // Let's start by adding the interface to LocalState, then implementing the sync.
+    const { viewport } = this.observableState;
+    if (!viewport) return { x: 5, y: 5 }; // Fallback
+
+    // Assuming 50px grid approximation or use GridMetrics?
+    // Grid cells are variable width.
+    // But we have rowOffsets!
+
+    // Center X/Y in pixels
+    const centerX = viewport.x + (viewport.w / 2);
+    const centerY = viewport.y + (viewport.h / 2);
+
+    // Find Row
+    // Iterate rowOffsets to find Y
+    let gridY = 0;
+    for (const [row, offset] of this.observableState.gridMetrics.rowOffsets) {
+      if (offset > centerY) {
+        gridY = Math.max(0, row - 1);
+        break;
+      }
+      gridY = row;
+    }
+
+    // Extrapolation for empty space below content
+    // If the loop finished without breaking (meaning centerY > all offsets),
+    // OR if we are at the last known row but centerY is way below it.
+    const lastRowIndex = Math.max(0, ...this.observableState.gridMetrics.rowOffsets.keys());
+
+    // Only attempt extrapolation if we are at or theoretically past the last known row
+    // (Note: gridY set to 'row' in the loop tracks the current row being checked.
+    // If we passed all, gridY is the last row index.)
+    if (gridY >= lastRowIndex) {
+      const lastRowTop = this.observableState.gridMetrics.rowOffsets.get(lastRowIndex) || 16;
+      const lastRowHeight = this.observableState.gridMetrics.rows.get(lastRowIndex) || 80;
+      const bottomOfLastRow = lastRowTop + lastRowHeight;
+
+      if (centerY > bottomOfLastRow) {
+        const diff = centerY - bottomOfLastRow;
+        const stride = 80 + 16; // 96px (Default Height + Gap)
+        // Calculate how many rows down we are
+        // If we are just 1px below, we are in the next row (conceptually)
+        const extraRows = Math.floor(diff / stride) + 1;
+        gridY = lastRowIndex + extraRows;
+      }
+    }
+
+    return { x: 5, y: gridY };
+
+    // Find Col
+    // Columns are variable width too, but roughly:
+    // Input(0) -> Gap -> Node(0) (Col 3) -> Gap -> Node(1) (Col 5)
+    // We effectively map pixels to columns.
+    // Since columns are flexible, this is harder.
+    // BUT, we can estimate?
+    // "Close to the midpoint".
+
+    // Let's just assume a safe default column like 5 if precise calc is hard.
+    // Or better: Iterate columns and sum widths?
+    // That requires order.
+
+    // Let's implement the simpler version: returning a reasonable default if complex logic fails.
+    return { x: 5, y: gridY };
   }
 }

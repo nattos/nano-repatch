@@ -629,6 +629,7 @@ export class GraphGrid extends MobxLitElement {
     this.resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         this.clientWidth = entry.contentRect.width;
+        this.updateViewport();
       }
     });
   }
@@ -636,6 +637,18 @@ export class GraphGrid extends MobxLitElement {
   private handleScroll(e: Event) {
     const target = e.target as HTMLElement;
     this.scrollLeft = target.scrollLeft;
+    this.updateViewport();
+  }
+
+  private updateViewport() {
+    // Debounce or raw? Raw for now, Reactivity handles debounce in listeners if needed.
+    // Or we can debounce here if performance is an issue.
+    localController.setViewport(
+      this.scrollLeft || 0,
+      this.scrollTop || 0,
+      this.clientWidth || this.offsetWidth,
+      this.clientHeight || this.offsetHeight
+    );
   }
 
   @property({ type: String })

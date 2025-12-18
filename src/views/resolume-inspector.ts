@@ -4,7 +4,7 @@ import { MobxLitElement } from './mobx-lit-element';
 import { Selectable } from '../builder/local-state';
 import { ResolumeComposition, ResolumeLayer, ResolumeClip, ResolumeEffect, ResolumeParameter } from '../io/resolume/state';
 import { resolumeManager } from '../io/resolume/manager';
-import { appController } from '../builder/controllers';
+import { appController, localController } from '../builder/controllers';
 
 @customElement('resolume-inspector')
 export class ResolumeInspector extends MobxLitElement {
@@ -396,50 +396,29 @@ export class ResolumeInspector extends MobxLitElement {
   }
 
   private handleDoubleClick(e: MouseEvent, param: ResolumeParameter) {
-    // 1. Find the graph-grid
-    const grid = document.querySelector('graph-grid');
-    if (!grid || !grid.shadowRoot) return;
+    // Systemic insertion using LocalController's viewport knowledge
+    // This avoids querying the DOM for graph-grid or its shadow root which is flaky/encapsulated.
+    const { x: gridX, y: gridY } = localController.getViewportCenterGridCoordinates();
 
-    // 2. Calculate center of viewport
-    const rect = grid.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
+    // Check for collision with existing nodes
+    const nodes = appController.getState().graph.inner.nodes;
+    let targetY = gridY;
+    let attempts = 0;
+    const maxAttempts = 10;
 
-    // 3. Probe for cell at center
-    const elements = grid.shadowRoot.elementsFromPoint(centerX, centerY);
-    const cell = elements.find(el => (el as Element).classList?.contains('node-cell'));
+    // Use specific X column logic if needed (e.g. output parameters), but viewport center is safe default.
+    // If we wanted to be smarter:
+    // If output param, try to put near Output column?
+    // But "viewport center" is standard user expectation.
 
-    if (cell && (cell as HTMLElement).dataset.x && (cell as HTMLElement).dataset.y) {
-       const x = parseInt((cell as HTMLElement).dataset.x || '0');
-       const y = parseInt((cell as HTMLElement).dataset.y || '0');
-
-       // Handle output/input column cases (though unusual for center, safety first)
-       let gridX = x;
-       if ((cell as HTMLElement).dataset.x === 'output') gridX = 20; // Fallback
-       if (x === 0 && (cell as HTMLElement).dataset.x !== '0') gridX = 20; // 'output' case parsed? NaN?
-       if ((cell as HTMLElement).dataset.x === 'output') {
-           gridX = 20;
-       }
-
-       // 4. Create Node
-       // Check for collision with existing nodes
-       const nodes = appController.getState().graph.inner.nodes;
-       let targetY = y;
-       let attempts = 0;
-       const maxAttempts = 10;
-
-       while (attempts < maxAttempts) {
-           const occupied = Object.values(nodes).some(n => n.x === gridX && n.y === targetY);
-           if (!occupied) break;
-           targetY++;
-           attempts++;
-       }
-
-       appController.createNode('resolume.output', gridX, targetY, { path: param.path });
-    } else {
-       // Fallback: Default to center-ish (e.g. 5, 5) if probing fails
-       appController.createNode('resolume.output', 5, 5, { path: param.path });
+    while (attempts < maxAttempts) {
+      const occupied = Object.values(nodes).some(n => n.x === gridX && n.y === targetY);
+      if (!occupied) break;
+      targetY++;
+      attempts++;
     }
+
+    appController.createNode('resolume.output', gridX, targetY, { path: param.path });
   }
 
   private renderRange(param: ResolumeParameter) {
