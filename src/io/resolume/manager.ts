@@ -73,8 +73,8 @@ export class ResolumeManager {
         (data) => this.handleMessage(data),
         (err) => console.error('[ResolumeManager] WS Error:', err),
         () => {
-             console.log('[ResolumeManager] WS Closed');
-             this.isConnecting = false;
+          console.log('[ResolumeManager] WS Closed');
+          this.isConnecting = false;
         }
       );
     } catch (e) {

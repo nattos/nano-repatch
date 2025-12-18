@@ -177,6 +177,14 @@ export class RuntimeManager {
     }
   }
 
+  public sendResolumeControl(action: 'connect' | 'disconnect') {
+    const msg: ExecutorWorkerMessage = {
+      type: 'RESOLUME_CONTROL',
+      action
+    };
+    this.executorWorker.postMessage(msg);
+  }
+
   public sendNodeMessage(nodeId: string, message: any) {
     const msg: ExecutorWorkerMessage = {
       type: 'NODE_MESSAGE',

@@ -60,9 +60,15 @@ export type ControlMessage = {
   frameRate?: number;
 };
 
+// ... (existing code)
 export type UpdateAudioStateMessage = {
   type: 'UPDATE_AUDIO_STATE';
   state: 'suspended' | 'running' | 'closed';
+};
+
+export type ResolumeControlMessage = {
+  type: 'RESOLUME_CONTROL';
+  action: 'connect' | 'disconnect';
 };
 
 export type MidiUpdateMessage = {
@@ -84,6 +90,7 @@ export type ExecutorWorkerMessage =
   | ControlMessage
   | MidiUpdateMessage
   | UpdateAudioStateMessage
+  | ResolumeControlMessage
   | NodeMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';

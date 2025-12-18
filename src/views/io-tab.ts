@@ -1,6 +1,7 @@
 import './ui-button';
 import './ui-panel';
 import { html, css } from 'lit';
+import { runtimeManager } from '../builder/controllers';
 import { customElement } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
 import { resolumeManager } from '../io/resolume/manager';
@@ -271,8 +272,10 @@ export class IOTab extends MobxLitElement {
   toggleResolume() {
     if (resolumeManager.isConnected) {
       resolumeManager.disconnect();
+      runtimeManager.sendResolumeControl('disconnect');
     } else {
       resolumeManager.connect();
+      runtimeManager.sendResolumeControl('connect');
     }
   }
 

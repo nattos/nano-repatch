@@ -30,6 +30,11 @@ export const resolumeInputNode = defineNode({
   autoBroadcast: false,
   isRealtime: () => true, // Inputs change over time
   ui: { inspector: { fields: ResolumeFields } },
+  getDisplayLabel: (config) => {
+    if (!config.path) return undefined;
+    const parts = config.path.split('/');
+    return parts[parts.length - 1] || config.path;
+  },
 
   createState: (config, context) => {
     // Initial state
@@ -100,6 +105,11 @@ export const resolumeOutputNode = defineNode({
   outputs: {},
   autoBroadcast: true,
   ui: { inspector: { fields: ResolumeFields } },
+  getDisplayLabel: (config) => {
+    if (!config.path) return undefined;
+    const parts = config.path.split('/');
+    return parts[parts.length - 1] || config.path;
+  },
 
   createState: (config, context) => {
     return { lastValue: undefined as any };

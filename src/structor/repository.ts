@@ -107,7 +107,16 @@ export interface NodeType {
   /**
    * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
    */
+  /**
+   * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
+   */
   shouldRecompileOnConfigChange?: (config: any) => boolean;
+
+  /**
+   * Returns a dynamic display label for the node based on its configuration.
+   * This is used when the node name is set to "#" or is empty.
+   */
+  getDisplayLabel?: (config: any) => string | undefined;
 }
 
 export class NodeRepository {
@@ -645,7 +654,7 @@ defaultNodeRepository.register({
   definition: primitive_pack,
   inputs: [],
   outputs: [
-      { name: 'result', type: AnyType, description: 'Record' }
+    { name: 'result', type: AnyType, description: 'Record' }
   ],
   ui: primitive_pack.ui,
   shouldRecompileOnConfigChange: () => true,
@@ -657,7 +666,7 @@ defaultNodeRepository.register({
   displayName: 'Unpack',
   definition: primitive_unpack,
   inputs: [
-      { name: 'record', type: AnyType, description: 'Record to unpack' }
+    { name: 'record', type: AnyType, description: 'Record to unpack' }
   ],
   outputs: [], // Dynamic outputs based on record
 });

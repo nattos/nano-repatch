@@ -7,6 +7,7 @@ import { appController, localController, runtimeManager } from '../builder/contr
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
+import { getNodeDisplayName } from '../structor/node-helpers';
 import '../structor/repository.ui'; // Import UI repository side-effects
 import { parseFloatOr } from '../utils/utils';
 import { getNodeVisualState, shouldShowInputEditor } from '../utils/node-width-utils';
@@ -1013,11 +1014,11 @@ export class GraphNode extends MobxLitElement {
     if (effectiveType) {
       inputs = effectiveType.inputs;
       outputs = effectiveType.outputs;
-      displayName = nodeType?.displayName || this.node.config.typeId;
+      displayName = getNodeDisplayName(this.node.config, nodeType);
     } else if (nodeType) {
       inputs = [...(nodeType.inputs || [])];
       outputs = [...(nodeType.outputs || [])];
-      displayName = nodeType.displayName || this.node.config.typeId;
+      displayName = getNodeDisplayName(this.node.config, nodeType);
     }
 
     // Get current incoming connections to this node
@@ -1168,7 +1169,7 @@ export class GraphNode extends MobxLitElement {
                 @dblclick=${(e: MouseEvent) => this.handleDoubleClick('name', e)}
                 style="display: block; overflow: hidden; text-overflow: ellipsis; visibility: ${this.editingField === 'name' ? 'hidden' : 'visible'};"
               >
-                ${this.node.config.name || displayName}
+                ${displayName || this.node.config.name}
               </span>
               ${this.editingField === 'name' ? html`
                 <smart-input

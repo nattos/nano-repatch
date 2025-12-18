@@ -58,9 +58,6 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         }
       }
 
-      // Lazy connect resolume
-      resolumeManager.connect();
-
       // Reset audio context ONLY on new graph load (not recompilation)
       if (!msg.isRecompilation) {
         virtualAudioContext.reset();
@@ -72,8 +69,8 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         // We need to sanitize/serialize the Map
         // MessagePort maps are fine? Structured clone should handle Map and objects.
         self.postMessage({
-            type: 'INFERRED_TYPES',
-            inferredNodeTypes: inferredTypes
+          type: 'INFERRED_TYPES',
+          inferredNodeTypes: inferredTypes
         });
       }
 
@@ -115,6 +112,14 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
 
     case 'UPDATE_AUDIO_STATE':
       virtualAudioContext.state = msg.state;
+      break;
+
+    case 'RESOLUME_CONTROL':
+      if (msg.action === 'connect') {
+        resolumeManager.connect();
+      } else if (msg.action === 'disconnect') {
+        resolumeManager.disconnect();
+      }
       break;
 
     case 'MIDI_UPDATE':

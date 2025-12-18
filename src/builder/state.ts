@@ -207,7 +207,7 @@ export class AppController {
   public onInferredTypesUpdate(listener: (inferredTypes: Record<string, any>) => void): () => void {
     this.inferredTypesUpdateListeners.push(listener);
     return () => {
-        this.inferredTypesUpdateListeners = this.inferredTypesUpdateListeners.filter(l => l !== listener);
+      this.inferredTypesUpdateListeners = this.inferredTypesUpdateListeners.filter(l => l !== listener);
     };
   }
 
@@ -286,11 +286,11 @@ export class AppController {
         const mutationsForHistory = mutations.filter(m => m.type !== 'graph.updateInferredTypes');
 
         if (mutationsForHistory.length > 0) {
-            const inverseMutations = this.createInverse(mutationsForHistory);
-            runInAction(() => {
-              this.undoStack.push(inverseMutations);
-              this.redoStack = [];
-            });
+          const inverseMutations = this.createInverse(mutationsForHistory);
+          runInAction(() => {
+            this.undoStack.push(inverseMutations);
+            this.redoStack = [];
+          });
         }
       }
     }
@@ -354,13 +354,13 @@ export class AppController {
       }
     }
 
-    for(const mutation of mutations) {
-        if (mutation.type === 'graph.updateInferredTypes') {
-            for (const listener of this.inferredTypesUpdateListeners) {
-                try { listener(mutation.inferredTypes); } catch(e) { console.error(e); }
-            }
-            break;
+    for (const mutation of mutations) {
+      if (mutation.type === 'graph.updateInferredTypes') {
+        for (const listener of this.inferredTypesUpdateListeners) {
+          try { listener(mutation.inferredTypes); } catch (e) { console.error(e); }
         }
+        break;
+      }
     }
   }
 
@@ -478,7 +478,7 @@ export class AppController {
       id,
       x,
       y,
-      config: { typeId, values: {}, ...restConfig },
+      config: { typeId, name: '#', values: {}, ...restConfig },
     };
     this.dispatch([{ type: 'node.create', node: newNode }, { type: 'graph.recompile' }]);
     return newNode;
@@ -585,10 +585,10 @@ export class AppController {
       for (const otherNode of Object.values(state.graph.inner.nodes)) {
         if (otherNode.id === current.id) continue;
         if (finalMoves.has(otherNode.id)) {
-             // If the other node is ALSO moving efficiently, we check its DESTINATION?
-             // This gets complex.
-             // Let's rely on looking up current state + planned moves.
-             continue;
+          // If the other node is ALSO moving efficiently, we check its DESTINATION?
+          // This gets complex.
+          // Let's rely on looking up current state + planned moves.
+          continue;
         }
 
         // Is otherNode at the target position?
@@ -613,9 +613,9 @@ export class AppController {
 
     // Convert map to array
     const moves = Array.from(finalMoves.values()).map((m: any) => ({
-        nodeId: m.nodeId,
-        from: m.from,
-        to: m.to
+      nodeId: m.nodeId,
+      from: m.from,
+      to: m.to
     }));
 
     this.dispatch([{ type: 'node.move', moves }]);
@@ -706,10 +706,10 @@ export class AppController {
     mutations.push({ type: 'graph.recompile' });
 
     if (graphState.inferredNodeTypes) {
-        mutations.push({
-            type: 'graph.updateInferredTypes',
-            inferredTypes: graphState.inferredNodeTypes
-        });
+      mutations.push({
+        type: 'graph.updateInferredTypes',
+        inferredTypes: graphState.inferredNodeTypes
+      });
     }
 
     this.dispatch(mutations);
@@ -779,7 +779,7 @@ export class AppController {
           state.graph.auxiliary.outgoingConnections.delete(mutation.node.id);
           state.graph.auxiliary.incomingConnections.delete(mutation.node.id);
           if (state.graph.inner.inferredNodeTypes) {
-             delete state.graph.inner.inferredNodeTypes[mutation.node.id];
+            delete state.graph.inner.inferredNodeTypes[mutation.node.id];
           }
           break;
         case 'connection.create':
@@ -837,9 +837,9 @@ export class AppController {
           // No state change, just a signal
           break;
         case 'graph.updateInferredTypes':
-            // Correctly replace the map instead of merging stale keys
-            state.graph.inner.inferredNodeTypes = mutation.inferredTypes;
-            break;
+          // Correctly replace the map instead of merging stale keys
+          state.graph.inner.inferredNodeTypes = mutation.inferredTypes;
+          break;
           // No state change, just a signal
           break;
       }

@@ -79,6 +79,7 @@ export interface EnhancedNodeOptions<
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
+  getDisplayLabel?: (config: any) => string | undefined;
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
@@ -98,6 +99,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
+  getDisplayLabel?: (config: any) => string | undefined;
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: ExtendedNodeOutputsDef;
 
@@ -152,6 +154,7 @@ export function defineNode<
     aliases: options.aliases,
     compileConfig: options.compileConfig,
     compilePorts: options.compilePorts,
+    getDisplayLabel: options.getDisplayLabel,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
 
@@ -200,6 +203,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     outputs,
     compileConfig: def.compileConfig,
     compilePorts: def.compilePorts,
+    getDisplayLabel: def.getDisplayLabel,
 
     inspectInputs: def.inspectInputs,
   };
@@ -212,4 +216,47 @@ export function registerNode(def: EnhancedNodeDefinition) {
   (nodeType as any).ui = def.ui;
 
   defaultNodeRepository.register(nodeType);
+}
+
+export function getNodeDisplayName(nodeConfig: any, nodeType: NodeType | undefined): string {
+  const name = nodeConfig.name;
+  const typeId = nodeConfig.typeId;
+
+  if (!nodeType) {
+    // Fallback if node type validation is not available
+    const isDefault = !name || name === '#';
+    if (isDefault) return typeId;
+
+    // Attempt hash replacement with typeId
+    if (name && name.includes('#')) {
+      return name.replace(/#/g, typeId);
+    }
+
+    return name;
+  }
+
+  // If user explicitly clears the name, it might be empty string.
+  // We treat empty string as "use default dynamic label".
+  // The special value "#" also means "use default dynamic label".
+
+  const isDefault = !name || name === '#';
+  const hasHash = name && name.includes('#');
+
+  if (isDefault) {
+    // Attempt dynamic label
+    if (nodeType.getDisplayLabel) {
+      const dynamic = nodeType.getDisplayLabel(nodeConfig);
+      if (dynamic) return dynamic;
+    }
+    // Fallback to static display name
+    return nodeType.displayName;
+  }
+
+  if (hasHash) {
+    // Replace hash with dynamic label
+    const dynamic = nodeType.getDisplayLabel ? nodeType.getDisplayLabel(nodeConfig) : nodeType.displayName;
+    return name.replace(/#/g, dynamic || nodeType.displayName);
+  }
+
+  return name;
 }

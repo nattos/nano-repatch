@@ -4,6 +4,7 @@ import { RuntimeManager } from '../runtime/manager';
 import { WorkspaceController } from './workspace-controller';
 
 import { registerNicePatternUI } from '../customnodes/nicepattern/ui-registration';
+import { resolumeManager } from '../io/resolume/manager';
 
 import { reaction, toJS } from 'mobx';
 
@@ -16,6 +17,10 @@ export const localController = new LocalController();
 export const runtimeManager = new RuntimeManager(appController, localController);
 export const workspaceController = new WorkspaceController(appController);
 
+// Initial connection to Resolume
+resolumeManager.connect();
+runtimeManager.sendResolumeControl('connect');
+
 // React to graph changes to update wire layout
 reaction(
   () => toJS(appController.observableState.graph.inner),
@@ -27,9 +32,9 @@ reaction(
 
 // Listen for inferred types updates and propagate to LocalController
 appController.onInferredTypesUpdate((inferredTypes) => {
-    localController.updateInferredTypes(inferredTypes, (nodeId) => {
-        return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
-    });
+  localController.updateInferredTypes(inferredTypes, (nodeId) => {
+    return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
+  });
 });
 
 // Expose for E2E testing
