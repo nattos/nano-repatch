@@ -58,10 +58,10 @@ export class GraphGrid extends MobxLitElement {
         Col 2*12+3: Output
       */
       grid-template-columns:
-        [input] minmax(120px, auto)
+        [input] minmax(80px, auto)
         [gap-start] var(--grid-gap, 16px)
         repeat(12, [node] auto [gap] var(--grid-gap, 16px))
-        [output] minmax(120px, auto);
+        [output] minmax(80px, auto);
 
       grid-template-rows:
         [gap-top] var(--grid-gap, 16px)
@@ -150,16 +150,40 @@ export class GraphGrid extends MobxLitElement {
       /* Ensure full coverage of the track */
       width: 100%;
       height: 100%;
+      overflow: visible; /* Allow pseudo-elements to extend */
     }
 
+    /* Extend Input Column to the right (half gap) */
+    .cell[data-x="input"]::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: -8px; /* extend 8px into the 16px gap */
+      bottom: 0;
+      width: 8px;
+      background-color: var(--bg-color);
+      border-right: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    /* Extend Output Column to the left (half gap) */
+    .cell[data-x="output"]::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -8px; /* extend 8px into the 16px gap */
+      bottom: 0;
+      width: 8px;
+      background-color: var(--bg-color);
+      border-left: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    /* Remove old borders */
     .cell[data-x="input"] {
       left: 0;
-      border-right: 1px dashed rgba(255,255,255,0.1); /* Optional separator */
     }
 
     .cell[data-x="output"] {
       right: 0;
-      border-left: 1px dashed rgba(255,255,255,0.1);
     }
 
     /* Sticky Nodes */
