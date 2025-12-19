@@ -65,6 +65,15 @@ export class GraphNode extends MobxLitElement {
   @property({ type: Number })
   y = 0;
 
+  @property({ type: String })
+  gridColumn = '';
+
+  @property({ type: String })
+  gridRow = '';
+
+  @property({ type: Number })
+  parentZIndex = 100;
+
   private catalog = new NodeCatalog(defaultNodeRepository);
 
   @state()
@@ -108,7 +117,10 @@ export class GraphNode extends MobxLitElement {
       box-sizing: border-box;
       /* place-self: start; Removed to allow grid alignment */
       /* padding: 10px; Removed padding to allow full control of node size */
+      /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
+      justify-self: center;
+      align-self: center;
     }
 
 
@@ -909,6 +921,11 @@ export class GraphNode extends MobxLitElement {
 
     if (this.node) {
       this.dataset.id = this.node.id;
+
+      // Apply Layout Props to Host Style
+      this.style.gridColumn = this.gridColumn;
+      this.style.gridRow = this.gridRow;
+      this.style.zIndex = this.parentZIndex.toString();
 
       // Re-calculate state for host attribute
       // Re-calculate state for host attribute

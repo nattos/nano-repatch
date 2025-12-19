@@ -1726,7 +1726,9 @@ export class GraphGrid extends MobxLitElement {
               .isQueued=${isQueued}
               .x=${node.x}
               .y=${node.y}
-              style="grid-column: ${col} / span ${span}; grid-row: ${row}; z-index: ${isSelected ? 110 : 100}; justify-self: center; align-self: center;"
+              .gridColumn=${`${col} / span ${span}`}
+              .gridRow=${`${row}`}
+              .parentZIndex=${isSelected ? 110 : 100}
             ></graph-node>
           `;
   }

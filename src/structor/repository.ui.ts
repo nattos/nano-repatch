@@ -100,9 +100,10 @@ attachUI('subgraph', {
 });
 
 // Expression Node
-attachUI('expression:script', {
+attachUI('logic.expression', {
   renderInspector: (node, onchange) => html`
-@change=${(e: CustomEvent) => onchange({ code: e.detail.value })}
-    > </monaco-editor-wrapper>
+  <monaco-editor-wrapper
+    @change=${(e: CustomEvent) => onchange({ code: e.detail.value })}
+    ></monaco-editor-wrapper>
   `
 });
