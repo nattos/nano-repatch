@@ -515,10 +515,17 @@ export class GraphNode extends MobxLitElement {
         if (gridHost) {
           const rect = this.getBoundingClientRect();
           const gridRect = gridHost.getBoundingClientRect();
-          const centerX = rect.left + (rect.width / 2);
-          const centerY = rect.top + (rect.height / 2);
-          const relativeX = centerX - gridRect.left + gridHost.scrollLeft;
-          const relativeY = centerY - gridRect.top + gridHost.scrollTop;
+          const ANCHOR_BIAS = 40;
+          let anchorX = rect.left + (rect.width / 2);
+          if (delta[0] < 0) anchorX = rect.left + ANCHOR_BIAS;
+          else if (delta[0] > 0) anchorX = rect.right - ANCHOR_BIAS;
+
+          let anchorY = rect.top + (rect.height / 2);
+          if (delta[1] < 0) anchorY = rect.top + ANCHOR_BIAS;
+          else if (delta[1] > 0) anchorY = rect.bottom - ANCHOR_BIAS;
+
+          const relativeX = anchorX - gridRect.left + gridHost.scrollLeft;
+          const relativeY = anchorY - gridRect.top + gridHost.scrollTop;
 
           const cell = localController.getGridCellFromPixels(relativeX, relativeY);
           localController.setDragPreview({ x: cell.x, y: cell.y, w: 1, h: 1 });
@@ -543,12 +550,23 @@ export class GraphNode extends MobxLitElement {
     // Use current bounding box (which includes the drag transform) to find center
     const rect = this.getBoundingClientRect();
     const gridRect = gridHost.getBoundingClientRect();
-    const centerX = rect.left + (rect.width / 2);
-    const centerY = rect.top + (rect.height / 2);
+
+    // Directional Bias Logic
+    const ANCHOR_BIAS = 40;
+
+    // X Axis
+    let anchorX = rect.left + (rect.width / 2);
+    if (delta[0] < 0) anchorX = rect.left + ANCHOR_BIAS;
+    else if (delta[0] > 0) anchorX = rect.right - ANCHOR_BIAS;
+
+    // Y Axis
+    let anchorY = rect.top + (rect.height / 2);
+    if (delta[1] < 0) anchorY = rect.top + ANCHOR_BIAS;
+    else if (delta[1] > 0) anchorY = rect.bottom - ANCHOR_BIAS;
 
     // Convert to relative grid coordinates
-    const relativeX = centerX - gridRect.left + gridHost.scrollLeft;
-    const relativeY = centerY - gridRect.top + gridHost.scrollTop;
+    const relativeX = anchorX - gridRect.left + gridHost.scrollLeft;
+    const relativeY = anchorY - gridRect.top + gridHost.scrollTop;
 
     // Get exact target cell using the SAME logic as the preview
     const targetCell = localController.getGridCellFromPixels(relativeX, relativeY);

@@ -25,7 +25,7 @@ export class InspectorPopup extends MobxLitElement {
       flex-direction: column;
       box-sizing: border-box;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-      z-index: 100;
+      z-index: 255;
     }
 
     .header {
