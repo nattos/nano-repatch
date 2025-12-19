@@ -115,7 +115,7 @@ export function compileGraph(
               } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
                 value = ((portDef as any).type as any).defaultValue;
               } else {
-                 // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
+                // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
               }
             }
 
@@ -220,11 +220,11 @@ export function compileGraph(
 
     if (adjacency.has(u)) {
       for (const { toNode, connIndex } of adjacency.get(u)!) {
-         validConnectionIndices.add(connIndex);
-         inDegree.set(toNode, (inDegree.get(toNode) || 0) - 1);
-         if (inDegree.get(toNode) === 0) {
-           queue.push(toNode);
-         }
+        validConnectionIndices.add(connIndex);
+        inDegree.set(toNode, (inDegree.get(toNode) || 0) - 1);
+        if (inDegree.get(toNode) === 0) {
+          queue.push(toNode);
+        }
       }
     }
   }
@@ -238,11 +238,11 @@ export function compileGraph(
   // We should probably include them in the result but disconnected?
   // Or just warn.
   if (executionOrder.length !== Object.keys(flatNodes).length) {
-     console.warn(`Graph contains cycles! Only ${executionOrder.length}/${Object.keys(flatNodes).length} nodes differ in DAG.`);
-     // Add remaining nodes to execution order arbitrarily to ensure they exist in the map
-      for (const nodeId of Object.keys(flatNodes)) {
-        if (!executionOrder.includes(nodeId)) executionOrder.push(nodeId);
-      }
+    console.warn(`Graph contains cycles! Only ${executionOrder.length}/${Object.keys(flatNodes).length} nodes differ in DAG.`);
+    // Add remaining nodes to execution order arbitrarily to ensure they exist in the map
+    for (const nodeId of Object.keys(flatNodes)) {
+      if (!executionOrder.includes(nodeId)) executionOrder.push(nodeId);
+    }
   }
 
   const validConnections = flatConnections.filter((_, index) => validConnectionIndices.has(index));
@@ -276,57 +276,57 @@ export function compileGraph(
     const nodeDef = nodeRepository.get(instance.definitionId);
 
     if (nodeDef && nodeDef.kind === 'primitive') {
-        const reqs = { kind: 'record', fields: outputRequirements.get(nodeId) || {} } as RecordType;
-        const config = instance.defaultConfig || { fields: {} }; // Wrapped in 'fields' usually? structor is Structor value.
-        // Actually defaultConfig is likely just a JS object (Structor).
-        // Let's assume it matches the shape.
+      const reqs = { kind: 'record', fields: outputRequirements.get(nodeId) || {} } as RecordType;
+      const config = instance.defaultConfig || { fields: {} }; // Wrapped in 'fields' usually? structor is Structor value.
+      // Actually defaultConfig is likely just a JS object (Structor).
+      // Let's assume it matches the shape.
 
-        // 1. Compute Input Requirements
-        // Start with static input definitions as baseline requirements
-        let inputReqs: RecordType = {
+      // 1. Compute Input Requirements
+      // Start with static input definitions as baseline requirements
+      let inputReqs: RecordType = {
+        kind: 'record',
+        fields: nodeDef.inputs ? { ...nodeDef.inputs } : {}
+      };
+
+      if (nodeDef.computeBackwardPorts) {
+        try {
+          // Pass the baseline requirements to the function?
+          // Or just let it return its own and merge?
+          // The interface implies it calculates them based on outputs.
+          // Let's merge.
+          const result = nodeDef.computeBackwardPorts(reqs, config, context);
+          // Merge/Override static inputs with dynamic requirements
+          inputReqs = {
             kind: 'record',
-            fields: nodeDef.inputs ? { ...nodeDef.inputs } : {}
-        };
+            fields: { ...inputReqs.fields, ...result.inputRequirements.fields }
+          };
 
-        if (nodeDef.computeBackwardPorts) {
-            try {
-                // Pass the baseline requirements to the function?
-                // Or just let it return its own and merge?
-                // The interface implies it calculates them based on outputs.
-                // Let's merge.
-                const result = nodeDef.computeBackwardPorts(reqs, config, context);
-                // Merge/Override static inputs with dynamic requirements
-                inputReqs = {
-                    kind: 'record',
-                    fields: { ...inputReqs.fields, ...result.inputRequirements.fields }
-                };
-
-                if (result.backwardMetadata) {
-                    backwardMetadata.set(nodeId, result.backwardMetadata);
-                }
-            } catch (e) {
-                console.warn(`Backward pass failed for ${nodeId} (${nodeDef.id}):`, e);
-            }
+          if (result.backwardMetadata) {
+            backwardMetadata.set(nodeId, result.backwardMetadata);
+          }
+        } catch (e) {
+          console.warn(`Backward pass failed for ${nodeId} (${nodeDef.id}):`, e);
         }
+      }
 
-        // 2. Propagate Input Requirements to Upstream Nodes
-        // Find connections providing input to this node
-        const inputConns = validConnections.filter(c => c.toNode === nodeId);
+      // 2. Propagate Input Requirements to Upstream Nodes
+      // Find connections providing input to this node
+      const inputConns = validConnections.filter(c => c.toNode === nodeId);
 
-        for (const conn of inputConns) {
-             const upstreamNodeId = conn.fromNode;
-             const upstreamPort = conn.fromPort.toString();
-             const downstreamPort = conn.toPort.toString();
+      for (const conn of inputConns) {
+        const upstreamNodeId = conn.fromNode;
+        const upstreamPort = conn.fromPort.toString();
+        const downstreamPort = conn.toPort.toString();
 
-             if (inputReqs.fields[downstreamPort]) {
-                 // The node says: "I need Type T on input 'downstreamPort'"
-                 // So we tell the upstream node: "Your output 'upstreamPort' is required to be Type T"
-                 const upstreamReqs = outputRequirements.get(upstreamNodeId)!;
-                 // If multiple nodes require different types, we might need to Union/Merge.
-                 // For now, Last Write Wins or simple override.
-                 upstreamReqs[upstreamPort] = inputReqs.fields[downstreamPort];
-             }
+        if (inputReqs.fields[downstreamPort]) {
+          // The node says: "I need Type T on input 'downstreamPort'"
+          // So we tell the upstream node: "Your output 'upstreamPort' is required to be Type T"
+          const upstreamReqs = outputRequirements.get(upstreamNodeId)!;
+          // If multiple nodes require different types, we might need to Union/Merge.
+          // For now, Last Write Wins or simple override.
+          upstreamReqs[upstreamPort] = inputReqs.fields[downstreamPort];
         }
+      }
     }
   }
 
@@ -337,106 +337,94 @@ export function compileGraph(
     const nodeDef = nodeRepository.get(instance.definitionId);
 
     if (nodeDef && nodeDef.kind === 'primitive') {
-        // 1. Gather Input Types from Upstream
-        const resolvedInputs: Record<string, StructorType> = {};
+      // 1. Gather Input Types from Upstream
+      const resolvedInputs: Record<string, StructorType> = {};
 
-        // Initialize with statically defined inputs (to prevent port loss for unconnected ports)
-        if (nodeDef.inputs) {
-            Object.assign(resolvedInputs, nodeDef.inputs);
-        }
+      // Initialize with statically defined inputs (to prevent port loss for unconnected ports)
+      if (nodeDef.inputs) {
+        Object.assign(resolvedInputs, nodeDef.inputs);
+      }
 
-        // Find connections to this node
-        const inputConns = validConnections.filter(c => c.toNode === nodeId);
+      // Find connections to this node
+      const inputConns = validConnections.filter(c => c.toNode === nodeId);
 
-        // Group by input port (to handle arrays)
-        const inputsByPort = new Map<string, StructorType[]>();
-        for (const conn of inputConns) {
-            const fromType = nodeTypes.get(conn.fromNode)?.outputs;
-            if (fromType && fromType.kind === 'record') {
-                 // Resolve source type
-                 const portName = conn.fromPort.toString(); // TODO: number ports
-                 if (fromType.fields[portName]) {
-                     if (!inputsByPort.has(conn.toPort.toString())) {
-                         inputsByPort.set(conn.toPort.toString(), []);
-                     }
-                     inputsByPort.get(conn.toPort.toString())!.push(fromType.fields[portName]);
-                 }
+      // Group by input port (to handle arrays)
+      const inputsByPort = new Map<string, StructorType[]>();
+      for (const conn of inputConns) {
+        const fromType = nodeTypes.get(conn.fromNode)?.outputs;
+        if (fromType && fromType.kind === 'record') {
+          // Resolve source type
+          const portName = conn.fromPort.toString(); // TODO: number ports
+          if (fromType.fields[portName]) {
+            if (!inputsByPort.has(conn.toPort.toString())) {
+              inputsByPort.set(conn.toPort.toString(), []);
             }
+            inputsByPort.get(conn.toPort.toString())!.push(fromType.fields[portName]);
+          }
         }
+      }
 
-        // Resolve final input types (handling arrays vs single)
-        const expectedInputs = nodeDef.inputs || {};
+      // Resolve final input types (handling arrays vs single)
+      const expectedInputs = nodeDef.inputs || {};
 
-        for (const [port, types] of inputsByPort) {
-             const expected = expectedInputs[port];
-             if (expected && expected.kind === 'array') {
-                 if (types.length > 0) {
-                   resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
-                 }
-             } else {
-                 if (types.length > 0) {
-                     resolvedInputs[port] = types[types.length - 1];
-                 }
-             }
+      for (const [port, types] of inputsByPort) {
+        const expected = expectedInputs[port];
+        if (expected && expected.kind === 'array') {
+          if (types.length > 0) {
+            resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
+          }
+        } else {
+          if (types.length > 0) {
+            resolvedInputs[port] = types[types.length - 1];
+          }
         }
+      }
 
-        const inputRecordType: RecordType = {
-            kind: 'record',
-            fields: resolvedInputs
-        };
+      const inputRecordType: RecordType = {
+        kind: 'record',
+        fields: resolvedInputs
+      };
 
-        // 2. Compute Output Types
-        const config = instance.defaultConfig || { fields: {} };
+      // 2. Compute Output Types
+      const config = instance.defaultConfig || { fields: {} };
 
-        // Valid config type placeholder for now
-        const configType: RecordType = { kind: 'record', fields: {} };
+      // Valid config type placeholder for now
+      const configType: RecordType = { kind: 'record', fields: {} };
 
-        let outputRecordType: RecordType;
-        let finalInputType: RecordType = inputRecordType;
+      let outputRecordType: RecordType;
+      let finalInputType: RecordType = inputRecordType;
 
-        try {
-             if (nodeDef.computeForwardPorts) {
-                  const result = nodeDef.computeForwardPorts(
-                      inputRecordType,
-                      config, // Pass actual config value
-                      context,
-                      backwardMetadata.get(nodeId)
-                  );
-                  finalInputType = result.inputs;
-                  outputRecordType = result.outputs;
-             } else if (nodeDef.computeOutputTypes) {
-                  outputRecordType = nodeDef.computeOutputTypes(
-                      inputRecordType,
-                      configType, // Legacy uses config STRUCTOR TYPE in signature, but implementation likely ignores it or expects value?
-                      // Wait, signature says `config: StructorType`. But implementations usually check value?
-                      // Actually existing primitives.ts execute/computeOutputTypes signatures match.
-                      // But `primitive_pack` logic in primitives.ts does NOT use config.
-                      // `primitive_literal` uses `configType`.
-                      // Let's pass `configType` for legacy compliance if needed, OR fix the signature confusion.
-                      // Our `compileGraph` was previously passing `configType` ({kind: 'record'...}).
-                      context
-                  );
-             } else {
-                  outputRecordType = { kind: 'record', fields: {} };
-             }
-        } catch (e) {
-            console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
-            outputRecordType = { kind: 'record', fields: {} };
+      try {
+        if (nodeDef.computeForwardPorts) {
+          const result = nodeDef.computeForwardPorts(
+            inputRecordType,
+            config, // Pass actual config value
+            context,
+            backwardMetadata.get(nodeId)
+          );
+          finalInputType = result.inputs;
+          outputRecordType = result.outputs;
+        } else {
+          outputRecordType = { kind: 'record', fields: {} };
         }
+      } catch (e) {
+        console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
+        outputRecordType = { kind: 'record', fields: {} };
+      }
 
-        nodeTypes.set(nodeId, {
-            inputs: finalInputType,
-            outputs: outputRecordType
-        });
+      nodeTypes.set(nodeId, {
+        inputs: finalInputType,
+        outputs: outputRecordType
+      });
 
-        // Broadcast logic...
+      // Broadcast logic...
     }
   }
 
   // Convert nodeTypes to plain object for worker transfer
   const inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> = {};
   for (const [id, types] of nodeTypes) {
-      inferredTypes[id] = types;
+    inferredTypes[id] = types;
   }
 
   const graph: GraphDefinition = {

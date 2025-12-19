@@ -142,7 +142,7 @@ export function defineNode<
     ...options,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
-    computeForwardPorts: (inputTypes, config, context) => {
+    computeForwardPorts: (inputTypes: any, config: any, context: any) => {
       return {
         // Return static definition for inputs and outputs.
         inputs: { kind: 'record', fields: simpleInputs },
