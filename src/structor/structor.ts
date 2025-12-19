@@ -156,22 +156,16 @@ export interface PrimitiveNodeDefinition {
    * FORWARD PASS: Computes the final canonical input and output types.
    * Can use the metadata from the backward pass.
    */
+  /**
+   * FORWARD PASS: Computes the final canonical input and output types.
+   * Can use the metadata from the backward pass.
+   */
   computeForwardPorts?: (
     inputTypes: RecordType,
     config: Structor,
     context: AnalysisContext,
     backwardMetadata?: any,
   ) => { inputs: RecordType; outputs: RecordType };
-
-  /**
-   * @deprecated Use computeForwardPorts instead.
-   * Static analysis function: computes output types from input types.
-   */
-  computeOutputTypes?: (
-    inputType: RecordType,
-    config: StructorType,
-    context: AnalysisContext,
-  ) => RecordType;
 
   /** Runtime execution function: computes output data from input data. */
   execute: (

@@ -15,6 +15,21 @@ import {
 import { definePrimitiveNode, defineMathNode } from "./type-helpers";
 import { numberType, anyType } from "./std-types";
 
+// Helper to infer type from value (simple version)
+function inferType(value: any): StructorType {
+  if (typeof value === 'number') return numberType;
+  if (typeof value === 'string') return { kind: 'atomic', type: 'string' };
+  if (typeof value === 'boolean') return { kind: 'atomic', type: 'boolean' };
+  if (Array.isArray(value)) {
+    const elType = value.length > 0 ? inferType(value[0]) : anyType;
+    return { kind: 'array', element: elType, size: value.length };
+  }
+  if (typeof value === 'object' && value !== null) {
+    return anyType;
+  }
+  return anyType;
+}
+
 export const primitive_add = defineMathNode(
   'math.add',
   { category: NodeCategory.Math, keywords: ['sum', 'plus'], description: 'Adds a and b.' },
@@ -69,8 +84,11 @@ export const primitive_literal: PrimitiveNodeDefinition = {
     description: 'Outputs a constant value.'
   },
   configType: { kind: 'atomic', type: 'any' }, // This literal can hold any type of value
-  computeOutputTypes: (inputType: RecordType, configType: StructorType, context: AnalysisContext) => {
-    return { kind: 'record', fields: { value: configType } };
+  computeForwardPorts: (inputType, config, context) => {
+    return {
+      inputs: { kind: 'record', fields: {} },
+      outputs: { kind: 'record', fields: { value: inferType(config) } }
+    };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     return { fields: { value: config } };
@@ -85,9 +103,12 @@ export const primitive_apply: PrimitiveNodeDefinition = {
     keywords: ['call', 'invoke'],
     description: 'Applies a functor to an input value.'
   },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+  computeForwardPorts: (inputType, config, context) => {
     const functorType = inputType.fields['functor'] as FunctorType;
-    return { kind: 'record', fields: { result: functorType.output } };
+    return {
+      inputs: inputType,
+      outputs: { kind: 'record', fields: { result: functorType ? functorType.output : { kind: 'atomic', type: 'any' } } }
+    };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     const functor = input.fields['functor'] as Functor;
@@ -104,10 +125,13 @@ export const primitive_input: PrimitiveNodeDefinition = {
     keywords: ['source', 'in'],
     description: 'Graph input node.'
   },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+  computeForwardPorts: (inputType, config, context) => {
     // Identity: Output type is same as input type of 'value' (injected by executor) or config type
-    const valType = inputType.fields['value'] || config || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'value': valType } };
+    const valType = inputType.fields['value'] || (config !== undefined ? inferType(config) : { kind: 'atomic', type: 'any' });
+    return {
+      inputs: { kind: 'record', fields: {} },
+      outputs: { kind: 'record', fields: { 'value': valType } }
+    };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Identity: Output value is input 'value' OR config value (from slider)
@@ -124,10 +148,13 @@ export const primitive_output: PrimitiveNodeDefinition = {
     keywords: ['sink', 'out'],
     description: 'Graph output node.'
   },
-  computeOutputTypes: (inputType: RecordType, config: StructorType, context: AnalysisContext) => {
+  computeForwardPorts: (inputType, config, context) => {
     // Identity: Output type is same as input type of 'val'
     const valType = inputType.fields['value'] || { kind: 'atomic', type: 'any' };
-    return { kind: 'record', fields: { 'value': valType } };
+    return {
+      inputs: { kind: 'record', fields: { value: valType } },
+      outputs: { kind: 'record', fields: { 'value': valType } }
+    };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
     // Identity: Output value is input 'val'
@@ -327,39 +354,42 @@ export const primitive_unpack: PrimitiveNodeDefinition = {
   configType: { kind: 'record', fields: {} },
   inputs: { record: anyType },
   // Outputs: Dynamic based on input record type
-  computeOutputTypes: (inputType, config, context) => {
+  computeForwardPorts: (inputType, config, context) => {
     const input = inputType.fields['record'];
-    if (!input) return { kind: 'record', fields: {} };
 
-    if (input.kind === 'record') {
-      return input;
-    }
+    // Default outputs empty
+    let outputFields: Record<string, StructorType> = {};
 
-    if (input.kind === 'array' && typeof input.size === 'number' && input.size <= 16) {
-      const size = input.size;
-      const fields: Record<string, StructorType> = {};
+    if (input) {
+      if (input.kind === 'record') {
+        outputFields = input.fields;
+      } else if (input.kind === 'array' && typeof input.size === 'number' && input.size <= 16) {
+        const size = input.size;
 
-      if (size === 2) {
-        fields['x'] = input.element;
-        fields['y'] = input.element;
-      } else if (size === 3) {
-        fields['x'] = input.element;
-        fields['y'] = input.element;
-        fields['z'] = input.element;
-      } else if (size === 4) {
-        fields['x'] = input.element;
-        fields['y'] = input.element;
-        fields['z'] = input.element;
-        fields['w'] = input.element;
-      } else {
-        for (let i = 0; i < size; i++) {
-          fields[i.toString()] = input.element;
+        if (size === 2) {
+          outputFields['x'] = input.element;
+          outputFields['y'] = input.element;
+        } else if (size === 3) {
+          outputFields['x'] = input.element;
+          outputFields['y'] = input.element;
+          outputFields['z'] = input.element;
+        } else if (size === 4) {
+          outputFields['x'] = input.element;
+          outputFields['y'] = input.element;
+          outputFields['z'] = input.element;
+          outputFields['w'] = input.element;
+        } else {
+          for (let i = 0; i < size; i++) {
+            outputFields[i.toString()] = input.element;
+          }
         }
       }
-      return { kind: 'record', fields };
     }
 
-    return { kind: 'record', fields: {} };
+    return {
+      inputs: { kind: 'record', fields: { record: input || anyType } },
+      outputs: { kind: 'record', fields: outputFields }
+    };
   },
   execute: (input) => {
     const record = input.fields['record'];

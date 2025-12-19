@@ -229,7 +229,6 @@ export function definePrimitiveNode<
     onMessage: options.onMessage,
     computeBackwardPorts: options.computeBackwardPorts,
     computeForwardPorts: options.computeForwardPorts,
-    computeOutputTypes: () => outputType,
     ui: options.ui,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
@@ -352,15 +351,15 @@ export function definePrimitiveNode<
 
       if (rawOutputs && typeof rawOutputs === 'object') {
         if ('outputs' in rawOutputs && ('ui' in rawOutputs || Object.keys(rawOutputs).length === 2)) {
-             // It's likely an ExecuteResult
-             // (We check strictly for 'outputs' property)
-             // But wait, if the user returns { outputName: val }, 'outputs' is not a reserved output name usually.
-             // However, `options.outputs` defines valid output names.
-             // If 'outputs' is NOT in options.outputs, then we can assume it's the wrapper object.
-             if (!('outputs' in options.outputs)) {
-                 uiOutputs = rawOutputs.ui;
-                 rawOutputs = rawOutputs.outputs;
-             }
+          // It's likely an ExecuteResult
+          // (We check strictly for 'outputs' property)
+          // But wait, if the user returns { outputName: val }, 'outputs' is not a reserved output name usually.
+          // However, `options.outputs` defines valid output names.
+          // If 'outputs' is NOT in options.outputs, then we can assume it's the wrapper object.
+          if (!('outputs' in options.outputs)) {
+            uiOutputs = rawOutputs.ui;
+            rawOutputs = rawOutputs.outputs;
+          }
         }
       }
 
@@ -368,11 +367,11 @@ export function definePrimitiveNode<
       const wrappedFields: Record<string, Structor> = {};
       const anyResult = rawOutputs as any;
       if (anyResult) {
-          for (const [key, type] of Object.entries(options.outputs)) {
-            if (anyResult[key] !== undefined) {
-              wrappedFields[key] = toStructor(anyResult[key], type);
-            }
+        for (const [key, type] of Object.entries(options.outputs)) {
+          if (anyResult[key] !== undefined) {
+            wrappedFields[key] = toStructor(anyResult[key], type);
           }
+        }
       }
 
       const structorResult: StructorRecord = {
@@ -380,12 +379,12 @@ export function definePrimitiveNode<
       };
 
       if (uiOutputs !== undefined) {
-          return {
-              outputs: structorResult,
-              ui: uiOutputs
-          };
+        return {
+          outputs: structorResult,
+          ui: uiOutputs
+        };
       } else {
-          return structorResult;
+        return structorResult;
       }
     }
   };
