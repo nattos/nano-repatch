@@ -222,20 +222,7 @@ export class GraphGrid extends MobxLitElement {
       border-left: 1px dashed rgba(255,255,255,0.1);
     }
 
-    /* Sticky Nodes */
-    graph-node[data-io-type="input"],
-    graph-node[data-io-type="output"] {
-      position: sticky;
-      z-index: 110; /* Above regular nodes (100) and cells (90) */
-    }
 
-    graph-node[data-io-type="input"] {
-      left: 4px; /* Slight offset from edge */
-    }
-
-    graph-node[data-io-type="output"] {
-      right: 4px;
-    }
 
     .wire-segment::after {
         content: '';
