@@ -643,8 +643,42 @@ const defineAllNode = (
     id,
     metadata: { category, description: `Apply ${id.split('.').pop()} to all inputs.` },
     // Allow multi-connection to collect multiple inputs into an array
-    inputs: { values: { kind: 'array', element: numberType, size: 'dynamic', allowMultiConnection: true } },
+    inputs: { values: { kind: 'array', element: anyType, size: 'dynamic', allowMultiConnection: true } },
     outputs: { result: numberType }, // Output is dynamic (scalar or vector)
+    computeForwardPorts: (inputTypes, config, context) => {
+      const valuesInput = inputTypes.fields['values'];
+      let outputType: StructorType = numberType;
+
+      // Check if we have an array of inputs (because of reduce/collect)
+      if (valuesInput && valuesInput.kind === 'array') {
+        // The element of the 'values' array represents the types of the connected cables.
+        // However, if allowMultiConnection is true, does 'element' represent the aggregation or the single cable type?
+        // In 'computeForwardPorts', the input type is usually the type of the incoming DATA.
+        // If we have multiple connections, they are collected into an array.
+        // So 'valuesInput' IS that array.
+        // its 'element' is the type of the things inside the array.
+
+        // If we connected multiple things, valuesInput might be Array<Any> or Array<Number|Array<Number>>.
+
+        // We need to inspect the 'element' type of valuesInput.
+        const elementType = valuesInput.element;
+
+        // If the elementType itself is an array (meaning we have a collection of vectors),
+        // OR if the input is a single connection which is a vector.
+
+        if (elementType.kind === 'array') {
+          // We have a collection of vectors (e.g. [vec4, vec4])
+          // or a collection of arrays.
+          // The output should be a vector of the same size.
+          outputType = elementType;
+        }
+      }
+
+      return {
+        inputs: { kind: 'record', fields: { values: valuesInput } },
+        outputs: { kind: 'record', fields: { result: outputType } }
+      };
+    },
     execute: (inputs) => {
       // console.log('AllNode Execute:', id, JSON.stringify(inputs));
       const values = inputs.values as any[];

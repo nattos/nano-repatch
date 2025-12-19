@@ -22,7 +22,11 @@ export const compileAndRun = (
       version: '1.0.0',
       displayName: def.id,
       definition: def,
-      inputs: Object.entries((def as any).inputs || {}).map(([name, type]) => ({ name, type: type as any })),
+      inputs: Object.entries((def as any).inputs || {}).map(([name, type]) => ({
+        name,
+        type: type as any,
+        allowMultiConnection: (type as any).allowMultiConnection
+      })),
       outputs: Object.entries((def as any).outputs || {}).map(([name, type]) => ({ name, type: type as any })),
       compileConfig: (uiConfig) => {
         // For literal, extract the value
@@ -31,9 +35,9 @@ export const compileAndRun = (
         }
         // For lerp, handle clamp
         if (def.id === 'math.lerp') {
-          return { fields: { clamp: uiConfig?.clamp ?? true },  };
+          return { fields: { clamp: uiConfig?.clamp ?? true }, };
         }
-        return { fields: {},  };
+        return { fields: {}, };
       }
     });
   });
@@ -46,16 +50,16 @@ export const compileAndRun = (
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {},  },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
+      configType: { kind: 'record', fields: {}, },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, }),
       execute: (inputs) => {
         // console.log('io.output execute inputs:', JSON.stringify(inputs));
-        return { fields: { val: inputs.fields.val },  };
+        return { fields: { val: inputs.fields.val }, };
       },
     },
     inputs: [{ name: 'val', type: numberType }],
     outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {},  })
+    compileConfig: (c) => ({ fields: {}, })
   });
 
   const gridNodes: Record<string, GridNode> = {};
@@ -227,76 +231,167 @@ describe('Primitives Integration', () => {
   });
 
   it('should unpack vec4 to x, y, z, w', () => {
-       const repository = new NodeRepository();
-       // Register unpack
-       // @ts-ignore
-       const unpackDef = ALL_PRIMITIVES.find(p => p.id === 'core.unpack')!;
-       repository.register({
-           id: unpackDef.id,
-           version: '1.0.0',
-           displayName: 'Unpack',
-           definition: unpackDef,
-           inputs: [{ name: 'record', type: vec4Type }],
-           outputs: []
-       });
+    const repository = new NodeRepository();
+    // Register unpack
+    // @ts-ignore
+    const unpackDef = ALL_PRIMITIVES.find(p => p.id === 'core.unpack')!;
+    repository.register({
+      id: unpackDef.id,
+      version: '1.0.0',
+      displayName: 'Unpack',
+      definition: unpackDef,
+      inputs: [{ name: 'record', type: vec4Type }],
+      outputs: []
+    });
 
-       // Register Mock Vec4 Source
-       repository.register({
-           id: 'mock.vec4',
-           version: '1.0.0',
-           displayName: 'Vec4',
-           definition: {
-               id: 'mock.vec4',
-               kind: 'primitive',
-               metadata: { category: 'Mock' },
-               computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
-               execute: () => ({ fields: { out: [10, 20, 30, 40] } })
-           },
-           inputs: [],
-           outputs: [{ name: 'out', type: vec4Type }]
-       });
+    // Register Mock Vec4 Source
+    repository.register({
+      id: 'mock.vec4',
+      version: '1.0.0',
+      displayName: 'Vec4',
+      definition: {
+        id: 'mock.vec4',
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
+        execute: () => ({ fields: { out: [10, 20, 30, 40] } })
+      },
+      inputs: [],
+      outputs: [{ name: 'out', type: vec4Type }]
+    });
 
-       // Register Output (Mock)
-       repository.register({
+    // Register Output (Mock)
+    repository.register({
+      id: 'io.output',
+      version: '1.0.0',
+      displayName: 'Output',
+      definition: {
         id: 'io.output',
-        version: '1.0.0',
-        displayName: 'Output',
-        definition: {
-            id: 'io.output',
-            kind: 'primitive',
-            metadata: { category: 'Mock' },
-            computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
-            execute: (inputs) => ({ fields: { val: inputs.fields.val } })
-        },
-        inputs: [{ name: 'val', type: numberType }],
-        outputs: [{ name: 'val', type: numberType }],
-        compileConfig: (c) => ({ fields: {} })
-      });
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
+        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+      },
+      inputs: [{ name: 'val', type: numberType }],
+      outputs: [{ name: 'val', type: numberType }],
+      compileConfig: (c) => ({ fields: {} })
+    });
 
-       const appState: AppState = {
-        graph: {
-          inner: {
-              nodes: {
-                  'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
-                  'unpack': { id: 'unpack', x: 100, y: 0, config: { typeId: 'core.unpack' } },
-                  'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
-                  'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
-              },
-              connections: {
-                  'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'unpack', toPort: 'record' },
-                  'c2': { id: 'c2', fromNodeId: 'unpack', fromPort: 'x', toNodeId: 'outX', toPort: 'val' },
-                  'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
-              }
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
+            'unpack': { id: 'unpack', x: 100, y: 0, config: { typeId: 'core.unpack' } },
+            'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
+            'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
           },
-          auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
-        }
-      };
+          connections: {
+            'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'unpack', toPort: 'record' },
+            'c2': { id: 'c2', fromNodeId: 'unpack', fromPort: 'x', toNodeId: 'outX', toPort: 'val' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+          }
+        },
+        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      }
+    };
 
-      const { graph: graphDef } = compileGraph(appState, new Map(), repository);
-      const executor = new GraphExecutor(graphDef, repository);
-      executor.update({ clock: { beat: 0, dt: 0 } });
+    const { graph: graphDef } = compileGraph(appState, new Map(), repository);
+    const executor = new GraphExecutor(graphDef, repository);
+    executor.update({ clock: { beat: 0, dt: 0 } });
 
-      expect(executor.getGraphOutput('outX')).toBe(10);
-      expect(executor.getGraphOutput('outW')).toBe(40);
+    expect(executor.getGraphOutput('outX')).toBe(10);
+    expect(executor.getGraphOutput('outW')).toBe(40);
+  });
+  it('should propagate vector type from math.all.add to core.unpack', () => {
+    const repository = new NodeRepository();
+    // Register unpack
+    // @ts-ignore
+    const unpackDef = ALL_PRIMITIVES.find(p => p.id === 'core.unpack')!;
+    repository.register({
+      id: unpackDef.id,
+      version: '1.0.0',
+      displayName: 'Unpack',
+      definition: unpackDef,
+      inputs: [{ name: 'record', type: vec4Type }],
+      outputs: []
+    });
+
+    // Register math.all.add (Standard)
+    const addDef = ALL_PRIMITIVES.find(p => p.id === 'math.all.add')!;
+    // We must ensure allowMultiConnection is passed correctly here too if we manually register.
+    repository.register({
+      id: addDef.id,
+      version: '1.0.0',
+      displayName: 'Add',
+      definition: addDef,
+      inputs: Object.entries((addDef as any).inputs || {}).map(([name, type]) => ({
+        name,
+        type: type as any,
+        allowMultiConnection: (type as any).allowMultiConnection
+      })),
+      outputs: [{ name: 'result', type: numberType }],
+      compileConfig: () => ({ fields: {} })
+    });
+
+    // Register Mock Vec4 Source
+    repository.register({
+      id: 'mock.vec4',
+      version: '1.0.0',
+      displayName: 'Vec4',
+      definition: {
+        id: 'mock.vec4',
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
+        execute: () => ({ fields: { out: [10, 20, 30, 40] } })
+      },
+      inputs: [],
+      outputs: [{ name: 'out', type: vec4Type }],
+      compileConfig: () => ({ fields: {} })
+    });
+
+    // Register Output (Mock)
+    repository.register({
+      id: 'io.output',
+      version: '1.0.0',
+      displayName: 'Output',
+      definition: {
+        id: 'io.output',
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
+        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+      },
+      inputs: [{ name: 'val', type: numberType }],
+      outputs: [{ name: 'val', type: numberType }],
+      compileConfig: (c) => ({ fields: {} })
+    });
+
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
+            'add': { id: 'add', x: 100, y: 0, config: { typeId: 'math.all.add' } },
+            'unpack': { id: 'unpack', x: 200, y: 0, config: { typeId: 'core.unpack' } },
+            'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
+            'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
+          },
+          connections: {
+            'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'add', toPort: 'values' },
+            'c2': { id: 'c2', fromNodeId: 'add', fromPort: 'result', toNodeId: 'unpack', toPort: 'record' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+          }
+        },
+        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      }
+    };
+
+    const { graph: graphDef } = compileGraph(appState, new Map(), repository);
+    const executor = new GraphExecutor(graphDef, repository);
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    expect(executor.getGraphOutput('outW')).toBe(40);
   });
 });
