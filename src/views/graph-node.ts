@@ -8,7 +8,6 @@ import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
 import { getNodeDisplayName } from '../structor/node-helpers';
-import '../structor/repository.ui'; // Import UI repository side-effects
 import { parseFloatOr } from '../utils/utils';
 import { getNodeVisualState, shouldShowInputEditor } from '../utils/node-width-utils';
 import '../components/smart-input';

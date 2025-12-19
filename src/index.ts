@@ -3,12 +3,11 @@ import { localController } from './builder/controllers';
 import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
-import './structor/repository.ui';
-
 import './index.css';
 import './customnodes/nicepattern/nodes';
 import './customnodes/midi/nodes';
 import './customnodes/expr/nodes';
+import './customnodes/expr/register-ui';
 import './customnodes/osc/nodes';
 import './customnodes/resolume/nodes';
 import './customnodes/debug/register-ui';
