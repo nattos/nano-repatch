@@ -201,26 +201,7 @@ export class GraphGrid extends MobxLitElement {
       right: 4px;
     }
 
-    /* Sticky IO Columns */
-    .cell.node-cell[data-x="input"],
-    .cell.node-cell[data-x="output"] {
-      position: sticky;
-      z-index: 90; /* Above wires (10), below nodes (100) */
-      background-color: var(--bg-color); /* Opaque background */
-      /* Ensure full coverage of the track */
-      width: 100%;
-      height: 100%;
-    }
-
-    .cell.node-cell[data-x="input"] {
-      left: 0;
-      border-right: 1px dashed rgba(255,255,255,0.1); /* Optional separator */
-    }
-
-    .cell.node-cell[data-x="output"] {
-      right: 0;
-      border-left: 1px dashed rgba(255,255,255,0.1);
-    }
+    /* Separators already handled by ::before extensions above */
 
 
 
