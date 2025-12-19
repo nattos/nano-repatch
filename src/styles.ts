@@ -97,6 +97,7 @@ export const globalStyles = [
     align-items: center;
     gap: 8px;
     justify-content: space-between;
+    border: 1px solid transparent;
   }
 
   .ui-list-item:hover {
