@@ -417,7 +417,7 @@ export class LocalController {
       const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
 
       // Helper logic from node-width-utils
-      const state = getNodeVisualState(inputs, outputs, connectedPorts, hasCustomBody);
+      const state = getNodeVisualState(inputs, outputs, connectedPorts, hasCustomBody, node.config);
 
       let width = NODE_WIDTH_NORMAL;
       if (node.config.width) {
@@ -425,6 +425,7 @@ export class LocalController {
       } else {
         if (state === 'minimal') width = NODE_WIDTH_MINIMAL;
         else if (state === 'compressed') width = NODE_WIDTH_COMPRESSED;
+        else if (state === 'pill') width = 120; // 120px for Pill? Or 80? Input Col is 80.
         else width = NODE_WIDTH_NORMAL;
       }
 

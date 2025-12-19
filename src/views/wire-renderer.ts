@@ -436,6 +436,16 @@ export class WireRenderer {
             centeringOffset = (rowHeight - nodeHeight) / 2;
         }
 
+        // Special Case: IO Nodes (Pill Shape) -> Center vertically (20px relative to Node Top)
+        if (
+            node.config.typeId === 'io.input' ||
+            node.config.typeId === 'io.output' ||
+            node.config.typeId === 'resolume.input' ||
+            node.config.typeId === 'resolume.output'
+        ) {
+            return rowTopAbs + centeringOffset + 20;
+        }
+
         // Formula: RowTop + CenteringOffset + Header(24) + Pad(2) + (Index * 24) + Pip(12)
         // calculatePortY logic: 24 + 2 + (index * 24) + 12
         return rowTopAbs + centeringOffset + calculatePortY(index);

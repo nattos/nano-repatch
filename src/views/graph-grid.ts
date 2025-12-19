@@ -194,11 +194,11 @@ export class GraphGrid extends MobxLitElement {
     }
 
     graph-node[data-io-type="input"] {
-      left: 10px; /* Slight offset from edge */
+      left: 4px; /* Slight offset from edge */
     }
 
     graph-node[data-io-type="output"] {
-      right: 10px;
+      right: 4px;
     }
 
     /* Sticky IO Columns */
@@ -230,11 +230,11 @@ export class GraphGrid extends MobxLitElement {
     }
 
     graph-node[data-io-type="input"] {
-      left: 10px; /* Slight offset from edge */
+      left: 4px; /* Slight offset from edge */
     }
 
     graph-node[data-io-type="output"] {
-      right: 10px;
+      right: 4px;
     }
 
     .wire-segment::after {
