@@ -141,6 +141,78 @@ export class GraphGrid extends MobxLitElement {
         cursor: pointer;
     }
 
+    /* Sticky IO Columns */
+    .cell[data-x="input"],
+    .cell[data-x="output"] {
+      position: sticky;
+      z-index: 90; /* Above wires (10), below nodes (100) */
+      background-color: var(--bg-color); /* Opaque background */
+      /* Ensure full coverage of the track */
+      width: 100%;
+      height: 100%;
+    }
+
+    .cell[data-x="input"] {
+      left: 0;
+      border-right: 1px dashed rgba(255,255,255,0.1); /* Optional separator */
+    }
+
+    .cell[data-x="output"] {
+      right: 0;
+      border-left: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    /* Sticky Nodes */
+    graph-node[data-io-type="input"],
+    graph-node[data-io-type="output"] {
+      position: sticky;
+      z-index: 110; /* Above regular nodes (100) and cells (90) */
+    }
+
+    graph-node[data-io-type="input"] {
+      left: 10px; /* Slight offset from edge */
+    }
+
+    graph-node[data-io-type="output"] {
+      right: 10px;
+    }
+
+    /* Sticky IO Columns */
+    .cell.node-cell[data-x="input"],
+    .cell.node-cell[data-x="output"] {
+      position: sticky;
+      z-index: 90; /* Above wires (10), below nodes (100) */
+      background-color: var(--bg-color); /* Opaque background */
+      /* Ensure full coverage of the track */
+      width: 100%;
+      height: 100%;
+    }
+
+    .cell.node-cell[data-x="input"] {
+      left: 0;
+      border-right: 1px dashed rgba(255,255,255,0.1); /* Optional separator */
+    }
+
+    .cell.node-cell[data-x="output"] {
+      right: 0;
+      border-left: 1px dashed rgba(255,255,255,0.1);
+    }
+
+    /* Sticky Nodes */
+    graph-node[data-io-type="input"],
+    graph-node[data-io-type="output"] {
+      position: sticky;
+      z-index: 110; /* Above regular nodes (100) and cells (90) */
+    }
+
+    graph-node[data-io-type="input"] {
+      left: 10px; /* Slight offset from edge */
+    }
+
+    graph-node[data-io-type="output"] {
+      right: 10px;
+    }
+
     .wire-segment::after {
         content: '';
         position: absolute;
@@ -1488,6 +1560,7 @@ export class GraphGrid extends MobxLitElement {
           `;
   }
 
+
   private renderGridCells() {
     const { nodes } = appController.observableState.graph.inner;
     const cells = [];
@@ -1510,12 +1583,11 @@ export class GraphGrid extends MobxLitElement {
     const cols = Math.max(maxNodeX + 3, 8);
 
     // Input Column (x=0)
-    // Input Column (x=0)
     for (let y = 0; y < rows; y++) {
       const rowHeight = this.getRowHeight(y);
       cells.push(html`<div class="cell node-cell" data-x="input" data-y="${y}" style="grid-column: 1; grid-row: ${2 * y + 2}; height: ${rowHeight}px;"></div>`);
       // Gap below input?
-      cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
+      cells.push(html`<div class="cell gap-cell gap-h" data-x="input" style="grid-column: 1; grid-row: ${2 * y + 3};"></div>`);
     }
 
     // Main Grid (x=0..cols)
@@ -1527,10 +1599,13 @@ export class GraphGrid extends MobxLitElement {
         const rowHeight = this.getRowHeight(y);
 
         // Node Cell
-        cells.push(html`<div class="cell node-cell" data-x="${x}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
+        const isOutput = x === cols;
+        const cellDataX = isOutput ? 'output' : x.toString();
+        cells.push(html`<div class="cell node-cell" data-x="${cellDataX}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
 
-        // Gap below Node (Row 2*y+3) -> Horizontal Line
-        cells.push(html`<div class="cell gap-cell gap-h" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
+        // Gap below Node (Row 2*y+3) -> Horizontal Line. Tag it if Output.
+        const gapDataX = isOutput ? 'output' : undefined;
+        cells.push(html`<div class="cell gap-cell gap-h" data-x="${gapDataX}" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
 
         // Gap to the left (Col 2*x) -> Vertical Line
         cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
@@ -1711,9 +1786,17 @@ export class GraphGrid extends MobxLitElement {
 
     // Calculate grid position
     let col = 0;
-    if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') col = 1;
-    else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') col = outputCol;
-    else col = 2 * node.x + 3;
+    let ioType: 'input' | 'output' | undefined;
+
+    if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') {
+      col = 1;
+      ioType = 'input';
+    } else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') {
+      col = outputCol;
+      ioType = 'output';
+    } else {
+      col = 2 * node.x + 3;
+    }
 
     const row = 2 * node.y + 2;
     const span = 1;
@@ -1729,6 +1812,7 @@ export class GraphGrid extends MobxLitElement {
               .gridColumn=${`${col} / span ${span}`}
               .gridRow=${`${row}`}
               .parentZIndex=${isSelected ? 110 : 100}
+              data-io-type=${ioType || ''}
             ></graph-node>
           `;
   }
