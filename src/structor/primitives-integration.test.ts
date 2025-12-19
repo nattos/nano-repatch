@@ -117,8 +117,8 @@ export const compileAndRun = (
     }
   };
 
-  const { graph: graphDef } = compileGraph(appState, new Map(), repository);
-  const executor = new GraphExecutor(graphDef, repository);
+  const { graph: graphDef, inferredTypes } = compileGraph(appState, new Map(), repository);
+  const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes);
   // console.log('Execution Order:', (executor as any).executionOrder);
   return { executor, getOutput: () => executor.getGraphOutput('test_out') };
 };

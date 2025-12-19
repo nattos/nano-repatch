@@ -355,6 +355,7 @@ export const primitive_unpack: PrimitiveNodeDefinition = {
   inputs: { record: anyType },
   // Outputs: Dynamic based on input record type
   computeForwardPorts: (inputType, config, context) => {
+    // console.log('UNPACK computeForwardPorts (350):', JSON.stringify(inputType, null, 2));
     const input = inputType.fields['record'];
 
     // Default outputs empty

@@ -142,6 +142,13 @@ export function defineNode<
     ...options,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
+    computeForwardPorts: (inputTypes, config, context) => {
+      return {
+        // Return static definition for inputs and outputs.
+        inputs: { kind: 'record', fields: simpleInputs },
+        outputs: { kind: 'record', fields: simpleOutputs }
+      };
+    },
     onMessage: options.onMessage
   } as unknown as TypedNodeOptions<any, TConfig, any, TState>);
   // Cast to unknown first to avoid incompatibility issues with Simplify types vs constraints

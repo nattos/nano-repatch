@@ -228,7 +228,12 @@ export function definePrimitiveNode<
     isRealtime: options.isRealtime,
     onMessage: options.onMessage,
     computeBackwardPorts: options.computeBackwardPorts,
-    computeForwardPorts: options.computeForwardPorts,
+    computeForwardPorts: (i, c, ctx, meta) => {
+      if (options.computeForwardPorts) {
+        return options.computeForwardPorts(i, c, ctx, meta);
+      }
+      return { inputs: { kind: 'record', fields: {} }, outputs: outputType }; // Fallback?
+    },
     ui: options.ui,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
