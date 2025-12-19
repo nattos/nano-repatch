@@ -37,6 +37,7 @@ export interface LocalState {
 export interface LocalSettings {
   showDebugValues: boolean;
   activeTab: string | null;
+  enableResolumeIO: boolean;
 }
 
 export interface Selectable {
@@ -99,7 +100,8 @@ export class LocalController {
       },
       localSettings: {
         showDebugValues: false,
-        activeTab: 'workspace',
+        activeTab: 'library',
+        enableResolumeIO: false
       },
     });
     makeObservable(this);
@@ -551,6 +553,12 @@ export class LocalController {
   @action
   public setActiveTab(tab: string | null): void {
     this.observableState.localSettings.activeTab = tab;
+    this.saveSettings();
+  }
+
+  @action
+  public setEnableResolumeIO(enabled: boolean): void {
+    this.observableState.localSettings.enableResolumeIO = enabled;
     this.saveSettings();
   }
 

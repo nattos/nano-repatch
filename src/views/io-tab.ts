@@ -273,8 +273,11 @@ export class IOTab extends MobxLitElement {
     if (resolumeManager.isConnected) {
       resolumeManager.disconnect();
       runtimeManager.sendResolumeControl('disconnect');
+      localController.setEnableResolumeIO(false);
     } else {
-      resolumeManager.connect();
+      resolumeManager.connect().then(() => {
+        localController.setEnableResolumeIO(resolumeManager.isConnected);
+      });
       runtimeManager.sendResolumeControl('connect');
     }
   }

@@ -18,8 +18,13 @@ export const runtimeManager = new RuntimeManager(appController, localController)
 export const workspaceController = new WorkspaceController(appController);
 
 // Initial connection to Resolume
-resolumeManager.connect();
-runtimeManager.sendResolumeControl('connect');
+// Initial connection to Resolume (if enabled)
+localController.settingsLoaded.then(() => {
+  if (localController.observableState.localSettings.enableResolumeIO) {
+    resolumeManager.connect();
+    runtimeManager.sendResolumeControl('connect');
+  }
+});
 
 // React to graph changes to update wire layout
 reaction(

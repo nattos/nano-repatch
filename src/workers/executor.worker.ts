@@ -18,9 +18,6 @@ let frameRate = 60;
 let isRunning = false;
 let virtualAudioContext = new VirtualAudioContext();
 
-// Connect Resolume Manager (Worker instance)
-// resolumeManager.connect(); // Moved to INIT_GRAPH for lazy loading
-
 // Clock state
 let clock = { beat: 0 };
 let workerMidiValues = new Map<string, number>();
