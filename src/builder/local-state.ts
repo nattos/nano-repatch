@@ -471,8 +471,8 @@ export class LocalController {
         currentY += h + 16;
       }
       // Post-Process: Calculate Col Offsets
-      // Approximation: Input Col 120px + Gap 16px
-      let currentX = 136;
+      // Approximation: Input Col 80px + Gap 16px
+      let currentX = 96;
       const maxCol = Math.max(...Array.from(metrics.columnWidths.keys()), -1);
       for (let c = 0; c <= maxCol; c++) {
         metrics.colOffsets.set(c, currentX);
@@ -707,7 +707,7 @@ export class LocalController {
     // Or extrapolate columns too?
     // If standard "Node Area" is being used, we snap to closest.
 
-    if (x < 136) {
+    if (x < 96) {
       gridX = 0; // Snap to first column if too far left
       // Or return -1 if we support drag to input?
       // Primitives usually live in standard grid.
@@ -724,7 +724,7 @@ export class LocalController {
       }
       if (!found) {
         // To the right of last column
-        const lastLeft = colOffsets.get(maxCol) || 136;
+        const lastLeft = colOffsets.get(maxCol) || 96;
         const lastW = columnWidths.get(maxCol) || 80;
         const rightEdge = lastLeft + lastW + 16;
         if (x >= rightEdge) {
