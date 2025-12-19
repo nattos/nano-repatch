@@ -536,72 +536,26 @@ export class GraphNode extends MobxLitElement {
   }
 
   private handleDragAccept(e: MouseEvent, delta: [number, number]) {
-    // Calculate Grid Delta using Metrics (Variable Width/Height)
-    const metrics = localController.observableState.gridMetrics;
-    const GRID_GAP = 16; // from constants
+    // Resolve Grid Host for coordinate mapping (re-resolve to be safe)
+    const gridHost = (this.getRootNode() as ShadowRoot)?.host as HTMLElement;
+    if (!gridHost) return;
 
-    // --- Calculate DX ---
-    let dx = 0;
-    let pixelAccum = 0;
-    const targetPixelX = delta[0];
+    // Use current bounding box (which includes the drag transform) to find center
+    const rect = this.getBoundingClientRect();
+    const gridRect = gridHost.getBoundingClientRect();
+    const centerX = rect.left + (rect.width / 2);
+    const centerY = rect.top + (rect.height / 2);
 
-    if (targetPixelX > 0) {
-      // Dragging Right
-      let col = this.node.x;
-      while (true) {
-        // Width of current column + Gap
-        const width = (metrics.columnWidths.get(col) || 80) + GRID_GAP;
-        if (pixelAccum + (width / 2) > targetPixelX) break; // Snap point
-        pixelAccum += width;
-        dx++;
-        col++;
-        // Safety break
-        if (dx > 50) break;
-      }
-    } else if (targetPixelX < 0) {
-      // Dragging Left
-      let col = this.node.x;
-      while (true) {
-        // Width of PREVIOUS column + Gap (traversing left)
-        const prevCol = col - 1;
-        const width = (metrics.columnWidths.get(prevCol) || 80) + GRID_GAP;
-        if (pixelAccum - (width / 2) < targetPixelX) break; // Snap point (negative)
-        pixelAccum -= width;
-        dx--;
-        col--;
-        if (dx < -50) break;
-      }
-    }
+    // Convert to relative grid coordinates
+    const relativeX = centerX - gridRect.left + gridHost.scrollLeft;
+    const relativeY = centerY - gridRect.top + gridHost.scrollTop;
 
-    // --- Calculate DY ---
-    let dy = 0;
-    pixelAccum = 0;
-    const targetPixelY = delta[1];
+    // Get exact target cell using the SAME logic as the preview
+    const targetCell = localController.getGridCellFromPixels(relativeX, relativeY);
 
-    if (targetPixelY > 0) {
-      // Dragging Down
-      let row = this.node.y;
-      while (true) {
-        const height = (metrics.rows.get(row) || 80) + GRID_GAP;
-        if (pixelAccum + (height / 2) > targetPixelY) break;
-        pixelAccum += height;
-        dy++;
-        row++;
-        if (dy > 50) break;
-      }
-    } else if (targetPixelY < 0) {
-      // Dragging Up
-      let row = this.node.y;
-      while (true) {
-        const prevRow = row - 1;
-        const height = (metrics.rows.get(prevRow) || 80) + GRID_GAP;
-        if (pixelAccum - (height / 2) < targetPixelY) break;
-        pixelAccum -= height;
-        dy--;
-        row--;
-        if (dy < -50) break;
-      }
-    }
+    // Calculate Grid Delta
+    const dx = targetCell.x - this.node.x;
+    const dy = targetCell.y - this.node.y;
 
     const selectedNodeIds = Array.from(localController.observableState.selection.keys())
       .filter(id => id.startsWith('node-'));
