@@ -34,8 +34,8 @@ registerNode({
 registerNode({
   ...curve_crop,
   ui: {
+    ...curve_crop.ui,
     body: () => import('./nodes.ui').then(m => m.CurveCropBodyRenderer),
-    getBodyHeight: () => import('./nodes.ui').then(m => m.CurveCropBodyHeight),
-    inspector: () => import('./nodes.ui').then(m => m.CurveInspectorRenderer)
+    getBodyHeight: () => import('./nodes.ui').then(m => m.CurveCropBodyHeight)
   }
 });

@@ -286,16 +286,38 @@ export class CurveCropInspector extends MobxLitElement {
     // Fallback to inputs (unconnected values) if UI state is missing (e.g. graph not running)
     const inputs = runtimeManager.inputs.get(this.node.id);
     // Helper to get input value or default
+    // Check mode
+    const mode = (this.node.config.values?.mode as any as string) || 'start-end';
+
+    // Helper to get input value or default
     const getVal = (key: string, def: number) => {
+      // Prioritize UI state (from worker execution)
       if (uiState && typeof uiState[key] === 'number') return uiState[key];
+      // Fallback to inputs (unconnected values)
       if (inputs && inputs.fields && typeof inputs.fields[key] === 'number') return inputs.fields[key];
-      // Note: We don't have easy access to defaults here without nodeType check,
-      // but defaults are 0 and 1.
       return def;
     };
 
     const start = getVal('start', 0);
-    let end = getVal('end', 1);
+    // If mode is 'start-length', the worker calculates 'end' for us in UI state.
+    // However, if we are purely disconnected/fallback, we might need to calc it ourselves.
+    // BUT checking existing implementation: execute return { ui: { start, end } }.
+    // So if the node has executed, we HAVE 'end' in uiState regardless of mode.
+    // If we haven't executed, we look at inputs.
+
+    let end = 1;
+    if (uiState && typeof uiState.end === 'number') {
+      end = uiState.end;
+    } else {
+      // Fallback logic if not running
+      if (mode === 'start-length') {
+        const length = getVal('length', 1); // Note: getVal checks inputs
+        end = start + length;
+      } else {
+        end = getVal('end', 1);
+      }
+    }
+
     if (end < start) end = start;
 
     // Visualization:

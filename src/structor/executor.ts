@@ -108,26 +108,64 @@ export class GraphExecutor {
   public setNodeConfig(nodeId: string, config: Structor): void {
     const state = this.nodeStates.get(nodeId);
     if (state) {
-      if (config && typeof config === 'object' && !Array.isArray(config)) {
-        // Object Merge: Shallow merge top-level, deep merge fields
+      // 1. Normalize Config: If definition specifies a Record config, move top-level props to 'fields'
+      const nodeDef = this.repository.get(state.definitionId);
+      const configType = (nodeDef as PrimitiveNodeDefinition)?.configType;
+
+
+
+      let normalizedConfig = config;
+
+      if (configType && configType.kind === 'record' && config && typeof config === 'object' && !Array.isArray(config) && !('fields' in config)) {
+        // If input is a flat object but target is a Record, try to map known fields
+        const mappedFields: any = {};
+        let movedAny = false;
+
+        for (const key of Object.keys(config)) {
+          if (key in configType.fields) {
+            mappedFields[key] = (config as any)[key];
+            movedAny = true;
+          }
+        }
+
+        if (movedAny) {
+          // Create a new config object with fields, preserving other top-level keys (like 'values')
+          normalizedConfig = {
+            ...config, // Keep values, etc.
+            fields: mappedFields
+          };
+        }
+      }
+
+      if (normalizedConfig && typeof normalizedConfig === 'object' && !Array.isArray(normalizedConfig)) {
+        // Object Merge: Shallow merge top-level, deep merge fields AND values
+        const configToMerge = normalizedConfig as StructorRecord & { values?: any };
         const oldConfig = (state.config && typeof state.config === 'object' && !Array.isArray(state.config)) ? state.config : {};
 
         state.config = {
           ...oldConfig,
-          ...config,
+          ...normalizedConfig,
           fields: {
             ...((oldConfig as any).fields || {}),
-            ...((config as any).fields || {})
+            ...((configToMerge as any).fields || {})
+          },
+          values: {
+            ...((oldConfig as any).values || {}),
+            ...((configToMerge as any).values || {})
           }
         };
       } else {
         // Direct replacement (primitive or array)
-        state.config = config;
+        state.config = normalizedConfig;
       }
-      const instance = this.graph.nodes[nodeId];
-      const definition = this.repository.get(instance.definitionId);
+      // Re-fetch definition or cast existing? We have nodeDef but need to match original logic if it used instance.
+      // Original logic:
+      // const instance = this.graph.nodes[nodeId];
+      // const definition = this.repository.get(instance.definitionId);
+      // We can reuse nodeDef as it comes from state.definitionId which is initialized from instance.definitionId.
+
       // Update isRealtime based on new FULL config
-      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(state.config ?? { fields: {} }) ?? false;
+      state.isRealtime = (nodeDef as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(state.config ?? { fields: {} }) ?? false;
       this.markDirty(nodeId);
     }
   }

@@ -180,30 +180,27 @@ export class LocalController {
       }
     }
 
-    // 2. Inputs Union Strategy (Repo + Inferred)
-    // Start with a copy of Repo inputs
-    let inputMap = new Map<string, PortHint>();
-    inputs.forEach(p => inputMap.set(p.name, p));
-
+    // 2. Inputs Strategy: Inferred Source of Truth
     if (inferredType && inferredType.inputs && (inferredType.inputs as any).kind === 'record' && (inferredType.inputs as any).fields) {
       const fields = (inferredType.inputs as any).fields;
-      Object.entries(fields).forEach(([name, type]) => {
-        // If exists, update type? Or keep Repo type?
-        // Inferred is usually more specific (e.g. 'float' vs 'any'), so update type.
-        // But keep Description/Metadata from Repo.
-        const existing = inputMap.get(name);
-        inputMap.set(name, {
-          name,
-          type: type as StructorType,
-          description: existing?.description || name,
-          defaultValue: (type as any).defaultValue ?? existing?.defaultValue,
-          ...existing // Spread repo props (like suppressLabel)
+      // Strict Replacement: The inferred type definition is the authoritative source for inputs.
+      // We map these fields to ports, pulling metadata (description, etc.) from the Repository definition if available.
+      if (Object.keys(fields).length > 0) {
+        inputs = Object.entries(fields).map(([name, type]) => {
+          const repoPort = nodeType?.inputs?.find(p => p.name === name);
+          return {
+            name,
+            type: type as StructorType,
+            description: repoPort?.description || name,
+            defaultValue: (type as any).defaultValue ?? repoPort?.defaultValue,
+            ...repoPort // Spread other props like suppressLabel
+          };
         });
-      });
+      } else {
+        inputs = [];
+      }
     }
-
-    // Convert back to array
-    inputs = Array.from(inputMap.values());
+    // Else: Keep inputs as Repo inputs (default)
 
     // Sort: Repo Order first, then New Ports Alphabetical
     if (nodeType?.inputs) {
