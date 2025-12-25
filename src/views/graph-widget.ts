@@ -1,8 +1,10 @@
 import { html, css, svg } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from './mobx-lit-element';
-import { action, computed, makeObservable, observable } from 'mobx';
+import { action, computed, makeObservable, observable, runInAction } from 'mobx';
 import { PointerDragOp } from '../utils/pointer-drag-op';
+import { formatValue } from './formatters';
+import { NODE_CONTENT_WIDTH } from '../constants';
 import { widgetStyles } from '../styles';
 
 export type CurveType = 'exponential' | 'linear' | 'step' | 'sin' | 'quad' | 'points';
@@ -231,7 +233,7 @@ export class GraphWidget extends MobxLitElement {
   @computed
   get segmentLayout() {
     if (!this.config || !this.config.segments) return [];
-    const width = 220;
+    const width = NODE_CONTENT_WIDTH;
     let currentX = 0;
     const totalWeight = this.totalWeight;
 
@@ -259,7 +261,7 @@ export class GraphWidget extends MobxLitElement {
 
     if (this.config.mode === 'scope') {
       const history = this.history;
-      const width = 220;
+      const width = NODE_CONTENT_WIDTH;
       const height = 96;
       const historySize = this.config.historySize || 100;
 
@@ -374,7 +376,7 @@ export class GraphWidget extends MobxLitElement {
       }
 
       // Ensure end point is at X=width
-      const width = 220; // Hardcoded width as previously established
+      const width = NODE_CONTENT_WIDTH; // Standardized width
       const lastPt = points[points.length - 1];
       if (lastPt[0] < width - 0.001) {
         points.push([width, lastPt[1]]);
@@ -488,30 +490,7 @@ export class GraphWidget extends MobxLitElement {
     }
   }
 
-  private handlePointerMove(e: PointerEvent) {
-    if (!this.config?.interactive) return;
 
-    this.style.cursor = 'default';
-
-    if (this.config.envelopeNodes && this.config.segments) {
-      const rect = this.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const width = rect.width;
-      const height = rect.height;
-      const [minY, maxY] = this.config.range || [0, 1];
-
-      const t = x / width;
-      const cursorValue = minY + ((height - y) / height) * (maxY - minY);
-      const expectedY = this.evaluateEnvelopeAt(t);
-
-      const thresholdY = (10 / height) * (maxY - minY);
-
-      if (Math.abs(cursorValue - expectedY) < thresholdY) {
-        this.style.cursor = 'ns-resize';
-      }
-    }
-  }
 
   @observable
   hoveredSegmentIndex = -1;
@@ -605,6 +584,36 @@ export class GraphWidget extends MobxLitElement {
 
   @action
   private handlePointerMove(e: PointerEvent) {
+    if (!this.config?.interactive) return;
+
+    this.style.cursor = 'default';
+
+    // 1. Check Envelope Mode Interactions (Points/Lines)
+    if (this.config.envelopeNodes && this.config.segments) {
+      const rect = this.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const height = rect.height;
+      const width = rect.width; // Use widget width
+      const [minY, maxY] = this.config.range || [0, 1];
+
+      const t = x / width;
+      const cursorValue = minY + ((height - y) / height) * (maxY - minY);
+      const expectedY = this.evaluateEnvelopeAt(t);
+
+      const thresholdY = (10 / height) * (maxY - minY);
+
+      if (Math.abs(cursorValue - expectedY) < thresholdY) {
+        this.style.cursor = 'ns-resize'; // Vertical resize cursor for adding points
+        runInAction(() => {
+          this.hoveredSegmentIndex = -1;
+          this.hoveredSplitIndex = -1;
+        });
+        return; // Prioritize envelope interaction
+      }
+    }
+
+    // 2. Check Standard Segment Mode Interactions (Splits)
     const rect = this.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const layout = this.segmentLayout;
@@ -618,7 +627,11 @@ export class GraphWidget extends MobxLitElement {
     for (let i = 0; i < layout.length - 1; i++) {
       const boundaryX = layout[i].endX;
       if (Math.abs(x - boundaryX) < resizeThreshold) {
-        this.hoveredSplitIndex = i;
+        runInAction(() => {
+          this.hoveredSplitIndex = i;
+          this.hoveredSegmentIndex = -1;
+        });
+        this.style.cursor = 'col-resize';
         return;
       }
     }
@@ -626,7 +639,9 @@ export class GraphWidget extends MobxLitElement {
     // Check for segment hover
     const segmentIndex = layout.findIndex(l => x >= l.startX && x <= l.endX);
     if (segmentIndex !== -1) {
-      this.hoveredSegmentIndex = segmentIndex;
+      runInAction(() => {
+        this.hoveredSegmentIndex = segmentIndex;
+      });
     }
   }
 
@@ -641,7 +656,7 @@ export class GraphWidget extends MobxLitElement {
     if (!this.config || !this.config.envelopeNodes || !this.config.segments) return '';
     const { envelopeNodes, segments, range } = this.config;
     const [minY, maxY] = range || [0, 1];
-    const width = 220;
+    const width = NODE_CONTENT_WIDTH;
     const height = 96;
 
     const normalizeX = (val: number) => val * width;
@@ -730,32 +745,7 @@ export class GraphWidget extends MobxLitElement {
     return `M ${points.map(p => p.join(',')).join(' L ')}`;
   }
 
-  private handlePointerMove(e: PointerEvent) {
-    if (!this.config?.interactive) return;
 
-    // Default cursor
-    this.style.cursor = 'default';
-
-    if (this.config.envelopeNodes && this.config.segments) {
-      const rect = this.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const width = rect.width;
-      const height = rect.height;
-      const [minY, maxY] = this.config.range || [0, 1];
-
-      const t = x / width;
-      const cursorValue = minY + ((height - y) / height) * (maxY - minY);
-      const expectedY = this.evaluateEnvelopeAt(t);
-
-      const thresholdY = (10 / height) * (maxY - minY);
-
-      if (Math.abs(cursorValue - expectedY) < thresholdY) {
-        // Hovering segment
-        this.style.cursor = 'ns-resize'; // Vertical resize cursor
-      }
-    }
-  }
 
 
   private renderEnvelopeNodes(height: number, minY: number, maxY: number) {
@@ -763,7 +753,7 @@ export class GraphWidget extends MobxLitElement {
 
     // Normalize logic must match getEnvelopePathData
     const normalizeY = (val: number) => height - ((val - minY) / (maxY - minY)) * height;
-    const normalizeX = (val: number) => val * 220; // Width is 220
+    const normalizeX = (val: number) => val * NODE_CONTENT_WIDTH;
 
     return this.config.envelopeNodes.map(node => {
       const cx = normalizeX(node.x);
@@ -776,8 +766,8 @@ export class GraphWidget extends MobxLitElement {
                style="cursor: pointer;"
                @pointerdown=${(e: PointerEvent) => this.handleNodePointerDown(e, node)}
                @dblclick=${(e: MouseEvent) => this.handleNodeDoubleClick(e, node)}
-               @pointerover=${() => this.hoveredNodeId = node.id}
-               @pointerout=${() => this.hoveredNodeId = null}
+               @pointerover=${() => runInAction(() => this.hoveredNodeId = node.id)}
+               @pointerout=${() => runInAction(() => this.hoveredNodeId = null)}
             >
                 <circle cx="${cx}" cy="${cy}" r="${isHovered || isSelected ? 6 : 4}"
                         fill="${isSelected ? '#fff' : 'var(--accent-color)'}"
@@ -813,8 +803,8 @@ export class GraphWidget extends MobxLitElement {
         // Direction reversed: totalDelta[1] is positive down. Drag down -> Increase value.
         // User asked to reverse direction of editing "curve".
         // Previous: -totalDelta[1] / 100. (Drag Up -> +)
-        // Reverse: totalDelta[1] / divisor. (Drag Down -> +)
-        const delta = totalDelta[1] / divisor;
+        // Reverse again (as per recent request): -totalDelta[1] / divisor. (Drag Up -> +)
+        const delta = -totalDelta[1] / divisor;
         const newValue = startValue + delta;
 
         const newSegments = [...(this.config.segments || [])];
@@ -888,7 +878,9 @@ export class GraphWidget extends MobxLitElement {
     // Prevent default browser drag behavior
     e.preventDefault();
 
-    this.selectedNodeId = node.id;
+    runInAction(() => {
+      this.selectedNodeId = node.id;
+    });
 
     if (!this.config?.interactive || !this.config.envelopeNodes) return;
 
@@ -1036,7 +1028,7 @@ export class GraphWidget extends MobxLitElement {
       }
 
       return html`
-          <svg viewBox="0 0 220 96" preserveAspectRatio="none">
+          <svg viewBox="0 0 ${NODE_CONTENT_WIDTH} 96" preserveAspectRatio="none">
                 <defs>
                     <pattern id="grid-x" width="24" height="96" patternUnits="userSpaceOnUse">
                         <path d="M 0 0 L 0 96" fill="none" class="grid-pattern" />
@@ -1046,33 +1038,33 @@ export class GraphWidget extends MobxLitElement {
                     </pattern>
                     ${this.config?.cursor !== undefined ? svg`
                         <clipPath id="clip-left">
-                            <rect x="0" y="0" width="${this.config.cursor * 220}" height="96" />
+                            <rect x="0" y="0" width="${this.config.cursor * NODE_CONTENT_WIDTH}" height="96" />
                         </clipPath>
                         <clipPath id="clip-right">
-                            <rect x="${this.config.cursor * 220}" y="0" width="${220 - (this.config.cursor * 220)}" height="96" />
+                            <rect x="${this.config.cursor * NODE_CONTENT_WIDTH}" y="0" width="${NODE_CONTENT_WIDTH - (this.config.cursor * NODE_CONTENT_WIDTH)}" height="96" />
                         </clipPath>
                     ` : ''}
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid-x)" />
-                ${gridLines.map(y => svg`<line class="grid" x1="0" y1="${y}" x2="220" y2="${y}" />`)}
-                <line class="zero-line" x1="0" y1="${zeroY}" x2="220" y2="${zeroY}" />
+                ${gridLines.map(y => svg`<line class="grid" x1="0" y1="${y}" x2="${NODE_CONTENT_WIDTH}" y2="${y}" />`)}
+                <line class="zero-line" x1="0" y1="${zeroY}" x2="${NODE_CONTENT_WIDTH}" y2="${zeroY}" />
 
                 <!-- Curve Fills -->
-                ${this.config?.cursor !== undefined ? svg`
+                ${this.config?.cursor !== undefined ? (this.pathData ? svg`
                     <!-- Left (Solid) -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.2"
                           clip-path="url(#clip-left)" />
 
                     <!-- Right (Hashed) -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="url(#hash-pattern)"
                           clip-path="url(#clip-right)" />
-                ` : svg`
+                ` : '') : (this.pathData ? svg`
                     <!-- Default Fill if no cursor -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.1" />
-                `}
+                ` : '')}
 
                 <!-- Curve Stroke -->
                 <path class="curve" d="${this.pathData}" fill="none" stroke="#00ff88" stroke-width="2" vector-effect="non-scaling-stroke" />
@@ -1085,7 +1077,7 @@ export class GraphWidget extends MobxLitElement {
     const [minY, maxY] = this.config.range || [0, 1];
 
     return html`
-            <svg viewBox="0 0 220 96" preserveAspectRatio="none"
+            <svg viewBox="0 0 ${NODE_CONTENT_WIDTH} 96" preserveAspectRatio="none"
                 @pointerdown=${(e: PointerEvent) => this.handlePointerDown(e)}
                 @pointermove=${(e: PointerEvent) => this.handlePointerMove(e)}
                 @pointerleave=${() => this.handlePointerLeave()}
@@ -1100,10 +1092,10 @@ export class GraphWidget extends MobxLitElement {
                     </pattern>
                     ${this.config?.cursor !== undefined ? svg`
                         <clipPath id="clip-left">
-                            <rect x="0" y="0" width="${this.config.cursor * 220}" height="96" />
+                            <rect x="0" y="0" width="${this.config.cursor * NODE_CONTENT_WIDTH}" height="96" />
                         </clipPath>
                         <clipPath id="clip-right">
-                            <rect x="${this.config.cursor * 220}" y="0" width="${220 - (this.config.cursor * 220)}" height="96" />
+                            <rect x="${this.config.cursor * NODE_CONTENT_WIDTH}" y="0" width="${NODE_CONTENT_WIDTH - (this.config.cursor * NODE_CONTENT_WIDTH)}" height="96" />
                         </clipPath>
                     ` : ''}
                     <linearGradient id="curveGradient" x1="0" x2="0" y1="0" y2="1">
@@ -1115,10 +1107,10 @@ export class GraphWidget extends MobxLitElement {
                 <rect width="100%" height="100%" fill="url(#grid)" />
 
                 <!-- Axis Lines -->
-                <line class="axis-line" x1="0" y1="${height / 2}" x2="220" y2="${height / 2}" />
+                <line class="axis-line" x1="0" y1="${height / 2}" x2="${NODE_CONTENT_WIDTH}" y2="${height / 2}" />
 
                 <!-- Axis Lines -->
-                <line class="axis-line" x1="0" y1="${height / 2}" x2="220" y2="${height / 2}" />
+                <line class="axis-line" x1="0" y1="${height / 2}" x2="${NODE_CONTENT_WIDTH}" y2="${height / 2}" />
 
                 <!-- Segments (for non-envelope mode) -->
                 ${!this.config.envelopeNodes ?
@@ -1169,17 +1161,17 @@ export class GraphWidget extends MobxLitElement {
                 <!-- Curve Fills -->
                 ${this.config?.cursor !== undefined ? svg`
                     <!-- Left (Solid) -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.2"
                           clip-path="url(#clip-left)" />
 
                     <!-- Right (Hashed) -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="url(#hash-pattern)"
                           clip-path="url(#clip-right)" />
                 ` : svg`
                     <!-- Default Fill if no cursor -->
-                    <path d="${this.pathData} L 220 ${height} L 0 ${height} Z"
+                    <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.1" />
                 `}
 
@@ -1192,7 +1184,7 @@ export class GraphWidget extends MobxLitElement {
 
                 <!-- Cursor -->
                 ${this.config?.cursor !== undefined ? (() => {
-        const cursorX = this.config.cursor * 220;
+        const cursorX = this.config.cursor * NODE_CONTENT_WIDTH;
         const valY = this.evaluateCurve(this.config.cursor);
 
         // Normalize Y for SVG

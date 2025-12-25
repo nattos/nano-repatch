@@ -8,7 +8,7 @@ import { toJS } from 'mobx';
 
 import { customElement, property } from 'lit/decorators.js';
 import { MobxLitElement } from '../../views/mobx-lit-element';
-import { GridNode } from '../../builder/state';
+import { GridNode, LongEdit, AppController } from '../../builder/state';
 import { GraphNodeRenderHandlers, InspectorChangeHandler, defaultNodeRepository } from '../../structor/repository';
 
 @customElement('curve-inspector')
@@ -16,7 +16,7 @@ export class CurveInspector extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
 
-  private longEdit: any = null;
+  private longEdit: LongEdit | null = null;
 
   render() {
     if (!this.node) return html``;
@@ -140,7 +140,7 @@ export class CurveEnvInspector extends MobxLitElement {
   @property({ attribute: false })
   node!: GridNode;
 
-  private longEdit: any = null;
+  private longEdit: LongEdit | null = null;
 
   render() {
     if (!this.node) return html``;
@@ -188,15 +188,15 @@ export class CurveEnvInspector extends MobxLitElement {
           this.longEdit = null;
         }
       },
-      onEnvelopeChange: (newNodes, newSegments) => {
-        const update = (c: any) => {
+      onEnvelopeChange: (newNodes: { id: string; x: number; y: number }[], newSegments: any[]) => {
+        const update = (c: AppController) => {
           const innerConfig = toJS(envConfig);
           // Removed: const nodeConfig = toJS(this.node.config);
           // We don't need nodeConfig.values anymore since we are writing to root
-          const newConfig: any = {
+          const newConfig: GraphWidgetConfig = {
             ...innerConfig,
-            envelopeNodes: newNodes.map((n: any) => ({ id: n.id, x: n.x, y: n.y })),
-            segments: newSegments.map((s: any) => {
+            envelopeNodes: newNodes.map((n) => ({ id: n.id, x: n.x, y: n.y })),
+            segments: newSegments.map((s) => {
               if (!s.curve || !s.curve.type) console.warn('Missing curve type in node update!', s);
               return {
                 id: s.id,

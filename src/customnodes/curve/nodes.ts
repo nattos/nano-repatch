@@ -1,6 +1,6 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { NumberType } from "../../structor/type-helpers";
-import { NodeCategory } from "../../structor/structor";
+import { ExecutionContext, NodeCategory } from "../../structor/structor";
 import { curveStructorType, GraphWidgetConfig } from "./types";
 
 const executeCurveEase = (inputs: any, config: any) => {
@@ -219,19 +219,14 @@ const inputs = {
   value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 }
 };
 
-const executeCurveEnv = (inputs: any, config: any, context: any, state: CurveEnvState) => {
-  const value = inputs.value as number;
+const executeCurveEnv = (inputs: { value?: number; }, config: { config?: GraphWidgetConfig; }, context: ExecutionContext, state: CurveEnvState) => {
+  // console.log('executeCurveEnv inputs:', inputs);
+  const value = inputs.value ?? 0;
 
   // Prioritize inputs.config (runtime updates) over config.config (compiled snapshot)
   // Check all possible locations for config
-  const envConfig = (
-    inputs.config ||
-    config?.values?.config ||
-    config?.fields?.config ||
-    config?.config
-  ) as GraphWidgetConfig;
+  const envConfig = config?.config;
 
-  // DEBUG SIGNALS
   // DEBUG SIGNALS REMOVED
   if (!envConfig ||
     !envConfig.envelopeNodes ||
@@ -280,6 +275,11 @@ const executeCurveEnv = (inputs: any, config: any, context: any, state: CurveEnv
 
     if (type === 'linear') {
       shapedT = t;
+    } else if (type === 'exponential') {
+      const exponent = Math.pow(10, -(curveVal ?? 0));
+      // Clamp t to prevent NaN for negative t (though t should be 0..1)
+      const safeT = Math.max(0, t);
+      shapedT = Math.pow(safeT, exponent);
     } else if (type === 'ease_in_out') {
       // Sine ease in out
       shapedT = -(Math.cos(Math.PI * t) - 1) / 2;
@@ -289,8 +289,8 @@ const executeCurveEnv = (inputs: any, config: any, context: any, state: CurveEnv
         // shapedT = Math.pow(t, 2 ** curveVal) ?
         // For now just standard ease + mix?
       }
-    } else if (type === 'power') { // Custom power/exponent logic if implemented
-      // ...
+    } else if (type === 'power') {
+      // Placeholder for power
     }
   }
 
@@ -305,23 +305,22 @@ export const curve_env = defineNode({
   version: '1.0.0',
   displayName: 'Curve Envelope',
   metadata: {
-    category: NodeCategory.Math,
-    keywords: ['curve', 'envelope', 'shape', 'env'],
-    description: 'Freeform parametric envelope.'
+    category: 'Curve',
+    keywords: ['envelope', 'automation', 'ramp'],
+    description: 'User-editable curve envelope'
   },
-  inputs,
-  config: {
-    config: { ...curveStructorType, optional: true }
-  },
+  inputs: inputs,
   outputs: {
-    result: NumberType
+    result: { type: NumberType, description: 'Output value' }
   },
-  createState: () => ({
+  config: {
+    config: { kind: 'atomic', type: 'any', defaultValue: {} }
+  },
+  inspectInputs: true,
+  createState: (): CurveEnvState => ({
     lastSegmentIndex: 0
   }),
   autoBroadcast: true,
-  inspectInputs: true,
-  /* UI registered in register-ui.ts */
   compileConfig: (uiConfig: NodeStorageConfig) => {
     // We prefer 'curveData' (root-level config for triggering compilation)
     // Fallback to 'values.config' for backward compatibility
@@ -339,7 +338,8 @@ export const curve_env = defineNode({
           segments: [
             { id: 's1', weight: 1, curve: { type: 'linear' } }
           ]
-        }
+        },
+        value: uiConfig.values?.value ?? 0
       }
     };
   },
