@@ -43,7 +43,7 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         oldInputs = executor.getInputs();
       }
 
-      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates, msg.inferredNodeTypes);
+      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates, msg.inferredNodeTypes, msg.dirtyNodeIds);
 
       if (userNodeStates) {
         executor.setUserNodeStates(userNodeStates);

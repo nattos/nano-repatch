@@ -42,6 +42,7 @@ export class RuntimeManager {
   private nodeRepository = defaultNodeRepository;
   private realtimeNodeCache = new Map<string, boolean>();
   private hasLoadedGraph = false;
+  private pendingDirtyNodeIds = new Set<string>();
 
   private compilerWorker: Worker;
   private executorWorker: Worker;
@@ -236,8 +237,10 @@ export class RuntimeManager {
       type: 'INIT_GRAPH',
       graph: msg.graph,
       inferredNodeTypes: msg.inferredTypes,
-      isRecompilation: this.hasLoadedGraph
+      isRecompilation: this.hasLoadedGraph,
+      dirtyNodeIds: Array.from(this.pendingDirtyNodeIds)
     };
+    this.pendingDirtyNodeIds.clear(); // Clear after sending
     this.hasLoadedGraph = true;
     this.executorWorker.postMessage(initMsg);
 
@@ -355,12 +358,16 @@ export class RuntimeManager {
     }
 
     if (nodesToSend.length > 0) {
-      const needsFullRecompile = nodesToSend.some(n => {
+      const recompileNodes = nodesToSend.filter(n => {
         const type = this.nodeRepository.getNodeType(n.typeId);
         return type?.shouldRecompileOnConfigChange?.(n.config) ?? false;
       });
 
-      if (needsFullRecompile) {
+      if (recompileNodes.length > 0) {
+        // Track nodes that caused recompile
+        for (const n of recompileNodes) {
+          this.pendingDirtyNodeIds.add(n.id);
+        }
         this.recompileAndRun();
       } else {
         this.compilerWorker.postMessage({

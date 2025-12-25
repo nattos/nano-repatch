@@ -443,6 +443,12 @@ export const curve_crop = defineNode({
       outputs: { result },
       ui: { start, end }
     };
+  },
+  shouldRecompileOnConfigChange: (config) => {
+    // Recompile if mode changes to update ports.
+    // While this might recompile on slider drags (if they are part of the same config object),
+    // it is necessary for structural correctness when mode changes.
+    return true;
   }
 });
 

@@ -28,7 +28,8 @@ export class GraphExecutor {
     private graph: GraphDefinition,
     private repository: NodeRepository,
     initialStates?: Map<string, NodeState>,
-    inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>
+    inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>,
+    dirtyNodeIds?: string[]
   ) {
     this.inferredNodeTypes = inferredNodeTypes;
     this.executionOrder = graph.executionOrder || [];
@@ -41,7 +42,7 @@ export class GraphExecutor {
       this.downstreamMap.get(conn.fromNode)!.push(conn.toNode);
     }
 
-    this.initializeStates(initialStates);
+    this.initializeStates(initialStates, dirtyNodeIds);
   }
 
   // private compile() { ... } // Removed
@@ -51,7 +52,9 @@ export class GraphExecutor {
   }
 
 
-  private initializeStates(initialStates?: Map<string, NodeState>) {
+  private initializeStates(initialStates?: Map<string, NodeState>, dirtyNodeIds?: string[]) {
+    const explicitDirtySet = new Set(dirtyNodeIds || []);
+
     for (const [nodeId, instance] of Object.entries(this.graph.nodes)) {
       const definition = this.repository.get(instance.definitionId);
       const config = instance.defaultConfig ?? null;
@@ -74,7 +77,9 @@ export class GraphExecutor {
           // Always update config and realtime status from new graph definition
           config: instance.defaultConfig ?? null,
           isRealtime,
-          definitionId: instance.definitionId
+          definitionId: instance.definitionId,
+          // Mark dirty if explicitly requested OR if old state was dirty
+          isDirty: recoveredState.isDirty || explicitDirtySet.has(nodeId)
         };
         this.nodeStates.set(nodeId, state);
       } else {

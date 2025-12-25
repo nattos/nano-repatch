@@ -83,6 +83,7 @@ export interface EnhancedNodeOptions<
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
+  shouldRecompileOnConfigChange?: (config: any) => boolean;
 
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: SimplifyInputs<TInputs> }>,
@@ -104,6 +105,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   extendedOutputs?: ExtendedNodeOutputsDef;
 
   inspectInputs?: boolean;
+  shouldRecompileOnConfigChange?: (config: any) => boolean;
   // onMessage is inherited from PrimitiveNodeDefinition
 }
 
@@ -142,7 +144,10 @@ export function defineNode<
     ...options,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
-    computeForwardPorts: (inputTypes: any, config: any, context: any) => {
+    computeForwardPorts: (inputTypes: any, config: any, context: any, backwardMetadata?: any) => {
+      if (options.computeForwardPorts) {
+        return options.computeForwardPorts(inputTypes, config, context, backwardMetadata);
+      }
       return {
         // Return static definition for inputs and outputs.
         inputs: { kind: 'record', fields: simpleInputs },
@@ -165,7 +170,8 @@ export function defineNode<
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
 
-    inspectInputs: options.inspectInputs
+    inspectInputs: options.inspectInputs,
+    shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange
   };
 }
 
@@ -214,6 +220,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     getDisplayLabel: def.getDisplayLabel,
 
     inspectInputs: def.inspectInputs,
+    shouldRecompileOnConfigChange: def.shouldRecompileOnConfigChange,
   };
 
   // If UI is provided, we need to hook it up.
