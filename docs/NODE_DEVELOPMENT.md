@@ -275,6 +275,29 @@ private startLoop() {
 *   Named outputs (`x`, `y`, `z`, `w`) are currently supported only for vector sizes 2, 3, and 4.
 *   Other array sizes use numerical indices (`0`, `1`, ...).
 
+
 ### 3. Pack Node
 *   The `core.pack` node accepts any input type but treats its output as a generic Record containing those named fields.
 *   Downstream nodes must be able to handle this Record structure.
+
+## 11. Configuration Updates & Virtual Inputs
+
+### The Challenge: Config Merging
+When a node's configuration is updated (e.g., from the Inspector or a test), the `GraphExecutor` merges the new config into the existing state.
+*   **Structure:** A node's config is typically a `StructorRecord` ({ kind: 'record', fields: { ... } }).
+*   **Virtual Inputs:** Values for unconnected ports are stored in a special `values` property on the config object (e.g., `config.values.frequency`).
+
+### The Pitfall: Data Loss
+Earlier versions of the executor used a simple spread merge which could accidentally discard top-level properties like `values` if the new config only contained `fields`.
+*   **Symptom:** Disconnecting a wire caused the node to revert to `0` or `null` instead of the last set virtual input value.
+*   **Fix:** `GraphExecutor.setNodeConfig` now performs a **shallow merge** of top-level properties (preserving `values`) and a **deep merge** of the `fields` object.
+
+### Best Practice
+When manually constructing config updates (e.g., in unit tests):
+1.  **Prefer Partial Updates:** You only need to provide the fields you want to change.
+2.  **Respect Structure:** If you are updating a primitive value (e.g., changing a number constant), the executor handles the replacement. If updating a record, it merges fields.
+3.  **Virtual Inputs:** If you need to simulate a user setting a virtual input value (without a wire connection), set it in `config.values`:
+    ```typescript
+    executor.setNodeConfig('myNode', { values: { frequency: 440 } });
+    ```
+

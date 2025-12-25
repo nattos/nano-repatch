@@ -3,6 +3,29 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Build Fixes & Config Logic Hardening (As of 2025-12-25)
+
+This entry documents the resolution of build errors, test failures, and a regression in the `GraphExecutor`'s configuration merging logic.
+
+### Bug Fixes
+
+1.  **Strict Config Merging:**
+    *   **Issue:** A previous fix for `executor.ts` introduced a regression where updating a Node's configuration (e.g., via Inspector) cleared the `values` property, which stores "Virtual Inputs" (values for unconnected ports). This caused nodes like `curve.env` to receive `0.0` input instead of the user-defined value.
+    *   **Fix:** Updated `GraphExecutor.setNodeConfig` to perform a shallow merge of top-level properties (preserving `values` and other metadata) while deep-merging the `fields` object.
+
+2.  **Executor Syntax & Type Errors:**
+    *   **Issue:** `executor.ts` contained a syntax error (missing variable declaration and state check) and inefficient spread logic for `Structor` types.
+    *   **Fix:** Corrected the implementation to safely handle both Primitive (direct replacement) and Record (field merge) configuration updates.
+
+3.  **GraphWidget Config Types:**
+    *   **Issue:** `GraphWidgetConfig` in `nodes.ui.ts` had loose typing that caused build failures when assigning to strict types in `graph-widget.ts`.
+    *   **Fix:** Added explicit type assertions (`as [number, number]`) and strict typing for `defaultConfig` to ensure `domain`, `range`, and `segments` match the expected interface.
+
+### Verification
+
+*   **Regression Test:** Verified the fix with a reproduction case (`src/repro-curve.test.ts`) ensuring virtual inputs are preserved during config updates.
+*   **Full Suite:** All unit tests (`npm test`) and the build (`npm run build`) are passing.
+
 ## Audio Context Reliability & Hero Node Patterns (As of 2025-12-07)
 
 This entry documents the fixes for AudioContext suspension handling and the formalization of the "Hero Node" UI pattern.
