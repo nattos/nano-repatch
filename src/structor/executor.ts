@@ -242,7 +242,10 @@ export class GraphExecutor {
             if (typeof fromPort === 'string' && fromPort) {
               value = upstreamOutput.fields[fromPort];
             } else if (typeof fromPort === 'number') {
-              // Fallback for number ports - ignored or strictly named
+              // TODO: Fix numeric port resolution.
+              // Currently, connections using numeric indices (often from recompiled subgraphs)
+              // are failing to resolve because we lack a robust way to map index -> name here.
+              // The previous fallback attempt was unreliable.
             }
 
             if (value !== undefined) {
