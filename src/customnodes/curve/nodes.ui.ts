@@ -270,3 +270,98 @@ export const CurveEnvBodyRenderer = (node: GridNode, handlers: GraphNodeRenderHa
 };
 
 export const CurveEnvBodyHeight = (node: GridNode) => 100; // Taller for envelope editor?
+
+@customElement('curve-crop-inspector')
+export class CurveCropInspector extends MobxLitElement {
+  @property({ attribute: false })
+  node!: GridNode;
+
+  render() {
+    if (!this.node) return html``;
+
+    // "Hero Node" Pattern: Read dynamic UI state from RuntimeManager
+    // This gives us the real-time 'start' and 'end' values calculated by the worker
+    const uiState = runtimeManager.uiStates.get(this.node.id);
+
+    // Fallback to inputs (unconnected values) if UI state is missing (e.g. graph not running)
+    const inputs = runtimeManager.inputs.get(this.node.id);
+    // Helper to get input value or default
+    const getVal = (key: string, def: number) => {
+      if (uiState && typeof uiState[key] === 'number') return uiState[key];
+      if (inputs && inputs.fields && typeof inputs.fields[key] === 'number') return inputs.fields[key];
+      // Note: We don't have easy access to defaults here without nodeType check,
+      // but defaults are 0 and 1.
+      return def;
+    };
+
+    const start = getVal('start', 0);
+    let end = getVal('end', 1);
+    if (end < start) end = start;
+
+    // Visualization:
+    // We want to show the full 0-1 range, but "highlight" the cropped region [start, end].
+    // Or do we show the cropped region as the "active" part of the curve?
+    // If we map [start, end] -> [0, 1], then outside this range is clamped.
+    // So the curve is flat 0 at left, linear ramp from start to end, flat 1 at right.
+
+    // Nodes: (0,0), (start,0), (end,1), (1,1)
+
+    const envelopeNodes = [
+      { id: 'n0', x: 0, y: 0 },
+      { id: 'n1', x: start, y: 0 },
+      { id: 'n2', x: end, y: 1 },
+      { id: 'n3', x: 1, y: 1 }
+    ];
+
+    // Filter duplicates if parameters overlap
+    // GraphWidget might struggle with coincident nodes, but let's try.
+    // Actually, simple way: Just 2 points (start,0) and (end,1).
+    // The graph widget automatically extrapolates flat lines outside the defined segments range
+    // IF the domain matches the nodes?
+    // No, standard curve usually clamps at endpoints.
+    // If we define nodes at start and end, and the domain is 0-1.
+
+    const widgetConfig: GraphWidgetConfig = {
+      domain: [0, 1],
+      range: [0, 1],
+      interactive: false,
+      envelopeNodes: envelopeNodes,
+      segments: [
+        // Flat 0 region
+        { id: 's0', weight: 1, curve: { type: 'linear', value: 0 } },
+        // Ramp region
+        { id: 's1', weight: 1, curve: { type: 'linear', value: 0 } },
+        // Flat 1 region
+        { id: 's2', weight: 1, curve: { type: 'linear', value: 0 } }
+      ]
+    };
+
+    // Calculate cursor position
+    let cursorValue: number | undefined = undefined;
+    if (inputs) {
+      // 'value' input
+      if (inputs.fields && inputs.fields['value'] !== undefined) {
+        cursorValue = inputs.fields['value'];
+      } else if (inputs.untagged && inputs.untagged.length > 0) {
+        cursorValue = inputs.untagged[0];
+      }
+    }
+
+    // Normalize cursor
+    if (cursorValue !== undefined) {
+      cursorValue = Math.max(0, Math.min(1, cursorValue));
+    }
+    widgetConfig.cursor = cursorValue;
+
+    return html`
+      <graph-widget style="pointer-events: none; height: 50px; display: block;" .config=${widgetConfig}></graph-widget>
+    `;
+  }
+}
+
+export const CurveCropBodyRenderer = (node: GridNode, handlers: GraphNodeRenderHandlers) => {
+  return html`<curve-crop-inspector .node=${node}></curve-crop-inspector>`;
+};
+
+export const CurveCropBodyHeight = (node: GridNode) => 50;
+

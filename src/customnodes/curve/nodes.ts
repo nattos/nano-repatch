@@ -338,3 +338,55 @@ export const curve_env = defineNode({
 });
 
 registerNode(curve_env);
+
+export const curve_crop = defineNode({
+  id: 'curve.crop',
+  version: '1.0.0',
+  displayName: 'Curve Crop',
+  metadata: {
+    category: 'Curve',
+    keywords: ['crop', 'slice', 'remap', 'linear'],
+    description: 'Linear mapping from 0-1 to start-end range.'
+  },
+  inputs: {
+    value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 },
+    start: { type: NumberType, description: 'Output at 0', defaultValue: 0 },
+    end: { type: NumberType, description: 'Output at 1', defaultValue: 1 }
+  },
+  outputs: {
+    result: { type: NumberType, description: 'Mapped value' }
+  },
+  autoBroadcast: true,
+  inspectInputs: true,
+  execute: (inputs, config, context) => {
+    const start = inputs.start ?? 0;
+    let end = inputs.end ?? 1;
+    const val = inputs.value ?? 0;
+
+    // Enforce end >= start
+    if (end < start) end = start;
+
+    // Crop (Remap val from [start, end] to [0, 1])
+    let result = 0;
+    const range = end - start;
+
+    if (range < 0.000001) {
+      // Range is effectively zero. Step function?
+      // If val >= start, 1, else 0? Or just 0?
+      // Let's assume standard step behavior at start.
+      result = val >= start ? 1 : 0;
+    } else {
+      // (val - start) / (end - start)
+      const t = (val - start) / range;
+      // Clamp result to 0-1
+      result = Math.max(0, Math.min(1, t));
+    }
+
+    return {
+      outputs: { result },
+      ui: { start, end }
+    };
+  }
+});
+
+registerNode(curve_crop);

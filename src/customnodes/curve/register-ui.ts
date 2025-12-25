@@ -20,13 +20,22 @@ registerNode({
   }
 });
 
-import { curve_env } from "./nodes";
+import { curve_env, curve_crop } from "./nodes";
 
 registerNode({
   ...curve_env,
   ui: {
     body: () => import('./nodes.ui').then(m => m.CurveEnvBodyRenderer),
     getBodyHeight: () => import('./nodes.ui').then(m => m.CurveEnvBodyHeight),
+    inspector: () => import('./nodes.ui').then(m => m.CurveInspectorRenderer)
+  }
+});
+
+registerNode({
+  ...curve_crop,
+  ui: {
+    body: () => import('./nodes.ui').then(m => m.CurveCropBodyRenderer),
+    getBodyHeight: () => import('./nodes.ui').then(m => m.CurveCropBodyHeight),
     inspector: () => import('./nodes.ui').then(m => m.CurveInspectorRenderer)
   }
 });

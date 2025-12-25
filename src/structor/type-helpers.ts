@@ -321,14 +321,32 @@ export function definePrimitiveNode<
           }
         } else {
           // Scalar result
-          const anyResult = result as any;
-          const wrappedFields: Record<string, Structor> = {};
-          for (const [key, type] of Object.entries(options.outputs)) {
-            if (anyResult[key] !== undefined) {
-              wrappedFields[key] = toStructor(anyResult[key], type);
+          let rawOutputs = result as any;
+          let uiOutputs: any = undefined;
+
+          // Check for { outputs, ui } pattern
+          if (rawOutputs && typeof rawOutputs === 'object') {
+            // Logic matches the non-broadcast handler below
+            if ('outputs' in rawOutputs && ('ui' in rawOutputs || Object.keys(rawOutputs).length === 2)) {
+              if (!('outputs' in options.outputs)) {
+                uiOutputs = rawOutputs.ui;
+                rawOutputs = rawOutputs.outputs;
+              }
             }
           }
-          return { fields: wrappedFields };
+
+          const wrappedFields: Record<string, Structor> = {};
+          for (const [key, type] of Object.entries(options.outputs)) {
+            if (rawOutputs[key] !== undefined) {
+              wrappedFields[key] = toStructor(rawOutputs[key], type);
+            }
+          }
+
+          const structorResult = { fields: wrappedFields };
+          if (uiOutputs !== undefined) {
+            return { outputs: structorResult, ui: uiOutputs };
+          }
+          return structorResult;
         }
       } else if (options.inputs && Object.keys(options.inputs).length > 0) {
         // Even if not broadcasting, we might want to unwrap the raw inputs if they match the schema
