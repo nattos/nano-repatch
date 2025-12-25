@@ -1,0 +1,91 @@
+
+  private getEnvelopePathData() {
+    if (!this.config || !this.config.envelopeNodes || !this.config.segments) return '';
+    const { envelopeNodes, segments, range } = this.config;
+    const [minY, maxY] = range || [0, 1];
+    const width = 220;
+    const height = 96;
+
+    const normalizeX = (val: number) => val * width;
+    // Y is usually 0 at top, so (1-normalized)*height
+    const normalizeY = (val: number) => height - ((val - minY) / (maxY - minY)) * height;
+
+    const points: [number, number][] = [];
+
+    // Iterate through nodes and segments
+    for (let i = 0; i < envelopeNodes.length - 1; i++) {
+        const p1 = envelopeNodes[i];
+        const p2 = envelopeNodes[i+1];
+        const segment = segments[i];
+
+        const startX = normalizeX(p1.x);
+        const startY = normalizeY(p1.y);
+        const endX = normalizeX(p2.x);
+        const endY = normalizeY(p2.y);
+
+        // Calculate steps for this segment
+        // steps probably dependent on width/curvature
+        const steps = 20;
+
+        let curveType = 'linear';
+        let curveValue = 0;
+        let curvePoints = undefined;
+
+        if (segment) {
+            curveType = segment.curve.type;
+            curveValue = segment.curve.value ?? 0;
+            curvePoints = segment.curve.points;
+        }
+
+        // Draw points for this segment
+        for (let j = 0; j < steps; j++) {
+            const t = j / steps;
+
+            // Calculate local curve value (0-1)
+             let normY = 0;
+             switch (curveType) {
+               case 'exponential':
+                 const exponent = Math.pow(10, -curveValue);
+                 normY = Math.pow(t, exponent);
+                 break;
+               case 'linear':
+                 normY = t;
+                 break;
+               case 'step':
+                 const s = curveValue; // count
+                 if (s <= 1) normY = 0;
+                 else normY = Math.floor(t * s) / (s - 1);
+                 if (t >= 0.999) normY = 1;
+                 break;
+               case 'sin':
+                 normY = -(Math.cos(Math.PI * t) - 1) / 2;
+                 break;
+               case 'quad':
+                 normY = t * t;
+                 break;
+               default:
+                 normY = t;
+             }
+
+             // Initial point of segment is p1
+             // If we iterate to < steps, we get start to almost end
+             // The next segment loop will handle its own start (which is this one's end)
+             // But we need to make sure we don't duplicate points too much or leave gaps
+             // Usually it's better to go to <= steps if last segment
+
+             // Map normY to Y range of this segment [p1.y, p2.y]
+             const yVal = p1.y + normY * (p2.y - p1.y);
+
+             // Map t to X range [p1.x, p2.x]
+             const xVal = p1.x + t * (p2.x - p1.x);
+
+             points.push([normalizeX(xVal), normalizeY(yVal)]);
+        }
+    }
+
+    // Add the very last point
+    const last = envelopeNodes[envelopeNodes.length - 1];
+    points.push([normalizeX(last.x), normalizeY(last.y)]);
+
+    return `M ${points.map(p => p.join(',')).join(' L ')}`;
+  }

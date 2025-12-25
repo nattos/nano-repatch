@@ -16,6 +16,7 @@ export interface GraphWidgetConfig {
   domain: [number, number];
   range: [number, number];
   segments: GraphSegment[];
+  envelopeNodes?: { id: string, x: number, y: number }[];
 }
 
 export const curveStructorType = defineRecordType<GraphWidgetConfig>({
@@ -48,6 +49,19 @@ export const curveStructorType = defineRecordType<GraphWidgetConfig>({
           }
         }
       },
+      size: 'dynamic'
+    },
+    envelopeNodes: {
+      kind: 'array',
+      element: {
+        kind: 'record',
+        fields: {
+          id: { kind: 'atomic', type: 'string' },
+          x: NumberType,
+          y: NumberType
+        }
+      },
+      optional: true,
       size: 'dynamic'
     }
   },

@@ -19,3 +19,14 @@ registerNode({
     inspector: () => import('./nodes.ui').then(m => m.CurveInspectorRenderer)
   }
 });
+
+import { curve_env } from "./nodes";
+
+registerNode({
+  ...curve_env,
+  ui: {
+    body: () => import('./nodes.ui').then(m => m.CurveEnvBodyRenderer),
+    getBodyHeight: () => import('./nodes.ui').then(m => m.CurveEnvBodyHeight),
+    inspector: () => import('./nodes.ui').then(m => m.CurveInspectorRenderer)
+  }
+});

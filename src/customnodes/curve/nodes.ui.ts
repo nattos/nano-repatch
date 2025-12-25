@@ -102,18 +102,18 @@ export class CurveInspector extends MobxLitElement {
     const inputs = runtimeManager.inputs.get(this.node.id);
     let cursorValue: number | undefined = undefined;
     if (inputs) {
-        if (inputs.fields && inputs.fields['value'] !== undefined) {
-            cursorValue = inputs.fields['value'];
-        } else if (inputs.untagged && inputs.untagged.length > 0) {
-            cursorValue = inputs.untagged[0];
-        }
+      if (inputs.fields && inputs.fields['value'] !== undefined) {
+        cursorValue = inputs.fields['value'];
+      } else if (inputs.untagged && inputs.untagged.length > 0) {
+        cursorValue = inputs.untagged[0];
+      }
     }
 
     // Normalize cursor if domain is not 0-1
     if (cursorValue !== undefined) {
-        const [minIn, maxIn] = widgetConfig.domain || [0, 1];
-        cursorValue = (cursorValue - minIn) / (maxIn - minIn);
-        cursorValue = Math.max(0, Math.min(1, cursorValue));
+      const [minIn, maxIn] = widgetConfig.domain || [0, 1];
+      cursorValue = (cursorValue - minIn) / (maxIn - minIn);
+      cursorValue = Math.max(0, Math.min(1, cursorValue));
     }
 
     widgetConfig.cursor = cursorValue;
@@ -134,3 +134,130 @@ export const CurveInspectorRenderer = (node: GridNode, onchange: InspectorChange
 };
 
 export const CurveBodyHeight = (node: GridNode) => 100;
+
+@customElement('curve-env-inspector')
+export class CurveEnvInspector extends MobxLitElement {
+  @property({ attribute: false })
+  node!: GridNode;
+
+  private longEdit: any = null;
+
+  render() {
+    if (!this.node) return html``;
+
+    const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
+    let defaultConfig = {
+      domain: [0, 1],
+      range: [0, 1],
+      envelopeNodes: [
+        { id: 'n1', x: 0, y: 0 },
+        { id: 'n2', x: 1, y: 1 }
+      ],
+      segments: [
+        { id: 's1', weight: 1, curve: { type: 'linear' } }
+      ]
+    };
+
+    if (nodeType && nodeType.inputs) {
+      const configInput = nodeType.inputs.find(i => i.name === 'config');
+      if (configInput && configInput.defaultValue) {
+        defaultConfig = configInput.defaultValue;
+      }
+    }
+
+    // curve.env stores config in 'curveData' field (or legacy 'values.config')
+    const envConfig = ((this.node.config as any).curveData as GraphWidgetConfig | undefined) ??
+      (this.node.config.values?.config as any as GraphWidgetConfig | undefined) ??
+      defaultConfig;
+
+    const widgetConfig: GraphWidgetConfig = {
+      // ... (keep existing lines)
+      ...envConfig,
+      domain: envConfig.domain as any,
+      range: envConfig.range as any,
+      interactive: true,
+      onInteractionStart: () => {
+        this.longEdit = appController.beginLongEdit({
+          apply: () => { },
+          cancel: () => { this.longEdit = null; }
+        });
+      },
+      onInteractionEnd: () => {
+        if (this.longEdit) {
+          this.longEdit.accept();
+          this.longEdit = null;
+        }
+      },
+      onEnvelopeChange: (newNodes, newSegments) => {
+        const update = (c: any) => {
+          const innerConfig = toJS(envConfig);
+          // Removed: const nodeConfig = toJS(this.node.config);
+          // We don't need nodeConfig.values anymore since we are writing to root
+          const newConfig: any = {
+            ...innerConfig,
+            envelopeNodes: newNodes.map((n: any) => ({ id: n.id, x: n.x, y: n.y })),
+            segments: newSegments.map((s: any) => {
+              if (!s.curve || !s.curve.type) console.warn('Missing curve type in node update!', s);
+              return {
+                id: s.id,
+                weight: s.weight,
+                curve: { type: s.curve?.type || 'linear', value: s.curve?.value || 0 }
+              };
+            })
+          };
+          delete newConfig.onInteractionStart;
+          delete newConfig.onInteractionEnd;
+          delete newConfig.onEnvelopeChange;
+          delete newConfig.onSegmentChange;
+          delete newConfig.onSegmentResize;
+
+          // Use 'curveData' to trigger Config Update in AppController (bypassing 'inputUpdate' optimization)
+          c.setNodeConfig(this.node.id, { curveData: newConfig });
+        };
+
+        if (this.longEdit) {
+          this.longEdit.applyAgain(update);
+        } else {
+          // CRITICAL FIX: Ensure update is actually called!
+          update(appController);
+        }
+      }
+    };
+
+    // Get input value for cursor
+    const inputs = runtimeManager.inputs.get(this.node.id);
+    let cursorValue: number | undefined = undefined;
+    if (inputs) {
+      if (inputs.fields && inputs.fields['value'] !== undefined) {
+        cursorValue = inputs.fields['value'];
+      } else if (inputs.untagged && inputs.untagged.length > 0) {
+        cursorValue = inputs.untagged[0];
+      }
+    }
+
+    // Normalize cursor if domain is not 0-1
+    // Actually curve.env input is raw value, but graph widget expects normalized cursor?
+    // Wait, GraphWidget logic for cursor usually expects 0-1 if it draws a line across the box.
+    // curve.env input 'value' is expected to be within domain (or outside).
+    // If we want to show cursor position relative to the graph view:
+    // The graph view shows 'domain' on X axis.
+    if (cursorValue !== undefined) {
+      const [minIn, maxIn] = widgetConfig.domain || [0, 1];
+      // Normalize to 0-1 of the view
+      cursorValue = (cursorValue - minIn) / (maxIn - minIn);
+      // cursorValue = Math.max(0, Math.min(1, cursorValue)); // Allow cursor outside?
+    }
+
+    widgetConfig.cursor = cursorValue;
+
+    return html`
+      <graph-widget style="pointer-events: auto;" .config=${widgetConfig}></graph-widget>
+    `;
+  }
+}
+
+export const CurveEnvBodyRenderer = (node: GridNode, handlers: GraphNodeRenderHandlers) => {
+  return html`<curve-env-inspector .node=${node}></curve-env-inspector>`;
+};
+
+export const CurveEnvBodyHeight = (node: GridNode) => 100; // Taller for envelope editor?

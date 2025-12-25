@@ -84,7 +84,7 @@ const executeCurveEase = (inputs: any, config: any) => {
         else {
           for (let i = 0; i < points.length - 1; i++) {
             const p1 = points[i];
-            const p2 = points[i+1];
+            const p2 = points[i + 1];
             if (tInSegment >= p1.x && tInSegment <= p2.x) {
               const localT = (tInSegment - p1.x) / (p2.x - p1.x);
               normY = p1.y + localT * (p2.y - p1.y);
@@ -204,3 +204,146 @@ export const curve_ease4 = defineNode({
 });
 
 registerNode(curve_ease4);
+interface CurveEnvState {
+  lastSegmentIndex: number;
+}
+
+interface NodeStorageConfig {
+  values?: {
+    config?: GraphWidgetConfig;
+    [key: string]: any;
+  };
+}
+
+const inputs = {
+  value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 }
+};
+
+const executeCurveEnv = (inputs: any, config: any, context: any, state: CurveEnvState) => {
+  const value = inputs.value as number;
+
+  // Prioritize inputs.config (runtime updates) over config.config (compiled snapshot)
+  // Check all possible locations for config
+  const envConfig = (
+    inputs.config ||
+    config?.values?.config ||
+    config?.fields?.config ||
+    config?.config
+  ) as GraphWidgetConfig;
+
+  // DEBUG SIGNALS
+  // DEBUG SIGNALS REMOVED
+  if (!envConfig ||
+    !envConfig.envelopeNodes ||
+    envConfig.envelopeNodes.length < 2 ||
+    !envConfig.segments) {
+    // If config is missing or invalid, pass through input value (Identity)
+    return { result: value };
+  }
+
+  const nodes = envConfig.envelopeNodes;
+  const segments = envConfig.segments || [];
+
+  // Boundary Handling
+  const firstNode = nodes[0];
+  const lastNode = nodes[nodes.length - 1];
+
+  if (value <= firstNode.x) return { result: firstNode.y };
+  if (value >= lastNode.x) return { result: lastNode.y };
+
+  // Optimization: Check cached segment index
+  let segmentIndex = state.lastSegmentIndex || 0;
+  // Verify cache
+  if (segmentIndex >= nodes.length - 1 || value < nodes[segmentIndex].x || value >= nodes[segmentIndex + 1].x) {
+    // Linear search (since cached index failed)
+    for (let i = 0; i < nodes.length - 1; i++) {
+      if (value >= nodes[i].x && value < nodes[i + 1].x) {
+        segmentIndex = i;
+        break;
+      }
+    }
+  }
+  state.lastSegmentIndex = segmentIndex;
+
+  const p0 = nodes[segmentIndex];
+  const p1 = nodes[segmentIndex + 1];
+  const segment = segments[segmentIndex];
+
+  // Normalized position in segment (0..1)
+  const t = (value - p0.x) / (p1.x - p0.x);
+
+  // Apply shaping
+  let shapedT = t;
+  if (segment && segment.curve) {
+    const type = segment.curve.type || 'linear';
+    const curveVal = segment.curve.value || 0;
+
+    if (type === 'linear') {
+      shapedT = t;
+    } else if (type === 'ease_in_out') {
+      // Sine ease in out
+      shapedT = -(Math.cos(Math.PI * t) - 1) / 2;
+      // Apply tension/bias if needed, but basic ease first
+      if (Math.abs(curveVal) > 0.001) {
+        // Simple power curve for tension?
+        // shapedT = Math.pow(t, 2 ** curveVal) ?
+        // For now just standard ease + mix?
+      }
+    } else if (type === 'power') { // Custom power/exponent logic if implemented
+      // ...
+    }
+  }
+
+  // Linear interpolation on shaped time
+  const result = p0.y + (p1.y - p0.y) * shapedT;
+
+  return { result };
+};
+
+export const curve_env = defineNode({
+  id: 'curve.env',
+  version: '1.0.0',
+  displayName: 'Curve Envelope',
+  metadata: {
+    category: NodeCategory.Math,
+    keywords: ['curve', 'envelope', 'shape', 'env'],
+    description: 'Freeform parametric envelope.'
+  },
+  inputs,
+  config: {
+    config: { ...curveStructorType, optional: true }
+  },
+  outputs: {
+    result: NumberType
+  },
+  createState: () => ({
+    lastSegmentIndex: 0
+  }),
+  autoBroadcast: true,
+  inspectInputs: true,
+  /* UI registered in register-ui.ts */
+  compileConfig: (uiConfig: NodeStorageConfig) => {
+    // We prefer 'curveData' (root-level config for triggering compilation)
+    // Fallback to 'values.config' for backward compatibility
+    const sourceConfig = uiConfig?.curveData ?? uiConfig?.values?.config;
+
+    return {
+      fields: {
+        config: sourceConfig ?? {
+          domain: [0, 1],
+          range: [0, 1],
+          envelopeNodes: [
+            { id: 'n1', x: 0, y: 0 },
+            { id: 'n2', x: 1, y: 1 }
+          ],
+          segments: [
+            { id: 's1', weight: 1, curve: { type: 'linear' } }
+          ]
+        }
+      }
+    };
+  },
+  execute: executeCurveEnv
+});
+
+registerNode(curve_env);

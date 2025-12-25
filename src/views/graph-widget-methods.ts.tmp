@@ -1,0 +1,118 @@
+
+  private renderEnvelopeNodes(height: number, minY: number, maxY: number) {
+    if (!this.config?.envelopeNodes) return '';
+
+    const normalizeY = (val: number) => height - ((val - minY) / (maxY - minY)) * height;
+    const normalizeX = (val: number) => val * 220; // Width is 220
+
+    return this.config.envelopeNodes.map(node => {
+        const cx = normalizeX(node.x);
+        const cy = normalizeY(node.y);
+        const isSelected = node.id === this.selectedNodeId;
+        const isHovered = node.id === this.hoveredNodeId;
+
+        return svg`
+            <g class="envelope-node"
+               style="cursor: pointer;"
+               @pointerdown=${(e: PointerEvent) => this.handleNodePointerDown(e, node)}
+               @pointerover=${() => this.hoveredNodeId = node.id}
+               @pointerout=${() => this.hoveredNodeId = null}
+            >
+                <circle cx="${cx}" cy="${cy}" r="${isHovered || isSelected ? 6 : 4}"
+                        fill="${isSelected ? '#fff' : 'var(--accent-color)'}"
+                        stroke="black" stroke-width="1" />
+
+                <!-- Expanded hit area -->
+                <circle cx="${cx}" cy="${cy}" r="10" fill="transparent" />
+            </g>
+        `;
+    });
+  }
+
+  private handleNodePointerDown(e: PointerEvent, node: any) {
+    e.stopPropagation(); // Prevent canvas drag
+    this.selectedNodeId = node.id;
+
+    if (!this.config?.interactive || !this.config.envelopeNodes) return;
+
+    const startX = node.x;
+    const startY = node.y;
+    const { envelopeNodes } = this.config;
+    const nodeIndex = envelopeNodes.findIndex(n => n.id === node.id);
+
+    // Constraints
+    const prevNode = envelopeNodes[nodeIndex - 1];
+    const nextNode = envelopeNodes[nodeIndex + 1];
+
+    // First and last nodes might have different constraints (can't move X past 0/1, or strictly 0/1?)
+    // User said: "dragging left-right stops at the previous or next node"
+    // "End points.. cannot be deleted. They can be moved away from the edges though"
+
+    const minX = prevNode ? prevNode.x : 0;
+    const maxX = nextNode ? nextNode.x : 1;
+
+    // Shift modifier handled in PointerDragOp move callback via event
+
+    if (this.config.onInteractionStart) this.config.onInteractionStart();
+
+    new PointerDragOp(e, this, {
+        move: (ev, _delta, totalDelta) => {
+            const width = 220;
+            const height = 96;
+
+            // Calculate new normalized position directly from mouse to avoid accumulating errors
+            const rect = this.getBoundingClientRect();
+            const mouseX = ev.clientX - rect.left;
+            const mouseY = ev.clientY - rect.top;
+
+            let newX = mouseX / width;
+            let newY = 1.0 - (mouseY / height); // Y is inverted in our 0-1 logic relative to screen
+
+            // Shift modifier: 2x slower?
+            // PointerDragOp doesn't easily support "slow motion" of absolute position tracking unless we use delta.
+            // Let's use startX/Y + delta.
+
+            const isShift = ev.shiftKey;
+            const scale = isShift ? 0.5 : 1.0;
+
+            const dx = (totalDelta[0] / width) * scale;
+            const dy = -(totalDelta[1] / height) * scale; // Invert delta Y because screen Y is down
+
+            let targetX = startX + dx;
+            let targetY = startY + dy;
+
+            // Clamp X
+            targetX = Math.max(minX, Math.min(maxX, targetX));
+            // Clamp Y (assuming 0-1 range for now, but strictly it depends on domain/range)
+            // But node.y is in value units? No, let's assume node.x/y are value units.
+            // Wait, node.x is 0-1 (time). node.y is value.
+            // If range is not 0-1, we need to respect it.
+
+            const [minIn, maxIn] = this.config?.domain || [0, 1]; // X domain
+            const [minOut, maxOut] = this.config?.range || [0, 1]; // Y range
+
+            // Actually, envelopeNodes usually store values in the domain/range units?
+            // Implementation plan said "Input value (0-1)" and "result = value".
+            // The user request said "freeform parametric envelope", "xy points".
+            // Let's assume nodes are stored in Normalized coordinates (0-1) for X?
+            // "If domain is 0-1, t = value".
+            // In `executeCurveEnv`: `if (value <= firstNode.x)`. This implies X is in domain units.
+            // If domain is [0, 1], then X is 0-1.
+
+            // Let's clamp targetY to range? Or free?
+            // User didn't specify Y constraints. Let's clamp to range for safety if range is defined.
+            targetY = Math.max(minOut, Math.min(maxOut, targetY));
+
+            // Update
+            // We need to construct new nodes array
+            if (this.config?.onEnvelopeChange && this.config.envelopeNodes) {
+                const newNodes = [...this.config.envelopeNodes];
+                newNodes[nodeIndex] = { ...newNodes[nodeIndex], x: targetX, y: targetY };
+                this.config.onEnvelopeChange(newNodes, this.config.segments || []);
+            }
+        },
+        complete: () => {
+            if (this.config?.onInteractionEnd) this.config.onInteractionEnd();
+        }
+    });
+  }
