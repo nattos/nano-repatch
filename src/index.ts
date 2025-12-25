@@ -6,6 +6,7 @@ import { globalStyles } from './styles';
 import './index.css';
 import './customnodes/nicepattern/nodes';
 import './customnodes/midi/nodes';
+import './customnodes/midi/register-ui';
 import './customnodes/expr/nodes';
 import './customnodes/expr/register-ui';
 import './customnodes/osc/nodes';

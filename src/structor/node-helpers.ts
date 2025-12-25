@@ -73,6 +73,7 @@ export interface EnhancedNodeOptions<
 > extends Omit<TypedNodeOptions<any, TConfig, any, TState>, 'inputs' | 'outputs' | 'execute'> {
   inputs?: TInputs;
   outputs: TOutputs; // Explicit override
+  dynamicOutputType?: StructorType;
   ui?: NodeUI;
   version?: string;
   displayName?: string;

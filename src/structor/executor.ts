@@ -446,6 +446,7 @@ export class GraphExecutor {
     // Usually it exists if init happened.
     if (userState) {
       definition.onMessage(userState, message);
+      this.markDirty(nodeId);
     }
   }
 

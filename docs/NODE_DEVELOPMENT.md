@@ -301,3 +301,39 @@ When manually constructing config updates (e.g., in unit tests):
     executor.setNodeConfig('myNode', { values: { frequency: 440 } });
     ```
 
+
+## 12. Dynamic Ports & Configuration Pitfalls
+
+Some nodes (like `curve.crop`) need to change their Input/Output topology based on their configuration (e.g. changing a `mode` from "Start/End" to "Start/Length"). This introduces significant complexity in the graph runtime.
+
+### The Mechanism: `computeForwardPorts`
+Use `computeForwardPorts` in your node definition to functionally determine your ports based on the current config.
+```typescript
+computeForwardPorts: (inputTypes, config, context) => {
+  if (config.mode === 'start-length') {
+    return { inputs: { start: NumberType, length: NumberType }, ... };
+  }
+  return { inputs: { start: NumberType, end: NumberType }, ... };
+}
+```
+
+### Pitfall 1: Stale Topology
+**Symptom:** You change the mode slider, but the node's ports on the graph don't update.
+**Cause:** The runtime assumes connection topology is static unless told otherwise. It only re-runs type inference if connections change, not if config values change.
+**Fix:** You must implement `shouldRecompileOnConfigChange` in your node options.
+```typescript
+shouldRecompileOnConfigChange: (config) => {
+  return true; // Force full graph recompile if config changes
+}
+```
+This tells the `RuntimeManager` that a config update for this node is structural. It triggers a full `compileGraph`, which re-runs `computeForwardPorts`.
+
+### Pitfall 2: Stale Execution State
+**Symptom:** The ports update visually, but the node continues outputting values based on the *old* configuration (e.g., using the old mode logic).
+**Cause:** When the graph is recompiled, the `GraphExecutor` attempts to preserve state (like current values and dirty flags) from the previous instance. If the configuration change isn't explicitly flagged, the node might not be marked as `dirty`, so it skips execution with the fresh config.
+**Fix:** The `RuntimeManager` now explicitly tracks which nodes requested a recompile and passes `dirtyNodeIds` to the new Executor. The Executor forces these nodes to be `isDirty: true`, ensuring they run immediately.
+
+### Pitfall 3: Numeric Port Resolution (Known Issue)
+**Symptom:** After a dynamic topology change (recompile), downstream nodes might read `0` or `undefined` inputs even though wires verify visually.
+**Cause:** The Compiler Worker may optimize connections to use numeric indices (e.g., `fromPort: 0`) instead of names (e.g., `fromPort: 'result'`) when regenerating the graph definition. The `GraphExecutor` currently struggles to resolve these numeric indices back to named ports in some dynamic scenarios.
+**Workaround:** This is an open engineering challenge. Ensure your dynamic nodes reuse the same port names/indices as consistently as possible to minimize compiler ambiguity.

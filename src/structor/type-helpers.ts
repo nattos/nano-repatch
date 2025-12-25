@@ -156,6 +156,7 @@ export interface TypedNodeOptions<
   inputs?: TInputs;
   config?: TConfig;
   outputs: TOutputs;
+  dynamicOutputType?: StructorType; // Allow dynamic keys with this type
   isRealtime?: (config: Structor) => boolean;
 
   /**
@@ -390,8 +391,13 @@ export function definePrimitiveNode<
       const wrappedFields: Record<string, Structor> = {};
       const anyResult = rawOutputs as any;
       if (anyResult) {
-        for (const [key, type] of Object.entries(options.outputs)) {
-          if (anyResult[key] !== undefined) {
+        // combine static outputs and dynamic outputs
+        const keys = new Set([...Object.keys(options.outputs), ...Object.keys(anyResult)]);
+
+        for (const key of keys) {
+          const type = options.outputs[key] || options.dynamicOutputType;
+          // Only process if we have a type and a value
+          if (type && anyResult[key] !== undefined) {
             wrappedFields[key] = toStructor(anyResult[key], type);
           }
         }

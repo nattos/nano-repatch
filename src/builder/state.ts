@@ -641,7 +641,7 @@ export class AppController {
     }
   }
 
-  public setNodeConfig(nodeId: string, configUpdate: Partial<GridNode['config']>): void {
+  public setNodeConfig(nodeId: string, configUpdate: Partial<GridNode['config']>, options: { skipHistory?: boolean } = {}): void {
     const state = this.getState();
     const fromConfig: Partial<any> = {};
     const toConfig: Partial<any> = {};
@@ -665,7 +665,8 @@ export class AppController {
     }
 
     if (Object.keys(toConfig).length > 0) {
-      this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: toConfig }]);
+      // dispatch takes isUndoRedo as second arg. If skipHistory is true, we treat it as "don't push to stack" which isUndoRedo=true achieves.
+      this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: toConfig }], options.skipHistory);
     }
   }
 

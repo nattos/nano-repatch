@@ -329,7 +329,7 @@ export const midiFilterNode = defineNode({
               filteredStream.push(event);
             }
           } else {
-             // Block non-note events for strict filtering consistency
+            // Block non-note events for strict filtering consistency
           }
         }
       }
@@ -356,7 +356,7 @@ export const midiPitchNode = defineNode({
   },
   inputs: {
     stream: midiStreamType,
-    pitch: { type: numberType, description: 'Pitch shift amount (semitones)', defaultValue: 0, range: [ -24, 24 ] }
+    pitch: { type: numberType, description: 'Pitch shift amount (semitones)', defaultValue: 0, range: [-24, 24] }
   },
   config: {},
   outputs: {
@@ -387,3 +387,208 @@ export const midiPitchNode = defineNode({
 });
 
 registerNode(midiPitchNode);
+
+// --- Generic Trigger/MIDI Nodes ---
+
+export const midiTriggerNode = defineNode({
+  id: "midi.trigger",
+  version: "1.0.0",
+  displayName: "MIDI Trigger",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'trigger', 'bang', 'button'],
+    description: 'Manually sends a Middle C Note On/Off pair when triggered.'
+  },
+  inputs: {},
+  config: {},
+  outputs: {
+    stream: midiStreamType
+  },
+  isRealtime: () => true,
+  createState: () => ({ lastTrigger: -1 }),
+  execute: (inputs: { fields?: { trigger?: number; } }, config, context, state) => {
+    // Check for trigger signal (virtual input 'trigger')
+    const triggerValue = inputs.fields?.trigger ?? 0;
+
+    // Check for change (edge detection or just change)
+    if (state.lastTrigger !== -1 && triggerValue !== state.lastTrigger) {
+      state.lastTrigger = triggerValue;
+      return {
+        stream: [
+          { type: 'note_on', note: 60, velocity: 1.0, channel: 1, time: 0, deviceId: 'trigger' },
+          { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0.1, deviceId: 'trigger' }
+        ]
+      };
+    }
+
+    // Initialize state
+    state.lastTrigger = triggerValue;
+    return { stream: [] };
+  },
+  // UI Registration will happen in nodes.ui.ts
+  ui: {
+    // Custom body renderer will be registered separately
+  }
+});
+
+export const midiMergeNode = defineNode({
+  id: "midi.merge",
+  version: "1.0.0",
+  displayName: "MIDI Merge",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'merge', 'combine', 'mix'],
+    description: 'Merges multiple MIDI streams into one.'
+  },
+  inputs: {
+    // We use redirect: 'untagged' to collect all connections to this one port
+    stream: { type: { kind: 'array', element: midiStreamType } as any, description: 'Input Streams', allowMultiConnection: true }
+  },
+  config: {},
+  outputs: {
+    stream: midiStreamType
+  },
+  execute: (inputs, config, context) => {
+    // inputs is the record. 'stream' will be empty if redirected?
+    // Wait, defineNode logic for 'redirect' puts it in 'untagged' array in the internal execute.
+    // The type helper `execute` signature typically passes `inputs` as the Record.
+    // If we use 'redirect', we need to access the raw untagged inputs?
+    // Or does `definePrimitiveNode` put them in `inputs.stream` if `redirect` matches?
+    // Let's check `node-helpers.ts` or `structor.ts`.
+    // Actually, `definePrimitiveNode` passes `inputs` record.
+    // If `redirect: 'untagged'` is used, `definePrimitiveNode` logic in `GraphExecutor` (or wherever)
+    // aggregation happens might put it in `untagged`.
+    //
+    // Let's rely on `inputs.stream` being an array of streams if `allowMultiConnection` is true?
+    // The Plan said: `allowMultiConnection: true` OR `redirect: 'untagged'`.
+    // `allowMultiConnection: true` with `autoBroadcast: false` (or custom broadcast) is safer for type helpers.
+    //
+    // If I use `allowMultiConnection: true`, `inputs.stream` will be `MidiEvent[][]`.
+    const streams = inputs.stream as unknown as MidiEvent[][];
+    if (!streams) return { stream: [] };
+
+    // streams might be a single stream if only one connected?
+    // GraphExecutor heuristic:
+    // If `allowMultiConnection` is true, it ALWAYS returns array of values.
+    // So `streams` is `Array<MidiEvent[]>`.
+
+    const merged: MidiEvent[] = [];
+    if (Array.isArray(streams)) {
+      for (const s of streams) {
+        if (Array.isArray(s)) {
+          merged.push(...s);
+        }
+      }
+    }
+    return { stream: merged };
+  },
+  // Ensure we don't auto-broadcast because we want the raw arrays of events
+  autoBroadcast: false
+});
+
+export const midiSelectNode = defineNode({
+  id: "midi.select",
+  version: "1.0.0",
+  displayName: "MIDI Select",
+  metadata: {
+    category: NodeCategory.IO,
+    keywords: ['midi', 'select', 'router', 'switch', 'demux'],
+    description: 'Routes MIDI events to different ports based on note pitch.'
+  },
+  inputs: {
+    stream: midiStreamType
+  },
+  config: {
+    count: { ...numberType, defaultValue: 4 },
+    root: { ...numberType, defaultValue: 60 },
+    skip: { ...numberType, defaultValue: 1 } // Semitones check
+  },
+  outputs: {},
+  dynamicOutputType: midiStreamType,
+  // Logic to determine outputs dynamically
+  computeForwardPorts: (inputTypes, config, context) => {
+    const conf = config as any;
+    const count = (conf.count as number) || 4;
+    const outputs: any = {};
+
+    // Numbered ports 0..count-1
+    for (let i = 0; i < count; i++) {
+      outputs[i.toString()] = { ...midiStreamType, description: `Offset ${i}` };
+    }
+    // Remainder port
+    outputs['rem'] = { ...midiStreamType, description: 'Remainder' };
+
+    return {
+      inputs: { kind: 'record', fields: { stream: midiStreamType } },
+      outputs: { kind: 'record', fields: outputs }
+    };
+  },
+  shouldRecompileOnConfigChange: (config) => {
+    // Recompile if count changes as it changes topology
+    return true;
+  },
+  execute: (inputs, config, context) => {
+    const stream = inputs.stream as unknown as MidiEvent[];
+    const count = (config.count as number) || 4;
+    const root = (config.root as number) ?? 60;
+    const skip = (config.skip as number) || 1;
+
+    // Initialize output buckets
+    const results: Record<string, MidiEvent[]> = {};
+    for (let i = 0; i < count; i++) {
+      results[i.toString()] = [];
+    }
+    results['rem'] = [];
+
+    if (stream && Array.isArray(stream)) {
+      for (const event of stream) {
+        if (event.type === 'note_on' || event.type === 'note_off') {
+          const diff = event.note - root;
+          // Check if it aligns with skip grid
+          // e.g. if skip=12 (octaves), diff must be multiple of 12
+          // (diff % skip) should be 0.
+          // Note: modulo of negative numbers in JS is negative.
+          // But we only care if remainder is 0.
+
+          if (diff >= 0 && (diff % skip) === 0) {
+            const index = diff / skip;
+            if (index >= 0 && index < count) {
+              results[index.toString()].push(event);
+              continue;
+            }
+          }
+          // Fallback to rem
+          results['rem'].push(event);
+
+        } else {
+          // Non-note events (CC etc) -> Just drop them?
+          // Or pass to 'rem'?
+          // Plan said "cc events are ignored".
+        }
+      }
+    }
+
+    return { ...results }; // Spread to match { 0: [], 1: [], rem: [] }
+  },
+  compileConfig: (uiConfig) => ({
+    fields: {
+      count: uiConfig.count ?? 4,
+      root: uiConfig.root ?? 60,
+      skip: uiConfig.skip ?? 1
+    },
+    untagged: []
+  }),
+  ui: {
+    inspector: {
+      fields: [
+        { type: 'number', label: 'Output Count', path: 'count', min: 1, max: 128, step: 1 },
+        { type: 'number', label: 'Root Note', path: 'root', min: 0, max: 127, step: 1 },
+        { type: 'number', label: 'Skip (Semitones)', path: 'skip', min: 1, max: 24, step: 1 }
+      ]
+    }
+  }
+});
+
+registerNode(midiTriggerNode);
+registerNode(midiMergeNode);
+registerNode(midiSelectNode);
