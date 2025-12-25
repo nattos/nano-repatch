@@ -42,9 +42,15 @@ export class CurveInspector extends MobxLitElement {
     const easingConfig = (this.node.config.values?.easing as any as GraphWidgetConfig | undefined) ?? defaultEasing;
 
     const widgetConfig: GraphWidgetConfig = {
-      domain: easingConfig.domain as any,
-      range: easingConfig.range as any,
-      segments: easingConfig.segments as any,
+      domain: (easingConfig.domain || [0, 1]) as [number, number],
+      range: (easingConfig.range || [0, 1]) as [number, number],
+      segments: (easingConfig.segments || []).map((s: any) => ({
+        ...s,
+        curve: {
+          ...s.curve,
+          type: s.curve.type as any
+        }
+      })),
       interactive: true,
       onInteractionStart: () => {
         this.longEdit = appController.beginLongEdit({
@@ -146,15 +152,15 @@ export class CurveEnvInspector extends MobxLitElement {
     if (!this.node) return html``;
 
     const nodeType = defaultNodeRepository.getNodeType(this.node.config.typeId);
-    let defaultConfig = {
-      domain: [0, 1],
-      range: [0, 1],
+    let defaultConfig: any = {
+      domain: [0, 1] as [number, number],
+      range: [0, 1] as [number, number],
       envelopeNodes: [
         { id: 'n1', x: 0, y: 0 },
         { id: 'n2', x: 1, y: 1 }
       ],
       segments: [
-        { id: 's1', weight: 1, curve: { type: 'linear' } }
+        { id: 's1', weight: 1, curve: { type: 'linear' as const } }
       ]
     };
 
@@ -173,8 +179,8 @@ export class CurveEnvInspector extends MobxLitElement {
     const widgetConfig: GraphWidgetConfig = {
       // ... (keep existing lines)
       ...envConfig,
-      domain: envConfig.domain as any,
-      range: envConfig.range as any,
+      domain: (envConfig.domain || [0, 1]) as [number, number],
+      range: (envConfig.range || [0, 1]) as [number, number],
       interactive: true,
       onInteractionStart: () => {
         this.longEdit = appController.beginLongEdit({
@@ -195,15 +201,18 @@ export class CurveEnvInspector extends MobxLitElement {
           // We don't need nodeConfig.values anymore since we are writing to root
           const newConfig: GraphWidgetConfig = {
             ...innerConfig,
+            domain: (innerConfig.domain || [0, 1]) as [number, number],
+            range: (innerConfig.range || [0, 1]) as [number, number],
             envelopeNodes: newNodes.map((n) => ({ id: n.id, x: n.x, y: n.y })),
-            segments: newSegments.map((s) => {
-              if (!s.curve || !s.curve.type) console.warn('Missing curve type in node update!', s);
-              return {
-                id: s.id,
-                weight: s.weight,
-                curve: { type: s.curve?.type || 'linear', value: s.curve?.value || 0 }
-              };
-            })
+            segments: newSegments.map((s) => ({
+              id: s.id,
+              weight: s.weight,
+              curve: {
+                type: (s.curve?.type || 'linear') as any,
+                value: s.curve?.value,
+                points: s.curve?.points
+              }
+            }))
           };
           delete newConfig.onInteractionStart;
           delete newConfig.onInteractionEnd;

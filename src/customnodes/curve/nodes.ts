@@ -280,17 +280,8 @@ const executeCurveEnv = (inputs: { value?: number; }, config: { config?: GraphWi
       // Clamp t to prevent NaN for negative t (though t should be 0..1)
       const safeT = Math.max(0, t);
       shapedT = Math.pow(safeT, exponent);
-    } else if (type === 'ease_in_out') {
-      // Sine ease in out
-      shapedT = -(Math.cos(Math.PI * t) - 1) / 2;
-      // Apply tension/bias if needed, but basic ease first
-      if (Math.abs(curveVal) > 0.001) {
-        // Simple power curve for tension?
-        // shapedT = Math.pow(t, 2 ** curveVal) ?
-        // For now just standard ease + mix?
-      }
-    } else if (type === 'power') {
-      // Placeholder for power
+      // Implementation for other curve types can be added here if needed
+      // Current implementations: exponential, linear, step, sin, quad, points
     }
   }
 
@@ -309,7 +300,7 @@ export const curve_env = defineNode({
     keywords: ['envelope', 'automation', 'ramp'],
     description: 'User-editable curve envelope'
   },
-  inputs: inputs,
+  inputs: inputs as any,
   outputs: {
     result: { type: NumberType, description: 'Output value' }
   },
@@ -324,7 +315,7 @@ export const curve_env = defineNode({
   compileConfig: (uiConfig: NodeStorageConfig) => {
     // We prefer 'curveData' (root-level config for triggering compilation)
     // Fallback to 'values.config' for backward compatibility
-    const sourceConfig = uiConfig?.curveData ?? uiConfig?.values?.config;
+    const sourceConfig = (uiConfig as any)?.curveData ?? uiConfig?.values?.config;
 
     return {
       fields: {
@@ -343,7 +334,7 @@ export const curve_env = defineNode({
       }
     };
   },
-  execute: executeCurveEnv
+  execute: executeCurveEnv as any
 });
 
 registerNode(curve_env);

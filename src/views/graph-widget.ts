@@ -783,8 +783,10 @@ export class GraphWidget extends MobxLitElement {
 
 
   private startCurveBend(e: PointerEvent, index: number) {
-    const { segments } = this.config;
-    const segment = segments![index];
+    const segments = this.config?.segments;
+    if (!segments) return;
+    if (!segments) return;
+    const segment = segments[index];
     const startValue = segment.curve.value || 0;
 
     // Auto-switch to exponential if linear?
@@ -793,7 +795,7 @@ export class GraphWidget extends MobxLitElement {
     // Let's just update the value. If rendering ignores it (linear), so be it.
     // Ideally we switch to default curve type 'exponential' if currently linear?
 
-    if (this.config.onInteractionStart) this.config.onInteractionStart();
+    if (this.config?.onInteractionStart) this.config.onInteractionStart();
 
     new PointerDragOp(e, this, {
       move: (_ev, totalDelta) => {
@@ -807,7 +809,7 @@ export class GraphWidget extends MobxLitElement {
         const delta = -totalDelta[1] / divisor;
         const newValue = startValue + delta;
 
-        const newSegments = [...(this.config.segments || [])];
+        const newSegments = [...(this.config?.segments || [])];
         // Ensure we copy the segment object too
         newSegments[index] = {
           ...newSegments[index],
@@ -819,18 +821,20 @@ export class GraphWidget extends MobxLitElement {
           newSegments[index].curve.type = 'exponential';
         }
 
-        if (this.config.onEnvelopeChange && this.config.envelopeNodes) {
+        if (this.config?.onEnvelopeChange && this.config.envelopeNodes) {
           this.config.onEnvelopeChange(this.config.envelopeNodes, newSegments);
         }
       },
       complete: () => {
-        if (this.config.onInteractionEnd) this.config.onInteractionEnd();
+        if (this.config?.onInteractionEnd) this.config.onInteractionEnd();
       }
     });
   }
 
   private startSegmentDrag(e: PointerEvent, index: number) {
-    const { envelopeNodes } = this.config;
+    const envelopeNodes = this.config?.envelopeNodes;
+    if (!envelopeNodes) return;
+    if (!envelopeNodes) return;
     const n1 = envelopeNodes[index];
     const n2 = envelopeNodes[index + 1];
 
@@ -844,7 +848,7 @@ export class GraphWidget extends MobxLitElement {
         const rect = this.getBoundingClientRect();
         const width = rect.width;
         const height = rect.height;
-        const [minY, maxY] = this.config.range || [0, 1];
+        const [minY, maxY] = this.config?.range || [0, 1];
 
         // Segment drag is VERTICAL ONLY
         let dx = 0;
@@ -866,7 +870,7 @@ export class GraphWidget extends MobxLitElement {
         newNodes[index] = { ...newNodes[index], x: startX1 + dx, y: startY1 + dy };
         newNodes[index + 1] = { ...newNodes[index + 1], x: startX2 + dx, y: startY2 + dy };
 
-        if (this.config.onEnvelopeChange) {
+        if (this.config?.onEnvelopeChange) {
           this.config.onEnvelopeChange(newNodes, this.config.segments || []);
         }
       }
@@ -978,7 +982,7 @@ export class GraphWidget extends MobxLitElement {
         }
       },
       complete: () => {
-        if (this.config.onInteractionEnd) this.config.onInteractionEnd();
+        if (this.config?.onInteractionEnd) this.config.onInteractionEnd();
       }
     });
   }

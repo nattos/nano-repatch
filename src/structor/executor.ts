@@ -108,10 +108,26 @@ export class GraphExecutor {
   public setNodeConfig(nodeId: string, config: Structor): void {
     const state = this.nodeStates.get(nodeId);
     if (state) {
-      state.config = { ...state.config || {}, ...config };
+      if (config && typeof config === 'object' && !Array.isArray(config)) {
+        // Object Merge: Shallow merge top-level, deep merge fields
+        const oldConfig = (state.config && typeof state.config === 'object' && !Array.isArray(state.config)) ? state.config : {};
+
+        state.config = {
+          ...oldConfig,
+          ...config,
+          fields: {
+            ...((oldConfig as any).fields || {}),
+            ...((config as any).fields || {})
+          }
+        };
+      } else {
+        // Direct replacement (primitive or array)
+        state.config = config;
+      }
       const instance = this.graph.nodes[nodeId];
       const definition = this.repository.get(instance.definitionId);
-      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(config ?? { fields: {} }) ?? false;
+      // Update isRealtime based on new FULL config
+      state.isRealtime = (definition as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(state.config ?? { fields: {} }) ?? false;
       this.markDirty(nodeId);
     }
   }
