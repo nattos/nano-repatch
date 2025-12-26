@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { midiMergeNode, midiSelectNode } from './nodes';
 import { MidiEvent } from '../../io/midi/types';
+import { broadcast } from '../../structor/broadcast';
 
 describe('Generic MIDI Nodes', () => {
 
@@ -25,7 +26,7 @@ describe('Generic MIDI Nodes', () => {
         }
       };
 
-      const result = midiMergeNode.execute(inputs as any, {}, {} as any) as any;
+      const result = midiMergeNode.execute(inputs as any, {}, { broadcast } as any) as any;
 
       expect(result.fields.stream).toHaveLength(2);
       // Elements inside stream array might also be wrapped StructorRecords?
@@ -39,7 +40,7 @@ describe('Generic MIDI Nodes', () => {
     });
 
     it('should handle empty inputs', () => {
-      const result = midiMergeNode.execute({ fields: { stream: [] } } as any, {}, {} as any) as any;
+      const result = midiMergeNode.execute({ fields: { stream: [] } } as any, {}, { broadcast } as any) as any;
       expect(result.fields.stream).toEqual([]);
     });
   });
@@ -65,7 +66,7 @@ describe('Generic MIDI Nodes', () => {
       ];
 
       const result = midiSelectNode.execute(
-        { fields: { stream } } as any, config, {} as any
+        { fields: { stream } } as any, config, { broadcast } as any
       ) as any;
 
       // Access nested fields
@@ -96,7 +97,7 @@ describe('Generic MIDI Nodes', () => {
       ];
 
       const result = midiSelectNode.execute(
-        { fields: { stream } } as any, config, {} as any
+        { fields: { stream } } as any, config, { broadcast } as any
       ) as any;
 
       const getNote = (port: string, index: number) => {
@@ -124,7 +125,7 @@ describe('Generic MIDI Nodes', () => {
       ];
 
       const result = midiSelectNode.execute(
-        { fields: { stream } } as any, config, {} as any
+        { fields: { stream } } as any, config, { broadcast } as any
       ) as any;
 
       const getNote = (port: string, index: number) => {

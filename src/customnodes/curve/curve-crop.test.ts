@@ -1,11 +1,10 @@
-
 import { describe, it, expect } from 'vitest';
-import { curve_crop } from './customnodes/curve/nodes';
-import { NodeRepository } from './structor/repository';
-import { GraphExecutor } from './structor/executor';
-import { compileGraph } from './builder/compiler';
-import { NumberType } from './structor/type-helpers';
-import { AppState } from './builder/state';
+import { curve_crop } from './nodes';
+import { NodeRepository } from '../../structor/repository';
+import { GraphExecutor } from '../../structor/executor';
+import { compileGraph } from '../../builder/compiler';
+import { NumberType } from '../../structor/type-helpers';
+import { AppState } from '../../builder/state';
 
 describe('curve.crop Mode Integration', () => {
   const repository = new NodeRepository();
