@@ -352,8 +352,8 @@ export const curve_crop = defineNode({
     mode: { kind: 'atomic', type: 'string', defaultValue: 'start-end' }
   },
   // Dynamic inputs based on mode
-  computeForwardPorts: (inputTypes, config, context) => {
-    const rawConfig = config as any;
+  computeForwardPorts: (inputTypes, uiConfig, context) => {
+    const rawConfig = uiConfig as any;
     const mode = rawConfig?.mode || rawConfig?.values?.mode || 'start-end';
 
     const fields: any = {
@@ -453,7 +453,7 @@ export const curve_crop = defineNode({
       ui: { start, end }
     };
   },
-  shouldRecompileOnConfigChange: (config) => {
+  shouldRecompileOnConfigChange: (uiConfig) => {
     // Recompile if mode changes to update ports.
     // While this might recompile on slider drags (if they are part of the same config object),
     // it is necessary for structural correctness when mode changes.

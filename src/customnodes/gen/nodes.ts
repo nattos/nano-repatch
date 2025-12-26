@@ -89,8 +89,8 @@ export const adsr = defineNode({
       ]
     }
   },
-  computeForwardPorts: (inputTypes, config) => {
-    const configRecord = config as any;
+  computeForwardPorts: (inputTypes, uiConfig) => {
+    const configRecord = uiConfig as any;
     const mode = configRecord?.mode ?? configRecord?.values?.mode ?? 'D';
 
     const fields: any = {
@@ -123,7 +123,7 @@ export const adsr = defineNode({
     value: { type: numberType, description: 'Envelope Value (0-1)' }
   },
   isRealtime: () => true,
-  shouldRecompileOnConfigChange: (config) => {
+  shouldRecompileOnConfigChange: (uiConfig) => {
     return true;
   },
   createState: () => ({
@@ -160,6 +160,7 @@ export const adsr = defineNode({
       sustainLevel = Math.max(0, Math.min(1, inputs.sustain ?? 0.7));
       releaseTime = Math.max(0, inputs.release ?? 0.5);
     }
+
 
     if (Array.isArray(stream)) {
       for (const e of stream) {

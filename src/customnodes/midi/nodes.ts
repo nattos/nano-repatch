@@ -513,8 +513,8 @@ export const midiSelectNode = defineNode({
   outputs: {},
   dynamicOutputType: midiStreamType,
   // Logic to determine outputs dynamically
-  computeForwardPorts: (inputTypes, config, context) => {
-    const conf = (config as any).fields ? (config as any).fields : config;
+  computeForwardPorts: (inputTypes, uiConfig, context) => {
+    const conf = (uiConfig as any).fields ? (uiConfig as any).fields : uiConfig;
     const count = (conf.count as number) || 4;
     const outputs: any = {};
 
@@ -530,7 +530,7 @@ export const midiSelectNode = defineNode({
       outputs: { kind: 'record', fields: outputs }
     };
   },
-  shouldRecompileOnConfigChange: (config) => {
+  shouldRecompileOnConfigChange: (uiConfig) => {
     // Recompile if count changes as it changes topology
     return true;
   },

@@ -30,10 +30,10 @@ export const resolumeInputNode = defineNode({
   autoBroadcast: false,
   isRealtime: () => true, // Inputs change over time
   ui: { inspector: { fields: ResolumeFields } },
-  getDisplayLabel: (config) => {
-    if (!config.path) return undefined;
-    const parts = config.path.split('/');
-    return parts[parts.length - 1] || config.path;
+  getDisplayLabel: (uiConfig) => {
+    if (!uiConfig.path) return undefined;
+    const parts = uiConfig.path.split('/');
+    return parts[parts.length - 1] || uiConfig.path;
   },
 
   createState: (config, context) => {
@@ -105,10 +105,10 @@ export const resolumeOutputNode = defineNode({
   outputs: {},
   autoBroadcast: true,
   ui: { inspector: { fields: ResolumeFields } },
-  getDisplayLabel: (config) => {
-    if (!config.path) return undefined;
-    const parts = config.path.split('/');
-    return parts[parts.length - 1] || config.path;
+  getDisplayLabel: (uiConfig) => {
+    if (!uiConfig.path) return undefined;
+    const parts = uiConfig.path.split('/');
+    return parts[parts.length - 1] || uiConfig.path;
   },
 
   createState: (config, context) => {

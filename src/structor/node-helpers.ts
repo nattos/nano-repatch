@@ -9,7 +9,9 @@ import {
 import {
   PrimitiveNodeDefinition,
   StructorType,
-  ExecutionContext
+  ExecutionContext,
+  RecordType,
+  AnalysisContext
 } from './structor';
 import { defaultNodeRepository, PortHint, NodeType } from './repository';
 
@@ -67,10 +69,11 @@ export type SimplifyOutputs<T extends ExtendedNodeOutputsDef> = {
 
 export interface EnhancedNodeOptions<
   TInputs extends ExtendedNodeInputsDef,
-  TConfig extends NodeConfigDef,
+  TUIConfig extends Record<string, any> | any, // Allow strict structural typing
+  TCompiledConfig extends NodeConfigDef,
   TOutputs extends ExtendedNodeOutputsDef,
   TState = undefined
-> extends Omit<TypedNodeOptions<any, TConfig, any, TState>, 'inputs' | 'outputs' | 'execute'> {
+> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config'> { // Exclude config to redefine it
   inputs?: TInputs;
   outputs: TOutputs; // Explicit override
   dynamicOutputType?: StructorType;
@@ -78,17 +81,37 @@ export interface EnhancedNodeOptions<
   version?: string;
   displayName?: string;
   aliases?: string[];
-  compileConfig?: (uiConfig: any) => any;
+  compileConfig?: (uiConfig: TUIConfig) => any; // Returns TCompiledConfig (raw values struct) or just any
   compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
-  getDisplayLabel?: (config: any) => string | undefined;
+  getDisplayLabel?: (uiConfig: TUIConfig) => string | undefined;
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
-  shouldRecompileOnConfigChange?: (config: any) => boolean;
+  shouldRecompileOnConfigChange?: (uiConfig: TUIConfig) => boolean;
+
+  // Re-declare with explicit names
+  computeForwardPorts?: (
+    inputTypes: RecordType,
+    uiConfig: TUIConfig, // Use UI Config here
+    context: AnalysisContext,
+    backwardMetadata?: any,
+  ) => { inputs: RecordType; outputs: RecordType };
+
+  computeBackwardPorts?: (
+    outputRequirements: RecordType,
+    uiConfig: TUIConfig,
+    context: AnalysisContext,
+  ) => {
+    inputRequirements: RecordType;
+    backwardMetadata?: any;
+  };
+
+  // NOTE: This config property is used to define the schema of the COMPILED config for runtime validation/marshaling
+  config?: TCompiledConfig;
 
   execute: (
     inputs: InferRecord<{ kind: 'record', fields: SimplifyInputs<TInputs> }>,
-    config: InferRecord<{ kind: 'record', fields: TConfig }>,
+    config: InferRecord<{ kind: 'record', fields: TCompiledConfig }>, // This is the compiled runtime config
     context: ExecutionContext,
     state: TState
   ) => InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }> | { outputs: InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }>; ui?: any };
@@ -101,22 +124,23 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
   compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
-  getDisplayLabel?: (config: any) => string | undefined;
+  getDisplayLabel?: (uiConfig: any) => string | undefined;
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: ExtendedNodeOutputsDef;
 
   inspectInputs?: boolean;
-  shouldRecompileOnConfigChange?: (config: any) => boolean;
+  shouldRecompileOnConfigChange?: (uiConfig: any) => boolean;
   // onMessage is inherited from PrimitiveNodeDefinition
 }
 
 export function defineNode<
   TInputs extends ExtendedNodeInputsDef,
-  TConfig extends NodeConfigDef,
-  TOutputs extends ExtendedNodeOutputsDef,
+  TUIConfig extends Record<string, any> | any = any,
+  TCompiledConfig extends NodeConfigDef = any,
+  TOutputs extends ExtendedNodeOutputsDef = ExtendedNodeOutputsDef,
   TState = undefined
 >(
-  options: EnhancedNodeOptions<TInputs, TConfig, TOutputs, TState>
+  options: EnhancedNodeOptions<TInputs, TUIConfig, TCompiledConfig, TOutputs, TState>
 ): EnhancedNodeDefinition {
   // 1. Strip down inputs to NodeInputsDef (just types) for definePrimitiveNode
   const simpleInputs: NodeInputsDef = {};
@@ -151,6 +175,7 @@ export function defineNode<
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
     computeForwardPorts: (inputTypes: any, config: any, context: any, backwardMetadata?: any) => {
+      // Config here is coming from the Graph/Builder, so it is UIConfig
       if (options.computeForwardPorts) {
         return options.computeForwardPorts(inputTypes, config, context, backwardMetadata);
       }
@@ -160,8 +185,16 @@ export function defineNode<
         outputs: { kind: 'record', fields: simpleOutputs }
       };
     },
-    onMessage: options.onMessage
-  } as unknown as TypedNodeOptions<any, TConfig, any, TState>);
+    // Same for Backward
+    computeBackwardPorts: (outputRequirements: any, config: any, context: any) => {
+      if (options.computeBackwardPorts) {
+        return options.computeBackwardPorts(outputRequirements, config, context);
+      }
+      return { inputRequirements: { kind: 'record', fields: {} } };
+    },
+    onMessage: options.onMessage,
+    config: options.config // Pass the Compiled config schema
+  } as unknown as TypedNodeOptions<any, TCompiledConfig, any, TState>);
   // Cast to unknown first to avoid incompatibility issues with Simplify types vs constraints
 
   return {

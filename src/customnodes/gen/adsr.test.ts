@@ -25,6 +25,17 @@ describe('ADSR Node Logic', () => {
     } as any;
   };
 
+  const getFields = (result: any) => {
+    if (result.outputs && result.outputs.fields) {
+      return result.outputs.fields;
+    }
+    if (result.fields) {
+      return result.fields;
+    }
+    // Fallback if structure is unexpected, but prevent crash
+    return {};
+  };
+
   it('should support zero attack time', () => {
     const context = createMockContext();
     const nodeState = context.nodeState;
@@ -49,7 +60,12 @@ describe('ADSR Node Logic', () => {
     const state = nodeState.get('test-node');
 
     expect(state.phase).not.toBe(0); // Not Idle
-    expect(result.fields.value).toBeGreaterThan(0.9); // Expect close to 1.0
+    const fields = getFields(result);
+    // Expect close to 1.0. If instantaneous, it reaches decay phase immediately?
+    // In execute: if attack <= 0 -> value = 1.0, phase = DECAY.
+    // So output should be 1.0 (clamped).
+    // Test says > 0.9.
+    expect(fields.value).toBeGreaterThan(0.9);
   });
 
   it('should handle Trigger (On + Off) with Zero Attack', () => {
@@ -80,7 +96,19 @@ describe('ADSR Node Logic', () => {
     const result = execute(inputs as any, config as any, context);
     const state = nodeState.get('test-node');
 
-    expect(result.fields.value).toBeCloseTo(0.99, 1);
+    const fields = getFields(result);
+    // It should hit peak (1.0) then release immediately? or process sequentially?
+    // ADSR logic: loop stream.
+    // Note On -> Phase Attack -> Time=0 -> Attack<=0 -> Value=1.0, Phase=Decay.
+    // Note Off -> ActiveNotes=0. Check for Release?
+    // If ActiveNotes=0 and Phase!=Idle/Release -> Phase=Release.
+    // So by end of loop, Phase=Release.
+    // Then switch(State.Phase). Case Release.
+    // Time += dt.
+    // ReleaseTime=1.0. Dt=0.01. Value -= 0.01.
+    // Value = 1.0 - 0.01 = 0.99.
+
+    expect(fields.value).toBeCloseTo(0.99, 1);
     expect(state.phase).toBe(4); // RELEASE
   });
 
@@ -107,9 +135,17 @@ describe('ADSR Node Logic', () => {
     };
 
     const result = execute(inputs as any, config as any, context);
+    const fields = getFields(result);
 
-    expect(result.fields.value).toBeCloseTo(0.49, 1);
-    expect(result.fields.value).toBeCloseTo(0.49, 1);
+    // Note On -> Attack=0 -> Value=1.0, Phase=Decay, Time=0.
+    // Decay=0 -> Value=Sustain(0.5), Phase=Sustain.
+    // Note Off -> Phase=Release.
+    // Switch(Release) -> Time=0.01.
+    // Release=1.0. Value -= 0.01 * (1.0/1.0).
+    // Start value was 0.5.
+    // Value = 0.5 - 0.01 = 0.49.
+
+    expect(fields.value).toBeCloseTo(0.49, 1);
   });
 
   it('should support Decay Mode (D)', () => {
@@ -125,8 +161,7 @@ describe('ADSR Node Logic', () => {
       sustain: 1.0,
       release: 1.0
     };
-    // definePrimitiveNode wrapper mimics Structor resolution.
-    // We must pass a valid Structor representation for 'config' that the wrapper can resolve.
+
     const config = {
       kind: 'record',
       fields: {
@@ -137,10 +172,12 @@ describe('ADSR Node Logic', () => {
     const result = execute(inputs as any, config as any, context);
 
     const state = context.nodeState.get('test-node');
+    const fields = getFields(result);
+
     expect(state.phase).not.toBe(0);
     // Attack should be 0 -> Instant 1.0. Next frame decays.
     // Dt=0.1. Decay=1.0. Stop at 0.9.
-    expect(result.fields.value).toBeGreaterThan(0.85);
+    expect(fields.value).toBeGreaterThan(0.85);
   });
 
   it('should support ADS Mode', () => {
@@ -165,18 +202,15 @@ describe('ADSR Node Logic', () => {
       }
     };
 
-    // We process Trigger in one go?
-    // Wait, execute runs for ONE frame.
-    // If inputs has both Note On and Note Off, the logic processes them sequentially.
-    // Attack 0 -> Peak 1.0.
-    // Note Off -> Release starts.
+    // Trigger processing (Instant Attack -> Peak 1.0 -> Release/Decay).
     // Release duration = Decay = 0.5.
     // dt = 0.01.
-    // Drop = (1.0 / 0.5) * 0.01 = 2 * 0.01 = 0.02.
+    // Drop = (1.0 / 0.5) * 0.01 = 0.02.
     // Value = 0.98.
-    // If Release was 0.1: Drop = (1.0 / 0.1) * 0.01 = 10 * 0.01 = 0.1. Value = 0.90.
 
     const result = execute(inputs as any, config as any, context);
-    expect(result.fields.value).toBeGreaterThan(0.96);
+    const fields = getFields(result);
+
+    expect(fields.value).toBeGreaterThan(0.96);
   });
 });

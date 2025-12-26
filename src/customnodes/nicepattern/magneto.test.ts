@@ -2,10 +2,11 @@
 import { describe, it, expect } from 'vitest';
 import { magneto } from './magneto';
 import { registerNode } from '../../structor/node-helpers';
+import { defaultNodeRepository } from '../../structor/repository';
 import { registerNicePatternUI } from './ui-registration';
 
-registerNicePatternUI();
 registerNode(magneto);
+registerNicePatternUI();
 
 describe('Magneto Node', () => {
     it('should be defined', () => {
@@ -17,7 +18,9 @@ describe('Magneto Node', () => {
     });
 
     it('should have correct dimensions', async () => {
-        const heightFn = await magneto.ui.getBodyHeight();
+        const magnetoType = defaultNodeRepository.getNodeType('nicepattern.magneto');
+        // Registering UI updates the repository entry
+        const heightFn = await (magnetoType as any).ui.getBodyHeight();
         expect(heightFn()).toBe(272);
     });
 });
