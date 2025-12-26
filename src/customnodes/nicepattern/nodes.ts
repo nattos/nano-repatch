@@ -266,6 +266,11 @@ export const toneSynthLayer = defineNode({
   execute: (inputs, config, context, state) => {
     // Check for Audio Context Reset/Invalidation
     const audioContext = context.audio?.context;
+    // Ensure layer exists (resilience against state corruption or bad init)
+    if (!state.layer) {
+      state.layer = new ToneSynthLayer({});
+    }
+
     if (audioContext && state.contextId !== audioContext.contextId) {
       state.layer = new ToneSynthLayer({});
       state.contextId = audioContext.contextId;

@@ -153,6 +153,9 @@ export class ScalarSlider extends LitElement {
   }
 
   private formatValue(val: number): string {
+    if (typeof val !== 'number' || isNaN(val)) {
+      return '0';
+    }
     if (Number.isInteger(this.step)) {
       return val.toString();
     }
@@ -202,14 +205,14 @@ export class ScalarSlider extends LitElement {
       const range = this.max - this.min;
       // If range is infinite, default to step-based.
       if (!Number.isFinite(range)) {
-         newValue = this.startValue + (deltaX * 0.1 * this.step);
+        newValue = this.startValue + (deltaX * 0.1 * this.step);
       } else {
-         // Fine control: 1px = 0.1% of range?
-         // Or just slower than absolute.
-         // Let's map 1px to (range / width) * 0.1
-         const width = this.rect?.width || 100;
-         const deltaValue = (deltaX / width) * range * 0.1; // 0.1 factor for fine control
-         newValue = this.startValue + deltaValue;
+        // Fine control: 1px = 0.1% of range?
+        // Or just slower than absolute.
+        // Let's map 1px to (range / width) * 0.1
+        const width = this.rect?.width || 100;
+        const deltaValue = (deltaX / width) * range * 0.1; // 0.1 factor for fine control
+        newValue = this.startValue + deltaValue;
       }
     } else {
       // Absolute jump
@@ -232,7 +235,7 @@ export class ScalarSlider extends LitElement {
     // Clamp (unless Ctrl held? User didn't mention Ctrl for jump, but kept it for bounds)
     // User said "jump to the value at the cursor's position". This implies bounds.
     if (!e.ctrlKey) {
-       newValue = Math.max(this.min, Math.min(this.max, newValue));
+      newValue = Math.max(this.min, Math.min(this.max, newValue));
     }
 
     if (newValue !== this.value) {

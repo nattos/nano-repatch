@@ -3,6 +3,20 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Runtime Hardening (As of 2025-12-26)
+
+This entry documents fixes for intermittent runtime errors reported during user testing.
+
+### Bug Fixes
+
+1.  **Scalar Slider `toFixed` Crash:**
+    *   **Issue:** `TypeError: val.toFixed is not a function`. Occurred when the slider received non-numeric values (e.g., `undefined` or partial input string) during updates.
+    *   **Fix:** Added strict type checking (`typeof val !== 'number' || isNaN(val)`) in `formatValue` to return '0' as fallback, preventing the crash.
+
+2.  **Tone Synth Layer `audioContext` Crash:**
+    *   **Issue:** `TypeError: Cannot read properties of undefined (reading 'audioContext')`. Occurred in `nicepattern.tone_synth_layer`. The `state.layer` instance was undefined during execution, possibly due to state corruption or initialization failures in `GraphExecutor`.
+    *   **Fix:** Added a guard clause in `execute` to re-initialize `state.layer` if it is missing, ensuring `activeLayer` is always defined before accessing `audioContext`.
+
 ## Node Config Type Safety Refactor (As of 2025-12-26)
 
 This entry documents the architectural refactor of node configuration types to enforce strict separation between UI state (`TUIConfig`) and runtime configuration (`TCompiledConfig`).
