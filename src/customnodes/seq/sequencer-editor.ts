@@ -1,7 +1,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { runtimeManager } from '../../builder/controllers';
+import { appController, runtimeManager } from '../../builder/controllers';
 
 interface Step {
   noteIndex: number | null;
@@ -211,4 +211,7 @@ export class SequencerEditor extends LitElement {
   }
 }
 
-export const SequencerEditorRenderer = 'seq-sequencer-editor';
+// Export as a function that returns the template
+export const SequencerEditorRenderer = (node: any) => {
+  return html`<seq-sequencer-editor .nodeId=${node.id} .config=${node.config} .requestConfigUpdate=${(newConfig: any) => appController.setNodeConfig(node.id, newConfig)}></seq-sequencer-editor>`;
+};

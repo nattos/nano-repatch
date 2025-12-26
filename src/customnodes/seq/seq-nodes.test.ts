@@ -92,8 +92,10 @@ describe('Sequence Nodes', () => {
 
       const inputs = {
         fields: {
-          seq_a: [{ noteIndex: 60, velocity: 1, hold: false }, { noteIndex: null, velocity: 0, hold: false }],
-          seq_b: [{ noteIndex: null, velocity: 0, hold: false }, { noteIndex: 62, velocity: 1, hold: false }]
+          inputs: [
+            [{ noteIndex: 60, velocity: 1, hold: false }, { noteIndex: null, velocity: 0, hold: false }],
+            [{ noteIndex: null, velocity: 0, hold: false }, { noteIndex: 62, velocity: 1, hold: false }]
+          ]
         }
       };
 
@@ -109,8 +111,10 @@ describe('Sequence Nodes', () => {
       // Result: [Off]
       const inputs2 = {
         fields: {
-          seq_a: [{ noteIndex: 60, velocity: 1, hold: false }],
-          seq_b: [{ noteIndex: 62, velocity: 1, hold: false }]
+          inputs: [
+            [{ noteIndex: 60, velocity: 1, hold: false }],
+            [{ noteIndex: 62, velocity: 1, hold: false }]
+          ]
         }
       };
       const result2 = xor.execute(inputs2 as any, { fields: {} } as any, context, {});

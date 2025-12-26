@@ -476,8 +476,9 @@ export const crop = defineNode({
     }
   },
   computeForwardPorts: (inputTypes, uiConfig) => {
-    const rawConfig = uiConfig as any;
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || 'start-end';
+    // Access mode from top-level config (merged by GraphExecutor)
+    const mode = uiConfig?.mode || 'start-end';
+
     const fields: any = {
       seq_in: sequenceStructorType,
       start: { type: numberType, defaultValue: 0 }
@@ -492,7 +493,7 @@ export const crop = defineNode({
 
   shouldRecompileOnConfigChange: () => true,
   compileConfig: (uiConfig) => ({
-    fields: { mode: { kind: 'atomic', type: 'string', value: uiConfig?.mode ?? uiConfig?.values?.mode ?? 'start-end' } }
+    fields: { mode: { kind: 'atomic', type: 'string', value: uiConfig?.mode ?? 'start-end' } }
   }),
 
   execute: (inputs, config) => {
@@ -543,11 +544,14 @@ export const xor = defineNode({
   id: "seq.xor",
   version: "1.0.0",
   displayName: "Sequence XOR",
-  metadata: { category: 'Sequence', keywords: ['logic', 'xor', 'merge'], description: 'XORs two sequences.' },
+  metadata: { category: 'Sequence', keywords: ['logic', 'xor', 'merge'], description: 'XORs multiple sequences.' },
   config: {},
   inputs: {
-    seq_a: { type: sequenceStructorType },
-    seq_b: { type: sequenceStructorType }
+    inputs: {
+      type: { kind: "array", size: "dynamic", element: sequenceStructorType },
+      description: "Sequences",
+      allowMultiConnection: true
+    }
   },
   outputs: { seq_out: sequenceStructorType },
   execute: (inputs) => {
@@ -557,35 +561,49 @@ export const xor = defineNode({
       if (s.kind === 'array') return s.elements;
       return [];
     };
-    const seqA = unwrapSeq(inputs.seq_a);
-    const seqB = unwrapSeq(inputs.seq_b);
 
-    const len = Math.max(seqA.length, seqB.length);
+    // Collect all input sequences
+    const inputCol = inputs.inputs as any;
+    let seqs: any[] = [];
+    if (inputCol) {
+      if (Array.isArray(inputCol)) seqs = inputCol;
+      else if (inputCol.kind === 'array') seqs = inputCol.elements ?? [];
+    }
+
+    if (seqs.length === 0) return { seq_out: [] };
+
+    // Find max length
+    let len = 0;
+    const unwrappedSeqs = seqs.map(unwrapSeq);
+    unwrappedSeqs.forEach(s => len = Math.max(len, s.length));
+
     const outSeq: Step[] = [];
 
     for (let i = 0; i < len; i++) {
-      const stepA = seqA[i];
-      const stepB = seqB[i];
+      let active = false;
+      let lastStep: Step | null = null;
 
-      const getStep = (raw: any): Step => {
-        if (!raw) return { noteIndex: null, velocity: 0, hold: false };
-        if (raw.fields) return { noteIndex: raw.fields.noteIndex, velocity: raw.fields.velocity ?? 0, hold: raw.fields.hold ?? false };
-        return raw;
-      };
+      for (const seq of unwrappedSeqs) {
+        if (i < seq.length) {
+          const stepRaw = seq[i];
+          const noteIndex = stepRaw.fields ? stepRaw.fields.noteIndex : stepRaw.noteIndex;
+          if (noteIndex !== null && noteIndex !== undefined) {
+            // Toggle active state for XOR
+            active = !active;
+            lastStep = stepRaw;
+          }
+        }
+      }
 
-      const a = getStep(stepA);
-      const b = getStep(stepB);
-
-      const aActive = a.noteIndex !== null;
-      const bActive = b.noteIndex !== null;
-
-      if ((aActive && !bActive) || (!aActive && bActive)) {
-        if (aActive) outSeq.push(a);
-        else outSeq.push(b);
+      if (active && lastStep) {
+        const s = lastStep as any;
+        if (s.fields) outSeq.push({ noteIndex: s.fields.noteIndex, velocity: s.fields.velocity, hold: s.fields.hold });
+        else outSeq.push({ ...s });
       } else {
         outSeq.push({ noteIndex: null, velocity: 0, hold: false });
       }
     }
+
     return { seq_out: outSeq };
   }
 });
