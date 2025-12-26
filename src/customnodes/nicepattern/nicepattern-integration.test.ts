@@ -4,7 +4,6 @@ import { NodeRepository, defaultNodeRepository } from '../../structor/repository
 import {
   rhythmicGenerator,
   chaosGenerator,
-  pattern,
   sequenceStructorType,
   createLayerNode,
   GateLayer,
@@ -13,6 +12,7 @@ import {
   NoiseLayer,
   toneSynthLayer,
 } from './nodes';
+import { tomidi } from '../seq/nodes';
 
 import { numberType, midiStreamType } from '../../structor/std-types';
 import { AnyType as anyType } from '../../structor/type-helpers';
@@ -50,13 +50,13 @@ describe('NicePattern Integration', () => {
   });
 
   repository.register({
-    id: 'nicepattern.pattern',
+    id: 'seq.tomidi',
     version: '1.0.0',
-    displayName: 'Pattern',
-    definition: pattern,
+    displayName: 'To MIDI',
+    definition: tomidi,
     inputs: [{ name: 'seq_in', type: manySequencesType, description: 'Input sequence(s)', allowMultiConnection: true }],
     outputs: [{ name: 'midi_out', type: midiStreamType, description: 'Real-time MIDI stream' }],
-    compileConfig: (uiConfig) => ({ fields: {},  }),
+    compileConfig: (uiConfig) => ({ fields: {}, }),
   });
 
   // Register Layers
@@ -106,13 +106,13 @@ describe('NicePattern Integration', () => {
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {},  },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
-      execute: (inputs) => ({ fields: { val: inputs.fields.val },  }),
+      configType: { kind: 'record', fields: {}, },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, }),
+      execute: (inputs) => ({ fields: { val: inputs.fields.val }, }),
     },
     inputs: [{ name: 'val', type: anyType }],
     outputs: [{ name: 'val', type: anyType }],
-    compileConfig: (c) => ({ fields: {},  })
+    compileConfig: (c) => ({ fields: {}, })
   });
 
   // Mock Input Node
@@ -123,9 +123,9 @@ describe('NicePattern Integration', () => {
     definition: {
       id: 'io.input',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {},  },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType },  }),
-      execute: (inputs, config) => ({ fields: { val: (config && config.value !== undefined) ? config.value : config },  }),
+      configType: { kind: 'record', fields: {}, },
+      computeOutputTypes: () => ({ kind: 'record', fields: { val: anyType }, }),
+      execute: (inputs, config) => ({ fields: { val: (config && config.value !== undefined) ? config.value : config }, }),
     },
     inputs: [],
     outputs: [{ name: 'val', type: anyType }],
@@ -229,7 +229,7 @@ describe('NicePattern Integration', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 0.5 } } },
-        'pat': { typeId: 'nicepattern.pattern', config: {} }
+        'pat': { typeId: 'seq.tomidi', config: {} }
       },
       [
         { from: 'gen', port: 'seq_out', to: 'pat', portIn: 'seq_in' }
@@ -259,7 +259,7 @@ describe('NicePattern Integration', () => {
       {
         'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
         'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, values: { density: 1.0 } } },
-        'pat': { typeId: 'nicepattern.pattern', config: {} }
+        'pat': { typeId: 'seq.tomidi', config: {} }
       },
       [
         { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
@@ -303,7 +303,7 @@ describe('NicePattern Integration', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
-        'pat': { typeId: 'nicepattern.pattern', config: {} },
+        'pat': { typeId: 'seq.tomidi', config: {} },
         'gate': { typeId: 'nicepattern.gate_layer', config: { targetNote: 60 } }
       },
       [
@@ -379,7 +379,7 @@ describe('NicePattern Integration', () => {
 
     // 1. Note On (60)
     // We must format this as Structor (array of records)
-    const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100, channel: 1, time: 0 },  }];
+    const noteOn = [{ fields: { type: 'note_on', note: 60, velocity: 100, channel: 1, time: 0 }, }];
     executor.setNodeConfig('input', noteOn as any);
     executor.update({
       clock: { beat: 0, dt: 0.1 },
@@ -390,7 +390,7 @@ describe('NicePattern Integration', () => {
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Only for the first Note On
 
     // 2. Note Off (60)
-    const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 },  }];
+    const noteOff = [{ fields: { type: 'note_off', note: 60, velocity: 0, channel: 1, time: 0 }, }];
     executor.setNodeConfig('input', noteOff as any);
     executor.update({
       clock: { beat: 0.1, dt: 0.1 },
@@ -407,7 +407,7 @@ describe('NicePattern Integration', () => {
     expect(mockAudioContext.createOscillator).toHaveBeenCalledTimes(1); // Should NOT have increased
 
     // 4. Note On (62) - Should trigger (as we now trigger on ALL notes)
-    const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 },  }];
+    const noteOnWrong = [{ fields: { type: 'note_on', note: 62, velocity: 100, channel: 1, time: 0 }, }];
     executor.setNodeConfig('input', noteOnWrong as any);
     executor.update({
       clock: { beat: 0.3, dt: 0.1 },
@@ -421,7 +421,7 @@ describe('NicePattern Integration', () => {
     const { executor, getOutput } = compileAndRunwithOutput(
       {
         'manual_seq': { typeId: 'io.input', config: { value: [] } },
-        'pat': { typeId: 'nicepattern.pattern', config: {} }
+        'pat': { typeId: 'seq.tomidi', config: {} }
       },
       [
         { from: 'manual_seq', port: 'val', to: 'pat', portIn: 'seq_in' }

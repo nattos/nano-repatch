@@ -34,3 +34,42 @@ export const vec4Type = defineType({
   size: 4,
   hint: "vec4"
 });
+
+
+// Note & Sequence Types (moved from nicepattern)
+
+export const noteStructorType = defineType({
+  kind: "record",
+  fields: {
+    note: numberType,
+    velocity: numberType,
+  },
+  untagged: [],
+});
+
+export const noteEventStructorType = defineType({
+  kind: "record",
+  fields: {
+    onNote: { ...noteStructorType, optional: true },
+    offNote: { ...noteStructorType, optional: true },
+    hold: booleanType,
+  },
+  untagged: [],
+});
+
+export const stepStructorType = defineType({
+  kind: "record",
+  fields: {
+    noteIndex: anyType, // Can be number | null
+    velocity: numberType,
+    hold: booleanType,
+  },
+  untagged: [],
+});
+
+export const sequenceStructorType = defineType({
+  kind: "array",
+  size: "dynamic",
+  element: stepStructorType,
+  hint: 'step-sequence'
+});

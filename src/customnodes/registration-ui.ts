@@ -4,3 +4,6 @@ import './expr/register-ui';
 import './gen/register-ui';
 import './midi/register-ui';
 import './nicepattern/register-ui';
+import { registerSeqUI } from './seq/ui-registration';
+
+registerSeqUI();

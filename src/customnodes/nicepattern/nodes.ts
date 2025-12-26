@@ -1,9 +1,18 @@
 import { defineType } from "../../structor/type-helpers";
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
-import { numberType, booleanType, anyType, midiStreamType } from "../../structor/std-types";
+import {
+  numberType,
+  booleanType,
+  anyType,
+  midiStreamType,
+  stepStructorType,
+  sequenceStructorType,
+  noteStructorType,
+  noteEventStructorType
+} from "../../structor/std-types";
 import { MidiEvent } from "../../io/midi/types";
 import { SeededRandom } from "./utils";
-import { Step } from "./envelope-generator";
+import { Step } from "./envelope-generator"; // Keep using local Step for now until full migration
 import {
   GateLayer,
   ExponentialLayer,
@@ -28,23 +37,8 @@ import { AbstractLayer, LayerConfig } from "./abstract-layer";
 // State is now handled by the ExecutionContext and definePrimitiveNode helper.
 
 // --- Type Definitions ---
+// Types moved to std-types.ts
 
-const stepStructorType = defineType({
-  kind: "record",
-  fields: {
-    noteIndex: anyType, // Can be number | null
-    velocity: numberType,
-    hold: booleanType,
-  },
-  untagged: [],
-});
-
-export const sequenceStructorType = defineType({
-  kind: "array",
-  size: "dynamic",
-  element: stepStructorType,
-  hint: 'step-sequence'
-});
 export const manySequencesType = defineType({
   kind: "array",
   size: "dynamic", // Technically Array<Sequence>
@@ -52,25 +46,6 @@ export const manySequencesType = defineType({
 });
 
 export const layerOutputStructorType = defineType({ kind: "atomic", type: "number" });
-
-const noteStructorType = defineType({
-  kind: "record",
-  fields: {
-    note: numberType,
-    velocity: numberType,
-  },
-  untagged: [],
-});
-
-const noteEventStructorType = defineType({
-  kind: "record",
-  fields: {
-    onNote: { ...noteStructorType, optional: true },
-    offNote: { ...noteStructorType, optional: true },
-    hold: booleanType,
-  },
-  untagged: [],
-});
 
 const SEQUENCE_LENGTH = 16;
 
@@ -166,168 +141,9 @@ export const chaosGenerator = defineNode({
   }),
 });
 
-// Pattern Node
-export const pattern = defineNode({
-  id: "nicepattern.pattern",
-  version: "1.0.0",
-  displayName: "Pattern",
-  metadata: {
-    category: 'NicePattern',
-    keywords: ['pattern', 'sequencer', 'combiner', 'event'],
-    description: 'Combines multiple sequences into a MIDI stream.'
-  },
-  config: {},
-  inputs: {
-    seq_in: { type: manySequencesType, description: "Input sequence(s)", allowMultiConnection: true }
-  },
-  outputs: { midi_out: midiStreamType },
-  isRealtime: () => true,
-  createState: () => ({
-    sequenceStates: new Map<number, {
-      lastStepIndex: number,
-      lastNoteIndex: number | null,
-      lastHold: boolean,
-      activeNotes: Map<number, number>
-    }>()
-  }),
-  execute: (inputs, config, context, state) => {
-    // Inputs are Structors. unpack them.
-    // seq_in is potentially StructorArray (or raw array if defineNode unwraps? assume Structor for now)
-    const seqInInput = inputs.seq_in as any;
+// Pattern Node moved to seq.tomidi in seq/nodes.ts
+// export const pattern = ... removed
 
-    let seqs: any[] = [];
-    if (seqInInput && typeof seqInInput === 'object') {
-      if (Array.isArray(seqInInput)) {
-        seqs = seqInInput;
-      } else if (seqInInput.kind === 'array' && seqInInput.elements) {
-        seqs = seqInInput.elements;
-      }
-    }
-
-    const stream: MidiEvent[] = [];
-    const stepsPerBeat = 4;
-    const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
-    const currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
-
-    // Process all sequences (both current inputs and previously active ones)
-    const seqIndices = new Set<number>();
-    seqs.forEach((_, i) => seqIndices.add(i));
-    state.sequenceStates.forEach((_, i) => seqIndices.add(i));
-
-    for (const seqIndex of seqIndices) {
-      const seqStructor = seqs[seqIndex];
-      // Unwrap sequence array
-      let seq: any[] | undefined;
-      if (seqStructor) {
-        if (Array.isArray(seqStructor)) seq = seqStructor;
-        else if (seqStructor.kind === 'array') seq = seqStructor.elements;
-        else seq = seqStructor; // Fallback or raw object
-      }
-
-      // Initialize state for this sequence if missing
-      if (!state.sequenceStates.has(seqIndex)) {
-        state.sequenceStates.set(seqIndex, {
-          lastStepIndex: -1,
-          lastNoteIndex: null,
-          lastHold: false,
-          activeNotes: new Map<number, number>()
-        });
-      }
-      const seqState = state.sequenceStates.get(seqIndex)! as {
-        lastStepIndex: number,
-        lastNoteIndex: number | null,
-        lastHold: boolean,
-        activeNotes: Map<number, number>
-      };
-
-      // If seq is gone and no active note, cleanup
-      if (!seq && seqState.lastNoteIndex === null) {
-        state.sequenceStates.delete(seqIndex);
-        continue;
-      }
-
-      let currentStep: { noteIndex: number | null, velocity: number, hold: boolean } = { noteIndex: null, velocity: 0, hold: false };
-
-      if (seq && seq[currentStepIndex]) {
-        const rawStep = seq[currentStepIndex];
-        // Unwrap step fields
-        // Check if it's a StructorRecord with fields
-        if (rawStep.fields) {
-          currentStep = {
-            noteIndex: rawStep.fields.noteIndex,
-            velocity: rawStep.fields.velocity ?? 0,
-            hold: rawStep.fields.hold ?? false
-          };
-        } else {
-          // Fallback for raw objects (e.g. from unit tests if they pass raw objects)
-          currentStep = rawStep;
-        }
-      }
-
-      // Check if we need to update:
-      // 1. Moved to a new step
-      // 2. Input sequence disappeared (!seq)
-      // 3. Note at current step CHANGED (e.g. pattern modulation or cable disconnect)
-      // 4. Force update if unknown state
-      if (currentStepIndex !== seqState.lastStepIndex || !seq || currentStep.noteIndex !== seqState.lastNoteIndex) {
-
-        // Logic: Compare currentStep against STORED state
-        const lastNoteIndex = seqState.lastNoteIndex;
-        const lastHold = seqState.lastHold;
-
-        const isNoteActive = currentStep.noteIndex !== null && currentStep.noteIndex !== undefined;
-        const isSameNote = isNoteActive && currentStep.noteIndex === lastNoteIndex;
-
-        // Release conditions:
-        // 1. We had a note (lastNoteIndex != null)
-        // 2. AND (New note is different OR (Same note but NOT held))
-        // Note: If input disappeared (!seq), currentStep is null-step, so isSameNote is false.
-        const shouldRelease = (lastNoteIndex !== null) && (!isSameNote || !lastHold);
-
-        // Trigger conditions:
-        // 1. We have a new note (isNoteActive)
-        // 2. AND (Only trigger if state changed to active)
-        const shouldTrigger = isNoteActive && (!isSameNote || !lastHold);
-
-        if (shouldRelease && lastNoteIndex !== null) {
-          stream.push({
-            type: 'note_off',
-            note: lastNoteIndex,
-            velocity: 0,
-            channel: 1,
-            deviceId: 'pattern',
-            time: 0
-          });
-          seqState.activeNotes.delete(lastNoteIndex);
-          seqState.lastNoteIndex = null;
-          seqState.lastHold = false;
-        }
-
-        if (shouldTrigger && currentStep.noteIndex !== null) {
-          stream.push({
-            type: 'note_on',
-            note: currentStep.noteIndex,
-            velocity: currentStep.velocity,
-            channel: 1,
-            deviceId: 'pattern',
-            time: 0
-          });
-          seqState.activeNotes.set(currentStep.noteIndex, currentStep.velocity);
-          seqState.lastNoteIndex = currentStep.noteIndex;
-          seqState.lastHold = currentStep.hold;
-        } else if (isSameNote && lastHold) {
-          // Determine if we are just continuing (holding)
-          // We don't need to change state, but we should carry over hold status
-          seqState.lastHold = currentStep.hold;
-        }
-
-        seqState.lastStepIndex = currentStepIndex;
-      }
-    }
-
-    return { midi_out: stream };
-  },
-});
 
 // ...
 
@@ -506,7 +322,7 @@ export const toneSynthLayer = defineNode({
 // Register Nodes
 registerNode(rhythmicGenerator);
 registerNode(chaosGenerator);
-registerNode(pattern);
+// registerNode(pattern);
 registerNode(gateLayer);
 registerNode(expLayer);
 registerNode(pwmLayer);
