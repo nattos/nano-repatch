@@ -269,10 +269,10 @@ export const oneshot = defineNode({
 
     if (triggered) {
       state.isPlaying = true;
-      state.startTime = context.time;
+      state.startTime = context.time ?? 0;
     }
 
-    const seqRaw = inputs.seq_in;
+    const seqRaw = inputs.seq_in as any;
     // Unwrap sequence
     let seq: Step[] = [];
     if (seqRaw) {
@@ -284,7 +284,7 @@ export const oneshot = defineNode({
 
     if (!state.isPlaying || !seq || seq.length === 0) {
       if (state.lastNoteIndex !== null) {
-        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0 });
+        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0, deviceId: 'oneshot' });
         state.lastNoteIndex = null;
         state.lastHold = false;
       }
@@ -295,13 +295,13 @@ export const oneshot = defineNode({
     }
 
     const duration = Math.max(0.001, inputs.duration ?? 4.0);
-    const elapsed = context.time - state.startTime;
+    const elapsed = (context.time ?? 0) - state.startTime;
     const t = elapsed / duration;
 
     if (t >= 1.0) {
       state.isPlaying = false;
       if (state.lastNoteIndex !== null) {
-        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0 });
+        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0, deviceId: 'oneshot' });
         state.lastNoteIndex = null;
         state.lastHold = false;
       }
@@ -335,14 +335,14 @@ export const oneshot = defineNode({
       const shouldTrigger = isNoteActive && (!isSameNote || !lastHold);
 
       if (shouldRelease && lastNoteIndex !== null) {
-        stream.push({ type: 'note_off', note: lastNoteIndex, velocity: 0, channel: 1, time: 0 });
+        stream.push({ type: 'note_off', note: lastNoteIndex, velocity: 0, channel: 1, time: 0, deviceId: 'oneshot' });
         state.activeNotes.delete(lastNoteIndex);
         state.lastNoteIndex = null;
         state.lastHold = false;
       }
 
       if (shouldTrigger && currentStep.noteIndex !== null) {
-        stream.push({ type: 'note_on', note: currentStep.noteIndex, velocity: currentStep.velocity, channel: 1, time: 0 });
+        stream.push({ type: 'note_on', note: currentStep.noteIndex, velocity: currentStep.velocity, channel: 1, time: 0, deviceId: 'oneshot' });
         state.activeNotes.set(currentStep.noteIndex, currentStep.velocity);
         state.lastNoteIndex = currentStep.noteIndex;
         state.lastHold = currentStep.hold;
@@ -379,7 +379,7 @@ export const scan = defineNode({
     activeNotes: new Map<number, number>()
   }),
   execute: (inputs, config, context, state) => {
-    const seqRaw = inputs.seq_in;
+    const seqRaw = inputs.seq_in as any;
     let seq: Step[] = [];
     if (seqRaw) {
       if (Array.isArray(seqRaw)) seq = seqRaw;
@@ -391,7 +391,7 @@ export const scan = defineNode({
 
     if (!seq || seq.length === 0 || pos >= 1.0 || pos < 0) {
       if (state.lastNoteIndex !== null) {
-        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0 });
+        stream.push({ type: 'note_off', note: state.lastNoteIndex, velocity: 0, channel: 1, time: 0, deviceId: 'scan' });
         state.lastNoteIndex = null;
         state.lastHold = false;
       }
@@ -425,13 +425,13 @@ export const scan = defineNode({
       const shouldTrigger = isNoteActive && (!isSameNote || !lastHold);
 
       if (shouldRelease && lastNoteIndex !== null) {
-        stream.push({ type: 'note_off', note: lastNoteIndex, velocity: 0, channel: 1, time: 0 });
+        stream.push({ type: 'note_off', note: lastNoteIndex, velocity: 0, channel: 1, time: 0, deviceId: 'scan' });
         state.lastNoteIndex = null;
         state.lastHold = false;
       }
 
       if (shouldTrigger && currentStep.noteIndex !== null) {
-        stream.push({ type: 'note_on', note: currentStep.noteIndex, velocity: currentStep.velocity, channel: 1, time: 0 });
+        stream.push({ type: 'note_on', note: currentStep.noteIndex, velocity: currentStep.velocity, channel: 1, time: 0, deviceId: 'scan' });
         state.lastNoteIndex = currentStep.noteIndex;
         state.lastHold = currentStep.hold;
       } else if (isSameNote && lastHold) {
@@ -446,7 +446,12 @@ export const scan = defineNode({
 
 // --- Modifiers ---
 
-export const crop = defineNode({
+interface SeqCropUIConfig {
+  mode?: string;
+  values?: Record<string, any>;
+}
+
+export const crop = defineNode<any, SeqCropUIConfig>({
   id: "seq.crop",
   version: "1.0.0",
   displayName: "Crop Sequence",
@@ -477,7 +482,7 @@ export const crop = defineNode({
   },
   computeForwardPorts: (inputTypes, uiConfig) => {
     // Access mode from top-level config (merged by GraphExecutor)
-    const mode = uiConfig?.mode || 'start-end';
+    const mode = uiConfig.mode || 'start-end';
 
     const fields: any = {
       seq_in: sequenceStructorType,
@@ -493,11 +498,11 @@ export const crop = defineNode({
 
   shouldRecompileOnConfigChange: () => true,
   compileConfig: (uiConfig) => ({
-    fields: { mode: { kind: 'atomic', type: 'string', value: uiConfig?.mode ?? 'start-end' } }
+    fields: { mode: { kind: 'atomic', type: 'string', value: uiConfig.mode ?? 'start-end' } }
   }),
 
   execute: (inputs, config) => {
-    const seqRaw = inputs.seq_in;
+    const seqRaw = inputs.seq_in as any;
     if (!seqRaw) return { seq_out: [] };
 
     let seq: Step[] = [];

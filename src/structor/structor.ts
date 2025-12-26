@@ -102,6 +102,7 @@ export interface ExecutionContext {
   };
   resolume?: any; // Injected ResolumeManager
   requestUiOutputs?: boolean;
+  time?: number; // Absolute time in seconds
 };
 
 

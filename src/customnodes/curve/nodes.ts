@@ -1,6 +1,6 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
-import { NumberType } from "../../structor/type-helpers";
-import { ExecutionContext, NodeCategory } from "../../structor/structor";
+import { NumberType, StringType } from "../../structor/type-helpers";
+import { ExecutionContext, NodeCategory, AtomicType } from "../../structor/structor";
 import { curveStructorType, GraphWidgetConfig } from "./types";
 
 const executeCurveEase = (inputs: any, config: any) => {
@@ -291,7 +291,16 @@ const executeCurveEnv = (inputs: { value?: number; }, config: { config?: GraphWi
   return { result };
 };
 
-export const curve_env = defineNode({
+interface CurveEnvUIConfig {
+  curveData?: GraphWidgetConfig;
+  values?: {
+    config?: GraphWidgetConfig;
+    value?: number;
+    [key: string]: any;
+  };
+}
+
+export const curve_env = defineNode<any, CurveEnvUIConfig, any, any, CurveEnvState>({
   id: 'curve.env',
   version: '1.0.0',
   displayName: 'Curve Envelope',
@@ -300,7 +309,9 @@ export const curve_env = defineNode({
     keywords: ['envelope', 'automation', 'ramp'],
     description: 'User-editable curve envelope'
   },
-  inputs: inputs as any,
+  inputs: {
+    value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 }
+  },
   outputs: {
     result: { type: NumberType, description: 'Output value' }
   },
@@ -312,10 +323,10 @@ export const curve_env = defineNode({
     lastSegmentIndex: 0
   }),
   autoBroadcast: true,
-  compileConfig: (uiConfig: NodeStorageConfig) => {
+  compileConfig: (uiConfig) => {
     // We prefer 'curveData' (root-level config for triggering compilation)
     // Fallback to 'values.config' for backward compatibility
-    const sourceConfig = (uiConfig as any)?.curveData ?? uiConfig?.values?.config;
+    const sourceConfig = uiConfig.curveData ?? uiConfig.values?.config;
 
     return {
       fields: {
@@ -339,7 +350,24 @@ export const curve_env = defineNode({
 
 registerNode(curve_env);
 
-export const curve_crop = defineNode({
+interface CurveCropUIConfig {
+  mode?: string;
+  values?: Record<string, any>;
+}
+
+// Runtime Configuration Schema
+type CurveCropCompiledConfig = {
+  mode: typeof StringType;
+};
+
+const curveCropInputs = {
+  value: { type: NumberType, defaultValue: 0 },
+  start: { type: NumberType, defaultValue: 0 },
+  end: { type: NumberType, defaultValue: 1, optional: true },
+  length: { type: NumberType, defaultValue: 1, optional: true }
+};
+
+export const curve_crop = defineNode<typeof curveCropInputs, CurveCropUIConfig, CurveCropCompiledConfig>({
   id: 'curve.crop',
   version: '1.0.0',
   displayName: 'Curve Crop',
@@ -353,8 +381,8 @@ export const curve_crop = defineNode({
   },
   // Dynamic inputs based on mode
   computeForwardPorts: (inputTypes, uiConfig, context) => {
-    const rawConfig = uiConfig as any;
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || 'start-end';
+    // Mode is at root level config (set by inspector or compileConfig)
+    const mode = uiConfig.mode || 'start-end';
 
     const fields: any = {
       value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 },
@@ -374,12 +402,7 @@ export const curve_crop = defineNode({
     };
   },
   // Static inputs definition required for autoBroadcast to work
-  inputs: {
-    value: { type: NumberType, defaultValue: 0 },
-    start: { type: NumberType, defaultValue: 0 },
-    end: { type: NumberType, defaultValue: 1, optional: true },
-    length: { type: NumberType, defaultValue: 1, optional: true }
-  },
+  inputs: curveCropInputs,
   outputs: { result: { type: NumberType } }, // Handled by computeForwardPorts, but kept for metadata
 
   // UI Configuration for Inspector
@@ -401,19 +424,18 @@ export const curve_crop = defineNode({
   },
 
   compileConfig: (uiConfig) => {
-    const rawMode = uiConfig?.mode ?? uiConfig?.values?.mode ?? 'start-end';
+    // Return Flat Data Structure (handled by GraphExecutor normalization and valid for ComputeForwardPorts)
+    const mode = uiConfig.mode || 'start-end';
     return {
-      fields: {
-        mode: { kind: 'atomic', type: 'string', value: rawMode }
-      }
+      mode: mode
     };
   },
 
   autoBroadcast: true,
   inspectInputs: true,
   execute: (inputs, config, context) => {
-    const rawConfig = config as any;
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || 'start-end';
+    // config is strictly typed as InferRecord<{ fields: CurveCropCompiledConfig }>
+    const mode = config.mode || 'start-end';
 
     const start = inputs.start ?? 0;
     const val = inputs.value ?? 0;
