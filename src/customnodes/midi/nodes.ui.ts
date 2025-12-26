@@ -59,7 +59,8 @@ export class MidiTriggerRenderer extends MobxLitElement {
     }
   `;
 
-  private onTrigger() {
+  private handlePointerDown(e: Event) {
+    e.stopPropagation();
     // Update 'trigger' value in config to signal execution
     // We import appController dynamically or assume global availability if needed,
     // but better to import it since we are in main thread context.
@@ -75,9 +76,8 @@ export class MidiTriggerRenderer extends MobxLitElement {
   render() {
     return html`
       <button class="trigger-btn"
-        @mousedown=${(e: Event) => e.stopPropagation()}
+        @pointerdown=${this.handlePointerDown}
         @dblclick=${(e: Event) => e.stopPropagation()}
-        @click=${this.onTrigger}
       >
         TRIGGER
       </button>
