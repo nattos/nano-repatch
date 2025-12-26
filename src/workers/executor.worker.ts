@@ -1,6 +1,6 @@
 import '../customnodes/debug/nodes-registration';
 import '../customnodes/expr/nodes';
-import '../customnodes/osc/nodes';
+import '../customnodes/gen/nodes';
 import '../customnodes/nicepattern/nodes';
 import '../customnodes/resolume/nodes';
 import '../customnodes/curve/nodes';

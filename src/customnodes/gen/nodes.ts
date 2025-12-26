@@ -2,9 +2,9 @@ import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType } from "../../structor/std-types";
 
 export const sawtooth = defineNode({
-  id: "osc.sawtooth",
+  id: "gen.sawtooth",
   version: "1.0.0",
-  displayName: "Sawtooth OSC",
+  displayName: "Sawtooth",
   metadata: {
     category: 'Oscillator',
     keywords: ['oscillator', 'sawtooth', 'ramp', 'lfo', 'generator'],

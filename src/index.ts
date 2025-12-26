@@ -9,7 +9,7 @@ import './customnodes/midi/nodes';
 import './customnodes/midi/register-ui';
 import './customnodes/expr/nodes';
 import './customnodes/expr/register-ui';
-import './customnodes/osc/nodes';
+import './customnodes/gen/nodes';
 import './customnodes/resolume/nodes';
 import './customnodes/debug/register-ui';
 import './customnodes/curve/register-ui';
