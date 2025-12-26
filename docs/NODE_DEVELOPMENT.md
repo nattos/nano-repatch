@@ -337,3 +337,33 @@ This tells the `RuntimeManager` that a config update for this node is structural
 **Symptom:** After a dynamic topology change (recompile), downstream nodes might read `0` or `undefined` inputs even though wires verify visually.
 **Cause:** The Compiler Worker may optimize connections to use numeric indices (e.g., `fromPort: 0`) instead of names (e.g., `fromPort: 'result'`) when regenerating the graph definition. The `GraphExecutor` currently struggles to resolve these numeric indices back to named ports in some dynamic scenarios.
 **Workaround:** This is an open engineering challenge. Ensure your dynamic nodes reuse the same port names/indices as consistently as possible to minimize compiler ambiguity.
+
+## 13. Reducers & Multi-Connection Inputs
+
+### The Concept
+By default, standard ports accept only one connection. However, many node types benefits from aggregating multiple data streams (e.g., merging multiple MIDI keyboards, summing multiple audio signals).
+
+### Configuration
+To enable this, use `allowMultiConnection: true` in your input definition and configure a **Reducer** in `autoBroadcast`.
+
+```typescript
+inputs: {
+  stream: { type: midiStreamType, allowMultiConnection: true }
+},
+autoBroadcast: {
+  stream: { combine: { reduce: 'flatten' } }
+}
+```
+
+### Reducer Types
+*   `first` (Default): Uses only the first connected source. Ignores others.
+*   `collect`: Gathers all inputs into an array `[Input1, Input2, ...]`.
+*   `flatten`: Gathers inputs and flattens them one level deep `[...Input1, ...Input2]`.
+
+### Best Practice: MIDI Inputs
+**Always** use the `flatten` reducer for `midiStreamType` inputs.
+*   MIDI streams are arrays of events `MidiEvent[]`.
+*   If you have two keyboards connected, `collect` would give you `[[EventA], [EventB]]` (an array of streams).
+*   `flatten` gives you `[EventA, EventB]` (a single merged stream), which is usually what your logic expects.
+
+This pattern eliminates the need for users to manually place "Merge" nodes, making the graph cleaner and more intuitive.
