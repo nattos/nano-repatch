@@ -204,9 +204,11 @@ export const adsr = defineNode({
     switch (state.phase) {
       case ADSR_PHASE.IDLE:
         state.value = 0;
+        state.time = 0;
         break;
 
       case ADSR_PHASE.ATTACK:
+        state.time += dt;
         state.value += (1.0 / Math.max(0.001, attackTime)) * dt;
         if (state.value >= 1.0) {
           state.value = 1.0;
@@ -222,35 +224,44 @@ export const adsr = defineNode({
         break;
 
       case ADSR_PHASE.DECAY:
-        // Linear decay for simplicity, or exponential?
-        // Original was linear.
+        state.time += dt;
         state.value -= ((1.0 - sustainLevel) / Math.max(0.001, decayTime)) * dt;
         if (state.value <= sustainLevel) {
           state.value = sustainLevel;
           state.phase = ADSR_PHASE.SUSTAIN;
+          state.time = 0;
         }
         break;
 
       case ADSR_PHASE.SUSTAIN:
+        state.time += dt;
         state.value = sustainLevel;
         break;
 
       case ADSR_PHASE.RELEASE:
+        state.time += dt;
         if (releaseTime <= 0) {
           state.value = 0;
           state.phase = ADSR_PHASE.IDLE;
+          state.time = 0;
         } else {
           state.value -= (1.0 / releaseTime) * dt;
           if (state.value <= 0) {
             state.value = 0;
             state.phase = ADSR_PHASE.IDLE;
+            state.time = 0;
           }
         }
         break;
     }
 
-    return { value: Math.max(0, Math.min(1, state.value)) };
-  }
+    return {
+      outputs: { value: Math.max(0, Math.min(1, state.value)) },
+      // Send current value to UI for visualization (Hero Node)
+      ui: { value: state.value, phase: state.phase, time: state.time }
+    };
+  },
+  inspectInputs: true
 });
 
 registerNode(adsr);
