@@ -1,7 +1,7 @@
 import { defineType } from "./type-helpers";
 
-export const numberType = defineType({ kind: "atomic", type: "number", defaultValue: 0 });
-export const stringType = defineType({ kind: "atomic", type: "string" });
+export const numberType = defineType({ kind: "atomic", type: "number", defaultValue: 0 } as const);
+export const stringType = defineType({ kind: "atomic", type: "string" } as const);
 export const booleanType = defineType({ kind: "atomic", type: "boolean" });
 export const anyType = defineType({ kind: "atomic", type: "any" });
 

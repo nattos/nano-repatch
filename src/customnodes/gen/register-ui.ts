@@ -75,6 +75,7 @@ const renderAdsrBody = async () => {
 registerNode({
   ...adsr,
   ui: {
+    ...adsr.ui,
     body: renderAdsrBody,
   }
 });

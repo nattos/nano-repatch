@@ -1,5 +1,5 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
-import { numberType, midiStreamType } from "../../structor/std-types";
+import { numberType, midiStreamType, stringType } from "../../structor/std-types";
 
 export const sawtooth = defineNode({
   id: "gen.sawtooth",
@@ -65,14 +65,67 @@ export const adsr = defineNode({
   inputs: {
     stream: { type: midiStreamType, description: 'MIDI Stream', allowMultiConnection: true },
     attack: { type: numberType, defaultValue: 0.1, range: [0, 5], description: 'Attack Time (s)' },
-    decay: { type: numberType, defaultValue: 0.1, range: [0, 5], description: 'Decay Time (s)' },
+    decay: { type: numberType, defaultValue: 1.0, range: [0, 5], description: 'Decay Time (s)' },
     sustain: { type: numberType, defaultValue: 0.7, range: [0, 1], description: 'Sustain Level (0-1)' },
-    release: { type: numberType, defaultValue: 0.5, range: [0, 5], description: 'Release Time (s)' }
+    release: { type: numberType, defaultValue: 1.0, range: [0, 5], description: 'Release Time (s)' }
+  },
+
+  config: {
+    mode: { kind: 'atomic', type: 'string', defaultValue: 'D' }
+  },
+  ui: {
+    inspector: {
+      fields: [
+        {
+          label: 'Mode',
+          path: 'mode',
+          type: 'tab-bar',
+          options: [
+            { label: 'ADSR', value: 'ADSR' },
+            { label: 'ADS', value: 'ADS' },
+            { label: 'D', value: 'D' }
+          ],
+        }
+      ]
+    }
+  },
+  computeForwardPorts: (inputTypes, config) => {
+    const configRecord = config as any;
+    const mode = configRecord?.mode ?? configRecord?.values?.mode ?? 'D';
+
+    const fields: any = {
+      stream: (inputTypes as any).fields.stream
+    };
+
+    const allInputs = (inputTypes as any).fields;
+
+    if (mode === 'ADSR') {
+      fields.attack = allInputs.attack;
+      fields.decay = allInputs.decay;
+      fields.sustain = allInputs.sustain;
+      fields.release = allInputs.release;
+    } else if (mode === 'ADS') {
+      fields.attack = allInputs.attack;
+      fields.decay = allInputs.decay;
+      fields.sustain = allInputs.sustain;
+      // No release
+    } else if (mode === 'D') {
+      fields.decay = allInputs.decay;
+      // No attack, sustain, release
+    }
+
+    return {
+      inputs: { kind: 'record', fields },
+      outputs: { kind: 'record', fields: { value: numberType } }
+    };
   },
   outputs: {
     value: { type: numberType, description: 'Envelope Value (0-1)' }
   },
   isRealtime: () => true,
+  shouldRecompileOnConfigChange: (config) => {
+    return true;
+  },
   createState: () => ({
     phase: ADSR_PHASE.IDLE,
     value: 0.0,
@@ -81,12 +134,32 @@ export const adsr = defineNode({
   }),
   execute: (inputs, config, context, state) => {
     const dt = context.clock.dt;
+    // config is the unwrapped JS object now because we defined it in `config:` option.
+    const mode = (config as any).mode || 'D';
     const stream = inputs.stream;
 
-    const attackTime = Math.max(0, inputs.attack);
-    const decayTime = Math.max(0, inputs.decay);
-    const sustainLevel = Math.max(0, Math.min(1, inputs.sustain));
-    const releaseTime = Math.max(0, inputs.release);
+    let attackTime = 0;
+    let decayTime = 0;
+    let sustainLevel = 0;
+    let releaseTime = 0;
+
+    if (mode === 'D') {
+      attackTime = 0;
+      decayTime = Math.max(0, inputs.decay ?? 0.1);
+      sustainLevel = 0;
+      releaseTime = decayTime;
+    } else if (mode === 'ADS') {
+      attackTime = Math.max(0, inputs.attack ?? 0.1);
+      decayTime = Math.max(0, inputs.decay ?? 0.1);
+      sustainLevel = Math.max(0, Math.min(1, inputs.sustain ?? 0.7));
+      releaseTime = decayTime;
+    } else {
+      // ADSR
+      attackTime = Math.max(0, inputs.attack ?? 0.1);
+      decayTime = Math.max(0, inputs.decay ?? 0.1);
+      sustainLevel = Math.max(0, Math.min(1, inputs.sustain ?? 0.7));
+      releaseTime = Math.max(0, inputs.release ?? 0.5);
+    }
 
     if (Array.isArray(stream)) {
       for (const e of stream) {

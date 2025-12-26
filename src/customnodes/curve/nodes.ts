@@ -400,6 +400,15 @@ export const curve_crop = defineNode({
     }
   },
 
+  compileConfig: (uiConfig) => {
+    const rawMode = uiConfig?.mode ?? uiConfig?.values?.mode ?? 'start-end';
+    return {
+      fields: {
+        mode: { kind: 'atomic', type: 'string', value: rawMode }
+      }
+    };
+  },
+
   autoBroadcast: true,
   inspectInputs: true,
   execute: (inputs, config, context) => {

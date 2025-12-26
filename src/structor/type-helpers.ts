@@ -71,7 +71,12 @@ export function defineRecordType<T>(def: TypedRecordType<T>): RecordType {
 function fromStructor(value: Structor, type: StructorType): any {
   if (value === undefined || value === null) return value;
 
-  if (type.kind === 'atomic') return value;
+  if (type.kind === 'atomic') {
+    if (value && typeof value === 'object' && 'kind' in value && (value as any).kind === 'atomic') {
+      return (value as any).value;
+    }
+    return value;
+  }
 
   if (type.kind === 'array') {
     if (Array.isArray(value)) {
