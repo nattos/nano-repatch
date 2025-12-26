@@ -424,7 +424,7 @@ export function definePrimitiveNode<
 export interface TypedBroadcastChannel {
   source?: string | string[]; // Default to channel name if omitted
   type?: StructorType; // Used for inference
-  combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' } | null;
+  combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' | 'flatten' } | null;
 }
 
 export type TypedBroadcastSchema = Record<string, TypedBroadcastChannel>;

@@ -136,7 +136,7 @@ export class GraphExecutor {
         if (movedAny) {
           // Create a new config object with fields, preserving other top-level keys (like 'values')
           normalizedConfig = {
-            ...config, // Keep values, etc.
+            ...(config as object), // Keep values, etc.
             fields: mappedFields
           };
         }
@@ -229,28 +229,22 @@ export class GraphExecutor {
         inputsByPort.get(port)!.push(value);
       };
 
-      for (const conn of this.graph.connections) {
-        if (conn.toNode === nodeId) {
-          const upstreamOutput = this.nodeStates.get(conn.fromNode)?.output;
-          if (upstreamOutput) {
-            const fromPort = conn.fromPort;
-            const toPort = conn.toPort; // Can be string or number
+      // Collect inputs from connections
+      if (this.graph.connections) {
+        for (const conn of this.graph.connections) {
+          if (conn.toNode === nodeId) {
+            const sourceNode = conn.fromNode;
+            const sourcePort = conn.fromPort;
 
-            let value: Structor | undefined;
+            const sourceState = this.nodeStates.get(sourceNode);
+            const sourceOutput = sourceState ? sourceState.output : undefined;
 
-            // Resolve output value from upstream
-            if (typeof fromPort === 'string' && fromPort) {
-              value = upstreamOutput.fields[fromPort];
-            } else if (typeof fromPort === 'number') {
-              // TODO: Fix numeric port resolution.
-              // Currently, connections using numeric indices (often from recompiled subgraphs)
-              // are failing to resolve because we lack a robust way to map index -> name here.
-              // The previous fallback attempt was unreliable.
-            }
-
-            if (value !== undefined) {
-              const portName = toPort.toString();
-              addToPort(portName, value);
+            if (sourceOutput && sourceOutput.fields) {
+              if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
+                const value = sourceOutput.fields[sourcePort];
+                // console.error(`[Executor] Connection ${sourceNode}.${sourcePort} -> ${nodeId}.${conn.toPort} val=`, JSON.stringify(value));
+                addToPort(conn.toPort.toString(), value);
+              }
             }
           }
         }
@@ -301,8 +295,11 @@ export class GraphExecutor {
         });
       }
 
+
+
       for (const port of allPorts) {
         const schema = inputSchemaMap.get(port);
+        // console.error(`[Executor] schema check port=${port}`, JSON.stringify(schema));
         const values = inputsByPort.get(port);
 
         // Determine if it expects an array input
@@ -311,11 +308,13 @@ export class GraphExecutor {
         const isArrayType = schemaType && schemaType.kind === 'array';
 
         if (values && values.length > 0) {
+          // console.error(`[Executor] Collecting inputs for node=${nodeId} port=${port} values=`, JSON.stringify(values));
           const lastValue = values[values.length - 1];
           // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
           // Only collect if input is NOT array (merging scalars or elements).
           // UNLESS explicit allowMultiConnection is set.
           if (schema && schema.allowMultiConnection) {
+            // console.error(`[Executor] allowMultiConnection detected for ${port} values=`, JSON.stringify(values));
             inputRecord.fields[port] = values;
           } else if (isArrayType && !Array.isArray(lastValue)) {
             // It expects array, but getting scalars -> collect all

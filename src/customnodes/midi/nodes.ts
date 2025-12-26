@@ -418,6 +418,7 @@ export const midiTriggerNode = defineNode({
     const velocity = (config.velocity as number) ?? 1.0;
 
     // Check for change (edge detection or just change)
+    // Check for change (edge detection or just change)
     if (state.lastTrigger !== -1 && triggerValue !== state.lastTrigger) {
       state.lastTrigger = triggerValue;
       return {
@@ -434,6 +435,7 @@ export const midiTriggerNode = defineNode({
   },
   compileConfig: (uiConfig) => ({
     fields: { pitch: uiConfig.pitch ?? 60, velocity: uiConfig.velocity ?? 1.0 },
+    values: uiConfig.values || {},
     untagged: []
   }),
   ui: {
@@ -446,6 +448,8 @@ export const midiTriggerNode = defineNode({
   }
 });
 
+
+
 export const midiMergeNode = defineNode({
   id: "midi.merge",
   version: "1.0.0",
@@ -453,34 +457,22 @@ export const midiMergeNode = defineNode({
   metadata: {
     category: NodeCategory.IO,
     keywords: ['midi', 'merge', 'combine', 'mix'],
-    description: 'Merges multiple MIDI streams into one.'
+    description: 'Merges multiple MIDI streams into one using auto-broadcast.'
   },
   inputs: {
-    // We use redirect: 'untagged' to collect all connections to this one port
-    stream: { type: { kind: 'array', element: midiStreamType } as any, description: 'Input Streams', allowMultiConnection: true }
+    stream: { type: midiStreamType, description: 'Input Streams', allowMultiConnection: true }
   },
-  config: {},
   outputs: {
     stream: midiStreamType
   },
-  execute: (inputs, config, context) => {
-    // With allowMultiConnection: true, inputs.stream is always an array of the connected values.
-    // Each connected value is a MidiEvent[] (a stream).
-    const streams = inputs.stream as unknown as MidiEvent[][];
-    if (!streams) return { stream: [] };
-
-    const merged: MidiEvent[] = [];
-    if (Array.isArray(streams)) {
-      for (const s of streams) {
-        if (Array.isArray(s)) {
-          merged.push(...s);
-        }
-      }
-    }
-    return { stream: merged };
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
-  // Ensure we don't auto-broadcast because we want the raw arrays of events
-  autoBroadcast: false
+  execute: (inputs, config, context) => {
+    // Inputs are automaticallly reduced by broadcast using 'flatten'
+    // internal implementation details handled by broadcast logic
+    return { stream: inputs.stream as unknown as MidiEvent[] };
+  }
 });
 
 export const midiSelectNode = defineNode({

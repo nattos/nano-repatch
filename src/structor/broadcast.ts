@@ -60,6 +60,13 @@ export function broadcast(config: BroadcastConfig, inputs: StructorRecord): Broa
 
       if (reduceType === 'first') {
         finalValue = values[0];
+      } else if (reduceType === 'flatten') {
+        const toFlatten = values.length > 0 && Array.isArray(values[0]) ? values[0] : values;
+        if (Array.isArray(toFlatten)) {
+          finalValue = toFlatten.flat(Infinity);
+        } else {
+          finalValue = [toFlatten];
+        }
       } else {
         finalValue = values[0]; // Fallback
       }

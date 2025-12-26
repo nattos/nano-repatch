@@ -231,7 +231,7 @@ export interface BroadcastConfig {
       /**
        * How to combine all collected inputs for this channel.
        */
-      combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' };
+      combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' | 'flatten' };
       /**
        * (Optional) Request that all data in this channel be coerced to a number
        * during the broadcast operation.

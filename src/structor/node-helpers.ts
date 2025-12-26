@@ -181,6 +181,8 @@ export function defineNode<
 export function registerNode(def: EnhancedNodeDefinition) {
   const inputs: PortHint[] = Object.entries(def.extendedInputs || {}).map(([name, val]: [string, any]) => {
     const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
+
+
     const type = isExtended ? val.type : val;
     return {
       name,
