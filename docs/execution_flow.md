@@ -118,7 +118,7 @@ sequenceDiagram
 | :--- | :--- | :--- | :--- |
 | `COMPILE_GRAPH` | Main -> Worker | `state` (AppState), `subgraphs` | Requests a full graph compilation. |
 | `GRAPH_COMPILED` | Worker -> Main | `graph` (GraphDefinition) | Returns the executable graph structure. |
-| `COMPILE_CONFIGS` | Main -> Worker | `nodes` (List of configs) | Requests compilation of specific node configurations (without full graph rebuild). |
+| `COMPILE_CONFIGS` | Main -> Worker | `nodes` (List of configs) | Requests compilation of specific node configurations (without full graph rebuild). Runs `compileConfig` for each node. |
 | `CONFIGS_COMPILED` | Worker -> Main | `configs` (Map) | Returns compiled config objects ready for the executor. |
 
 ### Executor Worker Messages

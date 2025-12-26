@@ -3,6 +3,35 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Node Config Type Safety Refactor (As of 2025-12-26)
+
+This entry documents the architectural refactor of node configuration types to enforce strict separation between UI state (`TUIConfig`) and runtime configuration (`TCompiledConfig`).
+
+### Features Implemented
+
+1.  **Strict Configuration Typing:**
+    *   Updated `defineNode` and `EnhancedNodeOptions` in `src/structor/node-helpers.ts` to accept two generic type arguments: `<TUIConfig, TCompiledConfig>`.
+    *   Renamed the configuration parameter from `config` to `uiConfig` in lifecycle methods (`computeForwardPorts`, `shouldRecompileOnConfigChange`, `compileConfig`) to explicitize that these methods operate on the raw UI state.
+    *   The `execute` method continues to receive the processed `TCompiledConfig`.
+
+2.  **Systematic Node Updates:**
+    *   Refactored `gen.adsr`, `gen.sawtooth`, `curve.crop`, `resolume.input`, `resolume.output`, `midi.select`, and `nicepattern.magneto` to usage `uiConfig` and proper type assertions.
+
+### Bug Fixes
+
+1.  **Hero Node Test Compatibility:**
+    *   **Issue:** Unit tests for `adsr` and `magneto` were failing because they inspected the raw return value of `execute`, which now follows the "Hero Node" pattern (`{ outputs, ui }`) rather than returning the `outputs` record directly.
+    *   **Fix:** Updated `adsr.test.ts` and `nodes.test.ts` to check for `result.outputs` before accessing fields.
+    *   **Fix:** Updated `magneto.test.ts` to access UI extensions via `defaultNodeRepository.getNodeType(...)` instead of the static definition, as the UI is attached dynamically.
+
+2.  **Execution Timing Assertions:**
+    *   **Issue:** `nodes.test.ts` failed because the ADSR node sometimes transitioned from Attack to Sustain within a single frame (if Attack time was effectively zero relative to dt).
+    *   **Fix:** Relaxed the phase assertion to accept either Decay or Sustain phase as valid proof of triggering.
+
+### Verification
+
+*   **Full Test Suite:** All unit tests (`npm test`) are passing (265 tests).
+
 ## Build Fixes & Config Logic Hardening (As of 2025-12-25)
 
 This entry documents the resolution of build errors, test failures, and a regression in the `GraphExecutor`'s configuration merging logic.

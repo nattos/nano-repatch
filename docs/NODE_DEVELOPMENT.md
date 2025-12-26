@@ -28,6 +28,20 @@ export const myAddNode = definePrimitiveNode({
 });
 ```
 
+### Typed Configurations
+
+You can enforce type safety for your `uiConfig` and `compiledConfig` by satisfying the generic arguments:
+
+```typescript
+interface MyUIConfig { mode: string; }
+interface MyCompiledConfig { mode: string; lookup: number[]; }
+
+export const myNode = definePrimitiveNode<MyUIConfig, MyCompiledConfig>({
+    // ...
+    compileConfig: (uiConfig) => { ... } // strongly types uiConfig, expects return TCompiledConfig
+});
+```
+
 ## 2. `autoBroadcast` Explained
 
 When `autoBroadcast: true` is set:
@@ -280,7 +294,43 @@ private startLoop() {
 *   The `core.pack` node accepts any input type but treats its output as a generic Record containing those named fields.
 *   Downstream nodes must be able to handle this Record structure.
 
-## 11. Configuration Updates & Virtual Inputs
+## 12. Configuration Lifecycle: UI to Runtime
+
+A key architectural concept is the distinction between **UI Configuration** (what the inspector sees) and **Runtime Configuration** (what the `execute` function sees).
+
+### 1. TUIConfig vs. TCompiledConfig
+
+*   **TUIConfig (`uiConfig`)**: The raw state of the UI inspectors. This might be a complex nested object, or raw string values from text inputs.
+*   **TCompiledConfig (`compiledConfig`)**: The optimized, validated, and type-safe configuration object required by the runtime loop.
+
+By default, they are the same. However, you can transform them using `compileConfig`.
+
+### 2. The `compileConfig` Hook
+
+Define this in your node to authorize and transform data before it hits the generic `GraphExecutor`.
+
+```typescript
+compileConfig: (uiConfig) => {
+  // 1. Validate / Sanitize
+  const mode = isValidMode(uiConfig.mode) ? uiConfig.mode : 'default';
+
+  // 2. Pre-calculate lookup tables or optimize structures
+  const lookup = generateLookupTable(mode);
+
+  // Returns TCompiledConfig
+  return { mode, lookup };
+}
+```
+
+### 3. Lifecycle Methods
+
+*   **`computeForwardPorts(inputTypes, uiConfig)`**: Receives `uiConfig`. Determines ports based on UI state (e.g. "Polyphonic" toggle adds outputs).
+*   **`shouldRecompileOnConfigChange(uiConfig)`**: Receives `uiConfig`. Returns `true` if a UI change necessitates a full graph topology rebuild.
+*   **`execute(inputs, compiledConfig, ...)`**: Receives the **result** of `compileConfig`.
+
+---
+
+## 13. Configuration Updates & Virtual Inputs
 
 ### The Challenge: Config Merging
 When a node's configuration is updated (e.g., from the Inspector or a test), the `GraphExecutor` merges the new config into the existing state.
@@ -302,7 +352,7 @@ When manually constructing config updates (e.g., in unit tests):
     ```
 
 
-## 12. Dynamic Ports & Configuration Pitfalls
+## 14. Dynamic Ports & Configuration Pitfalls
 
 Some nodes (like `curve.crop`) need to change their Input/Output topology based on their configuration (e.g. changing a `mode` from "Start/End" to "Start/Length"). This introduces significant complexity in the graph runtime.
 
@@ -338,7 +388,7 @@ This tells the `RuntimeManager` that a config update for this node is structural
 **Cause:** The Compiler Worker may optimize connections to use numeric indices (e.g., `fromPort: 0`) instead of names (e.g., `fromPort: 'result'`) when regenerating the graph definition. The `GraphExecutor` currently struggles to resolve these numeric indices back to named ports in some dynamic scenarios.
 **Workaround:** This is an open engineering challenge. Ensure your dynamic nodes reuse the same port names/indices as consistently as possible to minimize compiler ambiguity.
 
-## 13. Reducers & Multi-Connection Inputs
+## 15. Reducers & Multi-Connection Inputs
 
 ### The Concept
 By default, standard ports accept only one connection. However, many node types benefits from aggregating multiple data streams (e.g., merging multiple MIDI keyboards, summing multiple audio signals).
