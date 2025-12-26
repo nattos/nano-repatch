@@ -514,16 +514,16 @@ export const midiSelectNode = defineNode({
   dynamicOutputType: midiStreamType,
   // Logic to determine outputs dynamically
   computeForwardPorts: (inputTypes, config, context) => {
-    const conf = config as any;
+    const conf = (config as any).fields ? (config as any).fields : config;
     const count = (conf.count as number) || 4;
     const outputs: any = {};
 
     // Numbered ports 0..count-1
     for (let i = 0; i < count; i++) {
-      outputs[i.toString()] = { ...midiStreamType, description: `Offset ${i}` };
+      outputs[i.toString()] = { ...midiStreamType, hint: 'midi-stream', description: `Offset ${i}` };
     }
     // Remainder port
-    outputs['rem'] = { ...midiStreamType, description: 'Remainder' };
+    outputs['rem'] = { ...midiStreamType, hint: 'midi-stream', description: 'Remainder' };
 
     return {
       inputs: { kind: 'record', fields: { stream: midiStreamType } },
