@@ -499,7 +499,17 @@ export class GraphNode extends MobxLitElement {
     // Check fields first
     if (output.fields && portName in output.fields) {
       value = output.fields[portName];
-      if (nodeType && nodeType.outputs) {
+
+      // Try inferred type first (which includes dynamic ports)
+      const inferredTypes = localController.observableState.inferredNodeTypes.get(this.node.id);
+      if (inferredTypes && inferredTypes.outputs && inferredTypes.outputs.kind === 'record' && inferredTypes.outputs.fields) {
+        if (portName in inferredTypes.outputs.fields) {
+          type = inferredTypes.outputs.fields[portName];
+        }
+      }
+
+      // Fallback to static definition
+      if (!type && nodeType && nodeType.outputs) {
         const port = nodeType.outputs.find(p => p.name === portName);
         if (port) type = port.type;
       }

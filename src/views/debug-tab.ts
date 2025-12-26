@@ -222,7 +222,19 @@ export class DebugTab extends MobxLitElement {
       for (const [key, val] of Object.entries(output.fields)) {
         // Find type for this field
         let type: any = undefined;
-        if (repoEntry && repoEntry.outputs) {
+
+        // Try inferred type first
+        if (nodeId) {
+          const inferredTypes = localController.observableState.inferredNodeTypes.get(nodeId);
+          if (inferredTypes && inferredTypes.outputs && inferredTypes.outputs.kind === 'record' && inferredTypes.outputs.fields) {
+            if (key in inferredTypes.outputs.fields) {
+              type = inferredTypes.outputs.fields[key];
+            }
+          }
+        }
+
+        // Fallback to static definition
+        if (!type && repoEntry && repoEntry.outputs) {
           const port = repoEntry.outputs.find((p: any) => p.name === key);
           if (port) type = port.type;
         }
