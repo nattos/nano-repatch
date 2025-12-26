@@ -1,0 +1,6 @@
+import './curve/register-ui';
+import './debug/register-ui';
+import './expr/register-ui';
+import './gen/register-ui';
+import './midi/register-ui';
+import './nicepattern/register-ui';

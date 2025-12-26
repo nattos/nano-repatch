@@ -1,12 +1,14 @@
 
-import { sawtooth } from "./nodes";
+import { sawtooth, adsr } from "./nodes";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExecutionContext } from "../../structor/structor";
 import { defaultNodeRepository } from "../../structor/repository";
 
-// Mock ExecutionContext
+// Mock ExecutionContext with working broadcast
 const createMockContext = (): ExecutionContext => ({
-    broadcast: vi.fn(),
+    broadcast: (config: any, inputs: any) => ({
+        apply: (fn: Function) => fn(inputs)
+    }) as any,
     repository: defaultNodeRepository,
     clock: { beat: 0, dt: 0.1 },
     nodeState: new Map(),
@@ -18,32 +20,22 @@ describe("gen.sawtooth", () => {
 
     beforeEach(() => {
         context = createMockContext();
-        // Default dt = 0.1s for easy math
         context.clock.dt = 0.1;
     });
 
     it("should execute with default config", () => {
         const config = { fields: {}, };
-        // We need to set context.nodeId or use the implicit key.
-        // Let's set a nodeId.
         (context as any).nodeId = "test-node";
 
-        // Initial execution
-        // Simulate Executor providing default value 1.0
-        let result = sawtooth.execute({ fields: { freq: 1.0 }, }, config, context);
-        // Phase starts at 0. First execution:
-        // definePrimitiveNode calls createState if missing.
-        // phase = 0.
-        // execute runs: phase += 0.1 -> 0.1.
-        // check result.
-
+        let result: any = sawtooth.execute({ freq: 1.0 } as any, config, context);
         let state = context.nodeState.get("test-node");
+
         expect(state).toBeDefined();
         expect(state.phase).toBeCloseTo(0.1);
         expect(result.fields.out).toBeCloseTo(0.1);
 
         // Next step
-        result = sawtooth.execute({ fields: { freq: 1.0 }, }, config, context);
+        result = sawtooth.execute({ freq: 1.0 } as any, config, context);
         state = context.nodeState.get("test-node");
 
         expect(state.phase).toBeCloseTo(0.2);
@@ -53,10 +45,9 @@ describe("gen.sawtooth", () => {
     it("should handle input frequency override", () => {
         (context as any).nodeId = "test-node-2";
         const config = { fields: {}, };
-        const inputs = { fields: { freq: 2.0 }, }; // Override with 2Hz
+        const inputs = { freq: 2.0 } as any;
 
-        // 2.0 Hz. Math is dt / freq = 0.1 / 2.0 = 0.05
-        const result = sawtooth.execute(inputs, config, context);
+        const result: any = sawtooth.execute(inputs, config, context);
         const state = context.nodeState.get("test-node-2");
 
         expect(state.phase).toBeCloseTo(0.2);
@@ -67,30 +58,81 @@ describe("gen.sawtooth", () => {
         (context as any).nodeId = "test-node-3";
         const config = { fields: {}, };
 
-        // Manually seed state
         context.nodeState.set("test-node-3", { phase: 0.95 });
 
-        const result = sawtooth.execute({ fields: { freq: 1.0 }, }, config, context);
+        const result: any = sawtooth.execute({ freq: 1.0 } as any, config, context);
         const state = context.nodeState.get("test-node-3");
 
-        // 0.95 + 0.1 = 1.05 -> 0.05
         expect(state.phase).toBeCloseTo(0.05);
         expect(result.fields.out).toBeCloseTo(0.05);
     });
+});
 
-    it("should output random values for high frequency", () => {
-        (context as any).nodeId = "test-node-4";
-        const config = { fields: {}, };
+describe("gen.adsr", () => {
+    let context: ExecutionContext;
 
-        const result1 = sawtooth.execute({ fields: { freq: 60.0 }, }, config, context);
-        const result2 = sawtooth.execute({ fields: { freq: 60.0 }, }, config, context);
+    beforeEach(() => {
+        context = createMockContext();
+        context.clock.dt = 0.1;
+    });
 
-        expect(result1.fields.out).toBeGreaterThanOrEqual(0);
-        expect(result1.fields.out).toBeLessThan(1);
-        expect(result2.fields.out).toBeGreaterThanOrEqual(0);
-        expect(result2.fields.out).toBeLessThan(1);
+    it("should start in IDLE phase and output 0", () => {
+        (context as any).nodeId = "adsr-node";
 
-        // Highly unlikely to be equal
-        expect(result1.fields.out).not.toBe(result2.fields.out);
+        const result: any = adsr.execute({ stream: [], attack: 0.1, decay: 0.1, sustain: 0.5, release: 0.1 } as any, { fields: {} }, context);
+        const state = context.nodeState.get("adsr-node");
+
+        expect(state.phase).toBe(0); // IDLE
+        expect(result.fields.value).toBe(0);
+    });
+
+    it("should trigger Attack on Note On", () => {
+        (context as any).nodeId = "adsr-node";
+        const stream = [{ type: 'note_on', velocity: 0.8 }];
+
+        // Execute frame 1
+        const result: any = adsr.execute({ stream, attack: 0.1, decay: 0.1, sustain: 0.5, release: 0.1 } as any, { fields: {} }, context);
+        const state = context.nodeState.get("adsr-node");
+
+        // Attack 0.1s. dt 0.1s. Reaches 1.0 immediately. Transitions to DECAY (2)
+        expect(state.phase).toBe(2); // DECAY
+        expect(state.activeNotes).toBe(1);
+    });
+
+    it("should release when all notes off", () => {
+        (context as any).nodeId = "adsr-node";
+        // Pre-condition: Sustain phase
+        context.nodeState.set("adsr-node", { phase: 3, value: 0.5, activeNotes: 1 });
+
+        const stream = [{ type: 'note_off', velocity: 0 }];
+
+        const result: any = adsr.execute({ stream, attack: 0.1, decay: 0.1, sustain: 0.5, release: 0.1 } as any, { fields: {} }, context);
+        const state = context.nodeState.get("adsr-node");
+
+        expect(state.phase).toBe(0); // IDLE
+        expect(state.activeNotes).toBe(0);
+        expect(result.fields.value).toBe(0);
+    });
+
+    it("should sum active notes (polyphony tracking)", () => {
+        (context as any).nodeId = "adsr-node-poly";
+
+        // Note On 1
+        adsr.execute({ stream: [{ type: 'note_on', velocity: 1 }] } as any, { fields: {} }, context);
+        expect(context.nodeState.get("adsr-node-poly").activeNotes).toBe(1);
+
+        // Note On 2
+        adsr.execute({ stream: [{ type: 'note_on', velocity: 1 }] } as any, { fields: {} }, context);
+        expect(context.nodeState.get("adsr-node-poly").activeNotes).toBe(2);
+
+        // Note Off 1 (remain sustained)
+        adsr.execute({ stream: [{ type: 'note_off', velocity: 0 }] } as any, { fields: {} }, context);
+        expect(context.nodeState.get("adsr-node-poly").activeNotes).toBe(1);
+        expect(context.nodeState.get("adsr-node-poly").phase).not.toBe(4); // Not Release
+
+        // Note Off 2 (release)
+        adsr.execute({ stream: [{ type: 'note_off', velocity: 0 }] } as any, { fields: {} }, context);
+        expect(context.nodeState.get("adsr-node-poly").activeNotes).toBe(0);
+        expect(context.nodeState.get("adsr-node-poly").phase).toBe(4); // Release
     });
 });

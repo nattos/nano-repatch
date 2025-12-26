@@ -4,15 +4,8 @@ import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
 import './index.css';
-import './customnodes/nicepattern/nodes';
-import './customnodes/midi/nodes';
-import './customnodes/midi/register-ui';
-import './customnodes/expr/nodes';
-import './customnodes/expr/register-ui';
-import './customnodes/gen/nodes';
-import './customnodes/resolume/nodes';
-import './customnodes/debug/register-ui';
-import './customnodes/curve/register-ui';
+import './customnodes/registration-worker';
+import './customnodes/registration-ui';
 import './views/workspace-layout';
 import './views/monaco-editor';
 

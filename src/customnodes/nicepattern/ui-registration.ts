@@ -1,17 +1,26 @@
 
-import { magneto } from './magneto';
-import { orthomod } from './orthomod';
+import { defaultNodeRepository } from '../../structor/repository';
 
 export function registerNicePatternUI() {
-  (magneto as any).ui = {
-    ...((magneto as any).ui || {}),
-    body: () => import('./magneto-editor').then(m => m.MagnetoEditorRenderer),
-    getBodyHeight: () => Promise.resolve(() => 272)
-  };
+  // Magneto
+  const magnetoType = defaultNodeRepository.getNodeType('nicepattern.magneto');
+  if (magnetoType) {
+    (magnetoType as any).ui = {
+      ...((magnetoType as any).ui || {}),
+      body: () => import('./magneto-editor').then(m => m.MagnetoEditorRenderer),
+      getBodyHeight: () => Promise.resolve(() => 272)
+    };
+  }
 
-  (orthomod as any).ui = {
-    ...((orthomod as any).ui || {}),
-    body: () => import('./orthomod-editor').then(m => m.OrthomodEditorRenderer),
-    getBodyHeight: () => Promise.resolve(() => 260)
-  };
+  // Orthomod
+  const orthomodType = defaultNodeRepository.getNodeType('nicepattern.orthomod');
+  if (orthomodType) {
+    (orthomodType as any).ui = {
+      ...((orthomodType as any).ui || {}),
+      body: () => import('./orthomod-editor').then(m => m.OrthomodEditorRenderer),
+      getBodyHeight: () => Promise.resolve(() => 260)
+    };
+  }
 }
+
+

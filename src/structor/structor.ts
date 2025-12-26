@@ -136,6 +136,7 @@ export interface PrimitiveNodeDefinition {
   metadata?: NodeMetadata;
   configType?: StructorType;
   inputs?: Record<string, StructorType & { redirect?: string }>; // Exposed for reflection (e.g. tests)
+  outputs?: Record<string, StructorType>; // Exposed for reflection (e.g. registration)
 
   /**
    * BACKWARD PASS: Computes the constraints this node places on its inputs,

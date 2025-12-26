@@ -141,7 +141,7 @@ function toStructor(value: any, type: StructorType): Structor {
 
 // --- Node Definition Helper ---
 
-export type NodeInputsDef = Record<string, StructorType & { redirect?: string }>;
+export type NodeInputsDef = Record<string, StructorType & { redirect?: string; defaultValue?: any }>;
 export type NodeConfigDef = Record<string, StructorType>;
 export type NodeOutputsDef = Record<string, StructorType>;
 
@@ -225,6 +225,7 @@ export function definePrimitiveNode<
     kind: 'primitive',
     metadata: options.metadata,
     inputs: options.inputs, // Expose inputs for reflection
+    outputs: options.outputs, // Expose outputs for reflection
     configType,
     isRealtime: options.isRealtime,
     onMessage: options.onMessage,
@@ -233,7 +234,11 @@ export function definePrimitiveNode<
       if (options.computeForwardPorts) {
         return options.computeForwardPorts(i, c, ctx, meta);
       }
-      return { inputs: { kind: 'record', fields: {} }, outputs: outputType }; // Fallback?
+      const inputFields: RecordType = defineRecordType({
+        kind: 'record',
+        fields: (options.inputs || {}) as any
+      });
+      return { inputs: inputFields, outputs: outputType }; // Fallback using static inputs
     },
     ui: options.ui,
     execute: (rawInput, rawConfig, context) => {

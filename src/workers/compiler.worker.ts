@@ -2,8 +2,6 @@ import { compileGraph } from '../builder/compiler';
 import { defaultNodeRepository } from '../structor/repository';
 import { CompilerWorkerMessage, GraphCompiledMessage } from './types';
 import { GraphState } from '../builder/state';
-import '../customnodes/nicepattern/nodes';
-import '../customnodes/resolume/nodes';
 
 self.onerror = (e) => {
   console.error('Compiler Worker Error (Global):', e);

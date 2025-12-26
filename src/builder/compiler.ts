@@ -1,10 +1,4 @@
-import '../customnodes/debug/nodes-registration';
-import '../customnodes/expr/nodes';
-import '../customnodes/gen/nodes';
-import '../customnodes/nicepattern/nodes';
-import '../customnodes/resolume/nodes';
-import '../customnodes/curve/nodes';
-import '../customnodes/midi/nodes';
+import '../customnodes/registration-worker';
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance, Structor, StructorType, RecordType } from '../structor/structor';
 import { NodeRepository } from '../structor/repository';

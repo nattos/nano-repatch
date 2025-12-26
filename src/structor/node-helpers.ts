@@ -126,8 +126,13 @@ export function defineNode<
       simpleInputs[key] = val as StructorType;
     } else if ('type' in (val as any)) {
       // It's ExtendedInputDef
-      const type = (val as ExtendedInputDef).type;
-      simpleInputs[key] = { ...type, redirect: (val as ExtendedInputDef).redirect };
+      const ext = val as ExtendedInputDef;
+      const type = ext.type;
+      simpleInputs[key] = {
+        ...type,
+        redirect: ext.redirect,
+        defaultValue: 'defaultValue' in ext ? ext.defaultValue : (type as any).defaultValue
+      };
     }
   }
 
@@ -179,7 +184,8 @@ export function defineNode<
 // --- Registration Helper ---
 
 export function registerNode(def: EnhancedNodeDefinition) {
-  const inputs: PortHint[] = Object.entries(def.extendedInputs || {}).map(([name, val]: [string, any]) => {
+  const inputsSource = def.extendedInputs || (def.inputs as any) || {};
+  const inputs: PortHint[] = Object.entries(inputsSource).map(([name, val]: [string, any]) => {
     const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
 
 
@@ -191,7 +197,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
       defaultValue: isExtended ? val.defaultValue : undefined,
       range: isExtended ? val.range : undefined,
       step: isExtended ? val.step : undefined,
-      suppressInputEditor: isExtended ? val.suppressInputEditor : undefined,
+      suppressInputEditor: isExtended ? val.suppressInputEditor : (type.kind === 'atomic' && type.type === 'any' ? true : undefined),
       alwaysShowInputEditor: isExtended ? val.alwaysShowInputEditor : undefined,
       suppressLabel: isExtended ? val.suppressLabel : undefined,
       redirect: isExtended ? val.redirect : undefined,
@@ -199,7 +205,8 @@ export function registerNode(def: EnhancedNodeDefinition) {
     };
   });
 
-  const outputs: PortHint[] = Object.entries(def.extendedOutputs || {}).map(([name, val]: [string, any]) => {
+  const outputsSource = def.extendedOutputs || (def.outputs as any) || {};
+  const outputs: PortHint[] = Object.entries(outputsSource).map(([name, val]: [string, any]) => {
     const isExtended = 'type' in val && typeof (val as any).type === 'object' && 'kind' in (val as any).type;
     const type = isExtended ? val.type : val;
     return {
@@ -212,8 +219,8 @@ export function registerNode(def: EnhancedNodeDefinition) {
 
   const nodeType: NodeType = {
     id: def.id,
-    version: def.version,
-    displayName: def.displayName,
+    version: def.version || '1.0.0',
+    displayName: def.displayName || def.id,
     aliases: def.aliases,
     definition: def,
     inputs,
