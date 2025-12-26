@@ -125,7 +125,10 @@ export const midiCcNode = defineNode({
     description: 'Reads MIDI Control Change messages from a stream.'
   },
   inputs: {
-    stream: midiStreamType
+    stream: { type: midiStreamType, allowMultiConnection: true }
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   config: {
     channel: numberType,
@@ -168,7 +171,10 @@ export const midiNoteNode = defineNode({
     description: 'Reads MIDI Note messages from a stream.'
   },
   inputs: {
-    stream: midiStreamType
+    stream: { type: midiStreamType, allowMultiConnection: true }
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   config: {
     channel: numberType,
@@ -222,7 +228,10 @@ export const midiToMonoNode = defineNode({
     description: 'Converts a polyphonic MIDI stream to a monophonic note signal.'
   },
   inputs: {
-    stream: midiStreamType
+    stream: { type: midiStreamType, allowMultiConnection: true }
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   config: {
     channel: numberType,
@@ -305,13 +314,16 @@ export const midiFilterNode = defineNode({
     description: 'Filters MIDI events, allowing only specific Note On/Off messages through.'
   },
   inputs: {
-    stream: midiStreamType,
+    stream: { type: midiStreamType, allowMultiConnection: true },
     channel: { type: numberType, description: 'MIDI Channel (1-16)', defaultValue: 1 },
     note: { type: numberType, description: 'Note Number (0-127)', defaultValue: 60 }
   },
   config: {}, // Removed config params
   outputs: {
     stream: midiStreamType
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields (Channel, Note)
   execute: (inputs, config, context) => {
@@ -355,12 +367,15 @@ export const midiPitchNode = defineNode({
     description: 'Transposes MIDI Note events by a specified amount.'
   },
   inputs: {
-    stream: midiStreamType,
+    stream: { type: midiStreamType, allowMultiConnection: true },
     pitch: { type: numberType, description: 'Pitch shift amount (semitones)', defaultValue: 0, range: [-24, 24] }
   },
   config: {},
   outputs: {
     stream: midiStreamType
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   execute: (inputs, config, context) => {
     // Only use inputs.pitch. If unconnected, GraphExecutor injects defaultValue OR virtual input from config.values
@@ -485,7 +500,10 @@ export const midiSelectNode = defineNode({
     description: 'Routes MIDI events to different ports based on note pitch.'
   },
   inputs: {
-    stream: midiStreamType
+    stream: { type: midiStreamType, allowMultiConnection: true }
+  },
+  autoBroadcast: {
+    stream: { combine: { reduce: 'flatten' } }
   },
   config: {
     count: { ...numberType, defaultValue: 4 },

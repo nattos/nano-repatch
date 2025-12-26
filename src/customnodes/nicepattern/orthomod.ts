@@ -42,8 +42,8 @@ export function generateCodes(resolution: number, seed: number): number[][] {
 
   // Fisher-Yates shuffle for columns
   for (let i = colMap.length - 1; i > 0; i--) {
-      const j = rng.nextRange(0, i);
-      [colMap[i], colMap[j]] = [colMap[j], colMap[i]];
+    const j = rng.nextRange(0, i);
+    [colMap[i], colMap[j]] = [colMap[j], colMap[i]];
   }
 
   // 3. Select Subset based on resolution
@@ -52,9 +52,9 @@ export function generateCodes(resolution: number, seed: number): number[][] {
 
   // 4. Map columns
   return subset.map(code => {
-      const newCode = new Array(8);
-      for(let i=0; i<8; i++) newCode[i] = code[colMap[i]];
-      return newCode;
+    const newCode = new Array(8);
+    for (let i = 0; i < 8; i++) newCode[i] = code[colMap[i]];
+    return newCode;
   });
 }
 
@@ -88,7 +88,7 @@ export const orthomod = defineNode({
     seed: numberType
   },
   inputs: {
-    midi_in: { type: midiStreamType, description: "Trigger Input" },
+    midi_in: { type: midiStreamType, description: "Trigger Input", allowMultiConnection: true },
     decay: { type: numberType, defaultValue: 1.2, description: "Decay Time (s)", range: [0.0, 4.0], step: 0.01 },
     curve: { type: numberType, defaultValue: 1.5, description: "Response Curve", range: [0.1, 4.0], step: 0.1 },
     relcurve: { type: numberType, defaultValue: 12.0, description: "Release Curve", range: [0.1, 20.0], step: 0.1 },
@@ -107,6 +107,9 @@ export const orthomod = defineNode({
     ch2: { type: numberType, description: "Channel 2" },
     ch3: { type: numberType, description: "Channel 3" },
     ch4: { type: numberType, description: "Channel 4" }
+  },
+  autoBroadcast: {
+    midi_in: { combine: { reduce: 'flatten' } }
   },
   ui: {
     inspector: { fields: OrthomodFields },
@@ -179,22 +182,22 @@ export const orthomod = defineNode({
       state.active = true; // Force active
       state.currentEffectiveCurve = 1.0; // Linear for manual
     } else {
-       if (state.active) {
-         state.linearEnv -= dt / Math.max(0.01, decay);
-         if (state.linearEnv <= 0) {
-           state.linearEnv = 0;
-           state.active = false;
-         }
-       }
-
-        // Dynamic Curve Logic
-        if (!state.gateOpen && state.active) {
-            // Fast Release (controlled by relcurve)
-            state.currentEffectiveCurve = releaseCurve;
-        } else {
-            // Sustain / Attack / Idle
-            state.currentEffectiveCurve = sustainCurve;
+      if (state.active) {
+        state.linearEnv -= dt / Math.max(0.01, decay);
+        if (state.linearEnv <= 0) {
+          state.linearEnv = 0;
+          state.active = false;
         }
+      }
+
+      // Dynamic Curve Logic
+      if (!state.gateOpen && state.active) {
+        // Fast Release (controlled by relcurve)
+        state.currentEffectiveCurve = releaseCurve;
+      } else {
+        // Sustain / Attack / Idle
+        state.currentEffectiveCurve = sustainCurve;
+      }
     }
 
     // Curve
@@ -227,41 +230,41 @@ export const orthomod = defineNode({
     const rawChannels = [0, 0, 0, 0];
 
     if (state.active) {
-       for(let ch=0; ch<4; ch++) {
-         const b1 = code[ch * 2] || 0;
-         const b2 = code[ch * 2 + 1] || 0;
+      for (let ch = 0; ch < 4; ch++) {
+        const b1 = code[ch * 2] || 0;
+        const b2 = code[ch * 2 + 1] || 0;
 
-         let val = 0;
-         if (b1 === 0 && b2 === 0) val = 0; // OFF
-         else if (b1 === 1 && b2 === 1) val = 1; // ON
-         else if (b1 === 1 && b2 === 0) val = sqr; // SQR
-         else if (b1 === 0 && b2 === 1) val = sin; // SIN
+        let val = 0;
+        if (b1 === 0 && b2 === 0) val = 0; // OFF
+        else if (b1 === 1 && b2 === 1) val = 1; // ON
+        else if (b1 === 1 && b2 === 0) val = sqr; // SQR
+        else if (b1 === 0 && b2 === 1) val = sin; // SIN
 
-         rawChannels[ch] = val; // Store raw value
-         channels[ch] = val * currentEnv; // Store modulated value
+        rawChannels[ch] = val; // Store raw value
+        channels[ch] = val * currentEnv; // Store modulated value
 
-         if (Number.isNaN(channels[ch])) channels[ch] = 0;
-       }
+        if (Number.isNaN(channels[ch])) channels[ch] = 0;
+      }
     }
 
     const safeNum = (n: number) => Number.isFinite(n) ? n : 0;
 
     return {
       outputs: {
-          env: safeNum(currentEnv),
-          vec: channels.map(safeNum),
-          ch1: safeNum(channels[0]),
-          ch2: safeNum(channels[1]),
-          ch3: safeNum(channels[2]),
-          ch4: safeNum(channels[3]),
+        env: safeNum(currentEnv),
+        vec: channels.map(safeNum),
+        ch1: safeNum(channels[0]),
+        ch2: safeNum(channels[1]),
+        ch3: safeNum(channels[2]),
+        ch4: safeNum(channels[3]),
       },
       ui: {
-          codes: state.codes, // Pass the generated codes!
-          env: safeNum(currentEnv),
-          vec: channels.map(safeNum),
-          rawVec: state.active ? rawChannels.map(safeNum) : [0,0,0,0], // Unmodulated values
-          activeCodeIndex: idx, // Current code index
-          gate: state.gateOpen ? 1 : 0
+        codes: state.codes, // Pass the generated codes!
+        env: safeNum(currentEnv),
+        vec: channels.map(safeNum),
+        rawVec: state.active ? rawChannels.map(safeNum) : [0, 0, 0, 0], // Unmodulated values
+        activeCodeIndex: idx, // Current code index
+        gate: state.gateOpen ? 1 : 0
       }
     };
   },

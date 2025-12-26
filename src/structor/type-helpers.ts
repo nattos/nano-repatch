@@ -312,8 +312,9 @@ export function definePrimitiveNode<
             // Wrap outputs
             const wrappedFields: Record<string, Structor> = {};
             for (const [key, val] of Object.entries(fields)) {
-              if (options.outputs[key]) {
-                wrappedFields[key] = toStructor(val, { kind: 'array', element: options.outputs[key], size: result.length });
+              const type = options.outputs[key] || options.dynamicOutputType;
+              if (type) {
+                wrappedFields[key] = toStructor(val, { kind: 'array', element: type, size: result.length });
               }
             }
             return { fields: wrappedFields };
@@ -336,9 +337,11 @@ export function definePrimitiveNode<
             }
           }
 
+          const keys = new Set([...Object.keys(options.outputs), ...Object.keys(rawOutputs)]);
           const wrappedFields: Record<string, Structor> = {};
-          for (const [key, type] of Object.entries(options.outputs)) {
-            if (rawOutputs[key] !== undefined) {
+          for (const key of keys) {
+            const type = options.outputs[key] || options.dynamicOutputType;
+            if (type && rawOutputs[key] !== undefined) {
               wrappedFields[key] = toStructor(rawOutputs[key], type);
             }
           }
