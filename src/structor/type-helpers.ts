@@ -241,6 +241,7 @@ export function definePrimitiveNode<
       return { inputs: inputFields, outputs: outputType }; // Fallback using static inputs
     },
     ui: options.ui,
+    createState: options.createState as any,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
       const processedConfig = fromStructor(rawConfig, configType);

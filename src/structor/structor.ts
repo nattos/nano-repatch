@@ -185,7 +185,20 @@ export interface PrimitiveNodeDefinition {
    * Optional UI definition for the node.
    * Can contain inspector fields, body renderers, etc.
    */
+  /**
+   * Optional UI definition for the node.
+   * Can contain inspector fields, body renderers, etc.
+   */
   ui?: any;
+
+  /**
+   * Optional factory for creating the initial state of the node.
+   * Used by the executor to initialize state before execution.
+   */
+  createState?: (
+    config: Structor,
+    context: ExecutionContext
+  ) => any;
 }
 
 /**

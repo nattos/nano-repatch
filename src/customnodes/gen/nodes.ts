@@ -83,15 +83,38 @@ export const adsr = defineNode({
     const dt = context.clock.dt;
     const stream = inputs.stream;
 
-    let noteOnCount = 0;
+    const attackTime = Math.max(0, inputs.attack);
+    const decayTime = Math.max(0, inputs.decay);
+    const sustainLevel = Math.max(0, Math.min(1, inputs.sustain));
+    const releaseTime = Math.max(0, inputs.release);
 
     if (Array.isArray(stream)) {
       for (const e of stream) {
         if (e.type === 'note_on' && (e.velocity ?? 0) > 0) {
           state.activeNotes++;
           if (state.activeNotes === 1) {
+            // Trigger Attack
             state.phase = ADSR_PHASE.ATTACK;
+            state.value = 0; // Reset value on new trigger? Or continue from current? Usually reset or retrigger.
+            // Standard ADSR often restarts or continues.
+            // Ideally: continue, but for mono Trigger, usually reset if it was off.
+            // If it was releasing, we pick up from there?
+            // "Legacy" behavior was reset. Let's stick to simple first unless requested.
+            // Actually, for "Zero Attack", we need to know if we just started.
             state.time = 0;
+
+            // Instant Attack Handling
+            if (attackTime <= 0) {
+              state.value = 1.0;
+              state.phase = ADSR_PHASE.DECAY;
+              state.time = 0;
+
+              // Instant Decay Handling
+              if (decayTime <= 0) {
+                state.value = sustainLevel;
+                state.phase = ADSR_PHASE.SUSTAIN;
+              }
+            }
           }
         } else if (e.type === 'note_off' || (e.type === 'note_on' && (e.velocity ?? 0) === 0)) {
           state.activeNotes = Math.max(0, state.activeNotes - 1);
@@ -99,15 +122,11 @@ export const adsr = defineNode({
       }
     }
 
+    // Check for Release transition
     if (state.activeNotes === 0 && state.phase !== ADSR_PHASE.IDLE && state.phase !== ADSR_PHASE.RELEASE) {
       state.phase = ADSR_PHASE.RELEASE;
       state.time = 0;
     }
-
-    const a = Math.max(0.001, inputs.attack);
-    const d = Math.max(0.001, inputs.decay);
-    const s = Math.max(0, Math.min(1, inputs.sustain));
-    const r = Math.max(0.001, inputs.release);
 
     switch (state.phase) {
       case ADSR_PHASE.IDLE:
@@ -115,36 +134,49 @@ export const adsr = defineNode({
         break;
 
       case ADSR_PHASE.ATTACK:
-        state.value += (1.0 / a) * dt;
+        state.value += (1.0 / Math.max(0.001, attackTime)) * dt;
         if (state.value >= 1.0) {
           state.value = 1.0;
           state.phase = ADSR_PHASE.DECAY;
           state.time = 0;
+
+          // Handle Instant Decay if we just finished Attack naturally
+          if (decayTime <= 0) {
+            state.value = sustainLevel;
+            state.phase = ADSR_PHASE.SUSTAIN;
+          }
         }
         break;
 
       case ADSR_PHASE.DECAY:
-        state.value -= ((1.0 - s) / d) * dt;
-        if (state.value <= s) {
-          state.value = s;
+        // Linear decay for simplicity, or exponential?
+        // Original was linear.
+        state.value -= ((1.0 - sustainLevel) / Math.max(0.001, decayTime)) * dt;
+        if (state.value <= sustainLevel) {
+          state.value = sustainLevel;
           state.phase = ADSR_PHASE.SUSTAIN;
         }
         break;
 
       case ADSR_PHASE.SUSTAIN:
-        state.value = s;
+        state.value = sustainLevel;
         break;
 
       case ADSR_PHASE.RELEASE:
-        state.value -= (1.0 / r) * dt;
-        if (state.value <= 0) {
+        if (releaseTime <= 0) {
           state.value = 0;
           state.phase = ADSR_PHASE.IDLE;
+        } else {
+          state.value -= (1.0 / releaseTime) * dt;
+          if (state.value <= 0) {
+            state.value = 0;
+            state.phase = ADSR_PHASE.IDLE;
+          }
         }
         break;
     }
 
-    return { value: state.value };
+    return { value: Math.max(0, Math.min(1, state.value)) };
   }
 });
 
