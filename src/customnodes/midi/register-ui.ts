@@ -4,6 +4,7 @@ import { midiTriggerNode } from "./nodes";
 registerNode({
   ...midiTriggerNode,
   ui: {
+    ...midiTriggerNode.ui,
     body: () => import('./nodes.ui').then(m => m.MidiTriggerBodyRenderer),
     getBodyHeight: () => import('./nodes.ui').then(m => m.MidiTriggerBodyHeight)
   }

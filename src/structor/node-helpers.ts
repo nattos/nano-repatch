@@ -16,12 +16,12 @@ import { defaultNodeRepository, PortHint, NodeType } from './repository';
 // --- Enhanced Node Definition ---
 
 export type InspectorFieldDef =
-  | { type: 'string'; label: string; path: string; placeholder?: string }
-  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number }
-  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number }
-  | { type: 'boolean'; label: string; path: string }
-  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[] }
-  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[] };
+  | { type: 'string'; label: string; path: string; placeholder?: string; default?: string }
+  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number; default?: number }
+  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number; default?: number }
+  | { type: 'boolean'; label: string; path: string; default?: boolean }
+  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
+  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any };
 
 export interface GenericInspector {
   fields: InspectorFieldDef[];
