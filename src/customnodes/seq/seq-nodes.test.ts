@@ -8,28 +8,19 @@ import { defaultNodeRepository } from '../../structor/repository';
 import './nodes';
 
 describe('Sequence Nodes', () => {
+  const mockBroadcast = (config: any, inputs: any) => ({ apply: (fn: Function) => fn(inputs) });
 
   describe('seq.crop', () => {
     it('should pass through steps inside range', () => {
       const inputs = {
-        fields: {
-          seq_in: [
-            // Wrap as StructorRecord if needed?
-            // Wait, defineNode unwraps inputs using fromStructor.
-            // fromStructor handles plain objects if type is record.
-            // Step type is record.
-            // But inputs to execute (wrapper) must be StructorRecord or compatible.
-            // Let's pass fully wrapped inputs just to be safe, or rely on loose unwrapping.
-            // Looking at fromStructor: if input is object and has 'fields', it uses fields. Else treats as plain object.
-            // So raw array of objects should be fine for array input.
-            { noteIndex: 60, velocity: 1, hold: false },
-            { noteIndex: 62, velocity: 1, hold: false },
-            { noteIndex: 64, velocity: 1, hold: false },
-            { noteIndex: 65, velocity: 1, hold: false }
-          ],
-          start: 0.25,
-          end: 0.75
-        }
+        seq_in: [
+          { noteIndex: 60, velocity: 1, hold: false },
+          { noteIndex: 62, velocity: 1, hold: false },
+          { noteIndex: 64, velocity: 1, hold: false },
+          { noteIndex: 65, velocity: 1, hold: false }
+        ],
+        start: 0.25,
+        end: 0.75
       };
 
       // Length 4.
@@ -44,7 +35,7 @@ describe('Sequence Nodes', () => {
       // Step 2: pos 0.50. Inside (0.50 < 0.75). Kept.
       // Step 3: pos 0.75. Outside (0.75 >= 0.75). Muted.
 
-      const context = { nodeState: new Map() } as any; // Minimal mock
+      const context = { nodeState: new Map(), broadcast: mockBroadcast } as any;
 
       const result = crop.execute(inputs as any, { fields: { mode: 'start-end' } } as any, context, {});
       const seq = result.fields.seq_out as any[]; // result is StructorRecord
@@ -61,21 +52,19 @@ describe('Sequence Nodes', () => {
 
     it('should handle start-length mode', () => {
       const inputs = {
-        fields: {
-          seq_in: [
-            { noteIndex: 60, velocity: 1, hold: false },
-            { noteIndex: 62, velocity: 1, hold: false }
-          ],
-          start: 0.0,
-          length: 0.5
-        }
+        seq_in: [
+          { noteIndex: 60, velocity: 1, hold: false },
+          { noteIndex: 62, velocity: 1, hold: false }
+        ],
+        start: 0.0,
+        length: 0.5
       };
       // Length 2. Step 0 (0.0), Step 1 (0.5).
       // Range: 0.0 to 0.5.
       // Step 0: 0.0 >= 0.0 && 0.0 < 0.5 -> Kept.
       // Step 1: 0.5 >= 0.5 -> Muted (Inclusive start, Exclusive end).
 
-      const context = { nodeState: new Map() } as any;
+      const context = { nodeState: new Map(), broadcast: mockBroadcast } as any;
       const result = crop.execute(inputs as any, { fields: { mode: 'start-length' } } as any, context, {});
       const seq = result.fields.seq_out as any[];
 
@@ -100,9 +89,9 @@ describe('Sequence Nodes', () => {
       };
 
       const context = { nodeState: new Map() } as any;
-      const result1 = xor.execute(inputs as any, { fields: {} } as any, context, {});
+      const result = xor.execute(inputs as any, { fields: {} } as any, context, {});
 
-      const seq1 = result1.fields.seq_out as any[];
+      const seq1 = result.fields.seq_out as any[];
       expect(seq1[0].fields.noteIndex).toBe(60);
       expect(seq1[1].fields.noteIndex).toBe(62);
 
@@ -127,11 +116,9 @@ describe('Sequence Nodes', () => {
   describe('seq.negate', () => {
     it('should invert steps', () => {
       const inputs = {
-        fields: {
-          seq_in: [{ noteIndex: 60, velocity: 1, hold: false }, { noteIndex: null, velocity: 0, hold: false }]
-        }
+        seq_in: [{ noteIndex: 60, velocity: 1, hold: false }, { noteIndex: null, velocity: 0, hold: false }]
       };
-      const context = { nodeState: new Map() } as any;
+      const context = { nodeState: new Map(), broadcast: mockBroadcast } as any;
       const result = negate.execute(inputs as any, { fields: {} } as any, context, {});
 
       const seq = result.fields.seq_out as any[];
@@ -190,7 +177,6 @@ describe('Sequence Nodes', () => {
   describe('seq.oneshot', () => {
     it('should trigger and play', () => {
       const mockAudio = (t: number) => ({ context: { currentTime: t } });
-      const mockBroadcast = (config: any, inputs: any) => ({ apply: (fn: Function) => fn(inputs) });
       const ctx0 = {
         clock: { beat: 0 },
         audio: mockAudio(10.0),

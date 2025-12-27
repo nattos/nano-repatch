@@ -5,7 +5,7 @@
       "x": 4,
       "y": 1,
       "config": {
-        "typeId": "nicepattern.pattern",
+        "typeId": "seq.tomidi",
         "values": {}
       }
     },
@@ -74,22 +74,13 @@
     },
     "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361": {
       "id": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
-      "x": 8,
+      "x": 9,
       "y": 3,
       "config": {
         "typeId": "nicepattern.tone4",
         "values": {
           "root": 48.17
         }
-      }
-    },
-    "node-e21fdc33-39ec-476a-935c-61e183532725": {
-      "id": "node-e21fdc33-39ec-476a-935c-61e183532725",
-      "x": 7,
-      "y": 3,
-      "config": {
-        "typeId": "math.all.add",
-        "values": {}
       }
     },
     "node-49a7c64a-7948-4062-a1b1-82d39f474e2c": {
@@ -109,17 +100,6 @@
         "seed": 3
       }
     },
-    "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80": {
-      "id": "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80",
-      "x": 1,
-      "y": 3,
-      "config": {
-        "typeId": "osc.sawtooth",
-        "values": {
-          "freq": 60
-        }
-      }
-    },
     "node-97f68c74-48d2-418e-9472-3cb20dfe52e2": {
       "id": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
       "x": 2,
@@ -128,7 +108,10 @@
         "typeId": "math.map",
         "values": {
           "outMin": 0.78,
-          "outMax": 1
+          "outMax": 1,
+          "inMax": 1,
+          "inMin": 0,
+          "value": 0
         }
       }
     },
@@ -139,6 +122,45 @@
       "config": {
         "typeId": "core.unpack",
         "values": {}
+      }
+    },
+    "node-0ffb5aff-a7bf-4eb4-bcbd-3933f57dea42": {
+      "id": "node-0ffb5aff-a7bf-4eb4-bcbd-3933f57dea42",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "gen.sawtooth",
+        "name": "#",
+        "values": {
+          "freq": 46
+        }
+      }
+    },
+    "node-881daf8a-ad5c-431c-a400-388bfd83806a": {
+      "id": "node-881daf8a-ad5c-431c-a400-388bfd83806a",
+      "x": 6,
+      "y": 4,
+      "config": {
+        "typeId": "core.pack",
+        "name": "#",
+        "values": {
+          "w": 0.31,
+          "x": 0.14,
+          "z": 0.48
+        },
+        "targetType": "float4"
+      }
+    },
+    "node-b912598b-f65a-4833-8646-aece65ffbcf9": {
+      "id": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
+      "x": 7,
+      "y": 3,
+      "config": {
+        "typeId": "math.add",
+        "name": "#",
+        "values": {
+          "b": 0
+        }
       }
     }
   },
@@ -178,13 +200,6 @@
       "toNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
       "toPort": "midi_in"
     },
-    "conn-0275b1a4-9a91-4b55-b242-21c12ce5fc02": {
-      "id": "conn-0275b1a4-9a91-4b55-b242-21c12ce5fc02",
-      "fromNodeId": "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80",
-      "fromPort": "out",
-      "toNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
-      "toPort": "value"
-    },
     "conn-491196c2-a38b-437c-ae8f-bbeafb532eb2": {
       "id": "conn-491196c2-a38b-437c-ae8f-bbeafb532eb2",
       "fromNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
@@ -206,23 +221,30 @@
       "toNodeId": "node-ce1ad9ce-30f4-4bd7-bcc9-094bc343ea04",
       "toPort": "midi_in"
     },
-    "conn-10844a6f-ad70-48a4-952e-cffa45d7941a": {
-      "id": "conn-10844a6f-ad70-48a4-952e-cffa45d7941a",
-      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
-      "fromPort": "vec",
-      "toNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
-      "toPort": "values"
+    "conn-f2909820-61df-4065-be6f-3745bf1dc6f4": {
+      "id": "conn-f2909820-61df-4065-be6f-3745bf1dc6f4",
+      "fromNodeId": "node-0ffb5aff-a7bf-4eb4-bcbd-3933f57dea42",
+      "fromPort": "out",
+      "toNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
+      "toPort": "value"
     },
-    "conn-08bc85b9-64e5-437b-817f-7ec142e4a04c": {
-      "id": "conn-08bc85b9-64e5-437b-817f-7ec142e4a04c",
+    "conn-cb3f5625-0e00-4497-bc64-0c68557c4300": {
+      "id": "conn-cb3f5625-0e00-4497-bc64-0c68557c4300",
       "fromNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
       "fromPort": "vec",
-      "toNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
-      "toPort": "values"
+      "toNodeId": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
+      "toPort": "a"
     },
-    "conn-5c21018e-a372-4421-9e0c-da607ce1ab6d": {
-      "id": "conn-5c21018e-a372-4421-9e0c-da607ce1ab6d",
-      "fromNodeId": "node-e21fdc33-39ec-476a-935c-61e183532725",
+    "conn-fca0f63b-57a3-497a-ada1-3b6fe09ec404": {
+      "id": "conn-fca0f63b-57a3-497a-ada1-3b6fe09ec404",
+      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
+      "fromPort": "vec",
+      "toNodeId": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
+      "toPort": "b"
+    },
+    "conn-c215187d-86ee-4c60-82c9-88b4fba0471b": {
+      "id": "conn-c215187d-86ee-4c60-82c9-88b4fba0471b",
+      "fromNodeId": "node-881daf8a-ad5c-431c-a400-388bfd83806a",
       "fromPort": "result",
       "toNodeId": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
       "toPort": "vec"
@@ -382,28 +404,6 @@
               "untagged": []
             },
             "hint": "step-sequence"
-          }
-        }
-      }
-    },
-    "node-7c30f28d-e1b6-4c9a-ba98-3a5395140f80": {
-      "inputs": {
-        "kind": "record",
-        "fields": {
-          "freq": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      },
-      "outputs": {
-        "kind": "record",
-        "fields": {
-          "out": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
           }
         }
       }
@@ -946,43 +946,6 @@
             "defaultValue": 0
           },
           "ch4": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      }
-    },
-    "node-e21fdc33-39ec-476a-935c-61e183532725": {
-      "inputs": {
-        "kind": "record",
-        "fields": {
-          "values": {
-            "kind": "array",
-            "element": {
-              "kind": "atomic",
-              "type": "number",
-              "defaultValue": 0
-            },
-            "size": "dynamic",
-            "allowMultiConnection": true
-          },
-          "": {
-            "kind": "array",
-            "element": {
-              "kind": "atomic",
-              "type": "number",
-              "defaultValue": 0
-            },
-            "size": 4,
-            "hint": "vec4"
-          }
-        }
-      },
-      "outputs": {
-        "kind": "record",
-        "fields": {
-          "result": {
             "kind": "atomic",
             "type": "number",
             "defaultValue": 0

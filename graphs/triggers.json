@@ -1,0 +1,153 @@
+{
+  "nodes": {
+    "node-65aeae27-f9b8-4b83-b29d-79fd457b8f85": {
+      "id": "node-65aeae27-f9b8-4b83-b29d-79fd457b8f85",
+      "x": 7,
+      "y": 3,
+      "config": {
+        "typeId": "nicepattern.tone4",
+        "name": "#",
+        "values": {
+          "root": 42.64,
+          "gain": 0.07
+        }
+      }
+    },
+    "node-2a938249-9873-4dc7-beca-f82cee671b99": {
+      "id": "node-2a938249-9873-4dc7-beca-f82cee671b99",
+      "x": 4,
+      "y": 1,
+      "config": {
+        "typeId": "midi.merge",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-d3d7577d-6cc4-4abb-b35d-788d70571984": {
+      "id": "node-d3d7577d-6cc4-4abb-b35d-788d70571984",
+      "x": 0,
+      "y": 1,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 222
+        },
+        "pitch": 0
+      }
+    },
+    "node-04e64678-f068-4aac-a3d5-27f6c4d5b94f": {
+      "id": "node-04e64678-f068-4aac-a3d5-27f6c4d5b94f",
+      "x": 5,
+      "y": 1,
+      "config": {
+        "typeId": "midi.select",
+        "name": "#",
+        "values": {},
+        "count": 4
+      }
+    },
+    "node-cdc987ce-3ae3-412c-a64b-5ef9bc91e9d4": {
+      "id": "node-cdc987ce-3ae3-412c-a64b-5ef9bc91e9d4",
+      "x": 0,
+      "y": 0,
+      "config": {
+        "typeId": "gen.sawtooth",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-76d8bc1f-134e-4818-81d3-e1696ba35741": {
+      "id": "node-76d8bc1f-134e-4818-81d3-e1696ba35741",
+      "x": 3,
+      "y": 3,
+      "config": {
+        "typeId": "nicepattern.orthomod",
+        "name": "#",
+        "values": {
+          "manual_phase": -1
+        },
+        "seed": 95849
+      }
+    },
+    "node-ce94d2d4-bb11-4125-8433-adc0d9ae429e": {
+      "id": "node-ce94d2d4-bb11-4125-8433-adc0d9ae429e",
+      "x": 3,
+      "y": 2,
+      "config": {
+        "typeId": "curve.crop",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-1797d801-e8b0-45b8-a970-74a8c4902e40": {
+      "id": "node-1797d801-e8b0-45b8-a970-74a8c4902e40",
+      "x": 2,
+      "y": 2,
+      "config": {
+        "typeId": "gen.adsr",
+        "name": "#",
+        "values": {
+          "attack": 0,
+          "decay": 1.48,
+          "sustain": 0.33
+        },
+        "mode": "D",
+        "attack": 0,
+        "decay": 0.26,
+        "sustain": 0.33
+      }
+    },
+    "node-a56b479b-54bc-4b38-a73f-9a41c3e3e56a": {
+      "id": "node-a56b479b-54bc-4b38-a73f-9a41c3e3e56a",
+      "x": 0,
+      "y": 2,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 1020
+        },
+        "pitch": 61
+      }
+    }
+  },
+  "connections": {
+    "conn-84fe1659-61cd-4b64-8e47-8d12311429b7": {
+      "id": "conn-84fe1659-61cd-4b64-8e47-8d12311429b7",
+      "fromNodeId": "node-2a938249-9873-4dc7-beca-f82cee671b99",
+      "fromPort": "stream",
+      "toNodeId": "node-04e64678-f068-4aac-a3d5-27f6c4d5b94f",
+      "toPort": "stream"
+    },
+    "conn-c7fc9c7d-a0bc-4802-93a0-a78d91c7b131": {
+      "id": "conn-c7fc9c7d-a0bc-4802-93a0-a78d91c7b131",
+      "fromNodeId": "node-76d8bc1f-134e-4818-81d3-e1696ba35741",
+      "fromPort": "vec",
+      "toNodeId": "node-65aeae27-f9b8-4b83-b29d-79fd457b8f85",
+      "toPort": "vec"
+    },
+    "conn-5fb7dce6-8950-496c-a15d-bfc8043c6485": {
+      "id": "conn-5fb7dce6-8950-496c-a15d-bfc8043c6485",
+      "fromNodeId": "node-d3d7577d-6cc4-4abb-b35d-788d70571984",
+      "fromPort": "stream",
+      "toNodeId": "node-1797d801-e8b0-45b8-a970-74a8c4902e40",
+      "toPort": "stream"
+    },
+    "conn-a6dc9bcc-e82c-41a3-a8e4-b31a292a610b": {
+      "id": "conn-a6dc9bcc-e82c-41a3-a8e4-b31a292a610b",
+      "fromNodeId": "node-1797d801-e8b0-45b8-a970-74a8c4902e40",
+      "fromPort": "value",
+      "toNodeId": "node-76d8bc1f-134e-4818-81d3-e1696ba35741",
+      "toPort": "manual_phase"
+    },
+    "conn-79fb5bdd-f255-4f2c-8424-8b126f84a274": {
+      "id": "conn-79fb5bdd-f255-4f2c-8424-8b126f84a274",
+      "fromNodeId": "node-a56b479b-54bc-4b38-a73f-9a41c3e3e56a",
+      "fromPort": "stream",
+      "toNodeId": "node-1797d801-e8b0-45b8-a970-74a8c4902e40",
+      "toPort": "stream"
+    }
+  },
+  "inferredNodeTypes": {}
+}

@@ -44,6 +44,27 @@ const MidiToMonoFields: InspectorFieldDef[] = [
 
 // --- Node Definitions ---
 
+interface MidiStreamInput {
+  stream: MidiEvent[];
+}
+
+interface MidiCcInputs extends MidiStreamInput { }
+interface MidiNoteInputs extends MidiStreamInput { }
+interface MidiFilterInputs extends MidiStreamInput {
+  channel?: number;
+  note?: number;
+}
+interface MidiPitchInputs extends MidiStreamInput {
+  pitch?: number;
+}
+interface MidiTriggerInputs {
+  trigger: number;
+}
+interface MidiSelectInputs extends MidiStreamInput { }
+interface MidiMergeInputs extends MidiStreamInput { }
+interface MidiToMonoInputs extends MidiStreamInput { }
+
+// explicit 'any' to bypass constraint
 export const midiInputNode = defineNode<any, { deviceId?: string }, { deviceId: { kind: 'atomic', type: 'string', optional?: boolean, defaultValue?: string } }>({
   id: "midi.input",
   version: "1.0.0",
@@ -79,6 +100,7 @@ export const midiInputNode = defineNode<any, { deviceId?: string }, { deviceId: 
   }),
 });
 
+// explicit 'any' to bypass constraint
 export const midiCcInputNode = defineNode<any, { channel?: number, cc?: number, deviceId?: string }, { channel: typeof NumberType, cc: typeof NumberType, deviceId: { kind: 'atomic', type: 'string', optional?: boolean } }>({
   id: "midi.cc.input",
   version: "1.0.0",
@@ -117,6 +139,7 @@ export const midiCcInputNode = defineNode<any, { channel?: number, cc?: number, 
 });
 
 
+// explicit 'any' to bypass constraint
 export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { channel: typeof NumberType, cc: typeof NumberType }, any, { value: number }>({
   id: "midi.cc",
   version: "1.0.0",
@@ -141,11 +164,12 @@ export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { c
   },
   ui: { inspector: { fields: MidiCcFields } },
   createState: () => ({ value: 0 }),
-  execute: (inputs, config, context, state) => {
+  execute: (rawInputs: any, config, context, state) => {
+    const inputs = rawInputs as MidiCcInputs;
     const channel = config.channel || 1;
     const targetCc = config.cc || 0;
 
-    const stream = inputs.stream as unknown as MidiEvent[];
+    const stream = inputs.stream || [];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
@@ -163,6 +187,7 @@ export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { c
   }),
 });
 
+// explicit 'any' to bypass constraint
 export const midiNoteNode = defineNode<any, { channel?: number, note?: number }, { channel: typeof NumberType, note: typeof NumberType }, any, { velocity: number, gate: number }>({
   id: "midi.note",
   version: "1.0.0",
@@ -189,11 +214,12 @@ export const midiNoteNode = defineNode<any, { channel?: number, note?: number },
   },
   ui: { inspector: { fields: MidiNoteFields } },
   createState: () => ({ velocity: 0, gate: 0 }),
-  execute: (inputs, config, context, state) => {
+  execute: (rawInputs: any, config, context, state) => {
+    const inputs = rawInputs as MidiNoteInputs;
     const channel = config.channel || 1;
     const targetNote = config.note || 60;
 
-    const stream = inputs.stream as unknown as MidiEvent[];
+    const stream = inputs.stream || [];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
@@ -220,6 +246,7 @@ export const midiNoteNode = defineNode<any, { channel?: number, note?: number },
   }),
 });
 
+// explicit 'any' to bypass constraint
 export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: number, priority?: string }, { channel: typeof NumberType, rootNote: typeof NumberType, priority: { kind: 'atomic', type: 'string', optional?: boolean } }, any, { activeNotes: { note: number, velocity: number }[], gate: number }>({
   id: "midi.to_mono",
   version: "1.0.0",
@@ -251,10 +278,11 @@ export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: num
     activeNotes: [],
     gate: 0
   }),
-  execute: (inputs, config, context, state) => {
+  execute: (rawInputs: any, config, context, state) => {
+    const inputs = rawInputs as MidiToMonoInputs;
     const channel = config.channel || 1;
     const rootNote = config.rootNote ?? 60;
-    const stream = inputs.stream as unknown as MidiEvent[];
+    const stream = inputs.stream || [];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
@@ -302,6 +330,7 @@ export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: num
 });
 
 // midi.filter: uses inputs, config is empty
+// explicit 'any' to bypass constraint
 export const midiFilterNode = defineNode<any, { channel?: number, note?: number }, {}>({
   id: "midi.filter",
   version: "1.0.0",
@@ -324,10 +353,11 @@ export const midiFilterNode = defineNode<any, { channel?: number, note?: number 
     stream: { combine: { reduce: 'flatten' } }
   },
   ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields
-  execute: (inputs: any, config: any) => {
+  execute: (rawInputs: any, config: any) => {
+    const inputs = rawInputs as MidiFilterInputs;
     const channel = (inputs.channel as number) ?? 1;
     const targetNote = (inputs.note as number) ?? 60;
-    const stream = inputs.stream as unknown as MidiEvent[];
+    const stream = inputs.stream || [];
 
     const filteredStream: MidiEvent[] = [];
 
@@ -353,6 +383,7 @@ export const midiFilterNode = defineNode<any, { channel?: number, note?: number 
 });
 
 // midi.pitch: uses inputs, config is empty
+// explicit 'any' to bypass constraint
 export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
   id: "midi.pitch",
   version: "1.0.0",
@@ -373,10 +404,11 @@ export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
   autoBroadcast: {
     stream: { combine: { reduce: 'flatten' } }
   },
-  execute: (inputs: any, config) => {
+  execute: (rawInputs: any, config) => {
+    const inputs = rawInputs as MidiPitchInputs;
     // Inputs drove by generic Logic
     const shift = (inputs.pitch ?? 0) as number;
-    const stream = inputs.stream as unknown as MidiEvent[];
+    const stream = inputs.stream || [];
 
     if (!stream || !Array.isArray(stream)) return { stream: [] };
 
@@ -398,7 +430,8 @@ export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
 
 // --- Generic Trigger/MIDI Nodes ---
 
-export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number, trigger?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] }, trigger: typeof NumberType }, any, { lastTrigger: number, isNoteOn: boolean, time: number }>({
+// explicit 'any' to bypass constraint
+export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number, trigger?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] }, trigger: typeof NumberType }, any, { lastTrigger: number }>({
   id: "midi.trigger",
   version: "1.0.0",
   displayName: "MIDI Trigger",
@@ -419,15 +452,13 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
     stream: midiStreamType
   },
   isRealtime: () => true,
-  createState: () => ({ lastTrigger: 0, isNoteOn: false, time: 0 }),
-  execute: (inputs, config, context, state) => {
+  createState: () => ({ lastTrigger: 0 }),
+  execute: (rawInputs: any, config, context, state) => {
+    const inputs = rawInputs as MidiTriggerInputs;
     const pitch = config.pitch || 60;
     const velocity = config.velocity || 1.0;
     const trigger = inputs.trigger || 0;
     const dt = context.clock.dt;
-    if (context.nodeId === 't1' || context.nodeId === 't2') {
-      console.log(`[TRIGGER DEBUG] ${context.nodeId} trigger=${trigger} last=${state.lastTrigger} on=${state.isNoteOn} time=${state.time} dt=${dt}`);
-    }
 
     const stream: MidiEvent[] = [];
 
@@ -437,30 +468,10 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
     // Falling Edge -> Note Off (Early release)
 
     if (trigger > state.lastTrigger) {
-      // Rising Edge
-      if (state.isNoteOn) {
-        // Retrigger (kill old)
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
-      }
-      // Start new
-      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: Math.floor(velocity * 127), deviceId: 'virtual' });
-      state.isNoteOn = true;
-      state.time = 0.1; // 100ms duration
-    } else if (trigger < state.lastTrigger) {
-      // Falling Edge (Early Release)
-      if (state.isNoteOn) {
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
-        state.isNoteOn = false;
-        state.time = 0;
-      }
-    } else if (state.isNoteOn && state.time > 0) {
-      // Sustaining
-      state.time -= dt;
-      if (state.time <= 0) {
-        // Auto Release
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
-        state.isNoteOn = false;
-      }
+      // Rising Edge: Synchronous Trigger (Note On then Note Off)
+      const vel = Math.floor(velocity * 127);
+      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: vel, deviceId: 'virtual', time: 0 });
+      stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual', time: 0 });
     }
 
     state.lastTrigger = trigger;
@@ -483,6 +494,7 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
   }
 });
 
+// explicit 'any' to bypass constraint
 export const midiMergeNode = defineNode({
   id: "midi.merge",
   version: "1.0.0",
@@ -502,12 +514,14 @@ export const midiMergeNode = defineNode({
     stream: { combine: { reduce: 'flatten' } }
   },
   config: {},
-  execute: (inputs, config, context) => {
-    return { stream: inputs.stream as unknown as MidiEvent[] };
+  execute: (rawInputs: any, config, context) => {
+    const inputs = rawInputs as MidiMergeInputs;
+    return { stream: inputs.stream || [] };
   },
   compileConfig: () => ({})
 });
 
+// explicit 'any' to bypass constraint
 export const midiSelectNode = defineNode<any, { count?: number, root?: number, skip?: number }, { count: typeof NumberType, root: typeof NumberType, skip: typeof NumberType }>({
   id: "midi.select",
   version: "1.0.0",
@@ -548,8 +562,9 @@ export const midiSelectNode = defineNode<any, { count?: number, root?: number, s
   shouldRecompileOnConfigChange: (uiConfig) => {
     return true;
   },
-  execute: (inputs, config, context) => {
-    const stream = inputs.stream as unknown as MidiEvent[];
+  execute: (rawInputs: any, config, context) => {
+    const inputs = rawInputs as MidiSelectInputs;
+    const stream = inputs.stream || [];
     const count = config.count || 4;
     const root = config.root || 60;
     const skip = config.skip || 1;

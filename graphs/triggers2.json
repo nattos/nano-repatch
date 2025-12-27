@@ -1,0 +1,343 @@
+{
+  "nodes": {
+    "node-04fa9a99-69e7-4d15-b63c-07b6dac3181c": {
+      "id": "node-04fa9a99-69e7-4d15-b63c-07b6dac3181c",
+      "x": 0,
+      "y": 1,
+      "config": {
+        "typeId": "nicepattern.chaos_generator",
+        "name": "#",
+        "values": {
+          "density": 0.38
+        }
+      }
+    },
+    "node-5645a611-6c30-4c3a-8db0-df83b8d800ad": {
+      "id": "node-5645a611-6c30-4c3a-8db0-df83b8d800ad",
+      "x": 0,
+      "y": 3,
+      "config": {
+        "typeId": "nicepattern.rhythmic_generator",
+        "name": "#",
+        "values": {
+          "density": 0.53
+        }
+      }
+    },
+    "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3": {
+      "id": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "x": 2,
+      "y": 2,
+      "config": {
+        "typeId": "seq.xor",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-527d876e-654a-45c0-a6cf-0f8da95d39c1": {
+      "id": "node-527d876e-654a-45c0-a6cf-0f8da95d39c1",
+      "x": 4,
+      "y": 2,
+      "config": {
+        "typeId": "seq.tomidi",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-fcfdf12d-c703-494b-8041-3bce63b8f94a": {
+      "id": "node-fcfdf12d-c703-494b-8041-3bce63b8f94a",
+      "x": 5,
+      "y": 3,
+      "config": {
+        "typeId": "util.hub",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-1081717c-8d2b-4c3f-b49c-75af18f015c7": {
+      "id": "node-1081717c-8d2b-4c3f-b49c-75af18f015c7",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "seq.crop",
+        "name": "#",
+        "values": {
+          "start": 0.28,
+          "length": 0.47
+        },
+        "mode": "start-length"
+      }
+    },
+    "node-35e527e3-7207-45c4-980c-fba44c593db6": {
+      "id": "node-35e527e3-7207-45c4-980c-fba44c593db6",
+      "x": 2,
+      "y": 7,
+      "config": {
+        "typeId": "seq.oneshot",
+        "name": "#",
+        "values": {
+          "duration": 1
+        }
+      }
+    },
+    "node-a424e639-5d72-40db-b5db-94daf505177f": {
+      "id": "node-a424e639-5d72-40db-b5db-94daf505177f",
+      "x": 0,
+      "y": 5,
+      "config": {
+        "typeId": "seq.sequencer",
+        "name": "#",
+        "values": {
+          "sequence": [
+            {
+              "noteIndex": 60,
+              "velocity": 1,
+              "hold": false
+            },
+            {
+              "noteIndex": 60,
+              "velocity": 1,
+              "hold": false
+            },
+            {
+              "noteIndex": 60,
+              "velocity": 1,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": 60,
+              "velocity": 1,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": null,
+              "velocity": 0,
+              "hold": false
+            },
+            {
+              "noteIndex": 60,
+              "velocity": 1,
+              "hold": false
+            }
+          ]
+        },
+        "sequence": [
+          {
+            "noteIndex": null,
+            "velocity": 0,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": null,
+            "velocity": 0,
+            "hold": false
+          },
+          {
+            "noteIndex": null,
+            "velocity": 0,
+            "hold": false
+          },
+          {
+            "noteIndex": null,
+            "velocity": 0,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          },
+          {
+            "noteIndex": 60,
+            "velocity": 1,
+            "hold": false
+          }
+        ]
+      }
+    },
+    "node-26d8632b-a756-4cf8-8e32-448cecf12b1d": {
+      "id": "node-26d8632b-a756-4cf8-8e32-448cecf12b1d",
+      "x": 2,
+      "y": 8,
+      "config": {
+        "typeId": "seq.scan",
+        "name": "#",
+        "values": {
+          "pos": 0
+        }
+      }
+    },
+    "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8": {
+      "id": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
+      "x": 0,
+      "y": 8,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 261
+        },
+        "trigger": 0
+      }
+    }
+  },
+  "connections": {
+    "conn-b1c4bfe5-5465-447d-85c3-d092425bb082": {
+      "id": "conn-b1c4bfe5-5465-447d-85c3-d092425bb082",
+      "fromNodeId": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "fromPort": "seq_out",
+      "toNodeId": "node-527d876e-654a-45c0-a6cf-0f8da95d39c1",
+      "toPort": "seq_in"
+    },
+    "conn-5bb79685-7889-4e5a-bf26-7a27d8ee1696": {
+      "id": "conn-5bb79685-7889-4e5a-bf26-7a27d8ee1696",
+      "fromNodeId": "node-04fa9a99-69e7-4d15-b63c-07b6dac3181c",
+      "fromPort": "seq_out",
+      "toNodeId": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "toPort": "inputs"
+    },
+    "conn-2d8d2a09-bee1-495f-a50d-cd75f503e023": {
+      "id": "conn-2d8d2a09-bee1-495f-a50d-cd75f503e023",
+      "fromNodeId": "node-5645a611-6c30-4c3a-8db0-df83b8d800ad",
+      "fromPort": "seq_out",
+      "toNodeId": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "toPort": "inputs"
+    },
+    "conn-9cc00ff3-d711-406a-877e-897f02ed5fe4": {
+      "id": "conn-9cc00ff3-d711-406a-877e-897f02ed5fe4",
+      "fromNodeId": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "fromPort": "seq_out",
+      "toNodeId": "node-1081717c-8d2b-4c3f-b49c-75af18f015c7",
+      "toPort": "seq_in"
+    },
+    "conn-8e43f12b-b735-4f7b-9375-3b2c840b386b": {
+      "id": "conn-8e43f12b-b735-4f7b-9375-3b2c840b386b",
+      "fromNodeId": "node-a424e639-5d72-40db-b5db-94daf505177f",
+      "fromPort": "seq_out",
+      "toNodeId": "node-e2c2010f-a738-46e8-bd1b-f26bf67fd3d3",
+      "toPort": "inputs"
+    },
+    "conn-fa4763a5-9abe-4ad0-b488-986e222647c2": {
+      "id": "conn-fa4763a5-9abe-4ad0-b488-986e222647c2",
+      "fromNodeId": "node-a424e639-5d72-40db-b5db-94daf505177f",
+      "fromPort": "seq_out",
+      "toNodeId": "node-26d8632b-a756-4cf8-8e32-448cecf12b1d",
+      "toPort": "seq_in"
+    },
+    "conn-dd138623-5747-436f-9934-f184e35b91d6": {
+      "id": "conn-dd138623-5747-436f-9934-f184e35b91d6",
+      "fromNodeId": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
+      "fromPort": "stream",
+      "toNodeId": "node-35e527e3-7207-45c4-980c-fba44c593db6",
+      "toPort": "trigger"
+    },
+    "conn-fbf43719-223e-481b-a892-346440fb69fc": {
+      "id": "conn-fbf43719-223e-481b-a892-346440fb69fc",
+      "fromNodeId": "node-a424e639-5d72-40db-b5db-94daf505177f",
+      "fromPort": "seq_out",
+      "toNodeId": "node-35e527e3-7207-45c4-980c-fba44c593db6",
+      "toPort": "seq_in"
+    }
+  },
+  "inferredNodeTypes": {}
+}

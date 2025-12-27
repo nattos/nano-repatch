@@ -19,6 +19,10 @@ import { AnyType } from "../../structor/type-helpers";
  * seq.tomidi (formerly nicepattern.pattern)
  * Combines multiple sequences into a MIDI stream.
  */
+interface SeqToMidiInputs {
+  seq_in: Step[][]; // Array of Sequences (from multi-connection)
+}
+
 interface SeqToMidiState {
   sequenceStates: Map<number, {
     lastStepIndex: number;
@@ -26,6 +30,12 @@ interface SeqToMidiState {
     lastHold: boolean;
     activeNotes: Map<number, number>;
   }>;
+}
+
+interface SeqOneShotInputs {
+  seq_in: Step[];
+  trigger: MidiEvent[];
+  duration: number;
 }
 
 interface SeqOneShotState {
@@ -37,6 +47,11 @@ interface SeqOneShotState {
   activeNotes: Map<number, number>;
 }
 
+interface SeqScanInputs {
+  seq_in: Step[];
+  pos: number;
+}
+
 interface SeqScanState {
   lastStepIndex: number;
   lastNoteIndex: number | null;
@@ -44,6 +59,22 @@ interface SeqScanState {
   activeNotes: Map<number, number>;
 }
 
+interface SeqCropInputs {
+  seq_in: Step[];
+  start: number;
+  end?: number;
+  length?: number;
+}
+
+interface SeqXorInputs {
+  inputs: Step[][]; // Collection of sequences
+}
+
+interface SeqNegateInputs {
+  seq_in: Step[];
+}
+
+// explicit 'any' generic used to bypass Constraint Mismatch between Def types (Structor) and Runtime types (Interfaces)
 export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
   id: "seq.tomidi",
   version: "1.0.0",
@@ -66,18 +97,11 @@ export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
   createState: () => ({
     sequenceStates: new Map()
   }),
-  execute: (inputs, config, context, state) => {
-    // Inputs are Structors. unpack them.
-    const seqInInput = inputs.seq_in as any;
-
-    let seqs: any[] = [];
-    if (seqInInput && typeof seqInInput === 'object') {
-      if (Array.isArray(seqInInput)) {
-        seqs = seqInInput;
-      } else if (seqInInput.kind === 'array' && seqInInput.elements) {
-        seqs = seqInInput.elements;
-      }
-    }
+  execute: (rawInputs: any, config, context, state) => {
+    // Cast raw inputs (inferred as any/record) to the strict Runtime Interface
+    const inputs = rawInputs as SeqToMidiInputs;
+    // Inputs are unwrapped Steps
+    const seqs = inputs.seq_in || [];
 
     const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;
@@ -90,14 +114,7 @@ export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
     state.sequenceStates.forEach((_, i) => seqIndices.add(i));
 
     for (const seqIndex of seqIndices) {
-      const seqStructor = seqs[seqIndex];
-      // Unwrap sequence array
-      let seq: any[] | undefined;
-      if (seqStructor) {
-        if (Array.isArray(seqStructor)) seq = seqStructor;
-        else if (seqStructor.kind === 'array') seq = seqStructor.elements;
-        else seq = seqStructor; // Fallback or raw object
-      }
+      const seq = seqs[seqIndex]; // Step[] | undefined
 
       // Initialize state for this sequence if missing
       if (!state.sequenceStates.has(seqIndex)) {
@@ -119,16 +136,7 @@ export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
       let currentStep: { noteIndex: number | null, velocity: number, hold: boolean } = { noteIndex: null, velocity: 0, hold: false };
 
       if (seq && seq[currentStepIndex]) {
-        const rawStep = seq[currentStepIndex];
-        if (rawStep.fields) {
-          currentStep = {
-            noteIndex: rawStep.fields.noteIndex,
-            velocity: rawStep.fields.velocity ?? 0,
-            hold: rawStep.fields.hold ?? false
-          };
-        } else {
-          currentStep = rawStep;
-        }
+        currentStep = seq[currentStepIndex];
       }
 
       // Check if we need to update
@@ -192,14 +200,15 @@ interface SeqSequencerUIConfig {
 }
 
 type SeqSequencerCompiledConfig = {
-  sequence: typeof AnyType;
+  sequence: Step[];
 };
 
 interface SequencerState {
   currentStepIndex: number;
 }
 
-export const sequencer = defineNode<any, SeqSequencerUIConfig, SeqSequencerCompiledConfig, any, SequencerState>({
+// explicit 'any' for Config/Output to bypass Structor constraint
+export const sequencer = defineNode<{}, SeqSequencerUIConfig, any, any, SequencerState>({
   id: "seq.sequencer",
   version: "1.0.0",
   displayName: "Sequencer",
@@ -242,7 +251,7 @@ export const sequencer = defineNode<any, SeqSequencerUIConfig, SeqSequencerCompi
 
     // config.sequence is the Array Record of current Pattern
     const defaultSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
-    const sequenceRaw = (config as any).sequence || defaultSeq;
+    const sequenceRaw = config.sequence || defaultSeq;
 
     // GraphExecutor/definePrimitiveNode expects raw values. It performs the Structor marshalling.
     // If we return { fields: ... }, toStructor will look for properties on the fields wrapper and fail.
@@ -265,6 +274,7 @@ registerNode(sequencer);
 
 // --- Players ---
 
+// explicit 'any' generic used to bypass Constraint Mismatch
 export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
   id: "seq.oneshot",
   version: "1.0.0",
@@ -294,9 +304,11 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
     lastHold: false,
     activeNotes: new Map()
   }),
-  execute: (inputs, config, context, state) => {
+  execute: (rawInputs: any, config, context, state) => {
+    // Cast raw inputs to the strict Runtime Interface
+    const inputs = rawInputs as SeqOneShotInputs;
     // Process Trigger
-    const triggerStream = (inputs.trigger || []) as MidiEvent[];
+    const triggerStream = inputs.trigger || [];
     let triggered = false;
     if (Array.isArray(triggerStream)) {
       for (const e of triggerStream) {
@@ -316,13 +328,7 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
       state.startTime = currentTime;
     }
 
-    const seqRaw = inputs.seq_in as any;
-    // Unwrap sequence
-    let seq: Step[] = [];
-    if (seqRaw) {
-      if (Array.isArray(seqRaw)) seq = seqRaw;
-      else if (seqRaw.kind === 'array') seq = seqRaw.elements;
-    }
+    const seq = inputs.seq_in || [];
 
     const stream: MidiEvent[] = [];
 
@@ -357,16 +363,7 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
 
     let currentStep: Step = { noteIndex: null, velocity: 0, hold: false };
     if (seq[currentStepIndex]) {
-      const rawStep = seq[currentStepIndex] as any;
-      if (rawStep.fields) {
-        currentStep = {
-          noteIndex: rawStep.fields.noteIndex,
-          velocity: rawStep.fields.velocity ?? 0,
-          hold: rawStep.fields.hold ?? false
-        };
-      } else {
-        currentStep = rawStep;
-      }
+      currentStep = seq[currentStepIndex];
     }
 
     if (currentStepIndex !== state.lastStepIndex || currentStep.noteIndex !== state.lastNoteIndex) {
@@ -400,6 +397,7 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
   }
 });
 
+// explicit 'any' generic used to bypass Constraint Mismatch
 export const scan = defineNode<any, {}, {}, any, SeqScanState>({
   id: "seq.scan",
   version: "1.0.0",
@@ -410,6 +408,9 @@ export const scan = defineNode<any, {}, {}, any, SeqScanState>({
     description: 'Plays a sequence by scanning through positions.'
   },
   config: {},
+  autoBroadcast: {
+    seq_in: { combine: { reduce: 'first' } }
+  },
   inputs: {
     seq_in: { type: sequenceStructorType, description: "Input sequence" },
     pos: { type: numberType, defaultValue: 0, description: "Position (0-1)" }
@@ -422,13 +423,10 @@ export const scan = defineNode<any, {}, {}, any, SeqScanState>({
     lastHold: false,
     activeNotes: new Map()
   }),
-  execute: (inputs, config, context, state) => {
-    const seqRaw = inputs.seq_in as any;
-    let seq: Step[] = [];
-    if (seqRaw) {
-      if (Array.isArray(seqRaw)) seq = seqRaw;
-      else if (seqRaw.kind === 'array') seq = seqRaw.elements;
-    }
+  execute: (rawInputs: any, config, context, state) => {
+    // Cast raw inputs to the strict Runtime Interface
+    const inputs = rawInputs as SeqScanInputs;
+    const seq = inputs.seq_in || [];
 
     const pos = inputs.pos ?? 0;
     const stream: MidiEvent[] = [];
@@ -447,16 +445,7 @@ export const scan = defineNode<any, {}, {}, any, SeqScanState>({
 
     let currentStep: Step = { noteIndex: null, velocity: 0, hold: false };
     if (seq[currentStepIndex]) {
-      const rawStep = seq[currentStepIndex] as any;
-      if (rawStep.fields) {
-        currentStep = {
-          noteIndex: rawStep.fields.noteIndex,
-          velocity: rawStep.fields.velocity ?? 0,
-          hold: rawStep.fields.hold ?? false
-        };
-      } else {
-        currentStep = rawStep;
-      }
+      currentStep = seq[currentStepIndex];
     }
 
     if (currentStepIndex !== state.lastStepIndex || currentStep.noteIndex !== state.lastNoteIndex) {
@@ -499,7 +488,8 @@ type SeqCropCompiledConfig = {
   mode: typeof StringType;
 };
 
-export const crop = defineNode<any, SeqCropUIConfig, SeqCropCompiledConfig>({
+// explicit 'any' generic used to bypass Constraint Mismatch
+export const crop = defineNode<any, SeqCropUIConfig, any>({
   id: "seq.crop",
   version: "1.0.0",
   displayName: "Crop Sequence",
@@ -510,6 +500,9 @@ export const crop = defineNode<any, SeqCropUIConfig, SeqCropCompiledConfig>({
   },
   config: {
     mode: { kind: 'atomic', type: 'string', defaultValue: 'start-end' }
+  },
+  autoBroadcast: {
+    seq_in: { combine: { reduce: 'first' } }
   },
   inputs: {
     seq_in: { type: sequenceStructorType, description: "Input sequence" },
@@ -550,25 +543,16 @@ export const crop = defineNode<any, SeqCropUIConfig, SeqCropCompiledConfig>({
     mode: uiConfig.mode || 'start-end'
   }),
 
-  execute: (inputs, config) => {
-    const seqRaw = inputs.seq_in as any;
-    if (!seqRaw) return { seq_out: [] };
+  execute: (rawInputs: any, config) => {
+    // Cast raw inputs to the strict Runtime Interface
+    const inputs = rawInputs as SeqCropInputs;
+    const seq = inputs.seq_in || [];
 
     // Correctly inferred config
     const mode = config.mode || 'start-end';
 
-    let seq: Step[] = [];
-    if (Array.isArray(seqRaw)) seq = seqRaw;
-    else if (seqRaw.kind === 'array') seq = seqRaw.elements;
-
     // Deep clone is safer
-    const outSeq = seq.map(s => {
-      const raw = s as any;
-      let step: Step;
-      if (raw.fields) step = { noteIndex: raw.fields.noteIndex, velocity: raw.fields.velocity, hold: raw.fields.hold };
-      else step = { ...raw };
-      return step;
-    });
+    const outSeq = seq.map(s => ({ ...s }));
 
     const start = inputs.start ?? 0;
     let end = 1;
@@ -596,6 +580,7 @@ export const crop = defineNode<any, SeqCropUIConfig, SeqCropCompiledConfig>({
   }
 });
 
+// explicit 'any' generic used to bypass Constraint Mismatch
 export const xor = defineNode<any, {}, {}>({
   id: "seq.xor",
   version: "1.0.0",
@@ -610,28 +595,17 @@ export const xor = defineNode<any, {}, {}>({
     }
   },
   outputs: { seq_out: sequenceStructorType },
-  execute: (inputs) => {
-    const unwrapSeq = (s: any) => {
-      if (!s) return [];
-      if (Array.isArray(s)) return s;
-      if (s.kind === 'array') return s.elements;
-      return [];
-    };
-
+  execute: (rawInputs: any) => {
+    // Cast raw inputs to the strict Runtime Interface
+    const inputs = rawInputs as SeqXorInputs;
     // Collect all input sequences
-    const inputCol = inputs.inputs as any;
-    let seqs: any[] = [];
-    if (inputCol) {
-      if (Array.isArray(inputCol)) seqs = inputCol;
-      else if (inputCol.kind === 'array') seqs = inputCol.elements ?? [];
-    }
+    const seqs = inputs.inputs || [];
 
     if (seqs.length === 0) return { seq_out: [] };
 
     // Find max length
     let len = 0;
-    const unwrappedSeqs = seqs.map(unwrapSeq);
-    unwrappedSeqs.forEach(s => len = Math.max(len, s.length));
+    seqs.forEach(s => len = Math.max(len, s.length));
 
     const outSeq: Step[] = [];
 
@@ -639,22 +613,19 @@ export const xor = defineNode<any, {}, {}>({
       let active = false;
       let lastStep: Step | null = null;
 
-      for (const seq of unwrappedSeqs) {
+      for (const seq of seqs) {
         if (i < seq.length) {
-          const stepRaw = seq[i];
-          const noteIndex = stepRaw.fields ? stepRaw.fields.noteIndex : stepRaw.noteIndex;
-          if (noteIndex !== null && noteIndex !== undefined) {
+          const step = seq[i];
+          if (step.noteIndex !== null && step.noteIndex !== undefined) {
             // Toggle active state for XOR
             active = !active;
-            lastStep = stepRaw;
+            lastStep = step;
           }
         }
       }
 
       if (active && lastStep) {
-        const s = lastStep as any;
-        if (s.fields) outSeq.push({ noteIndex: s.fields.noteIndex, velocity: s.fields.velocity, hold: s.fields.hold });
-        else outSeq.push({ ...s });
+        outSeq.push({ ...lastStep });
       } else {
         outSeq.push({ noteIndex: null, velocity: 0, hold: false });
       }
@@ -664,28 +635,26 @@ export const xor = defineNode<any, {}, {}>({
   }
 });
 
+// explicit 'any' generic used to bypass Constraint Mismatch
 export const negate = defineNode<any, {}, {}>({
   id: "seq.negate",
   version: "1.0.0",
   displayName: "Sequence Negate",
   metadata: { category: 'Sequence', keywords: ['logic', 'not', 'invert'], description: 'Inverts sequence activity.' },
   config: {},
+  autoBroadcast: {
+    seq_in: { combine: { reduce: 'first' } }
+  },
   inputs: {
     seq_in: { type: sequenceStructorType }
   },
   outputs: { seq_out: sequenceStructorType },
-  execute: (inputs) => {
-    const unwrapSeq = (s: any) => {
-      if (!s) return [];
-      if (Array.isArray(s)) return s;
-      if (s.kind === 'array') return s.elements;
-      return [];
-    };
-    const seq = unwrapSeq(inputs.seq_in);
-    const outSeq = seq.map((s: any) => {
-      let step: Step;
-      if (s.fields) step = { noteIndex: s.fields.noteIndex, velocity: s.fields.velocity, hold: s.fields.hold };
-      else step = { ...s };
+  execute: (rawInputs: any) => {
+    // Cast raw inputs to the strict Runtime Interface
+    const inputs = rawInputs as SeqNegateInputs;
+    const seq = inputs.seq_in || [];
+    const outSeq = seq.map((s) => {
+      const step: Step = { ...s };
 
       if (step.noteIndex !== null) {
         step.noteIndex = null;
