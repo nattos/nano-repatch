@@ -1040,7 +1040,7 @@ export class GraphWidget extends MobxLitElement {
                     <pattern id="hash-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                         <line x1="0" y1="0" x2="0" y2="8" stroke="var(--accent-color)" stroke-width="4" opacity="0.1" />
                     </pattern>
-                    ${this.config?.cursor !== undefined ? svg`
+                    ${this.config?.cursor !== undefined && this.config.cursor >= 0 && this.config.cursor <= 1 ? svg`
                         <clipPath id="clip-left">
                             <rect x="0" y="0" width="${this.config.cursor * NODE_CONTENT_WIDTH}" height="96" />
                         </clipPath>
@@ -1054,7 +1054,7 @@ export class GraphWidget extends MobxLitElement {
                 <line class="zero-line" x1="0" y1="${zeroY}" x2="${NODE_CONTENT_WIDTH}" y2="${zeroY}" />
 
                 <!-- Curve Fills -->
-                ${this.config?.cursor !== undefined ? (this.pathData ? svg`
+                ${this.config?.cursor !== undefined && this.config.cursor >= 0 && this.config.cursor <= 1 ? (this.pathData ? svg`
                     <!-- Left (Solid) -->
                     <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.2"
@@ -1094,7 +1094,7 @@ export class GraphWidget extends MobxLitElement {
                     <pattern id="hash-pattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                         <line x1="0" y1="0" x2="0" y2="8" stroke="var(--accent-color)" stroke-width="4" opacity="0.1" />
                     </pattern>
-                    ${this.config?.cursor !== undefined ? svg`
+                    ${this.config?.cursor !== undefined && this.config.cursor >= 0 && this.config.cursor <= 1 ? svg`
                         <clipPath id="clip-left">
                             <rect x="0" y="0" width="${this.config.cursor * NODE_CONTENT_WIDTH}" height="96" />
                         </clipPath>
@@ -1163,7 +1163,7 @@ export class GraphWidget extends MobxLitElement {
       }
 
                 <!-- Curve Fills -->
-                ${this.config?.cursor !== undefined ? svg`
+                ${this.config?.cursor !== undefined && this.config.cursor >= 0 && this.config.cursor <= 1 ? svg`
                     <!-- Left (Solid) -->
                     <path d="${this.pathData} L ${NODE_CONTENT_WIDTH} ${height} L 0 ${height} Z"
                           fill="var(--accent-color)" fill-opacity="0.2"
@@ -1187,7 +1187,7 @@ export class GraphWidget extends MobxLitElement {
 
 
                 <!-- Cursor -->
-                ${this.config?.cursor !== undefined ? (() => {
+                ${this.config?.cursor !== undefined && this.config.cursor >= 0 && this.config.cursor <= 1 ? (() => {
         const cursorX = this.config.cursor * NODE_CONTENT_WIDTH;
         const valY = this.evaluateCurve(this.config.cursor);
 

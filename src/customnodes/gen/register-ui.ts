@@ -149,7 +149,7 @@ const renderAdsrBody = async () => {
           // Position proportional to how much we've decayed
           widgetConfig.cursor = nD * (1.0 - value);
         } else {
-          if (phase === 0) widgetConfig.cursor = -1; // Hide on Idle
+          if (phase === 0) widgetConfig.cursor = undefined; // Hide on Idle
           else widgetConfig.cursor = nD;
         }
       } else {
@@ -163,11 +163,13 @@ const renderAdsrBody = async () => {
         } else if (phase === 4) { // Release
           cursorTime = effectiveAttack + effectiveDecay + HOLD + time;
         } else {
-          cursorTime = -1; // Hide
+          cursorTime = -1; // Hide (handled below)
         }
 
         if (cursorTime >= 0) {
           widgetConfig.cursor = Math.min(1, cursorTime / totalTime);
+        } else {
+          widgetConfig.cursor = undefined;
         }
       }
     }
