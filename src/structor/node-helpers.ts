@@ -23,7 +23,9 @@ export type InspectorFieldDef =
   | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number; default?: number }
   | { type: 'boolean'; label: string; path: string; default?: boolean }
   | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
-  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any };
+  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
+  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
+  | { type: 'button'; label: string; path: string; text?: string };
 
 export interface GenericInspector {
   fields: InspectorFieldDef[];

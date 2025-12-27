@@ -398,7 +398,7 @@ export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
 
 // --- Generic Trigger/MIDI Nodes ---
 
-export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] } }, any, { lastTrigger: number }>({
+export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number, trigger?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] }, trigger: typeof NumberType }, any, { lastTrigger: number, isNoteOn: boolean, time: number }>({
   id: "midi.trigger",
   version: "1.0.0",
   displayName: "MIDI Trigger",
@@ -412,26 +412,55 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
   },
   config: {
     pitch: { ...numberType, defaultValue: 60 },
-    velocity: { ...numberType, defaultValue: 1.0, range: [0, 1] }
+    velocity: { ...numberType, defaultValue: 1.0, range: [0, 1] },
+    trigger: numberType
   },
   outputs: {
     stream: midiStreamType
   },
   isRealtime: () => true,
-  createState: () => ({ lastTrigger: 0 }),
+  createState: () => ({ lastTrigger: 0, isNoteOn: false, time: 0 }),
   execute: (inputs, config, context, state) => {
     const pitch = config.pitch || 60;
     const velocity = config.velocity || 1.0;
     const trigger = inputs.trigger || 0;
+    const dt = context.clock.dt;
+    if (context.nodeId === 't1' || context.nodeId === 't2') {
+      console.log(`[TRIGGER DEBUG] ${context.nodeId} trigger=${trigger} last=${state.lastTrigger} on=${state.isNoteOn} time=${state.time} dt=${dt}`);
+    }
 
     const stream: MidiEvent[] = [];
 
-    if (trigger > 0.5 && state.lastTrigger <= 0.5) {
-      // Rising edge -> Note On
+    // Logic: Pulse / Trigger
+    // Rising Edge -> Note On + Start Timer (0.1s default duration)
+    // Timer Expire -> Note Off
+    // Falling Edge -> Note Off (Early release)
+
+    if (trigger > state.lastTrigger) {
+      // Rising Edge
+      if (state.isNoteOn) {
+        // Retrigger (kill old)
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+      }
+      // Start new
       stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: Math.floor(velocity * 127), deviceId: 'virtual' } as MidiEvent);
-    } else if (trigger <= 0.5 && state.lastTrigger > 0.5) {
-      // Falling edge -> Note Off
-      stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+      state.isNoteOn = true;
+      state.time = 0.1; // 100ms duration
+    } else if (trigger < state.lastTrigger) {
+      // Falling Edge (Early Release)
+      if (state.isNoteOn) {
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+        state.isNoteOn = false;
+        state.time = 0;
+      }
+    } else if (state.isNoteOn && state.time > 0) {
+      // Sustaining
+      state.time -= dt;
+      if (state.time <= 0) {
+        // Auto Release
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+        state.isNoteOn = false;
+      }
     }
 
     state.lastTrigger = trigger;
@@ -440,11 +469,13 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
   },
   compileConfig: (uiConfig) => ({
     pitch: uiConfig.pitch ?? 60,
-    velocity: uiConfig.velocity ?? 1.0
+    velocity: uiConfig.velocity ?? 1.0,
+    trigger: uiConfig.trigger
   }),
   ui: {
     inspector: {
       fields: [
+        { type: 'button', label: 'Trigger', path: 'trigger', text: 'Bang' },
         { type: 'number', label: 'Pitch', path: 'pitch', min: 0, max: 127, step: 1, default: 60 },
         { type: 'number', label: 'Velocity', path: 'velocity', min: 0, max: 1, step: 0.01, default: 1.0 }
       ]
@@ -499,6 +530,7 @@ export const midiSelectNode = defineNode<any, { count?: number, root?: number, s
   },
   outputs: {},
   dynamicOutputType: midiStreamType,
+  isRealtime: () => true,
   computeForwardPorts: (inputTypes, uiConfig, context) => {
     const count = (uiConfig.count as number) || 4;
     const outputs: any = {};

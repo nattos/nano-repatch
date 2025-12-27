@@ -107,6 +107,18 @@ const renderTabBarField = (node: GridNode, field: Extract<InspectorFieldDef, { t
   </div>
 `;
 
+const renderButtonField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'button' }>, onchange: InspectorChangeHandler) => html`
+  <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
+    <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
+    <button
+      @pointerdown=${() => onchange({ [field.path]: 1 })}
+      @pointerup=${() => onchange({ [field.path]: 0 })}
+      @pointerleave=${() => onchange({ [field.path]: 0 })}
+      style="background: var(--button-bg, #444); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.8em; min-width: 60px;"
+    >${field.text || 'Trigger'}</button>
+  </div>
+`;
+
 export const createGenericInspector = (fields: InspectorFieldDef[]) => {
   return (node: GridNode, onchange: InspectorChangeHandler): TemplateResult => {
     return html`
@@ -119,6 +131,7 @@ export const createGenericInspector = (fields: InspectorFieldDef[]) => {
         case 'boolean': return renderBooleanField(node, field, onchange);
         case 'select': return renderSelectField(node, field, onchange);
         case 'tab-bar': return renderTabBarField(node, field, onchange);
+        case 'button': return renderButtonField(node, field, onchange);
         default: return html``;
       }
     })}
