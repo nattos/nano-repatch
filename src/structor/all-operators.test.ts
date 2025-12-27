@@ -121,4 +121,49 @@ describe('All Operators Integration', () => {
     executor.update({ clock: { beat: 0, dt: 0 } });
     expect(getOutput()).toBe(6);
   });
+
+  it('should element-wise add multiple vector inputs: math.all.add([1,2,3], [10,20,30]) = [11,22,33]', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'v1': { typeId: 'data.literal', config: { value: [1, 2, 3] } },
+        'v2': { typeId: 'data.literal', config: { value: [10, 20, 30] } },
+        'op': { typeId: 'math.all.add' }
+      },
+      [
+        { from: 'v1', port: 'value', to: 'op', portIn: 'values' },
+        { from: 'v2', port: 'value', to: 'op', portIn: 'values' }
+      ],
+      'op', 'result'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    // This is what the user expects:
+    expect(getOutput()).toEqual([11, 22, 33]);
+  });
+
+  it('should element-wise add multiple Record inputs (vec4): math.all.add({x:1...}, {x:10...}) = {x:11...} or [11...]', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'v1': { typeId: 'data.literal', config: { value: { x: 1, y: 2, z: 3, w: 4 } } },
+        'v2': { typeId: 'data.literal', config: { value: { x: 10, y: 20, z: 30, w: 40 } } },
+        'op': { typeId: 'math.all.add' }
+      },
+      [
+        { from: 'v1', port: 'value', to: 'op', portIn: 'values' },
+        { from: 'v2', port: 'value', to: 'op', portIn: 'values' }
+      ],
+      'op', 'result'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    // If it fails, it might return a string or NaN
+    // We expect it to support this:
+    const out = getOutput();
+    // Supporting either array or record output is fine, but it MUST be element-wise.
+    // Let's assume user prefers Record output if inputs were Records?
+    // Or maybe Array is safer for generic "all" node.
+    // For verification, I'll check if it matches either.
+    const valid = (Array.isArray(out) && out[0] === 11) || (typeof out === 'object' && out.x === 11);
+    expect(valid).toBe(true);
+  });
 });

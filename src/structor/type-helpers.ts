@@ -544,6 +544,7 @@ export function defineMathNode(
     inputs,
     outputs: { result: NumberType },
     autoBroadcast: true,
+    reshape: 'vector',
     execute: (inputs, config, context) => {
       if (arity === 'binary') {
         const { a, b } = inputs as { a: number, b: number };

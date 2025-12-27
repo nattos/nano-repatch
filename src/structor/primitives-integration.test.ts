@@ -394,4 +394,152 @@ describe('Primitives Integration', () => {
 
     expect(executor.getGraphOutput('outW')).toBe(40);
   });
+
+  it('should propagate Record vector type from math.all.add to core.unpack', () => {
+    const repository = new NodeRepository();
+    // Register unpack
+    // @ts-ignore
+    const unpackDef = ALL_PRIMITIVES.find(p => p.id === 'core.unpack')!;
+    repository.register({
+      id: unpackDef.id,
+      version: '1.0.0',
+      displayName: 'Unpack',
+      definition: unpackDef,
+      inputs: [{ name: 'record', type: vec4Type }],
+      outputs: []
+    });
+
+    // Register math.all.add (Standard)
+    const addDef = ALL_PRIMITIVES.find(p => p.id === 'math.all.add')!;
+    // We must ensure allowMultiConnection is passed correctly here too if we manually register.
+    repository.register({
+      id: addDef.id,
+      version: '1.0.0',
+      displayName: 'Add',
+      definition: addDef,
+      inputs: Object.entries((addDef as any).inputs || {}).map(([name, type]) => ({
+        name,
+        type: type as any,
+        allowMultiConnection: (type as any).allowMultiConnection
+      })),
+      outputs: [{ name: 'result', type: numberType }],
+      compileConfig: () => ({ fields: {} })
+    });
+
+    // Register Mock Record Vec4 Source
+    repository.register({
+      id: 'mock.rec_vec4',
+      version: '1.0.0',
+      displayName: 'RecVec4',
+      definition: {
+        id: 'mock.rec_vec4',
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        // Use computeForwardPorts instead of computeOutputTypes for Compiler compatibility
+        computeForwardPorts: () => ({
+          inputs: { kind: 'record', fields: {} },
+          outputs: { kind: 'record', fields: { out: { kind: 'record', fields: { x: numberType, y: numberType, z: numberType, w: numberType } } } }
+        }),
+        execute: () => ({ fields: { out: { x: 10, y: 20, z: 30, w: 40 } } })
+      },
+      inputs: [],
+      // TYPE IS RECORD HERE
+      outputs: [{ name: 'out', type: { kind: 'record', fields: { x: numberType, y: numberType, z: numberType, w: numberType } } }],
+      compileConfig: () => ({ fields: {} })
+    });
+
+    // Register Output (Mock)
+    repository.register({
+      id: 'io.output',
+      version: '1.0.0',
+      displayName: 'Output',
+      definition: {
+        id: 'io.output',
+        kind: 'primitive',
+        metadata: { category: 'Mock' },
+        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
+        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+      },
+      inputs: [{ name: 'val', type: numberType }],
+      outputs: [{ name: 'val', type: numberType }],
+      compileConfig: (c) => ({ fields: {} })
+    });
+
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.rec_vec4' } },
+            'add': { id: 'add', x: 100, y: 0, config: { typeId: 'math.all.add' } },
+            'unpack': { id: 'unpack', x: 200, y: 0, config: { typeId: 'core.unpack' } },
+            'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
+          },
+          connections: {
+            'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'add', toPort: 'values' },
+            'c2': { id: 'c2', fromNodeId: 'add', fromPort: 'result', toNodeId: 'unpack', toPort: 'record' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+          }
+        },
+        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      }
+    };
+
+    const { graph: graphDef } = compileGraph(appState, new Map(), repository);
+    const executor = new GraphExecutor(graphDef, repository);
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    expect(executor.getGraphOutput('outW')).toBe(40);
+  });
+  it('should treat two vec4 arrays as two inputs to math.all.add (Vector Math)', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'vecA': { typeId: 'data.literal', config: { value: [1, 2, 3, 4] } },
+        'vecB': { typeId: 'data.literal', config: { value: [10, 20, 30, 40] } },
+        'add': { typeId: 'math.all.add' }
+      },
+      [
+        { from: 'vecA', port: 'value', to: 'add', portIn: 'values' },
+        { from: 'vecB', port: 'value', to: 'add', portIn: 'values' }
+      ],
+      'add', 'result'
+    );
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toEqual([11, 22, 33, 44]);
+  });
+
+  it('should broadcast vector inputs in math.add (Element-wise Math)', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'vecA': { typeId: 'data.literal', config: { value: [1, 2, 3, 4] } },
+        'vecB': { typeId: 'data.literal', config: { value: [10, 20, 30, 40] } },
+        'add': { typeId: 'math.add' }
+      },
+      [
+        { from: 'vecA', port: 'value', to: 'add', portIn: 'a' },
+        { from: 'vecB', port: 'value', to: 'add', portIn: 'b' }
+      ],
+      'add', 'result'
+    );
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    // Expect element-wise addition, not string concatenation
+    expect(getOutput()).toEqual([11, 22, 33, 44]);
+  });
+
+  it('should handle scalar input in math.all.add (Scalar Robustness)', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'valA': { typeId: 'data.literal', config: { value: 10 } },
+        'valB': { typeId: 'data.literal', config: { value: 20 } },
+        'add': { typeId: 'math.all.add' }
+      },
+      [
+        { from: 'valA', port: 'value', to: 'add', portIn: 'values' },
+        { from: 'valB', port: 'value', to: 'add', portIn: 'values' }
+      ],
+      'add', 'result'
+    );
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    // Expect 10 + 20 = 30
+    expect(getOutput()).toBe(30);
+  });
 });

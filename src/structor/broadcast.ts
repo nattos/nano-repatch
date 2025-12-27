@@ -61,12 +61,10 @@ export function broadcast(config: BroadcastConfig, inputs: StructorRecord): Broa
       if (reduceType === 'first') {
         finalValue = values[0];
       } else if (reduceType === 'flatten') {
-        const toFlatten = values.length > 0 && Array.isArray(values[0]) ? values[0] : values;
-        if (Array.isArray(toFlatten)) {
-          finalValue = toFlatten.flat(Infinity);
-        } else {
-          finalValue = [toFlatten];
-        }
+        // Flatten all collected values.
+        // If values is [[1,2], [3,4]], result should be [1,2,3,4].
+        // If values is [1, 2], result should be [1, 2].
+        finalValue = values.flat(Infinity);
       } else {
         finalValue = values[0]; // Fallback
       }

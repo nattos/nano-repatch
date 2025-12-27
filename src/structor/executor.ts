@@ -301,6 +301,7 @@ export class GraphExecutor {
         const schema = inputSchemaMap.get(port);
         // console.error(`[Executor] schema check port=${port}`, JSON.stringify(schema));
         const values = inputsByPort.get(port);
+        // console.error(`[Executor] schema check port=${port}`, JSON.stringify(schema));
 
         // Determine if it expects an array input
         // schema matches PortHint interface or StructorType

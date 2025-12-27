@@ -393,15 +393,21 @@ export const primitive_unpack: PrimitiveNodeDefinition = {
     };
   },
   execute: (input) => {
-    const record = input.fields['record'];
+    let record = input.fields['record'];
     if (!record) return { fields: {} };
 
-    // Handle Record
-    if (typeof record === 'object' && 'fields' in record) {
-      return record as StructorRecord;
+    // Standardize Input:
+    // GraphExecutor (or any type inputs) might wrap single objects in an array.
+    // If it's a single-element array containing a Record/Object, unwrap it first.
+    if (Array.isArray(record) && record.length === 1 && typeof record[0] === 'object' && record[0] !== null) {
+      const item = record[0];
+      // Check if it's a candidate for unpacking (has keys)
+      if ('x' in item || 'fields' in item || Object.keys(item).length > 0) {
+        record = item;
+      }
     }
 
-    // Handle Array (Vector)
+    // PATH 1: Array (Vector [x, y, z...])
     if (Array.isArray(record)) {
       const size = record.length;
       const fields: Record<string, any> = {};
@@ -424,6 +430,15 @@ export const primitive_unpack: PrimitiveNodeDefinition = {
         }
       }
       return { fields };
+    }
+
+    // PATH 2: Record (Structor Record or Plain Object)
+    if (typeof record === 'object' && record !== null) {
+      if ('fields' in record) {
+        return record as StructorRecord;
+      }
+      // Plain object -> map keys to fields
+      return { fields: record };
     }
 
     return { fields: {} };
@@ -683,24 +698,17 @@ const defineAllNode = (
       // Check if we have an array of inputs (because of reduce/collect)
       if (valuesInput && valuesInput.kind === 'array') {
         // The element of the 'values' array represents the types of the connected cables.
-        // However, if allowMultiConnection is true, does 'element' represent the aggregation or the single cable type?
-        // In 'computeForwardPorts', the input type is usually the type of the incoming DATA.
-        // If we have multiple connections, they are collected into an array.
-        // So 'valuesInput' IS that array.
-        // its 'element' is the type of the things inside the array.
-
-        // If we connected multiple things, valuesInput might be Array<Any> or Array<Number|Array<Number>>.
-
-        // We need to inspect the 'element' type of valuesInput.
         const elementType = valuesInput.element;
+        // console.log(`[AllNode] ${id} elementType:`, JSON.stringify(elementType));
+        // console.log(`[AllNode] ${id} elementType:`, JSON.stringify(elementType));
 
-        // If the elementType itself is an array (meaning we have a collection of vectors),
-        // OR if the input is a single connection which is a vector.
 
         if (elementType.kind === 'array') {
-          // We have a collection of vectors (e.g. [vec4, vec4])
-          // or a collection of arrays.
-          // The output should be a vector of the same size.
+          // Collection of Arrays (e.g. [Array<Number>])
+          outputType = elementType;
+        } else if (elementType.kind === 'record') {
+          // Collection of Records (e.g. [{x,y,z,w}])
+          // Propagate the record type!
           outputType = elementType;
         }
       }
@@ -711,64 +719,182 @@ const defineAllNode = (
       };
     },
     execute: (inputs) => {
-      // console.log('AllNode Execute:', id, JSON.stringify(inputs));
       const values = inputs.values as any[];
       if (!values || values.length === 0) return { result: 0 };
 
-      // Check if first element is array
-      const firstIsArray = Array.isArray(values[0]);
+      // Check if first element is array or Record Vector
+      const first = values[0];
+      const firstIsArray = Array.isArray(first);
+      let firstIsRecordVec = false;
+      let vecKeys: string[] = [];
 
-      if (firstIsArray) {
-        // Vector mode
-        // Assume all are same length arrays for now (or taking min length)
-        const length = values[0].length;
+      if (!firstIsArray && typeof first === 'object' && first !== null) {
+        if (typeof first.x === 'number' && typeof first.y === 'number') {
+          firstIsRecordVec = true;
+          vecKeys = ['x', 'y'];
+          if (typeof first.z === 'number') vecKeys.push('z');
+          if (typeof first.w === 'number') vecKeys.push('w');
+        }
+      }
+
+      if (firstIsArray || firstIsRecordVec || typeof first === 'number') {
+        // Vector mode (Scalar is treated as 1D vector)
+        const length = firstIsArray ? first.length : (firstIsRecordVec ? vecKeys.length : 1);
         const result = new Array(length);
 
         for (let i = 0; i < length; i++) {
-          let val = values[0][i];
+          // Extract accumulator (first value)
+          let val = firstIsArray ? first[i] : (firstIsRecordVec ? first[vecKeys[i]] : first);
+
+
           for (let j = 1; j < values.length; j++) {
-            // Handle mixed scalar/vector by broadcasting scalar
-            const operand = Array.isArray(values[j]) ? values[j][i] : values[j];
+            const rawOperand = values[j];
+            let operand: number;
+
+            // Handle mixed types by broadcasting or extracting
+            if (Array.isArray(rawOperand)) {
+              operand = rawOperand[i] ?? 0; // Fallback? or NaN
+            } else if (typeof rawOperand === 'object' && rawOperand !== null && 'x' in rawOperand) {
+              // Assuming compatible record
+              // If rawOperand is shorter (e.g. vec2 vs vec4), what to do?
+              // Just try to access the key. If undefined, NaN or 0?
+              // JS generic access:
+              const key = vecKeys[i];
+              operand = (rawOperand as any)[key];
+              if (operand === undefined) operand = 0; // Safe fallback?
+            } else {
+              // Scalar broadcast
+              operand = rawOperand as number;
+            }
+
             val = op(val, operand);
           }
           result[i] = val;
         }
+
+        if (firstIsRecordVec) {
+          const resRecord: any = {};
+          vecKeys.forEach((k, i) => resRecord[k] = result[i]);
+          return { result: resRecord };
+        } else if (!firstIsArray) {
+          // Scalar input -> Scalar output
+          return { result: result[0] };
+        }
+
+        return { result: result };
+
         return { result };
       } else {
         // Scalar mode (or mixed starting with scalar)
-        // Just reduce normally, handling mixed if they appear later?
-        // If scalar + vector: 1 + [10, 20] -> [11, 21]?
-        // The current reduce might not handle returning an array if accumulator becomes one.
-        // Let's iterate explicitly to support broadcasting.
+        // ... (existing scalar logic) ...
+        // Note: Existing scalar logic supports [scalar, vector]. outputting vector.
+        // We might want to update it to support [scalar, record] too?
+        // Let's copy-paste existing logic but enhance it slightly for records?
+        // Actually, the existing logic (lines 744-771) specifically checks Array.isArray.
+        // It should be updated to handle Records too if we want full robustness.
+        // But the primary case "vector input" is handled by the block above.
+        // Let's patch the "Accumulator is scalar, B is vector" case.
 
         let accumulator: any = values[0];
 
         for (let i = 1; i < values.length; i++) {
           const b = values[i];
 
+          // Helper to check if item is vector-like (Array or Record)
+          const isVec = (v: any) => Array.isArray(v) || (typeof v === 'object' && v !== null && typeof v.x === 'number');
+
+          const accIsVec = isVec(accumulator);
+          const bIsVec = isVec(b);
+
+          if (accIsVec) {
+            // (Logic handled by recursion/normalization? No, we are in loop)
+            // If Accumulator BECAME a vector (from previous step), we need to iterate it.
+            // Converting to unified format (Array) might be easier.
+          }
+
+          // REWRITE: Simplified Universal Logic
+          // If ANY input is a vector, we should upgrade to vector mode?
+          // But strict left-associative reduction:
+          // 1 + [2,2] -> [3,3]
+          // [3,3] + 4 -> [7,7]
+          // The previous code handled this manually.
+
+          // Let's stick to modifying the EXISTING scalar block to just support Records in 'b'.
           if (Array.isArray(accumulator)) {
-            // Accumulator is vector
-            const len = accumulator.length;
-            const next = new Array(len);
-            for (let k = 0; k < len; k++) {
-              const operand = Array.isArray(b) ? b[k] : b;
-              next[k] = op(accumulator[k], operand);
-            }
-            accumulator = next;
-          } else if (Array.isArray(b)) {
-            // Accumulator is scalar, B is vector -> broadcast accumulator
-            const len = b.length;
-            const next = new Array(len);
-            for (let k = 0; k < len; k++) {
-              next[k] = op(accumulator, b[k]);
-            }
-            accumulator = next;
+            // ...
+            // Update this block?
+          }
+          // Honestly, if the FIRST element was scalar, we fall here.
+          // If we encounter a Record later, we should broadcast the scalar accumulator to it.
+        }
+
+        // To minimize risk, I will just REPLACE the execution body with a unified version
+        // that converts everything to "Generic Vector Accessor" view?
+
+        // Re-implementing strictly:
+
+        let acc = values[0];
+
+        for (let i = 1; i < values.length; i++) {
+          const b = values[i];
+
+          const isAccVec = Array.isArray(acc) || (typeof acc === 'object' && acc !== null && typeof acc.x === 'number');
+          const isBVec = Array.isArray(b) || (typeof b === 'object' && b !== null && typeof b.x === 'number');
+
+          if (!isAccVec && !isBVec) {
+            acc = op(acc, b);
           } else {
-            // Both scalar
-            accumulator = op(accumulator, b);
+            // Vector operation
+            // Normalize both to Arrays for operation
+            const getComp = (v: any, idx: number, keys: string[]) => {
+              if (typeof v === 'number') return v;
+              if (Array.isArray(v)) return v[idx];
+              if (keys.length > 0) return v[keys[idx]];
+              return 0;
+            };
+
+            const getKeys = (v: any) => {
+              if (typeof v === 'object' && v !== null && !Array.isArray(v) && typeof v.x === 'number') {
+                const ks = ['x', 'y'];
+                if (typeof v.z === 'number') ks.push('z');
+                if (typeof v.w === 'number') ks.push('w');
+                return ks;
+              }
+              return [];
+            };
+
+            const getLen = (v: any, keys: string[]) => {
+              if (Array.isArray(v)) return v.length;
+              if (keys.length > 0) return keys.length;
+              return 1;
+            };
+
+            const accKeys = getKeys(acc);
+            const bKeys = getKeys(b);
+            const keys = accKeys.length > bKeys.length ? accKeys : bKeys; // Take larger record def
+
+            const len = Math.max(getLen(acc, accKeys), getLen(b, bKeys));
+            const next = new Array(len);
+
+            for (let k = 0; k < len; k++) {
+              const vA = getComp(acc, k, keys); // keys might be empty if Array
+              const vB = getComp(b, k, keys);
+              next[k] = op(vA, vB);
+            }
+
+            // If we started with a Record accumulator, try to maintain Record?
+            // Or if B was Record and Acc was scalar?
+            // Should return Record if 'keys' is valid?
+            if (keys.length > 0) {
+              const rec: any = {};
+              keys.forEach((key, idx) => rec[key] = next[idx]);
+              acc = rec;
+            } else {
+              acc = next;
+            }
           }
         }
-        return { result: accumulator };
+        return { result: acc };
       }
     }
   });
