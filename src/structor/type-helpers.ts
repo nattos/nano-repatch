@@ -116,7 +116,6 @@ function fromStructor(value: Structor, type: StructorType): any {
 }
 
 function toStructor(value: any, type: StructorType): Structor {
-  // console.error('toStructor', value, type.kind);
   if (value === undefined || value === null) return value; // Or throw?
 
   if (type.kind === 'atomic') return value;

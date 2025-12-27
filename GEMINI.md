@@ -3,6 +3,27 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Pack Node & Type Safety (As of 2025-12-27)
+
+This entry documents fixes for the `core.pack` node's output structure and a codebase-wide type audit.
+
+### Fixes Configured
+
+1.  **`core.pack` Vector Support:**
+    *   **Issue:** `core.pack` incorrectly output a Record (`{x,y,z,w}`) even when configured as a vector (`float4`).
+    *   **Fix:** Updated `core.pack` to strictly return an Array (`[x,y,z,w]`) when `targetType` is set to `float2`, `float3`, or `float4`.
+    *   **Fallback:** Maintained generic Record support for arbitrary inputs, returning a `StructorRecord` (`{ fields: ... }`).
+
+2.  **Vector Math Regression:**
+    *   **Issue:** `math.all.add` failed to process multiple vector inputs correctly due to incorrect `flatten` logic in the broadcast system.
+    *   **Fix:** Updated `src/structor/broadcast.ts` to correctly flatten arrays of arrays.
+
+### Type Audit
+
+*   Performed a search for `any` usage.
+*   Identified risky areas in `src/customnodes/expr/parser.ts` (AST parsing) and `src/customnodes/seq`.
+*   Saved full audit report to `docs/maintenance/type-audit-2025-12-27.md`.
+
 ## Runtime Hardening (As of 2025-12-26)
 
 This entry documents fixes for intermittent runtime errors reported during user testing.

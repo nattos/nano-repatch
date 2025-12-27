@@ -344,21 +344,26 @@ export const primitive_pack = definePrimitiveNode({
   execute: (inputs, config) => {
     // pack receives raw inputs because it has dynamic ports and no autoBroadcast
     // inputs is { fields: { x: val, y: val ... } }
-    const fields = inputs?.fields || {};
+    const fields = (inputs as any)?.fields || {};
     let type = (config?.targetType) || 'infer';
 
     if (type === 'infer') {
       if (fields.w !== undefined) type = 'float4';
       else if (fields.z !== undefined) type = 'float3';
-      else type = 'float2';
+      else if (fields.y !== undefined && fields.x !== undefined) type = 'float2';
+      else type = 'record';
     }
 
     if (type === 'float4') {
       return { result: [fields.x ?? 0, fields.y ?? 0, fields.z ?? 0, fields.w ?? 0] };
     } else if (type === 'float3') {
       return { result: [fields.x ?? 0, fields.y ?? 0, fields.z ?? 0] };
-    } else {
+    } else if (type === 'float2') {
       return { result: [fields.x ?? 0, fields.y ?? 0] };
+    } else {
+      // Generic Record Packing
+      // Must return a StructorRecord structure (without kind, per test expectation)
+      return { result: { fields: fields } };
     }
   }
 });
@@ -715,9 +720,6 @@ const defineAllNode = (
       if (valuesInput && valuesInput.kind === 'array') {
         // The element of the 'values' array represents the types of the connected cables.
         const elementType = valuesInput.element;
-        // console.log(`[AllNode] ${id} elementType:`, JSON.stringify(elementType));
-        // console.log(`[AllNode] ${id} elementType:`, JSON.stringify(elementType));
-
 
         if (elementType.kind === 'array') {
           // Collection of Arrays (e.g. [Array<Number>])
