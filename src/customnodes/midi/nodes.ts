@@ -1,6 +1,7 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { NodeCategory } from "../../structor/structor";
 import { midiStreamType, numberType } from "../../structor/std-types";
+import { StringType, NumberType, AnyType } from "../../structor/type-helpers";
 import { MidiEvent } from "../../io/midi/types";
 
 // Helper to parse MIDI status
@@ -41,7 +42,9 @@ const MidiToMonoFields: InspectorFieldDef[] = [
   }
 ];
 
-export const midiInputNode = defineNode({
+// --- Node Definitions ---
+
+export const midiInputNode = defineNode<any, { deviceId?: string }, { deviceId: { kind: 'atomic', type: 'string', optional?: boolean, defaultValue?: string } }>({
   id: "midi.input",
   version: "1.0.0",
   displayName: "MIDI Input",
@@ -60,25 +63,23 @@ export const midiInputNode = defineNode({
   ui: { inspector: { fields: MidiInputFields } },
   isRealtime: () => true,
   execute: (inputs, config, context) => {
-    // Access MIDI state from context
-    // Access MIDI events from context
     const midiEvents = context.midi?.events as MidiEvent[] | undefined;
+    const deviceId = config.deviceId;
 
-    if (midiEvents && config.deviceId) {
+    if (midiEvents && deviceId) {
       // Filter by device ID
-      const filtered = midiEvents.filter(e => e.deviceId === config.deviceId);
+      const filtered = midiEvents.filter(e => e.deviceId === deviceId);
       return { stream: filtered };
     }
 
     return { stream: midiEvents || [] };
   },
   compileConfig: (uiConfig) => ({
-    fields: { deviceId: uiConfig.deviceId },
-    untagged: []
+    deviceId: uiConfig.deviceId
   }),
 });
 
-export const midiCcInputNode = defineNode({
+export const midiCcInputNode = defineNode<any, { channel?: number, cc?: number, deviceId?: string }, { channel: typeof NumberType, cc: typeof NumberType, deviceId: { kind: 'atomic', type: 'string', optional?: boolean } }>({
   id: "midi.cc.input",
   version: "1.0.0",
   displayName: "MIDI CC Input",
@@ -99,9 +100,9 @@ export const midiCcInputNode = defineNode({
   ui: { inspector: { fields: MidiCcInputFields } },
   isRealtime: () => true,
   execute: (inputs, config, context) => {
-    const channel = (config.channel as number) || 1;
-    const cc = (config.cc as number) || 0;
-    const deviceId = config.deviceId as string;
+    const channel = config.channel || 1;
+    const cc = config.cc || 0;
+    const deviceId = config.deviceId;
 
     const key = `${channel}:${cc}`;
     const value = context.midi?.values.get(key) ?? 0;
@@ -109,13 +110,14 @@ export const midiCcInputNode = defineNode({
     return { value };
   },
   compileConfig: (uiConfig) => ({
-    fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId },
-    untagged: []
+    channel: uiConfig.channel ?? 1,
+    cc: uiConfig.cc ?? 0,
+    deviceId: uiConfig.deviceId
   }),
 });
 
 
-export const midiCcNode = defineNode({
+export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { channel: typeof NumberType, cc: typeof NumberType }, any, { value: number }>({
   id: "midi.cc",
   version: "1.0.0",
   displayName: "MIDI CC",
@@ -140,8 +142,8 @@ export const midiCcNode = defineNode({
   ui: { inspector: { fields: MidiCcFields } },
   createState: () => ({ value: 0 }),
   execute: (inputs, config, context, state) => {
-    const channel = (config.channel as number) || 1;
-    const targetCc = (config.cc as number) || 0;
+    const channel = config.channel || 1;
+    const targetCc = config.cc || 0;
 
     const stream = inputs.stream as unknown as MidiEvent[];
 
@@ -156,12 +158,12 @@ export const midiCcNode = defineNode({
     return { value: state.value };
   },
   compileConfig: (uiConfig) => ({
-    fields: { channel: uiConfig.channel ?? 1, cc: uiConfig.cc ?? 0, deviceId: uiConfig.deviceId },
-    untagged: []
+    channel: uiConfig.channel ?? 1,
+    cc: uiConfig.cc ?? 0
   }),
 });
 
-export const midiNoteNode = defineNode({
+export const midiNoteNode = defineNode<any, { channel?: number, note?: number }, { channel: typeof NumberType, note: typeof NumberType }, any, { velocity: number, gate: number }>({
   id: "midi.note",
   version: "1.0.0",
   displayName: "MIDI Note",
@@ -178,7 +180,7 @@ export const midiNoteNode = defineNode({
   },
   config: {
     channel: numberType,
-    note: numberType, // Optional: if 0 or undefined, maybe listen to all? For now, let's stick to specific note.
+    note: numberType,
   },
   outputs: {
     note: { kind: 'atomic', type: 'number', optional: true },
@@ -188,8 +190,8 @@ export const midiNoteNode = defineNode({
   ui: { inspector: { fields: MidiNoteFields } },
   createState: () => ({ velocity: 0, gate: 0 }),
   execute: (inputs, config, context, state) => {
-    const channel = (config.channel as number) || 1;
-    const targetNote = (config.note as number) || 60;
+    const channel = config.channel || 1;
+    const targetNote = config.note || 60;
 
     const stream = inputs.stream as unknown as MidiEvent[];
 
@@ -213,12 +215,12 @@ export const midiNoteNode = defineNode({
     };
   },
   compileConfig: (uiConfig) => ({
-    fields: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60, deviceId: uiConfig.deviceId },
-    untagged: []
+    channel: uiConfig.channel ?? 1,
+    note: uiConfig.note ?? 60
   }),
 });
 
-export const midiToMonoNode = defineNode({
+export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: number, priority?: string }, { channel: typeof NumberType, rootNote: typeof NumberType, priority: { kind: 'atomic', type: 'string', optional?: boolean } }, any, { activeNotes: { note: number, velocity: number }[], gate: number }>({
   id: "midi.to_mono",
   version: "1.0.0",
   displayName: "MIDI to Mono",
@@ -235,8 +237,8 @@ export const midiToMonoNode = defineNode({
   },
   config: {
     channel: numberType,
-    rootNote: numberType, // Anchor note (default 60 for Middle C)
-    priority: { kind: 'atomic', type: 'string', optional: true } // 'last', 'low', 'high'
+    rootNote: numberType,
+    priority: { kind: 'atomic', type: 'string', optional: true }
   },
   outputs: {
     note: { kind: 'atomic', type: 'number', optional: true },
@@ -246,12 +248,12 @@ export const midiToMonoNode = defineNode({
   },
   ui: { inspector: { fields: MidiToMonoFields } },
   createState: () => ({
-    activeNotes: [] as { note: number, velocity: number }[], // Stack for last-note priority
+    activeNotes: [],
     gate: 0
   }),
   execute: (inputs, config, context, state) => {
-    const channel = (config.channel as number) || 1;
-    const rootNote = (config.rootNote as number) ?? 60;
+    const channel = config.channel || 1;
+    const rootNote = config.rootNote ?? 60;
     const stream = inputs.stream as unknown as MidiEvent[];
 
     if (stream && Array.isArray(stream)) {
@@ -293,18 +295,14 @@ export const midiToMonoNode = defineNode({
     }
   },
   compileConfig: (uiConfig) => ({
-    fields: { channel: uiConfig.channel ?? 1, rootNote: uiConfig.rootNote ?? 60, priority: uiConfig.priority ?? 'last' },
-    untagged: []
+    channel: uiConfig.channel ?? 1,
+    rootNote: uiConfig.rootNote ?? 60,
+    priority: uiConfig.priority ?? 'last'
   }),
 });
 
-registerNode(midiInputNode);
-registerNode(midiCcInputNode);
-registerNode(midiCcNode);
-registerNode(midiNoteNode);
-registerNode(midiToMonoNode);
-
-export const midiFilterNode = defineNode({
+// midi.filter: uses inputs, config is empty
+export const midiFilterNode = defineNode<any, { channel?: number, note?: number }, {}>({
   id: "midi.filter",
   version: "1.0.0",
   displayName: "MIDI Filter",
@@ -318,15 +316,15 @@ export const midiFilterNode = defineNode({
     channel: { type: numberType, description: 'MIDI Channel (1-16)', defaultValue: 1 },
     note: { type: numberType, description: 'Note Number (0-127)', defaultValue: 60 }
   },
-  config: {}, // Removed config params
+  config: {},
   outputs: {
     stream: midiStreamType
   },
   autoBroadcast: {
     stream: { combine: { reduce: 'flatten' } }
   },
-  ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields (Channel, Note)
-  execute: (inputs, config, context) => {
+  ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields
+  execute: (inputs: any, config: any) => {
     const channel = (inputs.channel as number) ?? 1;
     const targetNote = (inputs.note as number) ?? 60;
     const stream = inputs.stream as unknown as MidiEvent[];
@@ -340,8 +338,6 @@ export const midiFilterNode = defineNode({
             if (event.note === targetNote) {
               filteredStream.push(event);
             }
-          } else {
-            // Block non-note events for strict filtering consistency
           }
         }
       }
@@ -350,14 +346,14 @@ export const midiFilterNode = defineNode({
     return { stream: filteredStream };
   },
   compileConfig: (uiConfig) => ({
-    fields: {},
-    values: { channel: uiConfig.channel ?? 1, note: uiConfig.note ?? 60 },
-    untagged: []
+    // Return values for Virtual Inputs
+    channel: uiConfig.channel ?? 1,
+    note: uiConfig.note ?? 60
   }),
 });
 
-
-export const midiPitchNode = defineNode({
+// midi.pitch: uses inputs, config is empty
+export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
   id: "midi.pitch",
   version: "1.0.0",
   displayName: "MIDI Pitch",
@@ -377,8 +373,8 @@ export const midiPitchNode = defineNode({
   autoBroadcast: {
     stream: { combine: { reduce: 'flatten' } }
   },
-  execute: (inputs, config, context) => {
-    // Only use inputs.pitch. If unconnected, GraphExecutor injects defaultValue OR virtual input from config.values
+  execute: (inputs: any, config) => {
+    // Inputs drove by generic Logic
     const shift = (inputs.pitch ?? 0) as number;
     const stream = inputs.stream as unknown as MidiEvent[];
 
@@ -395,17 +391,14 @@ export const midiPitchNode = defineNode({
     return { stream: processedStream };
   },
   compileConfig: (uiConfig) => ({
-    fields: {},
-    values: { pitch: uiConfig.pitch ?? 0 }, // Virtual Input
-    untagged: []
+    pitch: uiConfig.pitch ?? 0
   }),
 });
 
-registerNode(midiPitchNode);
 
 // --- Generic Trigger/MIDI Nodes ---
 
-export const midiTriggerNode = defineNode({
+export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] } }, any, { lastTrigger: number }>({
   id: "midi.trigger",
   version: "1.0.0",
   displayName: "MIDI Trigger",
@@ -414,7 +407,9 @@ export const midiTriggerNode = defineNode({
     keywords: ['midi', 'trigger', 'bang', 'button'],
     description: 'Manually sends a Middle C Note On/Off pair when triggered.'
   },
-  inputs: {},
+  inputs: {
+    trigger: { type: numberType, description: 'Trigger Signal', suppressInputEditor: true }
+  },
   config: {
     pitch: { ...numberType, defaultValue: 60 },
     velocity: { ...numberType, defaultValue: 1.0, range: [0, 1] }
@@ -423,35 +418,29 @@ export const midiTriggerNode = defineNode({
     stream: midiStreamType
   },
   isRealtime: () => true,
-  createState: () => ({ lastTrigger: -1 }),
-  execute: (inputs: { fields?: { trigger?: number; } }, config, context, state) => {
-    // Check for trigger signal (virtual input 'trigger')
-    const triggerValue = inputs.fields?.trigger ?? 0;
+  createState: () => ({ lastTrigger: 0 }),
+  execute: (inputs, config, context, state) => {
+    const pitch = config.pitch || 60;
+    const velocity = config.velocity || 1.0;
+    const trigger = inputs.trigger || 0;
 
-    // Config values
-    const pitch = (config.pitch as number) ?? 60;
-    const velocity = (config.velocity as number) ?? 1.0;
+    const stream: MidiEvent[] = [];
 
-    // Check for change (edge detection or just change)
-    // Check for change (edge detection or just change)
-    if (state.lastTrigger !== -1 && triggerValue !== state.lastTrigger) {
-      state.lastTrigger = triggerValue;
-      return {
-        stream: [
-          { type: 'note_on', note: pitch, velocity: velocity, channel: 1, time: 0, deviceId: 'trigger' },
-          { type: 'note_off', note: pitch, velocity: 0, channel: 1, time: 0.1, deviceId: 'trigger' }
-        ]
-      };
+    if (trigger > 0.5 && state.lastTrigger <= 0.5) {
+      // Rising edge -> Note On
+      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: Math.floor(velocity * 127), deviceId: 'virtual' } as MidiEvent);
+    } else if (trigger <= 0.5 && state.lastTrigger > 0.5) {
+      // Falling edge -> Note Off
+      stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
     }
 
-    // Initialize state
-    state.lastTrigger = triggerValue;
-    return { stream: [] };
+    state.lastTrigger = trigger;
+
+    return { stream };
   },
   compileConfig: (uiConfig) => ({
-    fields: { pitch: uiConfig.pitch ?? 60, velocity: uiConfig.velocity ?? 1.0 },
-    values: uiConfig.values || {},
-    untagged: []
+    pitch: uiConfig.pitch ?? 60,
+    velocity: uiConfig.velocity ?? 1.0
   }),
   ui: {
     inspector: {
@@ -462,8 +451,6 @@ export const midiTriggerNode = defineNode({
     }
   }
 });
-
-
 
 export const midiMergeNode = defineNode({
   id: "midi.merge",
@@ -483,14 +470,14 @@ export const midiMergeNode = defineNode({
   autoBroadcast: {
     stream: { combine: { reduce: 'flatten' } }
   },
+  config: {},
   execute: (inputs, config, context) => {
-    // Inputs are automaticallly reduced by broadcast using 'flatten'
-    // internal implementation details handled by broadcast logic
     return { stream: inputs.stream as unknown as MidiEvent[] };
-  }
+  },
+  compileConfig: () => ({})
 });
 
-export const midiSelectNode = defineNode({
+export const midiSelectNode = defineNode<any, { count?: number, root?: number, skip?: number }, { count: typeof NumberType, root: typeof NumberType, skip: typeof NumberType }>({
   id: "midi.select",
   version: "1.0.0",
   displayName: "MIDI Select",
@@ -508,21 +495,17 @@ export const midiSelectNode = defineNode({
   config: {
     count: { ...numberType, defaultValue: 4 },
     root: { ...numberType, defaultValue: 60 },
-    skip: { ...numberType, defaultValue: 1 } // Semitones check
+    skip: { ...numberType, defaultValue: 1 }
   },
   outputs: {},
   dynamicOutputType: midiStreamType,
-  // Logic to determine outputs dynamically
   computeForwardPorts: (inputTypes, uiConfig, context) => {
-    const conf = (uiConfig as any).fields ? (uiConfig as any).fields : uiConfig;
-    const count = (conf.count as number) || 4;
+    const count = (uiConfig.count as number) || 4;
     const outputs: any = {};
 
-    // Numbered ports 0..count-1
     for (let i = 0; i < count; i++) {
       outputs[i.toString()] = { ...midiStreamType, hint: 'midi-stream', description: `Offset ${i}` };
     }
-    // Remainder port
     outputs['rem'] = { ...midiStreamType, hint: 'midi-stream', description: 'Remainder' };
 
     return {
@@ -531,16 +514,14 @@ export const midiSelectNode = defineNode({
     };
   },
   shouldRecompileOnConfigChange: (uiConfig) => {
-    // Recompile if count changes as it changes topology
     return true;
   },
   execute: (inputs, config, context) => {
     const stream = inputs.stream as unknown as MidiEvent[];
-    const count = (config.count as number) || 4;
-    const root = (config.root as number) ?? 60;
-    const skip = (config.skip as number) || 1;
+    const count = config.count || 4;
+    const root = config.root || 60;
+    const skip = config.skip || 1;
 
-    // Initialize output buckets
     const results: Record<string, MidiEvent[]> = {};
     for (let i = 0; i < count; i++) {
       results[i.toString()] = [];
@@ -551,12 +532,6 @@ export const midiSelectNode = defineNode({
       for (const event of stream) {
         if (event.type === 'note_on' || event.type === 'note_off') {
           const diff = event.note - root;
-          // Check if it aligns with skip grid
-          // e.g. if skip=12 (octaves), diff must be multiple of 12
-          // (diff % skip) should be 0.
-          // Note: modulo of negative numbers in JS is negative.
-          // But we only care if remainder is 0.
-
           if (diff >= 0 && (diff % skip) === 0) {
             const index = diff / skip;
             if (index >= 0 && index < count) {
@@ -564,26 +539,19 @@ export const midiSelectNode = defineNode({
               continue;
             }
           }
-          // Fallback to rem
           results['rem'].push(event);
-
         } else {
-          // Non-note events (CC etc) -> Just drop them?
-          // Or pass to 'rem'?
-          // Plan said "cc events are ignored".
+          // Ignore non-note events
         }
       }
     }
 
-    return { ...results }; // Spread to match { 0: [], 1: [], rem: [] }
+    return { ...results };
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      count: uiConfig.count ?? 4,
-      root: uiConfig.root ?? 60,
-      skip: uiConfig.skip ?? 1
-    },
-    untagged: []
+    count: uiConfig.count ?? 4,
+    root: uiConfig.root ?? 60,
+    skip: uiConfig.skip ?? 1
   }),
   ui: {
     inspector: {
@@ -596,6 +564,13 @@ export const midiSelectNode = defineNode({
   }
 });
 
+registerNode(midiInputNode);
+registerNode(midiCcInputNode);
+registerNode(midiCcNode);
+registerNode(midiNoteNode);
+registerNode(midiToMonoNode);
+registerNode(midiFilterNode);
+registerNode(midiPitchNode);
 registerNode(midiTriggerNode);
 registerNode(midiMergeNode);
 registerNode(midiSelectNode);

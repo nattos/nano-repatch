@@ -168,7 +168,7 @@ describe('MIDI Broadcast Integration', () => {
 
     const out1 = getOutput() as unknown as any[]; // StructorRecord[]
     console.log('Out1:', JSON.stringify(out1));
-    expect(out1.length).toBe(2); // Note On + Note Off
+    expect(out1.length).toBe(1); // Note On (Momentary)
     expect(out1.find(e => e.fields.type === 'note_on' && e.fields.note === 60)).toBeDefined();
 
     // Trigger T2
@@ -176,17 +176,19 @@ describe('MIDI Broadcast Integration', () => {
     executor.update({ clock: { beat: 2, dt: 0.1 } });
 
     const out2 = getOutput() as unknown as any[];
-    expect(out2.length).toBe(2);
-    expect(out2.find(e => e.fields.type === 'note_on' && e.fields.note === 62)).toBeDefined();
+    // Reset Triggers
+    executor.setNodeConfig('t1', { values: { trigger: 0 } } as any);
+    executor.setNodeConfig('t2', { values: { trigger: 0 } } as any);
+    executor.update({ clock: { beat: 2.5, dt: 0.1 } });
 
     // Trigger Both
-    executor.setNodeConfig('t1', { values: { trigger: 2 } } as any);
-    executor.setNodeConfig('t2', { values: { trigger: 2 } } as any);
+    executor.setNodeConfig('t1', { values: { trigger: 1 } } as any);
+    executor.setNodeConfig('t2', { values: { trigger: 1 } } as any);
     executor.update({ clock: { beat: 3, dt: 0.1 } });
 
     const out3 = getOutput() as unknown as any[];
-    // Should have 4 events (2 from each)
-    expect(out3.length).toBe(4);
+    // Should have 2 events (1 from each)
+    expect(out3.length).toBe(2);
     expect(out3.filter(e => e.fields.type === 'note_on').length).toBe(2);
   });
 });

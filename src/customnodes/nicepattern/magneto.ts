@@ -1,5 +1,6 @@
 import { defineNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
+import { NumberType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
 
 // --- Physics Constants & Types ---
@@ -134,7 +135,7 @@ export const MagnetoFields: InspectorFieldDef[] = [
     { type: 'number', label: 'Seed', path: 'seed', step: 1, min: 0, max: 999999 }
 ];
 
-export const magneto = defineNode({
+export const magneto = defineNode<any, { seed?: number }, { seed: typeof NumberType }, any, MagnetoState>({
     id: "nicepattern.magneto",
     version: "1.0.0",
     displayName: "Magneto",
@@ -222,8 +223,7 @@ export const magneto = defineNode({
         const release = Math.max(0.005, inputs.release ?? 0.3);
         const peak = inputs.peak ?? 0.9;
         // Get Seed from Config, default to 1337 if undefined
-        const seedRaw = config.seed;
-        const seed = (typeof seedRaw === 'number') ? seedRaw : 1337;
+        const seed = config.seed ?? 1337;
 
         const magStr = inputs.mag_flux ?? 2000000;
         const kp = inputs.spring_k ?? 25000;

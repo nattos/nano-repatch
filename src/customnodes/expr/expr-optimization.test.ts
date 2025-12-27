@@ -11,10 +11,10 @@ describe('Expression Node Optimization', () => {
     const uiConfig = { code };
     const compiled = expressionNode.compileConfig!(uiConfig);
 
-    expect(compiled.fields.code).toBe(code);
-    expect(compiled.fields.graph).toBeDefined();
+    expect(compiled.code).toBe(code);
+    expect(compiled.graph).toBeDefined();
 
-    const graph = (compiled.fields.graph as any) as ExecutionGraph;
+    const graph = (compiled.graph as any) as ExecutionGraph;
     expect(graph.rootId).toBeDefined();
 
     // Check if graph has inputs
@@ -46,8 +46,8 @@ describe('Expression Node Optimization', () => {
 
   it('compilePorts should fallback to parsing if compiledConfig missing', () => {
     const context = {
-        loadedSubgraphs: new Map(),
-        compiledConfig: undefined
+      loadedSubgraphs: new Map(),
+      compiledConfig: undefined
     };
     const node = { config: { code: 'b + 1' } };
 
@@ -71,10 +71,10 @@ describe('Expression Node Optimization', () => {
 
     // Wrapped result
     if ('fields' in result) {
-        expect(result.fields.result).toBe(15);
+      expect(result.fields.result).toBe(15);
     } else {
-        // Fallback or error
-        expect(result.result).toBe(15);
+      // Fallback or error
+      expect(result.result).toBe(15);
     }
   });
 
@@ -88,12 +88,12 @@ describe('Expression Node Optimization', () => {
     // execute returns StructorRecord { fields: { ... },  }
     // We expect { result: 0 } to be wrapped in fields.
     if (result && 'fields' in result) {
-        expect(result.fields.result).toBe(0);
+      expect(result.fields.result).toBe(0);
     } else {
-        // Did we get a plain object?
-        // If defineNode wasn't used properly or something? But it is used.
-        // Or if it returns something else.
-        throw new Error(`Expected StructorRecord, got ${JSON.stringify(result)}`);
+      // Did we get a plain object?
+      // If defineNode wasn't used properly or something? But it is used.
+      // Or if it returns something else.
+      throw new Error(`Expected StructorRecord, got ${JSON.stringify(result)}`);
     }
   });
 });

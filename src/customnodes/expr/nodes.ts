@@ -1,5 +1,5 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
-import { AnyType, NumberType } from "../../structor/type-helpers";
+import { AnyType, NumberType, StringType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
 import { NodeCategory } from "../../structor/structor";
 import { PortHint } from "../../structor/repository";
@@ -30,7 +30,7 @@ const ExpressionFields: InspectorFieldDef[] = [
   { type: 'string', label: 'Expression', path: 'code', placeholder: 'e.g. sin(time) * 0.5' }
 ];
 
-export const expressionNode = defineNode({
+export const expressionNode = defineNode<any, { code?: string }, { code: typeof StringType, graph: typeof AnyType }>({
   id: "logic.expression",
   version: "1.0.0",
   displayName: "Expression",
@@ -41,7 +41,7 @@ export const expressionNode = defineNode({
   },
   inputs: {}, // Inputs are dynamic
   config: {
-    code: { kind: 'atomic', type: 'string' },
+    code: StringType,
     graph: AnyType // Preserved for execution
   },
   outputs: {
@@ -54,12 +54,9 @@ export const expressionNode = defineNode({
     // Compile code to graph
     const graph = getCompiledGraph(code);
     return {
-      fields: {
-        code: code,
-        // Embed the graph in the config so the executor has it without recompiling
-        graph: graph as any
-      },
-      untagged: []
+      code: code,
+      // Embed the graph in the config so the executor has it without recompiling
+      graph: graph as any
     };
   },
   compilePorts: (node, context) => {
@@ -85,12 +82,10 @@ export const expressionNode = defineNode({
       outputs: [{ name: 'result', type: AnyType, description: 'Result' }]
     };
   },
-  execute: (inputs, config, context) => {
+  execute: (inputs, config: { code: string, graph: ExecutionGraph }, context) => {
     // The executor worker receives the Compiled config.
-    // So config.fields.graph should be present.
-    // We cast config to any because TypeScript thinks it's the raw config type, but compileConfig transformed it.
-    // AND definePrimitiveNode UNWRAPS the config before calling us. So we get the plain object.
-    const graph = (config as { graph: ExecutionGraph | undefined }).graph;
+    // So config.graph should be present.
+    const graph = config.graph;
 
     if (!graph || !graph.rootId) {
       // Fallback or empty

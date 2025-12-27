@@ -1,4 +1,5 @@
-import { defineType } from "../../structor/type-helpers";
+
+import { defineType, StringType, NumberType, AnyType } from "../../structor/type-helpers";
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import {
   numberType,
@@ -67,7 +68,7 @@ const ChaosFields: InspectorFieldDef[] = [
 
 // RhythmicGenerator
 // RhythmicGenerator
-export const rhythmicGenerator = defineNode({
+export const rhythmicGenerator = defineNode<any, { targetNote?: number }, { targetNote: typeof NumberType }>({
   id: "nicepattern.rhythmic_generator",
   version: "1.0.0",
   displayName: "Rhythmic Generator",
@@ -81,7 +82,7 @@ export const rhythmicGenerator = defineNode({
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: RhythmicFields } },
   execute: (inputs, config, context) => {
-    const targetNote = config.targetNote;
+    const targetNote = config.targetNote || 60;
     const density = inputs.density ?? 0.5;
 
     const sequence: Step[] = [];
@@ -96,14 +97,13 @@ export const rhythmicGenerator = defineNode({
     return { seq_out: sequence };
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      targetNote: uiConfig?.targetNote ?? 60
-    }
+    targetNote: uiConfig.targetNote ?? 60
   }),
 });
 
 // ChaosGenerator
-export const chaosGenerator = defineNode({
+// ChaosGenerator
+export const chaosGenerator = defineNode<any, { minNote?: number, maxNote?: number, seed?: number }, { minNote: typeof NumberType, maxNote: typeof NumberType, seed: typeof NumberType }>({
   id: "nicepattern.chaos_generator",
   version: "1.0.0",
   displayName: "Chaos Generator",
@@ -124,7 +124,7 @@ export const chaosGenerator = defineNode({
     const sequence: Step[] = [];
     for (let i = 0; i < SEQUENCE_LENGTH; i++) {
       if (rng.next() < density) {
-        const note = rng.nextRange(minNote, maxNote);
+        const note = rng.nextRange(minNote || 60, maxNote || 60);
         sequence.push({ noteIndex: note, velocity: rng.next() * 0.5 + 0.5, hold: false });
       } else {
         sequence.push({ noteIndex: null, velocity: 0, hold: false });
@@ -133,11 +133,9 @@ export const chaosGenerator = defineNode({
     return { seq_out: sequence };
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      minNote: uiConfig?.minNote ?? 60,
-      maxNote: uiConfig?.maxNote ?? 60,
-      seed: uiConfig?.seed ?? 12345,
-    }
+    minNote: uiConfig.minNote ?? 60,
+    maxNote: uiConfig.maxNote ?? 60,
+    seed: uiConfig.seed ?? 12345,
   }),
 });
 
@@ -151,12 +149,19 @@ export const chaosGenerator = defineNode({
 
 // --- Layer Nodes ---
 
+interface LayerState {
+  layer: AbstractLayer;
+  lastActive: boolean;
+  activeVelocity: number;
+  activeNote: number | null;
+}
+
 export function createLayerNode(
   id: string,
   displayName: string,
   LayerClass: new (config: LayerConfig) => AbstractLayer
 ) {
-  return defineNode({
+  return defineNode<any, {}, {}, any, LayerState>({
     id,
     version: "1.0.0",
     displayName,
@@ -222,9 +227,7 @@ export function createLayerNode(
 
       return { out: result };
     },
-    compileConfig: (uiConfig) => ({
-      fields: {},
-    }),
+    compileConfig: (uiConfig) => ({}),
   });
 }
 
@@ -234,7 +237,17 @@ export const pwmLayer = createLayerNode("nicepattern.pwm_layer", "PWM Layer", PW
 export const noiseLayer = createLayerNode("nicepattern.noise_layer", "Noise Layer", NoiseLayer);
 
 // ToneSynthLayer is special as it takes audio context
-export const toneSynthLayer = defineNode({
+// ToneSynthLayer is special as it takes audio context
+
+interface ToneSynthState {
+  layer: ToneSynthLayer;
+  lastActive: boolean;
+  lastActiveNote: number | null;
+  activeVelocity: number;
+  contextId: string;
+}
+
+export const toneSynthLayer = defineNode<any, {}, {}, any, ToneSynthState>({
   id: "nicepattern.tone_synth_layer",
   version: "1.0.0",
   displayName: "Tone Synth Layer",
@@ -319,9 +332,7 @@ export const toneSynthLayer = defineNode({
 
     return { out: result };
   },
-  compileConfig: (uiConfig) => ({
-    fields: {},
-  }),
+  compileConfig: (uiConfig) => ({}),
 });
 
 // Register Nodes

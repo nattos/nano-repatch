@@ -1,7 +1,12 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, midiStreamType, stringType } from "../../structor/std-types";
+import { StringType, AnyType } from "../../structor/type-helpers";
 
-export const sawtooth = defineNode({
+interface SawtoothState {
+  phase: number;
+}
+
+export const sawtooth = defineNode<any, {}, {}, any, SawtoothState>({
   id: "gen.sawtooth",
   version: "1.0.0",
   displayName: "Sawtooth",
@@ -50,7 +55,23 @@ const ADSR_PHASE = {
   RELEASE: 4
 };
 
-export const adsr = defineNode({
+interface AdsrUIConfig {
+  mode?: string;
+  values?: { mode?: string };
+}
+
+type AdsrCompiledConfig = {
+  mode: typeof StringType;
+};
+
+interface AdsrState {
+  phase: number;
+  value: number;
+  time: number;
+  activeNotes: number;
+}
+
+export const adsr = defineNode<any, AdsrUIConfig, AdsrCompiledConfig, any, AdsrState>({
   id: "gen.adsr",
   version: "1.0.0",
   displayName: "ADSR",
@@ -89,9 +110,12 @@ export const adsr = defineNode({
       ]
     }
   },
+  compileConfig: (uiConfig) => ({
+    mode: uiConfig.mode || uiConfig.values?.mode || 'D'
+  }),
   computeForwardPorts: (inputTypes, uiConfig) => {
-    const configRecord = uiConfig as any;
-    const mode = configRecord?.mode ?? configRecord?.values?.mode ?? 'D';
+    // uiConfig is now the result of compileConfig (flat data)
+    const mode = uiConfig.mode || 'D';
 
     const fields: any = {
       stream: (inputTypes as any).fields.stream
@@ -134,8 +158,8 @@ export const adsr = defineNode({
   }),
   execute: (inputs, config, context, state) => {
     const dt = context.clock.dt;
-    // config is the unwrapped JS object now because we defined it in `config:` option.
-    const mode = (config as any).mode || 'D';
+    // Strict config typing
+    const mode = config.mode || 'D';
     const stream = inputs.stream;
 
     let attackTime = 0;

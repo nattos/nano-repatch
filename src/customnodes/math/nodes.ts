@@ -1,5 +1,6 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, midiStreamType, stringType } from "../../structor/std-types";
+import { StringType } from "../../structor/type-helpers";
 
 // Simple LCG PRNG
 function lcg(seed: number) {
@@ -16,7 +17,23 @@ function lcg(seed: number) {
   };
 }
 
-export const random = defineNode({
+interface MathRandomUIConfig {
+  mode?: string;
+  seed?: number;
+  values?: { mode?: string; seed?: number };
+}
+
+type MathRandomCompiledConfig = {
+  mode: typeof StringType;
+  seed: { kind: 'atomic', type: 'number', defaultValue?: number };
+};
+
+interface MathRandomState {
+  generator: { next: () => number };
+  currentValue: number;
+}
+
+export const random = defineNode<any, MathRandomUIConfig, MathRandomCompiledConfig, any, MathRandomState>({
   id: "math.random",
   version: "1.1.0",
   displayName: "Random",
@@ -30,8 +47,8 @@ export const random = defineNode({
     trigger: { type: midiStreamType, description: 'Trigger Signal', allowMultiConnection: true }
   },
   config: {
-    seed: { ...numberType, defaultValue: 12345 },
-    mode: { ...stringType, defaultValue: 'on-trigger' }
+    seed: { kind: 'atomic', type: 'number', defaultValue: 12345 },
+    mode: { kind: 'atomic', type: 'string', defaultValue: 'on-trigger' }
   },
   outputs: {
     value: { type: numberType, description: 'Random Value' }
@@ -59,10 +76,14 @@ export const random = defineNode({
     }
   },
 
-  computeForwardPorts: (inputTypes, config, context) => {
-    const rawConfig = config as any;
-    // Access pattern aligned with curve.crop
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || 'on-trigger';
+  compileConfig: (uiConfig) => ({
+    mode: uiConfig.mode || uiConfig.values?.mode || 'on-trigger',
+    seed: uiConfig.seed || uiConfig.values?.seed || 12345
+  }),
+
+  computeForwardPorts: (inputTypes, uiConfig) => {
+    // uiConfig is now compiled flat data
+    const mode = uiConfig.mode || 'on-trigger';
 
     const inputs: any = {};
 
@@ -77,9 +98,7 @@ export const random = defineNode({
   },
 
   isRealtime: (config) => {
-    const rawConfig = config as any;
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || rawConfig?.fields?.mode;
-    return mode === 'free-run';
+    return (config as any).mode === 'free-run';
   },
 
   shouldRecompileOnConfigChange: (config) => {
@@ -87,8 +106,13 @@ export const random = defineNode({
   },
 
   createState: (config) => {
-    const rawConfig = config as any;
-    const seed = rawConfig?.seed || rawConfig?.values?.seed || rawConfig?.fields?.seed || 12345;
+    // config here is compiled data? No, createState receives executed data?
+    // Actually GraphExecutor calls createState with node.config if available.
+    // Wait, GraphExecutor `initializeState` uses `node.config`.
+    // We should rely on normalized config if possible, but state init happens once.
+    // We can re-extract from `config`.
+    const conf = config as any;
+    const seed = conf?.seed || 12345;
     const generator = lcg(seed);
     // Pre-warm?
     return {
@@ -97,8 +121,8 @@ export const random = defineNode({
     };
   },
   execute: (inputs, config, context, state) => {
-    const rawConfig = config as any;
-    const mode = rawConfig?.mode || rawConfig?.values?.mode || rawConfig?.fields?.mode || 'on-trigger';
+    // Strict config
+    const mode = config.mode || 'on-trigger';
     const stream = inputs.trigger;
 
     if (mode === 'free-run') {

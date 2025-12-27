@@ -1,5 +1,5 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
-import { NumberType, StringType } from "../../structor/type-helpers";
+import { NumberType, StringType, AnyType } from "../../structor/type-helpers";
 import { ExecutionContext, NodeCategory, AtomicType } from "../../structor/structor";
 import { curveStructorType, GraphWidgetConfig } from "./types";
 
@@ -292,7 +292,8 @@ const executeCurveEnv = (inputs: { value?: number; }, config: { config?: GraphWi
 };
 
 interface CurveEnvUIConfig {
-  curveData?: GraphWidgetConfig;
+  config?: GraphWidgetConfig; // Root level (canonical)
+  curveData?: GraphWidgetConfig; // Alias/Legacy
   values?: {
     config?: GraphWidgetConfig;
     value?: number;
@@ -300,7 +301,11 @@ interface CurveEnvUIConfig {
   };
 }
 
-export const curve_env = defineNode<any, CurveEnvUIConfig, any, any, CurveEnvState>({
+type CurveEnvCompiledConfig = {
+  config: typeof AnyType; // Complex object structure
+};
+
+export const curve_env = defineNode<any, CurveEnvUIConfig, CurveEnvCompiledConfig, any, CurveEnvState>({
   id: 'curve.env',
   version: '1.0.0',
   displayName: 'Curve Envelope',
@@ -324,28 +329,24 @@ export const curve_env = defineNode<any, CurveEnvUIConfig, any, any, CurveEnvSta
   }),
   autoBroadcast: true,
   compileConfig: (uiConfig) => {
-    // We prefer 'curveData' (root-level config for triggering compilation)
-    // Fallback to 'values.config' for backward compatibility
-    const sourceConfig = uiConfig.curveData ?? uiConfig.values?.config;
+    // Prefer root-level 'config' or 'curveData', fallback to values
+    const sourceConfig = uiConfig.config ?? uiConfig.curveData ?? uiConfig.values?.config;
 
     return {
-      fields: {
-        config: sourceConfig ?? {
-          domain: [0, 1],
-          range: [0, 1],
-          envelopeNodes: [
-            { id: 'n1', x: 0, y: 0 },
-            { id: 'n2', x: 1, y: 1 }
-          ],
-          segments: [
-            { id: 's1', weight: 1, curve: { type: 'linear' } }
-          ]
-        },
-        value: uiConfig.values?.value ?? 0
+      config: sourceConfig ?? {
+        domain: [0, 1],
+        range: [0, 1],
+        envelopeNodes: [
+          { id: 'n1', x: 0, y: 0 },
+          { id: 'n2', x: 1, y: 1 }
+        ],
+        segments: [
+          { id: 's1', weight: 1, curve: { type: 'linear' } }
+        ]
       }
     };
   },
-  execute: executeCurveEnv as any
+  execute: executeCurveEnv
 });
 
 registerNode(curve_env);

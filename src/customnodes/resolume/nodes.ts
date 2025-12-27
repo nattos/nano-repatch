@@ -1,17 +1,23 @@
 import { defineNode, registerNode, InspectorFieldDef } from '../../structor/node-helpers';
-import { defineType } from '../../structor/type-helpers';
+import { defineType, StringType } from '../../structor/type-helpers';
 // import { resolumeManager } from '../../io/resolume/manager'; // Removed to break circular dependency
 import { NodeCategory } from '../../structor/structor';
 import { numberType } from '../../structor/std-types';
 
 const anyType = defineType({ kind: 'atomic', type: 'any' });
-const stringType = defineType({ kind: 'atomic', type: 'string' });
 
 const ResolumeFields: InspectorFieldDef[] = [
   { type: 'string', label: 'Path', path: 'path', placeholder: '/composition/...' }
 ];
 
-export const resolumeInputNode = defineNode({
+interface ResolumeInputState {
+  value: any;
+  unsubscribe: () => void;
+  currentPath?: string;
+  callback: (val: any) => void;
+}
+
+export const resolumeInputNode = defineNode<any, { path?: string }, { path: typeof StringType }, any, ResolumeInputState>({
   id: 'resolume.input',
   version: '1.0.0',
   displayName: 'Resolume Input',
@@ -22,7 +28,7 @@ export const resolumeInputNode = defineNode({
   },
   inputs: {},
   config: {
-    path: stringType
+    path: StringType
   },
   outputs: {
     value: { type: numberType, suppressLabel: true }
@@ -80,14 +86,15 @@ export const resolumeInputNode = defineNode({
     return { value: state?.value ?? 0 };
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      path: uiConfig?.path ?? '',
-    },
-    untagged: [],
+    path: uiConfig.path ?? ''
   }),
 });
 
-export const resolumeOutputNode = defineNode({
+interface ResolumeOutputState {
+  lastValue: any;
+}
+
+export const resolumeOutputNode = defineNode<any, { path?: string }, { path: typeof StringType }, any, ResolumeOutputState>({
   id: 'resolume.output',
   version: '1.0.0',
   displayName: 'Resolume Output',
@@ -100,7 +107,7 @@ export const resolumeOutputNode = defineNode({
     value: { type: anyType, suppressInputEditor: true, suppressLabel: true, }
   },
   config: {
-    path: stringType
+    path: StringType
   },
   outputs: {},
   autoBroadcast: true,
@@ -139,10 +146,7 @@ export const resolumeOutputNode = defineNode({
     return {};
   },
   compileConfig: (uiConfig) => ({
-    fields: {
-      path: uiConfig?.path ?? '',
-    },
-    untagged: [],
+    path: uiConfig.path ?? ''
   }),
 });
 

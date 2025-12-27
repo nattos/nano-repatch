@@ -1,5 +1,6 @@
 
 import { defineNode, registerNode } from "../../structor/node-helpers";
+import { StringType } from "../../structor/type-helpers";
 import {
   midiStreamType,
   sequenceStructorType,
@@ -10,11 +11,40 @@ import { Step } from "./types";
 
 const SEQUENCE_LENGTH = 16;
 
+import { AnyType } from "../../structor/type-helpers";
+
+// ...
+
 /**
  * seq.tomidi (formerly nicepattern.pattern)
  * Combines multiple sequences into a MIDI stream.
  */
-export const tomidi = defineNode({
+interface SeqToMidiState {
+  sequenceStates: Map<number, {
+    lastStepIndex: number;
+    lastNoteIndex: number | null;
+    lastHold: boolean;
+    activeNotes: Map<number, number>;
+  }>;
+}
+
+interface SeqOneShotState {
+  isPlaying: boolean;
+  startTime: number;
+  lastStepIndex: number;
+  lastNoteIndex: number | null;
+  lastHold: boolean;
+  activeNotes: Map<number, number>;
+}
+
+interface SeqScanState {
+  lastStepIndex: number;
+  lastNoteIndex: number | null;
+  lastHold: boolean;
+  activeNotes: Map<number, number>;
+}
+
+export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
   id: "seq.tomidi",
   version: "1.0.0",
   displayName: "To MIDI",
@@ -34,12 +64,7 @@ export const tomidi = defineNode({
   outputs: { midi_out: midiStreamType },
   isRealtime: () => true,
   createState: () => ({
-    sequenceStates: new Map<number, {
-      lastStepIndex: number,
-      lastNoteIndex: number | null,
-      lastHold: boolean,
-      activeNotes: Map<number, number>
-    }>()
+    sequenceStates: new Map()
   }),
   execute: (inputs, config, context, state) => {
     // Inputs are Structors. unpack them.
@@ -160,7 +185,21 @@ export const tomidi = defineNode({
  * seq.sequencer
  * Hero Node - Step Sequencer Source
  */
-export const sequencer = defineNode({
+interface SeqSequencerUIConfig {
+  values?: {
+    sequence?: Step[];
+  };
+}
+
+type SeqSequencerCompiledConfig = {
+  sequence: typeof AnyType;
+};
+
+interface SequencerState {
+  currentStepIndex: number;
+}
+
+export const sequencer = defineNode<any, SeqSequencerUIConfig, SeqSequencerCompiledConfig, any, SequencerState>({
   id: "seq.sequencer",
   version: "1.0.0",
   displayName: "Sequencer",
@@ -186,9 +225,7 @@ export const sequencer = defineNode({
     // Default sequence: 16 empty steps
     const defaultSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
     return {
-      fields: {
-        sequence: uiConfig?.values?.sequence ?? defaultSeq
-      }
+      sequence: uiConfig?.values?.sequence ?? defaultSeq
     };
   },
 
@@ -206,19 +243,12 @@ export const sequencer = defineNode({
     const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
     state.currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
 
-    // Wrap in Structor format for output?
-    // defineNode handles wrapping if we return plain objects matching the output type.
-    // However, for Arrays of Records, we might need to be careful.
-    // If we return plain array of objects, defineNode might need to wrap each element.
-    // Let's rely on standard marshaling.
-
     return {
       outputs: { seq_out: sequence },
       // Send UI state for playhead
       ui: {
         currentStep: state.currentStepIndex,
-        sequence: sequence // Send sequence mainly for initial state or if driven by input later?
-        // Actually, editor should bind to config. But high-freq playhead needs to come from here.
+        sequence: sequence
       }
     };
   }
@@ -231,7 +261,7 @@ registerNode(sequencer);
 
 // --- Players ---
 
-export const oneshot = defineNode({
+export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
   id: "seq.oneshot",
   version: "1.0.0",
   displayName: "One Shot",
@@ -252,9 +282,9 @@ export const oneshot = defineNode({
     isPlaying: false,
     startTime: 0,
     lastStepIndex: -1,
-    lastNoteIndex: null as number | null,
+    lastNoteIndex: null,
     lastHold: false,
-    activeNotes: new Map<number, number>()
+    activeNotes: new Map()
   }),
   execute: (inputs, config, context, state) => {
     // Process Trigger
@@ -356,7 +386,7 @@ export const oneshot = defineNode({
   }
 });
 
-export const scan = defineNode({
+export const scan = defineNode<any, {}, {}, any, SeqScanState>({
   id: "seq.scan",
   version: "1.0.0",
   displayName: "Scan Sequence",
@@ -374,9 +404,9 @@ export const scan = defineNode({
   isRealtime: () => true,
   createState: () => ({
     lastStepIndex: -1,
-    lastNoteIndex: null as number | null,
+    lastNoteIndex: null,
     lastHold: false,
-    activeNotes: new Map<number, number>()
+    activeNotes: new Map()
   }),
   execute: (inputs, config, context, state) => {
     const seqRaw = inputs.seq_in as any;
@@ -451,7 +481,11 @@ interface SeqCropUIConfig {
   values?: Record<string, any>;
 }
 
-export const crop = defineNode<any, SeqCropUIConfig>({
+type SeqCropCompiledConfig = {
+  mode: typeof StringType;
+};
+
+export const crop = defineNode<any, SeqCropUIConfig, SeqCropCompiledConfig>({
   id: "seq.crop",
   version: "1.0.0",
   displayName: "Crop Sequence",
@@ -498,12 +532,16 @@ export const crop = defineNode<any, SeqCropUIConfig>({
 
   shouldRecompileOnConfigChange: () => true,
   compileConfig: (uiConfig) => ({
-    fields: { mode: { kind: 'atomic', type: 'string', value: uiConfig.mode ?? 'start-end' } }
+    // Return Flat Data Structure
+    mode: uiConfig.mode || 'start-end'
   }),
 
   execute: (inputs, config) => {
     const seqRaw = inputs.seq_in as any;
     if (!seqRaw) return { seq_out: [] };
+
+    // Correctly inferred config
+    const mode = config.mode || 'start-end';
 
     let seq: Step[] = [];
     if (Array.isArray(seqRaw)) seq = seqRaw;
@@ -518,7 +556,6 @@ export const crop = defineNode<any, SeqCropUIConfig>({
       return step;
     });
 
-    const mode = (config as any).mode || 'start-end';
     const start = inputs.start ?? 0;
     let end = 1;
 
@@ -545,7 +582,7 @@ export const crop = defineNode<any, SeqCropUIConfig>({
   }
 });
 
-export const xor = defineNode({
+export const xor = defineNode<any, {}, {}>({
   id: "seq.xor",
   version: "1.0.0",
   displayName: "Sequence XOR",
@@ -613,7 +650,7 @@ export const xor = defineNode({
   }
 });
 
-export const negate = defineNode({
+export const negate = defineNode<any, {}, {}>({
   id: "seq.negate",
   version: "1.0.0",
   displayName: "Sequence Negate",

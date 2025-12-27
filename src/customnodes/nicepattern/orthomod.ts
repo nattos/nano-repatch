@@ -10,7 +10,7 @@ import {
   midiStreamType,
   vec4Type
 } from "../../structor/std-types";
-import { defineType } from "../../structor/type-helpers";
+import { defineType, NumberType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
 
 // --- Logic Helpers ---
@@ -75,7 +75,7 @@ interface OrthomodState {
   phase: number;
 }
 
-export const orthomod = defineNode({
+export const orthomod = defineNode<any, { seed?: number }, { seed: typeof NumberType }, any, OrthomodState>({
   id: "nicepattern.orthomod",
   version: "1.0.0",
   displayName: "Orthomod",
@@ -145,8 +145,7 @@ export const orthomod = defineNode({
     const resRaw = inputs.resolution;
     const resolution = (typeof resRaw === 'number' && Number.isFinite(resRaw)) ? Math.floor(Math.max(2, Math.min(8, resRaw))) : 8;
 
-    const seedRaw = config.seed;
-    const seed = (typeof seedRaw === 'number' && Number.isFinite(seedRaw)) ? seedRaw : 12345;
+    const seed = config.seed ?? 12345;
 
     // Manual Phase: allow -1, clamp 0-1
     const phaseRaw = inputs.manual_phase;
@@ -269,7 +268,6 @@ export const orthomod = defineNode({
     };
   },
   compileConfig: (uiConfig) => ({
-    seed: uiConfig?.seed ?? 12345,
-    values: uiConfig?.values
+    seed: uiConfig?.seed ?? 12345
   })
 });
