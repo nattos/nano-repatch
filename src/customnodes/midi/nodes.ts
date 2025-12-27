@@ -440,16 +440,16 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
       // Rising Edge
       if (state.isNoteOn) {
         // Retrigger (kill old)
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
       }
       // Start new
-      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: Math.floor(velocity * 127), deviceId: 'virtual' } as MidiEvent);
+      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: Math.floor(velocity * 127), deviceId: 'virtual' });
       state.isNoteOn = true;
       state.time = 0.1; // 100ms duration
     } else if (trigger < state.lastTrigger) {
       // Falling Edge (Early Release)
       if (state.isNoteOn) {
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
         state.isNoteOn = false;
         state.time = 0;
       }
@@ -458,7 +458,7 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
       state.time -= dt;
       if (state.time <= 0) {
         // Auto Release
-        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' } as MidiEvent);
+        stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual' });
         state.isNoteOn = false;
       }
     }

@@ -275,6 +275,10 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
     description: 'Plays a sequence once upon trigger.'
   },
   config: {},
+  autoBroadcast: {
+    trigger: { combine: { reduce: 'flatten' } },
+    seq_in: { combine: { reduce: 'first' } }
+  },
   inputs: {
     seq_in: { type: sequenceStructorType, description: "Input sequence" },
     trigger: { type: midiStreamType, description: "Trigger", allowMultiConnection: true },
@@ -292,18 +296,24 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
   }),
   execute: (inputs, config, context, state) => {
     // Process Trigger
-    const triggerStream = (inputs.trigger || []).flat() as MidiEvent[];
+    const triggerStream = (inputs.trigger || []) as MidiEvent[];
     let triggered = false;
-    for (const e of triggerStream) {
-      if (e.type === 'note_on' && e.velocity > 0) {
-        triggered = true;
-        break;
+    if (Array.isArray(triggerStream)) {
+      for (const e of triggerStream) {
+        if (e.type === 'note_on' && e.velocity > 0) {
+          triggered = true;
+          break;
+        }
       }
     }
 
+
+    // Use audio time (seconds) for duration-based playback
+    const currentTime = context.audio?.context?.currentTime ?? 0;
+
     if (triggered) {
       state.isPlaying = true;
-      state.startTime = context.time ?? 0;
+      state.startTime = currentTime;
     }
 
     const seqRaw = inputs.seq_in as any;
@@ -329,7 +339,7 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
     }
 
     const duration = Math.max(0.001, inputs.duration ?? 4.0);
-    const elapsed = (context.time ?? 0) - state.startTime;
+    const elapsed = currentTime - state.startTime;
     const t = elapsed / duration;
 
     if (t >= 1.0) {

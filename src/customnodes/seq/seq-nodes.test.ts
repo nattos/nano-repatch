@@ -189,40 +189,40 @@ describe('Sequence Nodes', () => {
 
   describe('seq.oneshot', () => {
     it('should trigger and play', () => {
-      const ctx0 = { clock: { beat: 0 }, time: 10.0, nodeState: new Map() } as any;
+      const mockAudio = (t: number) => ({ context: { currentTime: t } });
+      const mockBroadcast = (config: any, inputs: any) => ({ apply: (fn: Function) => fn(inputs) });
+      const ctx0 = {
+        clock: { beat: 0 },
+        audio: mockAudio(10.0),
+        nodeState: new Map(),
+        broadcast: mockBroadcast
+      } as any;
 
       const inputs = {
-        fields: {
-          seq_in: [
-            { noteIndex: 60, velocity: 1, hold: false }
-          ],
-          trigger: [{ type: 'note_on', note: 60, velocity: 1 }],
-          duration: 1.0
-        }
+        seq_in: [
+          { noteIndex: 60, velocity: 1, hold: false }
+        ],
+        trigger: [{ type: 'note_on', note: 60, velocity: 1 }],
+        duration: 1.0
       };
 
       // Trigger frame
+      // context.audio.context.currentTime = 10.0
       const res0 = oneshot.execute(inputs as any, { fields: {} } as any, ctx0 as any);
-      // Wrapper hides state. We verify output.
+      // ... verify output ...
 
-      // expect(state.isPlaying).toBe(true); // Cannot access internal state directly via wrapper
-      // expect(state.startTime).toBe(10.0);
-
-      // Should play step 0 immediately?
-      // t = 0. Index 0.
-      // Yes.
       const events0 = res0.fields.midi_out as any[];
       expect(events0).toContainEqual(expect.objectContaining({ fields: expect.objectContaining({ type: 'note_on', note: 60 }) }));
 
       // Advance time. 10.5. t=0.5. Still step 0 (length 1).
-      const ctx1 = { clock: { beat: 0 }, time: 10.5, nodeState: ctx0.nodeState } as any;
-      const inputsNoTrig = { ...inputs, fields: { ...inputs.fields, trigger: [] } };
+      const ctx1 = { clock: { beat: 0 }, audio: mockAudio(10.5), nodeState: ctx0.nodeState, broadcast: ctx0.broadcast } as any;
+      const inputsNoTrig = { ...inputs, trigger: [] };
 
       const res1 = oneshot.execute(inputsNoTrig as any, { fields: {} } as any, ctx1 as any); // clear trigger
       expect(res1.fields.midi_out).toHaveLength(0); // Same note held
 
       // Advance time. 11.0. t=1.0. End.
-      const ctx2 = { clock: { beat: 0 }, time: 11.0, nodeState: ctx0.nodeState } as any;
+      const ctx2 = { clock: { beat: 0 }, audio: mockAudio(11.0), nodeState: ctx0.nodeState, broadcast: ctx0.broadcast } as any;
       const res2 = oneshot.execute(inputsNoTrig as any, { fields: {} } as any, ctx2 as any);
       // expect(state.isPlaying).toBe(false); // Cannot access internal state directly via wrapper
       const events2 = res2.fields.midi_out as any[];
