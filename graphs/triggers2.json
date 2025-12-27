@@ -8,7 +8,7 @@
         "typeId": "nicepattern.chaos_generator",
         "name": "#",
         "values": {
-          "density": 0.38
+          "density": 0.59
         }
       }
     },
@@ -20,7 +20,7 @@
         "typeId": "nicepattern.rhythmic_generator",
         "name": "#",
         "values": {
-          "density": 0.53
+          "density": 0.59
         }
       }
     },
@@ -275,9 +275,42 @@
         "typeId": "midi.trigger",
         "name": "#",
         "values": {
-          "trigger": 261
+          "trigger": 267
         },
         "trigger": 0
+      }
+    },
+    "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1": {
+      "id": "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1",
+      "x": 2,
+      "y": 1,
+      "config": {
+        "typeId": "seq.and",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-44e2b9c9-b35e-48c7-9ffd-2ccb49837085": {
+      "id": "node-44e2b9c9-b35e-48c7-9ffd-2ccb49837085",
+      "x": 2,
+      "y": 0,
+      "config": {
+        "typeId": "seq.sub",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-483dc4d7-835e-40a5-98d1-df4b3e5712a1": {
+      "id": "node-483dc4d7-835e-40a5-98d1-df4b3e5712a1",
+      "x": 0,
+      "y": 6,
+      "config": {
+        "typeId": "seq.fill",
+        "name": "#",
+        "values": {
+          "start": 0.88
+        },
+        "mode": "start-length"
       }
     }
   },
@@ -337,6 +370,34 @@
       "fromPort": "seq_out",
       "toNodeId": "node-35e527e3-7207-45c4-980c-fba44c593db6",
       "toPort": "seq_in"
+    },
+    "conn-33d72fa8-6f0d-48f4-a72c-5599e5067eaa": {
+      "id": "conn-33d72fa8-6f0d-48f4-a72c-5599e5067eaa",
+      "fromNodeId": "node-04fa9a99-69e7-4d15-b63c-07b6dac3181c",
+      "fromPort": "seq_out",
+      "toNodeId": "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1",
+      "toPort": "inputs"
+    },
+    "conn-69f6fcd2-2bbe-4862-9f1d-3962067c2af2": {
+      "id": "conn-69f6fcd2-2bbe-4862-9f1d-3962067c2af2",
+      "fromNodeId": "node-5645a611-6c30-4c3a-8db0-df83b8d800ad",
+      "fromPort": "seq_out",
+      "toNodeId": "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1",
+      "toPort": "inputs"
+    },
+    "conn-a9a51e59-dbab-479f-9d84-308db4d7c3b2": {
+      "id": "conn-a9a51e59-dbab-479f-9d84-308db4d7c3b2",
+      "fromNodeId": "node-04fa9a99-69e7-4d15-b63c-07b6dac3181c",
+      "fromPort": "seq_out",
+      "toNodeId": "node-44e2b9c9-b35e-48c7-9ffd-2ccb49837085",
+      "toPort": "inputs"
+    },
+    "conn-78f482eb-b697-45e3-8772-db8645dca9d4": {
+      "id": "conn-78f482eb-b697-45e3-8772-db8645dca9d4",
+      "fromNodeId": "node-5645a611-6c30-4c3a-8db0-df83b8d800ad",
+      "fromPort": "seq_out",
+      "toNodeId": "node-44e2b9c9-b35e-48c7-9ffd-2ccb49837085",
+      "toPort": "inputs"
     }
   },
   "inferredNodeTypes": {}

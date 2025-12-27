@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi } from 'vitest';
-import { tomidi, oneshot, scan, crop, xor, negate, sequencer } from './nodes';
+import { tomidi, oneshot, scan, crop, fill, xor, sub, and, or, negate, sequencer } from './nodes';
 import { Step } from './types';
 import { defaultNodeRepository } from '../../structor/repository';
 
@@ -73,43 +73,132 @@ describe('Sequence Nodes', () => {
     });
   });
 
-  describe('seq.xor', () => {
-    it('should XOR two sequences', () => {
-      // Seq A: [On, Off]
-      // Seq B: [Off, On]
-      // Result: [On(A), On(B)]
-
+  describe('seq.fill', () => {
+    it('should generate sequence with active steps in range', () => {
+      // Count 4. Range 0.25 to 0.75.
+      // 0: 0.0. Outside.
+      // 1: 0.25. Inside.
+      // 2: 0.50. Inside.
+      // 3: 0.75. Outside (Inclusive-Exclusive [start, end))
       const inputs = {
         fields: {
-          inputs: [
-            [{ noteIndex: 60, velocity: 1, hold: false }, { noteIndex: null, velocity: 0, hold: false }],
-            [{ noteIndex: null, velocity: 0, hold: false }, { noteIndex: 62, velocity: 1, hold: false }]
-          ]
+          start: 0.25,
+          end: 0.75
         }
       };
 
-      const context = { nodeState: new Map() } as any;
-      const result = xor.execute(inputs as any, { fields: {} } as any, context, {});
+      // Mode: start-end
+      const context = {} as any;
+      const result = fill.execute(inputs as any, { fields: { mode: 'start-end', count: 4 } } as any, context, {});
+      const seq = result.fields.seq_out as any[];
 
-      const seq1 = result.fields.seq_out as any[];
-      expect(seq1[0].fields.noteIndex).toBe(60);
-      expect(seq1[1].fields.noteIndex).toBe(62);
+      expect(seq).toHaveLength(4);
+      expect(seq[0].fields.noteIndex).toBeNull();
+      expect(seq[1].fields.noteIndex).toBe(60);
+      expect(seq[2].fields.noteIndex).toBe(60);
+      expect(seq[3].fields.noteIndex).toBeNull();
+    });
 
-      // Seq A: [On]
-      // Seq B: [On]
-      // Result: [Off]
-      const inputs2 = {
+    it('should handle start-length mode (fixed integer step count)', () => {
+      const inputs = {
         fields: {
-          inputs: [
-            [{ noteIndex: 60, velocity: 1, hold: false }],
-            [{ noteIndex: 62, velocity: 1, hold: false }]
-          ]
+          start: 0.0,
+          length: 0.5
         }
       };
-      const result2 = xor.execute(inputs2 as any, { fields: {} } as any, context, {});
 
-      const seq2 = result2.fields.seq_out as any[];
-      expect(seq2[0].fields.noteIndex).toBeNull();
+      // Default Mode is start-length. Config Count = 4.
+      // 0.5 * 4 = 2 steps.
+      const result = fill.execute(inputs as any, { fields: { count: 4 } } as any, {} as any, {});
+      const seq = result.fields.seq_out as any[];
+
+      expect(seq[0].fields.noteIndex).toBe(60);
+      expect(seq[1].fields.noteIndex).toBe(60);
+      expect(seq[2].fields.noteIndex).toBeNull();
+    });
+
+    it('should NOT wrap in start-length mode (truncate)', () => {
+      const inputs = {
+        fields: {
+          start: 0.75, // Index 3 (0.75 * 4)
+          length: 0.5 // 2 steps
+        }
+      };
+
+      const result = fill.execute(inputs as any, { fields: { count: 4 } } as any, {} as any, {});
+      const seq = result.fields.seq_out as any[];
+
+      // Start at 3. Length 2. -> Step 3 Active. Step 4 (Index 0 wrapped) should be Inactive (Truncated).
+      expect(seq[3].fields.noteIndex).toBe(60);
+      expect(seq[0].fields.noteIndex).toBeNull(); // No wrapping
+      expect(seq[1].fields.noteIndex).toBeNull();
+      expect(seq[2].fields.noteIndex).toBeNull();
+    });
+  });
+
+  describe('Binary Operations', () => {
+    const context = { nodeState: new Map() } as any;
+
+    const runOp = (node: any, seqs: any[]) => {
+      const inputs = {
+        fields: {
+          inputs: seqs
+        }
+      };
+      const result = node.execute(inputs as any, { fields: {} } as any, context, {});
+      return result.fields.seq_out as any[];
+    };
+
+    const ACTIVE = { noteIndex: 60, velocity: 1, hold: false };
+    const INACTIVE = { noteIndex: null, velocity: 0, hold: false };
+
+    it('should wrap shorter sequences', () => {
+      // A: [Active] (Len 1)
+      // B: [Inactive, Active] (Len 2)
+      // Operation (XOR):
+      // 0: A[0] ^ B[0] = Active ^ Inactive = Active
+      // 1: A[0] ^ B[1] = Active ^ Active = Inactive
+      const result = runOp(xor, [[ACTIVE], [INACTIVE, ACTIVE]]);
+      expect(result).toHaveLength(2);
+      expect(result[0].fields.noteIndex).toBe(60);
+      expect(result[1].fields.noteIndex).toBeNull();
+    });
+
+    describe('seq.xor', () => {
+      it('should toggle active state', () => {
+        const result = runOp(xor, [[ACTIVE], [ACTIVE]]);
+        expect(result[0].fields.noteIndex).toBeNull();
+
+        const result2 = runOp(xor, [[ACTIVE], [INACTIVE]]);
+        expect(result2[0].fields.noteIndex).toBe(60);
+      });
+    });
+
+    describe('seq.sub', () => {
+      it('should mute if subtractor is active', () => {
+        const res1 = runOp(sub, [[ACTIVE], [ACTIVE]]);
+        expect(res1[0].fields.noteIndex).toBeNull(); // Muted
+
+        const res2 = runOp(sub, [[ACTIVE], [INACTIVE]]);
+        expect(res2[0].fields.noteIndex).toBe(60); // Kept
+      });
+    });
+
+    describe('seq.and', () => {
+      it('should be active only if both active', () => {
+        expect(runOp(and, [[ACTIVE], [ACTIVE]])[0].fields.noteIndex).toBe(60);
+        expect(runOp(and, [[ACTIVE], [INACTIVE]])[0].fields.noteIndex).toBeNull();
+        expect(runOp(and, [[INACTIVE], [ACTIVE]])[0].fields.noteIndex).toBeNull();
+      });
+    });
+
+    describe('seq.or', () => {
+      it('should be active if either active', () => {
+        expect(runOp(or, [[ACTIVE], [ACTIVE]])[0].fields.noteIndex).toBe(60);
+        expect(runOp(or, [[ACTIVE], [INACTIVE]])[0].fields.noteIndex).toBe(60);
+        expect(runOp(or, [[INACTIVE], [ACTIVE]])[0].fields.noteIndex).toBe(60);
+        expect(runOp(or, [[INACTIVE], [INACTIVE]])[0].fields.noteIndex).toBeNull();
+      });
     });
   });
 

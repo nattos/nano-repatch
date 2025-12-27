@@ -59,14 +59,20 @@ interface SeqScanState {
   activeNotes: Map<number, number>;
 }
 
-interface SeqCropInputs {
-  seq_in: Step[];
-  start: number;
+interface SeqCropInputs extends SeqOneShotInputs {
+  start?: number;
+  end?: number; // For start-end mode
+  length?: number; // For start-length mode
+}
+
+interface SeqFillInputs {
+  count?: number;
+  start?: number;
   end?: number;
   length?: number;
 }
 
-interface SeqXorInputs {
+interface SeqBinaryOpInputs {
   inputs: Step[][]; // Collection of sequences
 }
 
@@ -484,6 +490,12 @@ interface SeqCropUIConfig {
   values?: Record<string, any>;
 }
 
+interface SeqFillUIConfig {
+  mode?: string;
+  count?: number;
+  values?: Record<string, any>;
+}
+
 type SeqCropCompiledConfig = {
   mode: typeof StringType;
 };
@@ -581,11 +593,121 @@ export const crop = defineNode<any, SeqCropUIConfig, any>({
 });
 
 // explicit 'any' generic used to bypass Constraint Mismatch
-export const xor = defineNode<any, {}, {}>({
-  id: "seq.xor",
+// explicit 'any' generic used to bypass Constraint Mismatch
+// explicit 'any' generic used to bypass Constraint Mismatch
+export const fill = defineNode<any, SeqFillUIConfig, any>({
+  id: "seq.fill",
   version: "1.0.0",
-  displayName: "Sequence XOR",
-  metadata: { category: 'Sequence', keywords: ['logic', 'xor', 'merge'], description: 'XORs multiple sequences.' },
+  displayName: "Fill Sequence",
+  metadata: {
+    category: 'Sequence',
+    keywords: ['generator', 'fill', 'range'],
+    description: 'Generates a sequence where steps inside the specified range are ON.'
+  },
+  config: {
+    mode: { kind: 'atomic', type: 'string', defaultValue: 'start-length' },
+    count: { type: numberType, defaultValue: 16 }
+  },
+  inputs: {
+    start: { type: numberType, defaultValue: 0 },
+    end: { type: numberType, defaultValue: 1, optional: true },
+    length: { type: numberType, defaultValue: 0.5, optional: true }
+  },
+  outputs: { seq_out: sequenceStructorType },
+  ui: {
+    inspector: {
+      fields: [
+        {
+          type: 'tab-bar', label: 'Mode', path: 'mode',
+          options: [{ label: 'Start / End', value: 'start-end' }, { label: 'Start / Length', value: 'start-length' }],
+          default: 'start-length'
+        },
+        { type: 'number', label: 'Step Count', path: 'count', min: 1, max: 128, step: 1, default: 16 }
+      ]
+    }
+  },
+  computeForwardPorts: (inputTypes, uiConfig) => {
+    const mode = uiConfig.mode || 'start-length';
+    const fields: any = {
+      start: { type: numberType, defaultValue: 0 }
+    };
+    if (mode === 'start-length') {
+      fields['length'] = { type: numberType, defaultValue: 0.5 };
+    } else {
+      fields['end'] = { type: numberType, defaultValue: 1 };
+    }
+    return { inputs: { kind: 'record', fields }, outputs: { kind: 'record', fields: { seq_out: sequenceStructorType } } };
+  },
+
+  shouldRecompileOnConfigChange: () => true,
+  compileConfig: (uiConfig) => ({
+    mode: uiConfig.mode || 'start-length',
+    count: uiConfig.count ?? 16
+  }),
+
+  execute: (rawInputs: any, config) => {
+    const inputs = rawInputs as SeqFillInputs;
+    const count = config.count ?? 16;
+    const mode = config.mode || 'start-length';
+
+    // Initialize sequence
+    const outSeq: Step[] = [];
+    for (let i = 0; i < count; i++) {
+      outSeq.push({ noteIndex: null, velocity: 0, hold: false });
+    }
+
+    const startVal = inputs.start ?? 0;
+
+    if (mode === 'start-length') {
+      const lengthVal = inputs.length ?? 0.5;
+      // Integer-based logic: Fixed number of ON steps
+      const numOn = Math.round(lengthVal * count);
+      const startIndex = Math.floor(startVal * count);
+
+      for (let i = 0; i < numOn; i++) {
+        // No wrapping: Truncate at end
+        const idx = startIndex + i;
+
+        if (idx >= 0 && idx < count) {
+          outSeq[idx] = { noteIndex: 60, velocity: 1, hold: false };
+        }
+      }
+    } else {
+      // Start-End Mode: Standard Range Logic (Inclusive-Exclusive)
+      const endVal = inputs.end ?? 1;
+      // Handle wrapping for start > end ? Or simple clamp/min?
+      // Basic implementation: Linear range.
+      let actualStart = startVal;
+      let actualEnd = endVal;
+      if (actualEnd < actualStart) actualEnd = actualStart; // Clamp
+
+      for (let i = 0; i < count; i++) {
+        const pos = i / count;
+        if (pos >= actualStart && pos < actualEnd) {
+          outSeq[i] = { noteIndex: 60, velocity: 1, hold: false };
+        }
+      }
+    }
+
+    return { seq_out: outSeq };
+  }
+});
+
+// --- Binary Ops ---
+
+const EmptyStep: Step = { noteIndex: null, velocity: 0, hold: false };
+const isActive = (s: Step) => s.noteIndex !== null && s.noteIndex !== undefined;
+
+const createBinaryOpNode = (
+  id: string,
+  displayName: string,
+  description: string,
+  op: (a: Step, b: Step) => Step
+) => defineNode<any, {}, {}>({
+  id: `seq.${id}`,
+  version: "1.0.0",
+  displayName,
+  metadata: { category: 'Sequence', keywords: ['logic', id, 'binary'], description },
   config: {},
   inputs: {
     inputs: {
@@ -596,44 +718,63 @@ export const xor = defineNode<any, {}, {}>({
   },
   outputs: { seq_out: sequenceStructorType },
   execute: (rawInputs: any) => {
-    // Cast raw inputs to the strict Runtime Interface
-    const inputs = rawInputs as SeqXorInputs;
-    // Collect all input sequences
-    const seqs = inputs.inputs || [];
+    const inputs = (rawInputs as SeqBinaryOpInputs).inputs || [];
+    if (inputs.length === 0) return { seq_out: [] };
 
-    if (seqs.length === 0) return { seq_out: [] };
-
-    // Find max length
+    // Find max length for wrapping
     let len = 0;
-    seqs.forEach(s => len = Math.max(len, s.length));
+    inputs.forEach(s => len = Math.max(len, s.length));
+    if (len === 0) return { seq_out: [] };
 
     const outSeq: Step[] = [];
 
     for (let i = 0; i < len; i++) {
-      let active = false;
-      let lastStep: Step | null = null;
+      // Start with Empty/Inactive accumulator
+      let acc: Step = { ...EmptyStep };
 
-      for (const seq of seqs) {
-        if (i < seq.length) {
-          const step = seq[i];
-          if (step.noteIndex !== null && step.noteIndex !== undefined) {
-            // Toggle active state for XOR
-            active = !active;
-            lastStep = step;
-          }
-        }
-      }
-
-      if (active && lastStep) {
-        outSeq.push({ ...lastStep });
+      const firstSeq = inputs[0];
+      if (firstSeq.length > 0) {
+        acc = { ...firstSeq[i % firstSeq.length] };
       } else {
-        outSeq.push({ noteIndex: null, velocity: 0, hold: false });
+        acc = { ...EmptyStep };
       }
+
+      for (let j = 1; j < inputs.length; j++) {
+        const seq = inputs[j];
+        const stepB = (seq.length > 0) ? seq[i % seq.length] : EmptyStep;
+        acc = op(acc, stepB);
+      }
+
+      outSeq.push(acc);
     }
 
     return { seq_out: outSeq };
   }
 });
+
+export const xor = createBinaryOpNode(
+  'xor', 'Sequence XOR', 'XORs multiple sequences.',
+  (a, b) => {
+    const aActive = isActive(a);
+    const bActive = isActive(b);
+    return (aActive !== bActive) ? (bActive ? b : a) : { ...EmptyStep };
+  }
+);
+
+export const sub = createBinaryOpNode(
+  'sub', 'Sequence Subtract', 'Subtracts subsequent sequences from the first.',
+  (a, b) => isActive(b) ? { ...EmptyStep } : a
+);
+
+export const and = createBinaryOpNode(
+  'and', 'Sequence AND', 'Output active only if both inputs active.',
+  (a, b) => (isActive(a) && isActive(b)) ? b : { ...EmptyStep }
+);
+
+export const or = createBinaryOpNode(
+  'or', 'Sequence OR', 'Output active if any input active.',
+  (a, b) => isActive(b) ? b : a
+);
 
 // explicit 'any' generic used to bypass Constraint Mismatch
 export const negate = defineNode<any, {}, {}>({
@@ -674,5 +815,9 @@ export const negate = defineNode<any, {}, {}>({
 registerNode(oneshot);
 registerNode(scan);
 registerNode(crop);
+registerNode(fill);
 registerNode(xor);
+registerNode(sub);
+registerNode(and);
+registerNode(or);
 registerNode(negate);
