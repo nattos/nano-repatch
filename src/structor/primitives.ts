@@ -309,8 +309,9 @@ export const primitive_pack = definePrimitiveNode({
       inputFields.z = numberType;
       inputFields.w = numberType;
       outputFields.result = {
-        kind: 'record',
-        fields: { x: numberType, y: numberType, z: numberType, w: numberType },
+        kind: 'array',
+        size: 4,
+        element: numberType,
         hint: 'vec4'
       };
     } else if (type === 'float3') {
@@ -318,16 +319,18 @@ export const primitive_pack = definePrimitiveNode({
       inputFields.y = numberType;
       inputFields.z = numberType;
       outputFields.result = {
-        kind: 'record',
-        fields: { x: numberType, y: numberType, z: numberType },
+        kind: 'array',
+        size: 3,
+        element: numberType,
         hint: 'vec3'
       };
     } else { // float2
       inputFields.x = numberType;
       inputFields.y = numberType;
       outputFields.result = {
-        kind: 'record',
-        fields: { x: numberType, y: numberType },
+        kind: 'array',
+        size: 2,
+        element: numberType,
         hint: 'vec2'
       };
     }
@@ -338,12 +341,25 @@ export const primitive_pack = definePrimitiveNode({
     };
   },
 
-  execute: (inputs) => {
-    // Inputs are already collected into 'inputs' object by executor
-    // We just need to pack them into 'result'
-    // The forward pass ensures the output type matches the inputs we asked for.
-    // We can just return the inputs object as the result record.
-    return { result: inputs };
+  execute: (inputs, config) => {
+    // pack receives raw inputs because it has dynamic ports and no autoBroadcast
+    // inputs is { fields: { x: val, y: val ... } }
+    const fields = inputs?.fields || {};
+    let type = (config?.targetType) || 'infer';
+
+    if (type === 'infer') {
+      if (fields.w !== undefined) type = 'float4';
+      else if (fields.z !== undefined) type = 'float3';
+      else type = 'float2';
+    }
+
+    if (type === 'float4') {
+      return { result: [fields.x ?? 0, fields.y ?? 0, fields.z ?? 0, fields.w ?? 0] };
+    } else if (type === 'float3') {
+      return { result: [fields.x ?? 0, fields.y ?? 0, fields.z ?? 0] };
+    } else {
+      return { result: [fields.x ?? 0, fields.y ?? 0] };
+    }
   }
 });
 

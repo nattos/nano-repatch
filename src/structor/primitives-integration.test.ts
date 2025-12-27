@@ -37,6 +37,9 @@ export const compileAndRun = (
         if (def.id === 'math.lerp') {
           return { fields: { clamp: uiConfig?.clamp ?? true }, };
         }
+        if (def.id === 'core.pack') {
+          return { fields: { targetType: uiConfig?.targetType ?? 'infer' } };
+        }
         return { fields: {}, };
       }
     });
@@ -490,6 +493,50 @@ describe('Primitives Integration', () => {
 
     expect(executor.getGraphOutput('outW')).toBe(40);
   });
+  it('should handle scalar input in math.all.add (Scalar Robustness)', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'a': { typeId: 'data.literal', config: { value: 10 } },
+        'b': { typeId: 'data.literal', config: { value: 20 } },
+        'add': { typeId: 'math.all.add' }
+      },
+      [
+        { from: 'a', port: 'value', to: 'add', portIn: 'values' },
+        { from: 'b', port: 'value', to: 'add', portIn: 'values' }
+      ],
+      'add', 'result'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    // Result should be 30 (scalar)
+    expect(getOutput()).toBe(30);
+  });
+
+  it('should produce an Array (vec4) when targetType is float4 in core.pack', () => {
+    const { executor, getOutput } = compileAndRun(
+      {
+        'x': { typeId: 'data.literal', config: { value: 1 } },
+        'y': { typeId: 'data.literal', config: { value: 2 } },
+        'z': { typeId: 'data.literal', config: { value: 3 } },
+        'w': { typeId: 'data.literal', config: { value: 4 } },
+        'pack': { typeId: 'core.pack', config: { targetType: 'float4' } }
+      },
+      [
+        { from: 'x', port: 'value', to: 'pack', portIn: 'x' },
+        { from: 'y', port: 'value', to: 'pack', portIn: 'y' },
+        { from: 'z', port: 'value', to: 'pack', portIn: 'z' },
+        { from: 'w', port: 'value', to: 'pack', portIn: 'w' }
+      ],
+      'pack', 'result'
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    const result = getOutput();
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([1, 2, 3, 4]);
+  });
   it('should treat two vec4 arrays as two inputs to math.all.add (Vector Math)', () => {
     const { executor, getOutput } = compileAndRun(
       {
@@ -524,22 +571,5 @@ describe('Primitives Integration', () => {
     // Expect element-wise addition, not string concatenation
     expect(getOutput()).toEqual([11, 22, 33, 44]);
   });
-
-  it('should handle scalar input in math.all.add (Scalar Robustness)', () => {
-    const { executor, getOutput } = compileAndRun(
-      {
-        'valA': { typeId: 'data.literal', config: { value: 10 } },
-        'valB': { typeId: 'data.literal', config: { value: 20 } },
-        'add': { typeId: 'math.all.add' }
-      },
-      [
-        { from: 'valA', port: 'value', to: 'add', portIn: 'values' },
-        { from: 'valB', port: 'value', to: 'add', portIn: 'values' }
-      ],
-      'add', 'result'
-    );
-    executor.update({ clock: { beat: 0, dt: 0 } });
-    // Expect 10 + 20 = 30
-    expect(getOutput()).toBe(30);
-  });
 });
+
