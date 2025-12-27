@@ -1,7 +1,9 @@
 
-import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { appController, runtimeManager } from '../../builder/controllers';
+import { LitElement, html, css, unsafeCSS } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import { PointerDragOp } from '../../utils/pointer-drag-op';
+import { appController } from '../../builder/controllers';
+import { ROW_HEIGHT } from '../../constants';
 
 interface Step {
   noteIndex: number | null;
@@ -15,31 +17,28 @@ export class SequencerEditor extends LitElement {
   @property({ type: Object }) config: any = {};
   @property() requestConfigUpdate: (newConfig: any) => void = () => { };
 
-  @state() private currentStepIndex: number = -1;
-  private _frameId: number = 0;
-
-  private isDragging: boolean = false;
-  private targetState: boolean = false;
   private lastHoveredStep: number = -1;
+  private dragOp: PointerDragOp | null = null;
 
   static styles = css`
     :host {
       display: block;
       width: 100%;
-      height: 100%;
+      height: ${unsafeCSS(3 * ROW_HEIGHT + 'px')};
       color: white;
       font-family: var(--font-family, sans-serif);
       background: #1e1e1e;
       border-radius: 4px;
       overflow: hidden;
       user-select: none;
+      touch-action: none;
     }
 
     .sequencer-grid {
       display: flex;
       flex-direction: row;
       height: 100%;
-      gap: 2px;
+      gap: 0;
       padding: 4px;
       box-sizing: border-box;
     }
@@ -54,6 +53,11 @@ export class SequencerEditor extends LitElement {
       align-items: flex-end;
       justify-content: center;
       transition: background-color 0.1s;
+      border-right: 1px solid #1e1e1e;
+    }
+
+    .step:last-child {
+      border-right: none;
     }
 
     .step:hover {
@@ -69,68 +73,34 @@ export class SequencerEditor extends LitElement {
       background: var(--accent-color, #6495ed);
       border-radius: 1px;
     }
-
-    .playhead {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 1px solid #fff;
-      box-sizing: border-box;
-      pointer-events: none;
-      opacity: 0.8;
-      box-shadow: 0 0 4px #fff;
-    }
   `;
-
-  connectedCallback() {
-    super.connectedCallback();
-    this.startLoop();
-  }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.stopLoop();
-  }
-
-  startLoop() {
-    const loop = () => {
-      if (this.nodeId && runtimeManager) {
-        const uiState = runtimeManager.uiStates.get(this.nodeId);
-        if (uiState && typeof uiState.currentStep === 'number') {
-          if (this.currentStepIndex !== uiState.currentStep) {
-            this.currentStepIndex = uiState.currentStep;
-          }
-        }
-      }
-      this._frameId = requestAnimationFrame(loop);
-    };
-    this._frameId = requestAnimationFrame(loop);
-  }
-
-  stopLoop() {
-    cancelAnimationFrame(this._frameId);
+    if (this.dragOp) {
+      this.dragOp.dispose();
+      this.dragOp = null;
+    }
   }
 
   getSequence(): Step[] {
-    if (this.config && Array.isArray(this.config.sequence)) {
-      return this.config.sequence;
+    const values = this.config.values || {};
+    if (values.sequence && Array.isArray(values.sequence)) {
+      return values.sequence;
     }
     return Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
   }
 
-  updateStep(index: number, active: boolean) {
-    const seq = [...this.getSequence()];
+  // Toggle the step at the given index
+  toggleStep(seq: Step[], index: number) {
     const oldStep = seq[index] || { noteIndex: null, velocity: 0, hold: false };
     const step = { ...oldStep };
 
-    if (active) {
-      if (step.noteIndex === null) {
-        step.noteIndex = 60;
-        step.velocity = 1.0;
-        step.hold = false;
-      }
+    const isActive = step.noteIndex !== null;
+    if (!isActive) {
+      step.noteIndex = 60;
+      step.velocity = 1.0;
+      step.hold = false;
     } else {
       step.noteIndex = null;
       step.velocity = 0;
@@ -138,71 +108,94 @@ export class SequencerEditor extends LitElement {
     }
 
     seq[index] = step;
+  }
 
-    this.config = { ...this.config, sequence: seq };
-    this.requestConfigUpdate({ sequence: seq });
+  updateConfig(seq: Step[]) {
+    const newConfig = {
+      ...this.config,
+      values: {
+        ...(this.config.values || {}),
+        sequence: seq
+      }
+    };
+    this.config = newConfig;
+    this.requestConfigUpdate(newConfig);
     this.requestUpdate();
   }
 
   handlePointerDown(e: PointerEvent, index: number) {
-    this.isDragging = true;
-    (this as any).setPointerCapture(e.pointerId);
-
-    const seq = this.getSequence();
-    const step = seq[index] || { noteIndex: null, velocity: 0, hold: false };
-    const isActive = step.noteIndex !== null;
-
-    this.targetState = !isActive;
-
-    this.updateStep(index, this.targetState);
     this.lastHoveredStep = index;
+    const seq = [...this.getSequence()];
+
+    // Toggle on down (Per-step inversion)
+    this.toggleStep(seq, index);
+    this.updateConfig(seq);
+
+    this.dragOp = new PointerDragOp(e, this, {
+      callMoveImmediately: false,
+      move: (e) => this.handleDragMove(e),
+      complete: () => {
+        this.dragOp = null;
+        this.lastHoveredStep = -1;
+      }
+    });
   }
 
-  handlePointerMove(e: PointerEvent) {
-    if (!this.isDragging) return;
-
+  handleDragMove(e: PointerEvent) {
     const elements = this.shadowRoot?.elementsFromPoint(e.clientX, e.clientY) || [];
     const stepEl = elements.find(el => el.classList.contains('step'));
+
     if (stepEl) {
       const indexStr = (stepEl as HTMLElement).dataset.index;
       if (indexStr) {
         const index = parseInt(indexStr, 10);
+
         if (index !== this.lastHoveredStep) {
-          this.updateStep(index, this.targetState);
+          const seq = [...this.getSequence()];
+
+          // Continuous Collision Detection: Fill gaps between lastHovered and current
+          // Logic: Move from lastHovered towards index
+          const start = this.lastHoveredStep;
+          const end = index;
+          const dir = Math.sign(end - start);
+
+          // We start from start + dir to avoid re-toggling the start step
+          // We include the end step
+          // Note: If fast drag, difference > 1
+          if (dir !== 0) {
+            let curr = start + dir;
+            while (curr !== end + dir) {
+              // Bounds check just in case, though grid is fixed
+              if (curr >= 0 && curr < 16) {
+                this.toggleStep(seq, curr);
+              }
+              curr += dir;
+            }
+          }
+
+          this.updateConfig(seq);
           this.lastHoveredStep = index;
         }
       }
     }
   }
 
-  handlePointerUp(e: PointerEvent) {
-    this.isDragging = false;
-    this.lastHoveredStep = -1;
-    (this as any).releasePointerCapture(e.pointerId);
-  }
-
   render() {
     const seq = this.getSequence();
 
     return html`
-      <div class="sequencer-grid"
-           @pointermove=${this.handlePointerMove}
-           @pointerup=${this.handlePointerUp}
-           @pointercancel=${this.handlePointerUp}
-      >
+      <div class="sequencer-grid" @dblclick=${(e: Event) => e.stopPropagation()}>
         ${seq.map((step, i) => {
       const isActive = step.noteIndex !== null;
       const velocity = step.velocity ?? 0;
       const height = isActive ? Math.max(10, velocity * 100) : 0;
-      const isCurrent = i === this.currentStepIndex;
 
       return html`
             <div class="step ${isActive ? 'active' : ''}"
                  data-index="${i}"
                  @pointerdown=${(e: PointerEvent) => this.handlePointerDown(e, i)}
             >
-              ${isActive ? html`<div class="step-bar" style="height: ${height}%"></div>` : ''}
-              ${isCurrent ? html`<div class="playhead"></div>` : ''}
+              <div class="step-bar" style="height: ${height}%"></div>
             </div>
           `;
     })}

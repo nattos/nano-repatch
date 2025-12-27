@@ -121,14 +121,22 @@ export class GraphExecutor {
 
       let normalizedConfig = config;
 
-      if (configType && configType.kind === 'record' && config && typeof config === 'object' && !Array.isArray(config) && !('fields' in config)) {
+      if (configType && configType.kind === 'record' && config && typeof config === 'object' && !Array.isArray(config)) {
         // If input is a flat object but target is a Record, try to map known fields
         const mappedFields: any = {};
         let movedAny = false;
 
-        for (const key of Object.keys(config)) {
-          if (key in configType.fields) {
-            mappedFields[key] = (config as any)[key];
+        // Check both top-level keys AND keys inside 'values'
+        // UI often updates 'values' (virtual inputs), but the compiled config expects them in 'fields'.
+        // We flatten 'values' into the lookup scope to catch these updates.
+        const sourceValues = {
+          ...(config as any),
+          ...((config as any).values || {})
+        };
+
+        for (const key of Object.keys(configType.fields)) {
+          if (key in sourceValues) {
+            mappedFields[key] = sourceValues[key];
             movedAny = true;
           }
         }
@@ -184,6 +192,8 @@ export class GraphExecutor {
   }
 
 
+  // Method merged/restored below
+
   public markDirty(nodeId: string): void {
     const state = this.nodeStates.get(nodeId);
     if (!state || state.isDirty) return;
@@ -202,6 +212,7 @@ export class GraphExecutor {
       }
     }
 
+    // console.log(`[Executor] Update start. Node count: ${this.executionOrder.length}`);
     for (const nodeId of this.executionOrder) {
       const state = this.nodeStates.get(nodeId)!;
       if (!state.isDirty) continue;
@@ -242,7 +253,6 @@ export class GraphExecutor {
             if (sourceOutput && sourceOutput.fields) {
               if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
                 const value = sourceOutput.fields[sourcePort];
-                // console.error(`[Executor] Connection ${sourceNode}.${sourcePort} -> ${nodeId}.${conn.toPort} val=`, JSON.stringify(value));
                 addToPort(conn.toPort.toString(), value);
               }
             }
@@ -294,6 +304,9 @@ export class GraphExecutor {
           inputSchemaMap.set(k, v);
         });
       }
+
+      // Process collected inputs into final record
+      // We iterate over everything we collected, plus defaults for missing ones.
 
 
 

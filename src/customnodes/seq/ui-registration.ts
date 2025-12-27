@@ -1,5 +1,6 @@
 
 import { defaultNodeRepository } from "../../structor/repository";
+import { ROW_HEIGHT } from "../../constants";
 
 export function registerSeqUI() {
   const sequencerType = defaultNodeRepository.getNodeType('seq.sequencer');
@@ -7,7 +8,7 @@ export function registerSeqUI() {
     (sequencerType as any).ui = {
       ...((sequencerType as any).ui || {}),
       body: () => import('./sequencer-editor').then(m => m.SequencerEditorRenderer),
-      getBodyHeight: () => Promise.resolve(() => 160) // 4x4 grid approx height
+      getBodyHeight: () => Promise.resolve(() => 2 * ROW_HEIGHT)
     };
   }
 }

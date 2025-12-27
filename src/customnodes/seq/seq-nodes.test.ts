@@ -230,4 +230,35 @@ describe('Sequence Nodes', () => {
     });
   });
 
+  describe('seq.sequencer', () => {
+    it('should output pattern from config', () => {
+      // Mock config with a sequence
+      const sequence = Array(16).fill(null).map((_, i) => ({
+        noteIndex: i % 2 === 0 ? 60 : null,
+        velocity: 1,
+        hold: false
+      }));
+
+      const config = {
+        fields: {
+          sequence
+        }
+      };
+
+      const context = { nodeState: new Map() } as any;
+
+      const inputs = { fields: {} };
+
+      const result = sequencer.execute(inputs as any, config as any, context, {});
+
+      const outputs = (result as any).outputs.fields;
+      const seqOut = outputs.seq_out as any[];
+
+      expect(seqOut).toBeDefined();
+      expect(seqOut.length).toBe(16);
+      expect(seqOut[0].fields.noteIndex).toBe(60);
+      expect(seqOut[1].fields.noteIndex).toBeNull();
+    });
+  });
+
 });

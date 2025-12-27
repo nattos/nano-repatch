@@ -233,22 +233,26 @@ export const sequencer = defineNode<any, SeqSequencerUIConfig, SeqSequencerCompi
     currentStepIndex: 0
   }),
 
-  isRealtime: () => true,
+  // Not realtime anymore, purely static configuration unless updated
+  isRealtime: () => false,
 
   execute: (inputs, config, context, state) => {
-    const sequence = config.sequence || Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
+    // We are NOT realtime, so we rely on invalidation/config updates.
+    // However, GraphExecutor calls execute at least once during init loop if dirty.
 
-    // Calculate Playhead for UI
-    const stepsPerBeat = 4;
-    const absoluteStep = Math.floor(context.clock.beat * stepsPerBeat);
-    state.currentStepIndex = ((absoluteStep % SEQUENCE_LENGTH) + SEQUENCE_LENGTH) % SEQUENCE_LENGTH;
+    // config.sequence is the Array Record of current Pattern
+    const defaultSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
+    const sequenceRaw = (config as any).sequence || defaultSeq;
+
+    // GraphExecutor/definePrimitiveNode expects raw values. It performs the Structor marshalling.
+    // If we return { fields: ... }, toStructor will look for properties on the fields wrapper and fail.
+    // So we just return the raw sequence (or a mapped version if we needed to transform it).
+    // The sequenceRaw from config is already in the correct shape { noteIndex, velocity, hold }.
 
     return {
-      outputs: { seq_out: sequence },
-      // Send UI state for playhead
+      outputs: { seq_out: sequenceRaw },
       ui: {
-        currentStep: state.currentStepIndex,
-        sequence: sequence
+        currentStepIndex: state.currentStepIndex
       }
     };
   }

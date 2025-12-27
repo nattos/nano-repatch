@@ -3,6 +3,32 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Sequencer Output & UI Fixes (As of 2025-12-27)
+
+This entry documents the resolution of `seq.sequencer` output issues and UI refinements.
+
+### Bug Fixes
+
+1.  **Sequencer Output:**
+    *   **Issue:** `seq.sequencer` always output an empty pattern (`undefined` fields) despite correct execution logic.
+    *   **Root Cause:** The `execute` method was manually wrapping the output into `Structor` format (`{ fields: ... }`). However, `definePrimitiveNode` (wrapping the node) *also* attempts to marshal the return value using `toStructor`, which failed when processing the already-wrapped object (expecting raw values).
+    *   **Fix:** Updated `sequencer.execute` in `src/customnodes/seq/nodes.ts` to return raw JavaScript objects. `definePrimitiveNode` now handles the Structor conversion correctly.
+    *   **Verification:** Added a regression test in `src/customnodes/seq/seq-nodes.test.ts`.
+
+2.  **UI Interaction:**
+    *   **Issue:** Gaps between steps caused clicks to be missed; dragging didn't toggle steps consistently.
+    *   **Fix:** Updated CSS in `src/customnodes/seq/sequencer-editor.ts` to remove gaps and use `border-right`. Implemented `PointerDragOp` for robust drag-to-toggle interaction.
+
+3.  **Config Update Normalization:**
+    *   **Issue:** Sequencer (and potentially other nodes) stopped updating after the first interaction.
+    *   **Root Cause:** `GraphExecutor.setNodeConfig` normalization logic only checked top-level properties of the update object against the schema. UI updates often come nested in `values` (for consistency with virtual inputs).
+    *   **Fix:** Updated `src/structor/executor.ts` to flatten `values` into the lookup scope when normalizing config updates, ensuring `fields` are correctly populated from UI interactions.
+
+4.  **Serialization of Mixed State Objects:**
+    *   **Issue:** Second update to the Sequencer caused a `DataCloneError: #<Object> could not be cloned`.
+    *   **Root Cause:** When `SequencerEditor` updated the sequence, it merged a plain array (the new sequence) into the existing configuration object. Because the configuration object comes from the AppState (MobX), it contains Proxies (observable arrays/objects). Creating a new object by spreading a Proxy (`...this.config`) results in a mixed structure containing both plain data and MobX Proxies. While `toJS` usually handles Proxies, this specific mixed structure caused `postMessage` to fail, possibly due to incomplete unwrapping or hidden non-cloneable internal state in the Proxies.
+    *   **Fix:** Updated `RuntimeManager.handleInputUpdates` to sanitize the data using `JSON.parse(JSON.stringify(toJS(...)))`. This guarantees a pure JSON-compatible structure is sent to the worker, stripping all Proxies and ensuring stability.
+
 ## Pack Node & Type Safety (As of 2025-12-27)
 
 This entry documents fixes for the `core.pack` node's output structure and a codebase-wide type audit.

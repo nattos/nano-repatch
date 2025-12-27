@@ -432,7 +432,7 @@ export class RuntimeManager {
       const msg: ExecutorWorkerMessage = {
         type: 'UPDATE_INPUT',
         name: update.nodeId,
-        value: toJS(update.inputs) as any
+        value: JSON.parse(JSON.stringify(update.inputs))
       };
       this.executorWorker.postMessage(msg);
     }
