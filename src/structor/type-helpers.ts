@@ -196,6 +196,11 @@ export interface TypedNodeOptions<
     backwardMetadata?: any,
   ) => { inputs: RecordType; outputs: RecordType };
 
+  shouldRecompileOnConfigChange?: (
+    newConfig: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
+    oldConfig: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>
+  ) => boolean;
+
   ui?: any;
 
   execute: (
@@ -243,6 +248,14 @@ export function definePrimitiveNode<
         fields: (options.inputs || {}) as any
       });
       return { inputs: inputFields, outputs: outputType }; // Fallback using static inputs
+    },
+    shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
+      if (options.shouldRecompileOnConfigChange) {
+        // Pass raw config through. Cast to 'any' to satisfy typed interface which expects unwrapped config.
+        // In practice, primitives often handle raw config safely or the unwrap logic matches.
+        return options.shouldRecompileOnConfigChange(newConfig as any, oldConfig as any);
+      }
+      return false;
     },
     ui: options.ui,
     createState: options.createState as any,

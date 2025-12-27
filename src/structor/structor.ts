@@ -169,6 +169,11 @@ export interface PrimitiveNodeDefinition {
     backwardMetadata?: any,
   ) => { inputs: RecordType; outputs: RecordType };
 
+  shouldRecompileOnConfigChange?: (
+    newConfig: StructorRecord,
+    oldConfig: StructorRecord
+  ) => boolean;
+
   /** Runtime execution function: computes output data from input data. */
   execute: (
     input: StructorRecord,

@@ -341,6 +341,10 @@ export const primitive_pack = definePrimitiveNode({
     };
   },
 
+  shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
+    return newConfig?.targetType !== oldConfig?.targetType;
+  },
+
   execute: (inputs, config) => {
     // pack receives raw inputs because it has dynamic ports and no autoBroadcast
     // inputs is { fields: { x: val, y: val ... } }

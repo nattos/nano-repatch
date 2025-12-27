@@ -75,7 +75,7 @@ export interface EnhancedNodeOptions<
   TCompiledConfig extends NodeConfigDef,
   TOutputs extends ExtendedNodeOutputsDef,
   TState = undefined
-> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config'> { // Exclude config to redefine it
+> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config' | 'shouldRecompileOnConfigChange'> { // Exclude config to redefine it
   inputs?: TInputs;
   outputs: TOutputs; // Explicit override
   dynamicOutputType?: StructorType;

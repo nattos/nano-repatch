@@ -211,7 +211,9 @@ export class LocalController {
         if (idxA !== -1 && idxB !== -1) return idxA - idxB;
         if (idxA !== -1) return -1; // A in Repo, B New -> A first
         if (idxB !== -1) return 1;  // B in Repo, A New -> B first
-        return a.name.localeCompare(b.name); // Both New -> Alphabetical
+
+        // Both New: Respect insertion order (don't sort alphabetically)
+        return 0;
       });
     }
 
