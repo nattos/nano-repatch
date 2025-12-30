@@ -275,7 +275,7 @@
         "typeId": "midi.trigger",
         "name": "#",
         "values": {
-          "trigger": 267
+          "trigger": 269
         },
         "trigger": 0
       }
