@@ -120,6 +120,23 @@ export class LongEdit {
   }
 }
 
+// Helper to build auxiliary maps (lookup indices) from the canonical graph state
+export function buildGraphStateAuxiliary(graphState: GraphInnerState): GraphState['auxiliary'] {
+  const outgoingConnections = new Map<string, string[]>();
+  const incomingConnections = new Map<string, string[]>();
+
+  for (const node of Object.values(graphState.nodes)) {
+    outgoingConnections.set(node.id, []);
+    incomingConnections.set(node.id, []);
+  }
+
+  for (const conn of Object.values(graphState.connections)) {
+    outgoingConnections.get(conn.fromNodeId)?.push(conn.id);
+    incomingConnections.get(conn.toNodeId)?.push(conn.id);
+  }
+  return { outgoingConnections, incomingConnections };
+}
+
 // Part 3: The Controller
 export class AppController {
   private currentState: AppState;
@@ -149,7 +166,7 @@ export class AppController {
     this.currentState = {
       graph: {
         inner: graphState,
-        auxiliary: this.buildAuxiliaryMaps(graphState),
+        auxiliary: buildGraphStateAuxiliary(graphState),
       },
     };
     // MobX can make Maps and Sets observable directly
@@ -768,21 +785,7 @@ export class AppController {
     }
   }
 
-  private buildAuxiliaryMaps(graphState: GraphInnerState): GraphState['auxiliary'] {
-    const outgoingConnections = new Map<string, string[]>();
-    const incomingConnections = new Map<string, string[]>();
 
-    for (const node of Object.values(graphState.nodes)) {
-      outgoingConnections.set(node.id, []);
-      incomingConnections.set(node.id, []);
-    }
-
-    for (const conn of Object.values(graphState.connections)) {
-      outgoingConnections.get(conn.fromNodeId)?.push(conn.id);
-      incomingConnections.get(conn.toNodeId)?.push(conn.id);
-    }
-    return { outgoingConnections, incomingConnections };
-  }
 
   private applyMutations(state: AppState, mutations: AppMutation[]): void {
     for (const mutation of mutations) {

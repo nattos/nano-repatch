@@ -48,15 +48,14 @@ export class WorkspacePanel extends MobxLitElement {
   @state() newGraphName = '';
 
   render() {
-    const { currentDirHandle, files, currentGraphId, isWaitingForPermission } = workspaceController;
-    const selectedFileIndex = files.findIndex(f => f.name === currentGraphId);
+    const { files, currentGraphId } = workspaceController;
 
     return html`
       <ui-panel title="Workspace">
         <ui-button slot="header-actions" icon="la-sync" @click=${() => workspaceController.refreshFiles()} title="Refresh"></ui-button>
 
         <div class="ui-list">
-          ${files.map((file, index) => html`
+          ${files.map((file) => html`
             <div
               class="ui-list-item ${file.name === currentGraphId ? 'selected' : ''}"
               @click=${() => workspaceController.openFile(file.name)}

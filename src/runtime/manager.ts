@@ -473,22 +473,8 @@ export class RuntimeManager {
     this.executorWorker.postMessage(stepMsg);
   }
 
-
-
   private recompileAndRun() {
-    // console.log('RuntimeManager: Sending compile request...');
     const state = this.appController.observableState;
-    // We need to snapshot the state to avoid passing observables directly if that's an issue?
-    // postMessage uses structured clone. Observables might have extra properties.
-    // But usually MobX proxies are transparent enough or we should use `toJS`.
-    // Let's use a simplified snapshot or rely on structured clone.
-    // `state` is a complex object. `toJS` from MobX is safer.
-    // But `state` is `AppState`.
-    // Let's try passing it directly first. If it fails, we use `toJS`.
-    // Actually, `state` contains `GraphState` which contains `GridNode`s.
-    // It should be fine.
-
-    // Wait, `subgraphs` from localController.
     const subgraphs = this.localController.observableState.loadedSubgraphs;
 
     const msg: CompilerWorkerMessage = {

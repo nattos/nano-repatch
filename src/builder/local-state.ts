@@ -1,17 +1,15 @@
 import { HTMLTemplateResult } from 'lit';
 import { observable, makeObservable, action, runInAction, toJS } from 'mobx';
-import { computeWireLayout, LayoutResult } from '../layout/wire-layout';
-import { GraphState, Connection, GridNode } from './state';
+import { LayoutResult } from '../layout/wire-layout';
+import { GraphState, GridNode } from './state';
 import { settingsManager } from './settings-manager';
 import { StructorType } from '../structor/structor';
 import { defaultNodeRepository, PortHint } from '../structor/repository';
 import {
   NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED,
-  GRID_UNIT, GRID_GAP, GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING
+  GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING
 } from '../constants';
-import { getNodeVisualState, NodeVisualState, calculatePortY, calculateNodeHeight } from '../utils/node-width-utils';
-
-// Part 4: Local Controller (UI State)
+import { getNodeVisualState, NodeVisualState, calculateNodeHeight } from '../utils/node-width-utils';
 
 export interface LocalState {
   selection: Map<string, Selectable>;
@@ -65,8 +63,6 @@ export interface GridMetrics {
   rowOffsets: Map<number, number>; // Row Index -> Accum. Pixels from Top (for Node Top)
   colOffsets: Map<number, number>; // Col Index -> Accum. Pixels from Left (for Node Left)
 }
-
-// ... existing code ...
 
 export class LocalController {
   public observableState: LocalState;
@@ -236,9 +232,6 @@ export class LocalController {
   private saveSettings() {
     settingsManager.saveSettings(toJS(this.observableState.localSettings));
   }
-
-
-  // ... existing code ...
 
   @action
   public updateWireLayout(graph: GraphState): void {
@@ -577,25 +570,12 @@ export class LocalController {
     this.observableState.dragPreview = preview;
   }
 
+  @action
+  public setLoadedSubgraphs(subgraphs: Map<string, GraphState>) {
+    this.observableState.loadedSubgraphs = subgraphs;
+  }
+
   public getViewportCenterGridCoordinates(): { x: number, y: number } {
-    // We don't track Pan/Zoom in LocalState yet (it's in GraphGrid DOM state usually).
-    // BUT, the prompt implies "It should know how to compute the current viewport".
-    // If we don't track it, we need to.
-    // GraphGrid handles scroll.
-    // The user mentioned "It should know how to compute the current viewport in a stable way."
-    // Let's assume we need to query GraphGrid or move that state here.
-    // Wait, GraphGrid has `scrollLeft` and `scrollTop`.
-    // We can't easily access the DOM from here without a reference.
-    // However, if we want a *systemic* way, the Controller should probably know about the Viewport.
-    // For now, let's implement a registry or callback system where GraphGrid registers itself?
-    // OR, simpler: Dispatch an event? No, we want a direct call.
-    //
-    // Actually, `workspaceController` might be a better place for "Canvas" related things?
-    // Let's check `workspace-controller.ts`.
-    //
-    // If I cannot find viewport state, I will implement a bridge.
-    // But let's look at `GraphGrid` again. It has `this.scrollLeft`.
-    //
     // Proposal:
     // Add `viewport` to `LocalState`.
     // Have `GraphGrid` update `LocalState.viewport` on scroll (throttled).
@@ -648,21 +628,6 @@ export class LocalController {
     }
 
     return { x: 5, y: gridY };
-
-    // Find Col
-    // Columns are variable width too, but roughly:
-    // Input(0) -> Gap -> Node(0) (Col 3) -> Gap -> Node(1) (Col 5)
-    // We effectively map pixels to columns.
-    // Since columns are flexible, this is harder.
-    // BUT, we can estimate?
-    // "Close to the midpoint".
-
-    // Let's just assume a safe default column like 5 if precise calc is hard.
-    // Or better: Iterate columns and sum widths?
-    // That requires order.
-
-    // Let's implement the simpler version: returning a reasonable default if complex logic fails.
-    return { x: 5, y: gridY };
   }
 
   public getGridCellFromPixels(x: number, y: number): { x: number, y: number } {
@@ -690,22 +655,6 @@ export class LocalController {
     // Find Column (X)
     let gridX = 0;
     const maxCol = Math.max(...Array.from(columnWidths.keys()), -1);
-
-    // Initial check for Input/Output columns?
-    // Input is virtual -1? or managed separately?
-    // Our colOffsets logic starts at 136 (Col 0).
-    // If x < 136, it's input?
-    // Or negative?
-    // Let's check logic:
-    // colOffsets sets col 0 at 136.
-    // So if x < 136, it's Input Column area.
-    // If x > last col, it's Output Column area?
-    // We want the node to SNAP to valid columns.
-    // Can we drop on Input/Output manually?
-    // Usually user inserts there.
-    // Let's snap to closest standard column `0..maxCol`.
-    // Or extrapolate columns too?
-    // If standard "Node Area" is being used, we snap to closest.
 
     if (x < 96) {
       gridX = 0; // Snap to first column if too far left

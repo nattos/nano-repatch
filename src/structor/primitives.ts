@@ -14,6 +14,7 @@ import {
 } from "./structor";
 import { definePrimitiveNode, defineMathNode } from "./type-helpers";
 import { numberType, anyType } from "./std-types";
+import type { GraphState } from "../builder/state";
 
 // Helper to infer type from value (simple version)
 function inferType(value: any): StructorType {
@@ -163,26 +164,50 @@ export const primitive_output: PrimitiveNodeDefinition = {
   }
 };
 
-export const primitive_subgraph: PrimitiveNodeDefinition = {
+interface SubgraphConfig {
+  subgraphId: string;
+}
+
+interface SubgraphAnalysisContext extends AnalysisContext {
+  loadedSubgraphs?: Map<string, GraphState>;
+}
+
+export const primitive_subgraph = definePrimitiveNode({
   id: 'core.subgraph',
-  kind: 'primitive',
   metadata: {
     category: NodeCategory.Core,
     keywords: ['nested', 'graph'],
     description: 'Executes a nested subgraph.'
   },
+  config: { subgraphId: { kind: 'atomic', type: 'string' } },
+  inputs: {},
+  outputs: {},
+  ui: {
+    inspector: {
+      fields: [
+        {
+          type: 'string',
+          label: 'Subgraph ID',
+          path: 'subgraphId'
+        }
+      ]
+    }
+  },
   computeForwardPorts: (inputType, config, context) => {
     // Access loadedSubgraphs from context (injected by compiler)
-    const loadedSubgraphs = (context as any).loadedSubgraphs;
+    const ctx = context as SubgraphAnalysisContext;
+    const loadedSubgraphs = ctx.loadedSubgraphs;
+
     if (!loadedSubgraphs) {
       return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
     }
 
-    const subgraphId = (config as any).subgraphId;
+    // FIXME: There's a widespread problem where configs are typed as Structors, but they aren't actually.
+    const subgraphId = (config as any as SubgraphConfig).subgraphId;
     const subgraph = loadedSubgraphs.get(subgraphId);
 
     if (subgraph) {
-      const subgraphNodes = Object.values(subgraph.inner.nodes) as any[]; // Cast to access config
+      const subgraphNodes = Object.values(subgraph.inner.nodes);
 
       // Compute Inputs from Subgraph Inputs
       const inputFields: Record<string, StructorType> = {};
@@ -190,7 +215,7 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
         .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
         .sort((a, b) => a.y - b.y)
         .forEach(n => {
-          const name = n.config.name || '0';
+          const name = (n.config as any).name || '0';
           inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
         });
 
@@ -200,7 +225,7 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
         .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
         .sort((a, b) => a.y - b.y)
         .forEach(n => {
-          const name = n.config.name || '0';
+          const name = (n.config as any).name || '0';
           outputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
         });
 
@@ -216,7 +241,7 @@ export const primitive_subgraph: PrimitiveNodeDefinition = {
     // Subgraph execution logic would go here.
     return { fields: {} };
   }
-};
+});
 
 export const primitive_pack = definePrimitiveNode({
   id: 'core.pack',

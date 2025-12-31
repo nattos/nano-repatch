@@ -1,6 +1,6 @@
 import '../customnodes/registration-worker';
 import { AppState, GraphState, GridNode } from './state';
-import { GraphDefinition, NodeInstance, Structor, StructorType, RecordType } from '../structor/structor';
+import { GraphDefinition, NodeInstance, Structor, StructorType, RecordType, AnalysisContext } from '../structor/structor';
 import { NodeRepository } from '../structor/repository';
 
 /**
@@ -261,7 +261,11 @@ export function compileGraph(
 
   // --- BACKWARD PASS ---
   // Propagate requirements from outputs to inputs (upstream)
-  const context = { repository: nodeRepository, broadcast: () => undefined, loadedSubgraphs } as any;
+  const context: AnalysisContext & { loadedSubgraphs: Map<string, GraphState> } = {
+    repository: nodeRepository,
+    broadcast: () => undefined,
+    loadedSubgraphs
+  };
 
   // Iterate in REVERSE execution order (from Sinks to Sources)
   for (let i = executionOrder.length - 1; i >= 0; i--) {

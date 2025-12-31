@@ -1,5 +1,6 @@
 import { makeObservable, observable, action, runInAction, reaction, toJS } from 'mobx';
-import { AppController, GraphInnerState } from './state';
+import { AppController, GraphInnerState, buildGraphStateAuxiliary, GraphState } from './state';
+import { LocalController } from './local-state';
 
 const DB_NAME = 'nano-repatch-db';
 const STORE_NAME = 'handles';
@@ -50,7 +51,7 @@ export class WorkspaceController {
   @observable currentGraphId: string | null = null;
   @observable isWaitingForPermission: boolean = false;
 
-  constructor(private appController: AppController) {
+  constructor(private appController: AppController, private localController: LocalController) {
     makeObservable(this);
     this.init();
 
@@ -207,6 +208,51 @@ export class WorkspaceController {
     if (this.currentGraphId) {
       await this.openFile(this.currentGraphId);
     }
+
+    // Load all subgraphs into memory
+    this.loadAllSubgraphs();
+  }
+
+  @action
+  async loadAllSubgraphs() {
+    if (!this.currentDirHandle) return;
+
+    const subgraphs = new Map<string, GraphState>();
+
+    // Process files in parallel
+    await Promise.all(this.files.map(async (fileEntry) => {
+      try {
+        const file = await fileEntry.handle.getFile();
+        const text = await file.text();
+        const innerState = JSON.parse(text) as GraphInnerState;
+
+        // Construct full GraphState
+        const graphState: GraphState = {
+          inner: innerState,
+          auxiliary: buildGraphStateAuxiliary(innerState)
+        };
+
+        // Normalize ID: Remove .json extension if preferred, or keep as filename?
+        // Let's use the filename as the ID for now.
+        // User convention is likely just filename.
+        // If primitive_subgraph uses "my-synth", and file is "my-synth.json".
+        // Let's store both with and without .json? Or strip it.
+        // Resolving: "my-synth" -> "my-synth.json" usually happening in file lookup.
+        // The ID in primitive_subgraph is likely just the string.
+        // Let's match how we handle ids.
+        // "subgraphId" in primitive_subgraph is just a string.
+        // Let's store by filename for simplicity first.
+        // If user enters "foo", they likely mean "foo.json".
+        // Let's strip ".json" for the ID key.
+        const id = fileEntry.name.replace('.json', '');
+        subgraphs.set(id, graphState);
+
+      } catch (e) {
+        console.warn(`Failed to load subgraph ${fileEntry.name}`, e);
+      }
+    }));
+
+    this.localController.setLoadedSubgraphs(subgraphs);
   }
 
   @action
@@ -260,6 +306,9 @@ export class WorkspaceController {
       const writable = await handle.createWritable();
       await writable.write(json);
       await writable.close();
+
+      // Update cache
+      this.loadAllSubgraphs();
     } catch (e) {
       console.error('Error saving graph:', e);
     }

@@ -8,12 +8,11 @@ import { reaction, toJS } from 'mobx';
 
 // Register UI components for custom nodes is now handled via index.ts -> registration-ui.ts
 
-
 // These are the singleton instances of the controllers that will be used throughout the application.
 export const appController = new AppController();
 export const localController = new LocalController();
 export const runtimeManager = new RuntimeManager(appController, localController);
-export const workspaceController = new WorkspaceController(appController);
+export const workspaceController = new WorkspaceController(appController, localController);
 
 // Initial connection to Resolume
 // Initial connection to Resolume (if enabled)
@@ -33,15 +32,8 @@ reaction(
   { fireImmediately: true, delay: 50 } // Debounce slightly to avoid thrashing on drag
 );
 
-// Listen for inferred types updates and propagate to LocalController
-// Listen for inferred types updates and propagate to LocalController
-// DEPRECATED: RuntimeManager now updates LocalController directly to avoid LongEdit loops.
-// appController.onInferredTypesUpdate((inferredTypes) => {
-//   localController.updateInferredTypes(inferredTypes, (nodeId) => {
-//     return appController.observableState.graph.inner.nodes[nodeId]?.config.typeId;
-//   });
-// });
-
 // Expose for E2E testing
-(window as any).testing = { appController, localController, runtimeManager, workspaceController };
+if (import.meta.env.DEV) {
+  (window as any).testing = { appController, localController, runtimeManager, workspaceController };
+}
 
