@@ -27,7 +27,8 @@ export function compileGraph(
   function processGraph(
     graph: GraphState,
     idPrefix: string,
-    isRoot: boolean
+    isRoot: boolean,
+    parentConfigValues: Record<string, any> = {}
   ) {
     // 1. Process Nodes
     for (const node of Object.values(graph.inner.nodes)) {
@@ -44,7 +45,7 @@ export function compileGraph(
         }
 
         // Recurse with new prefix
-        processGraph(subgraph, nodeId + '.', false);
+        processGraph(subgraph, nodeId + '.', false, node.config.values || {});
       } else {
         // Regular node (or input/output node acting as identity)
         // For input/output nodes in subgraphs, they act as identity nodes
@@ -76,13 +77,50 @@ export function compileGraph(
           }
         }
 
+        // --- Virtual Input Propagation (for Subgraph Inputs) ---
+        // If this is an io.input node inside a subgraph (not root), check if we have a parent value to inject.
+        if (!isRoot && (node.config.typeId === 'io.input' || node.config.typeId === 'input')) {
+          // Iterate over parentConfigValues to see if any match this input node's logical port.
+          // Since we don't have the index here easily without scanning all nodes, we must scan the graph notes first?
+          // Alternatively, since 'parentConfigValues' are keyed by port name (e.g. 'x', 'y' or name 'foo'),
+          // and we have resolvePortName logic...
+          // Actually, we need to know what port name THIS input node corresponds to.
+
+          // Optimization: Pre-calculate port names for the current graph scope?
+          // Or just do a lookup here.
+          const inputNodes = Object.values(graph.inner.nodes)
+            .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+            .sort((a, b) => a.y - b.y);
+
+          const myIndex = inputNodes.findIndex(n => n.id === node.id);
+          if (myIndex !== -1) {
+            const rawName = node.config.name || 'value';
+            const portName = resolvePortName(rawName, myIndex, inputNodes.length, 'input');
+
+            const injectedValue = parentConfigValues[portName];
+            if (injectedValue !== undefined) {
+              if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
+              // io.input uses config object or config.value.
+              (instance.defaultConfig as any).value = injectedValue;
+            }
+          }
+        }
+
         // Process Virtual Inputs (Configured Values & Defaults)
         // We need to consider both explicitly configured values AND default values for unconnected ports.
 
         // 1. Determine all potential input ports
         let inputPorts: { name: string, defaultValue?: any }[] = [];
         if (nodeType) {
-          inputPorts = nodeType.inputs || [];
+          if (Array.isArray(nodeType.inputs)) {
+            inputPorts = nodeType.inputs;
+          } else if (nodeType.inputs && (nodeType.inputs as any).kind === 'record') {
+            // Convert RecordType to simplified input list for virtual processing
+            inputPorts = Object.entries((nodeType.inputs as any).fields || {}).map(([key, val]) => ({
+              name: key,
+              defaultValue: (val as any).defaultValue
+            }));
+          }
         }
 
         // 2. Collect all port names to process (defined inputs + any extra keys in config.values)

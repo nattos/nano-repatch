@@ -51,6 +51,10 @@ export class GraphExecutor {
     return this.inferredNodeTypes;
   }
 
+  public getNodeState(nodeId: string): NodeState | undefined {
+    return this.nodeStates.get(nodeId);
+  }
+
 
   private initializeStates(initialStates?: Map<string, NodeState>, dirtyNodeIds?: string[]) {
     const explicitDirtySet = new Set(dirtyNodeIds || []);
@@ -221,7 +225,7 @@ export class GraphExecutor {
       const definition = this.repository.get(instance.definitionId);
 
       if (!definition || definition.kind !== 'primitive') {
-        if (!definition) console.warn(`Definition not found for node ${nodeId}`);
+        if (!definition) console.warn(`Definition not found for node ${nodeId} (defId: ${instance.definitionId})`);
         continue;
       }
 

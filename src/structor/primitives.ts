@@ -170,8 +170,16 @@ export const primitive_input: PrimitiveNodeDefinition = {
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
 
-    // Identity: Output value is input 'value' OR config value (from slider)
-    const val = input.fields['value'] !== undefined ? input.fields['value'] : config;
+    // Identity: Output value is input 'value' OR config.value OR config (fallback)
+    // We prioritize config.value to support injected virtual inputs.
+    let val = input.fields['value'];
+    if (val === undefined) {
+      if (config && (config as any).value !== undefined) {
+        val = (config as any).value;
+      } else {
+        val = config;
+      }
+    }
     return { fields: { 'value': val } };
   }
 };
