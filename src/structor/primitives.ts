@@ -207,6 +207,22 @@ interface SubgraphAnalysisContext extends AnalysisContext {
   loadedSubgraphs?: Map<string, GraphState>;
 }
 
+// Helper for dynamic port naming (replacing #)
+export function resolvePortName(name: string, index: number, total: number, kind: 'input' | 'output'): string {
+  if (!name || !name.includes('#')) return name;
+
+  let replacement = '';
+  if (total === 1) {
+    replacement = kind === 'input' ? 'in' : 'out';
+  } else if (total <= 4) {
+    replacement = ['x', 'y', 'z', 'w'][index];
+  } else {
+    replacement = index.toString();
+  }
+
+  return name.replace(/#/g, replacement);
+}
+
 export const primitive_subgraph = definePrimitiveNode({
   id: 'core.subgraph',
   metadata: {
@@ -246,24 +262,33 @@ export const primitive_subgraph = definePrimitiveNode({
 
       // Compute Inputs from Subgraph Inputs
       const inputFields: Record<string, StructorType> = {};
-      subgraphNodes
+      const inputNodes = subgraphNodes
         .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
-        .sort((a, b) => a.y - b.y)
-        .forEach(n => {
-          const name = (n.config as any).name || '0';
-          inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
-        });
+        .sort((a, b) => a.y - b.y);
+
+      inputNodes.forEach((n, i) => {
+        let name = (n.config as any).name || 'value';
+        name = resolvePortName(name, i, inputNodes.length, 'input');
+        inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+      });
 
       // Compute Outputs from Subgraph Outputs
       const outputFields: Record<string, StructorType> = {};
-      subgraphNodes
+      const outputNodes = subgraphNodes
         .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-        .sort((a, b) => a.y - b.y)
-        .forEach(n => {
-          const name = (n.config as any).name || '0';
-          outputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
-        });
+        .sort((a, b) => a.y - b.y);
 
+      outputNodes.forEach((n, i) => {
+        let name = (n.config as any).name || 'value';
+        name = resolvePortName(name, i, outputNodes.length, 'output');
+        outputFields[name] = { kind: 'atomic', type: 'any' };
+      });
+
+      // TODO: We should probably infer better types by looking at what's connected INSIDE the subgraph.
+      // E.g. if input node is connected to a math node, we know it's a number.
+      // But for now 'any' allows connections.
+
+      // Merge user-defined inputs/outputs if they exist using spread (though currently inputs field is empty)
       return {
         inputs: { kind: 'record', fields: inputFields },
         outputs: { kind: 'record', fields: outputFields }

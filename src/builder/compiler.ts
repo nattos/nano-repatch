@@ -2,6 +2,7 @@ import '../customnodes/registration-worker';
 import { AppState, GraphState, GridNode } from './state';
 import { GraphDefinition, NodeInstance, Structor, StructorType, RecordType, AnalysisContext } from '../structor/structor';
 import { NodeRepository } from '../structor/repository';
+import { resolvePortName } from '../structor/primitives';
 
 /**
  * Compiles the current AppState into a flat GraphDefinition ready for execution.
@@ -67,11 +68,9 @@ export function compileGraph(
         // If root, register graph inputs/outputs
         if (isRoot) {
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
-            // ... (existing input logic)
             const name = node.config.name || node.id;
             flatInputs[name] = { nodeId: nodeId, port: 'value' };
           } else if (node.config.typeId === 'io.output' || node.config.typeId === 'output') {
-            // ... (existing output logic)
             const name = node.config.name || node.id;
             flatOutputs[name] = { nodeId: nodeId, port: 'value' };
           }
@@ -108,8 +107,6 @@ export function compileGraph(
                 value = portDef.defaultValue;
               } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
                 value = ((portDef as any).type as any).defaultValue;
-              } else {
-                // console.log(`No value for ${portName} in ${node.id} (type: ${node.config.typeId}). Def:`, portDef);
               }
             }
 
@@ -133,15 +130,19 @@ export function compileGraph(
       const fromNode = graph.inner.nodes[conn.fromNodeId];
       if (fromNode && (fromNode.config.typeId === 'core.subgraph' || fromNode.config.typeId === 'subgraph')) {
         // Connection FROM a subgraph node (output of subgraph)
-        // We need to find the corresponding 'output' node inside the subgraph.
-        // The port name on the subgraph node corresponds to the name of the output node.
-        // So we look for an output node with name === conn.fromPort
         const subgraphId = fromNode.config.subgraphId;
         const subgraph = loadedSubgraphs.get(subgraphId);
         if (subgraph) {
-          const outputNode = Object.values(subgraph.inner.nodes).find(n =>
-            (n.config.typeId === 'io.output' || n.config.typeId === 'output') && (n.config.name === fromPort || n.id === fromPort)
-          );
+          const outputNodes = Object.values(subgraph.inner.nodes)
+            .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+            .sort((a, b) => a.y - b.y);
+
+          const outputNode = outputNodes.find((n, i) => {
+            const rawName = (n.config as any).name || 'value';
+            const portName = resolvePortName(rawName, i, outputNodes.length, 'output');
+            return portName === fromPort;
+          });
+
           if (outputNode) {
             // Rewire: Source is the 'output' node inside the subgraph
             fromNodeId = idPrefix + fromNode.id + '.' + outputNode.id;
@@ -157,13 +158,19 @@ export function compileGraph(
       const toNode = graph.inner.nodes[conn.toNodeId];
       if (toNode && (toNode.config.typeId === 'core.subgraph' || toNode.config.typeId === 'subgraph')) {
         // Connection TO a subgraph node (input of subgraph)
-        // We need to find the corresponding 'input' node inside the subgraph.
         const subgraphId = toNode.config.subgraphId;
         const subgraph = loadedSubgraphs.get(subgraphId);
         if (subgraph) {
-          const inputNode = Object.values(subgraph.inner.nodes).find(n =>
-            (n.config.typeId === 'io.input' || n.config.typeId === 'input') && (n.config.name === toPort || n.id === toPort)
-          );
+          const inputNodes = Object.values(subgraph.inner.nodes)
+            .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+            .sort((a, b) => a.y - b.y);
+
+          const inputNode = inputNodes.find((n, i) => {
+            const rawName = (n.config as any).name || 'value';
+            const portName = resolvePortName(rawName, i, inputNodes.length, 'input');
+            return portName === toPort;
+          });
+
           if (inputNode) {
             // Rewire: Destination is the 'input' node inside the subgraph
             toNodeId = idPrefix + toNode.id + '.' + inputNode.id;
@@ -174,7 +181,6 @@ export function compileGraph(
 
       let validSource = true;
       if (fromNode && (fromNode.config.typeId === 'core.subgraph' || fromNode.config.typeId === 'subgraph')) {
-        // Subgraph output: Must be rewired to internal node
         // If fromNodeId was not updated, it means rewiring failed (port not found)
         if (fromNodeId === idPrefix + conn.fromNodeId) {
           validSource = false;
@@ -183,7 +189,6 @@ export function compileGraph(
 
       let validDest = true;
       if (toNode && (toNode.config.typeId === 'core.subgraph' || toNode.config.typeId === 'subgraph')) {
-        // Subgraph input: Must be rewired to internal node
         if (toNodeId === idPrefix + conn.toNodeId) {
           validDest = false;
         }
@@ -222,7 +227,6 @@ export function compileGraph(
   const queue: string[] = [];
   const validConnectionIndices = new Set<number>();
 
-  // Start with nodes having in-degree 0
   for (const [nodeId, degree] of inDegree) {
     if (degree === 0) queue.push(nodeId);
   }
@@ -242,17 +246,8 @@ export function compileGraph(
     }
   }
 
-  // If there are still nodes with in-degree > 0, we have cycles (or just unvisited nodes in a cycle)
-  // For now, we just exclude connections that form the cycle implicitly by only keeping validConnectionIndices.
-  // Although, strictly speaking, we might want to be more aggressive about breaking specific backedges.
-  // But this simple approach ensures we have a valid DAG execution order.
-
-  // Any nodes NOT in executionOrder are part of a cycle or dependent on a cycle.
-  // We should probably include them in the result but disconnected?
-  // Or just warn.
   if (executionOrder.length !== Object.keys(flatNodes).length) {
     console.warn(`Graph contains cycles! Only ${executionOrder.length}/${Object.keys(flatNodes).length} nodes differ in DAG.`);
-    // Add remaining nodes to execution order arbitrarily to ensure they exist in the map
     for (const nodeId of Object.keys(flatNodes)) {
       if (!executionOrder.includes(nodeId)) executionOrder.push(nodeId);
     }
@@ -262,31 +257,25 @@ export function compileGraph(
 
   // --- Type Compilation Passes ---
 
-  // Initialize Type State
   const nodeTypes = new Map<string, {
-    inputs: StructorType; // RecordType
-    outputs: StructorType; // RecordType
+    inputs: StructorType;
+    outputs: StructorType;
   }>();
 
-  // Requirements map: NodeId -> PortName -> Required Type
-  // This accumulates what downstream nodes WANT from this node's outputs.
   const outputRequirements = new Map<string, Record<string, StructorType>>();
   const backwardMetadata = new Map<string, any>();
 
-  // Initialize output requirements maps
   for (const nodeId of executionOrder) {
     outputRequirements.set(nodeId, {});
   }
 
   // --- BACKWARD PASS ---
-  // Propagate requirements from outputs to inputs (upstream)
   const context: AnalysisContext & { loadedSubgraphs: Map<string, GraphState> } = {
     repository: nodeRepository,
     broadcast: () => undefined,
     loadedSubgraphs
   };
 
-  // Iterate in REVERSE execution order (from Sinks to Sources)
   for (let i = executionOrder.length - 1; i >= 0; i--) {
     const nodeId = executionOrder[i];
     const instance = flatNodes[nodeId];
@@ -294,12 +283,8 @@ export function compileGraph(
 
     if (nodeDef && nodeDef.kind === 'primitive') {
       const reqs = { kind: 'record', fields: outputRequirements.get(nodeId) || {} } as RecordType;
-      const config = instance.defaultConfig || { fields: {} }; // Wrapped in 'fields' usually? structor is Structor value.
-      // Actually defaultConfig is likely just a JS object (Structor).
-      // Let's assume it matches the shape.
+      const config = instance.defaultConfig || { fields: {} };
 
-      // 1. Compute Input Requirements
-      // Start with static input definitions as baseline requirements
       let inputReqs: RecordType = {
         kind: 'record',
         fields: nodeDef.inputs ? { ...nodeDef.inputs } : {}
@@ -307,12 +292,7 @@ export function compileGraph(
 
       if (nodeDef.computeBackwardPorts) {
         try {
-          // Pass the baseline requirements to the function?
-          // Or just let it return its own and merge?
-          // The interface implies it calculates them based on outputs.
-          // Let's merge.
           const result = nodeDef.computeBackwardPorts(reqs, config, context);
-          // Merge/Override static inputs with dynamic requirements
           inputReqs = {
             kind: 'record',
             fields: { ...inputReqs.fields, ...result.inputRequirements.fields }
@@ -326,8 +306,6 @@ export function compileGraph(
         }
       }
 
-      // 2. Propagate Input Requirements to Upstream Nodes
-      // Find connections providing input to this node
       const inputConns = validConnections.filter(c => c.toNode === nodeId);
 
       for (const conn of inputConns) {
@@ -336,17 +314,12 @@ export function compileGraph(
         const downstreamPort = conn.toPort.toString();
 
         if (inputReqs.fields[downstreamPort]) {
-          // The node says: "I need Type T on input 'downstreamPort'"
-          // So we tell the upstream node: "Your output 'upstreamPort' is required to be Type T"
           const upstreamReqs = outputRequirements.get(upstreamNodeId)!;
-          // If multiple nodes require different types, we might need to Union/Merge.
-          // For now, Last Write Wins or simple override.
           upstreamReqs[upstreamPort] = inputReqs.fields[downstreamPort];
         }
       }
     }
   }
-
 
   // --- FORWARD PASS ---
   for (const nodeId of executionOrder) {
@@ -354,25 +327,19 @@ export function compileGraph(
     const nodeDef = nodeRepository.get(instance.definitionId);
 
     if (nodeDef && nodeDef.kind === 'primitive') {
-      // 1. Gather Input Types from Upstream
       const resolvedInputs: Record<string, StructorType> = {};
 
-      // Initialize with statically defined inputs (to prevent port loss for unconnected ports)
-      // Initialize with statically defined inputs (to prevent port loss for unconnected ports)
       if (nodeDef.inputs && nodeDef.inputs.kind === 'record') {
         Object.assign(resolvedInputs, nodeDef.inputs.fields);
       }
 
-      // Find connections to this node
       const inputConns = validConnections.filter(c => c.toNode === nodeId);
-
-      // Group by input port (to handle arrays)
       const inputsByPort = new Map<string, StructorType[]>();
+
       for (const conn of inputConns) {
         const fromType = nodeTypes.get(conn.fromNode)?.outputs;
         if (fromType && fromType.kind === 'record') {
-          // Resolve source type
-          const portName = conn.fromPort.toString(); // TODO: number ports
+          const portName = conn.fromPort.toString();
           if (fromType.fields[portName]) {
             if (!inputsByPort.has(conn.toPort.toString())) {
               inputsByPort.set(conn.toPort.toString(), []);
@@ -382,7 +349,6 @@ export function compileGraph(
         }
       }
 
-      // Resolve final input types (handling arrays vs single)
       const expectedInputs = nodeDef.inputs || {};
 
       for (const [port, types] of inputsByPort) {
@@ -403,12 +369,7 @@ export function compileGraph(
         fields: resolvedInputs
       };
 
-      // 2. Compute Output Types
       const config = instance.defaultConfig || { fields: {} };
-
-      // Valid config type placeholder for now
-      const configType: RecordType = { kind: 'record', fields: {} };
-
       let outputRecordType: RecordType;
       let finalInputType: RecordType = inputRecordType;
 
@@ -416,7 +377,7 @@ export function compileGraph(
         if (nodeDef.computeForwardPorts) {
           const result = nodeDef.computeForwardPorts(
             inputRecordType,
-            config, // Pass actual config value
+            config,
             context,
             backwardMetadata.get(nodeId)
           );
@@ -436,8 +397,6 @@ export function compileGraph(
         inputs: finalInputType,
         outputs: outputRecordType
       });
-
-      // Broadcast logic...
     }
   }
 
@@ -448,8 +407,6 @@ export function compileGraph(
   }
 
   // Synthesis: Backfill Inferred Types for Core.Subgraph Nodes
-  // The 'nodeTypes' map currently only contains flattened nodes.
-  // We need to add entries for the original 'core.subgraph' nodes so the UI can render their ports.
   for (const node of Object.values(appState.graph.inner.nodes)) {
     if (node.config.typeId === 'core.subgraph' || node.config.typeId === 'subgraph') {
       const subgraphId = node.config.subgraphId;
@@ -459,56 +416,49 @@ export function compileGraph(
         const inputFields: Record<string, StructorType> = {};
         const outputFields: Record<string, StructorType> = {};
 
-        // 1. Resolve Inputs (from subgraph 'io.input' nodes)
-        // The ports are named after the input node names.
-        // We look up the type of the corresponding flattened node.
-        Object.values(subgraph.inner.nodes).forEach(subNode => {
-          if (subNode.config.typeId === 'io.input' || subNode.config.typeId === 'input') {
-            const portName = subNode.config.name || '0';
-            const flattenedNodeId = node.id + '.' + subNode.id; // Correct flattening prefix logic?
-            // processGraph uses recursive prefix. Top level call: processGraph(state, '', true).
-            // Subgraph call: processGraph(subgraph, nodeId + '.', false).
-            // So flattened ID is `${node.id}.${subNode.id}`.
+        const inputNodes = Object.values(subgraph.inner.nodes)
+          .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+          .sort((a, b) => a.y - b.y);
 
-            // Look up the inferred OUTPUT type of the input node (since it acts as a source in the subgraph)
-            // Wait, io.input has an output named 'value'.
-            const inferred = inferredTypes[flattenedNodeId];
-            if (inferred && inferred.outputs.kind === 'record') {
-              inputFields[portName] = inferred.outputs.fields['value'] || inferred.outputs.fields['0'] || { kind: 'atomic', type: 'any' };
-            } else {
-              // Fallback to config type or any
-              const configType = subNode.config.type;
-              if (configType && configType !== 'any') {
-                // Convert UIConfigStructorType to StructorType?
-                if (configType === 'float') inputFields[portName] = { kind: 'atomic', type: 'number' };
-                else if (configType === 'string') inputFields[portName] = { kind: 'atomic', type: 'string' };
-                else if (configType.startsWith('float')) {
-                  const size = parseInt(configType.slice(5));
-                  inputFields[portName] = { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
-                } else {
-                  inputFields[portName] = { kind: 'atomic', type: 'any' };
-                }
+        inputNodes.forEach((subNode, i) => {
+          const rawName = subNode.config.name || 'value';
+          const portName = resolvePortName(rawName, i, inputNodes.length, 'input');
+          const flattenedNodeId = node.id + '.' + subNode.id;
+
+          const inferred = inferredTypes[flattenedNodeId];
+          if (inferred && inferred.outputs.kind === 'record') {
+            inputFields[portName] = inferred.outputs.fields['value'] || inferred.outputs.fields['0'] || { kind: 'atomic', type: 'any' };
+          } else {
+            const configType = subNode.config.type;
+            if (configType && configType !== 'any') {
+              if (configType === 'float') inputFields[portName] = { kind: 'atomic', type: 'number' };
+              else if (configType === 'string') inputFields[portName] = { kind: 'atomic', type: 'string' };
+              else if (configType.startsWith('float')) {
+                const size = parseInt(configType.slice(5));
+                inputFields[portName] = { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
               } else {
                 inputFields[portName] = { kind: 'atomic', type: 'any' };
               }
+            } else {
+              inputFields[portName] = { kind: 'atomic', type: 'any' };
             }
           }
         });
 
-        // 2. Resolve Outputs (from subgraph 'io.output' nodes)
-        Object.values(subgraph.inner.nodes).forEach(subNode => {
-          if (subNode.config.typeId === 'io.output' || subNode.config.typeId === 'output') {
-            const portName = subNode.config.name || '0';
-            const flattenedNodeId = node.id + '.' + subNode.id;
+        const outputNodes = Object.values(subgraph.inner.nodes)
+          .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+          .sort((a, b) => a.y - b.y);
 
-            // Look up the inferred INPUT type of the output node (it sinks the result)
-            // io.output has an input named '0' (or 'value' in new def?) -> check primitive_output def: input is '0'.
-            const inferred = inferredTypes[flattenedNodeId];
-            if (inferred && inferred.inputs.kind === 'record') {
-              outputFields[portName] = inferred.inputs.fields['value'] || inferred.inputs.fields['0'] || { kind: 'atomic', type: 'any' };
-            } else {
-              outputFields[portName] = { kind: 'atomic', type: 'any' };
-            }
+        outputNodes.forEach((subNode, i) => {
+          const rawName = subNode.config.name || 'value';
+          const portName = resolvePortName(rawName, i, outputNodes.length, 'output');
+          const flattenedNodeId = node.id + '.' + subNode.id;
+
+          const inferred = inferredTypes[flattenedNodeId];
+          if (inferred && inferred.inputs.kind === 'record') {
+            outputFields[portName] = inferred.inputs.fields['value'] || inferred.inputs.fields['0'] || { kind: 'atomic', type: 'any' };
+          } else {
+            outputFields[portName] = { kind: 'atomic', type: 'any' };
           }
         });
 

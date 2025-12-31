@@ -604,5 +604,93 @@ describe('Primitives Integration', () => {
     executor.update({ clock: { beat: 0, dt: 0 } });
     expect(getOutput()).toBe(15);
   });
-});
 
+  it('should dynamically rename subgraph ports with #', () => {
+    const repository = new NodeRepository();
+    ALL_PRIMITIVES.forEach(def => {
+      // Minimal registration for compiler
+      repository.register({
+        id: def.id,
+        version: '1.0.0',
+        displayName: def.id,
+        definition: def,
+        inputs: Object.entries((def as any).inputs || {}).map(([name, type]) => ({
+          name,
+          type: type as any,
+          allowMultiConnection: (type as any).allowMultiConnection
+        })),
+        outputs: Object.entries((def as any).outputs || {}).map(([name, type]) => ({ name, type: type as any })),
+        compileConfig: (uiConfig) => uiConfig as any
+      });
+    });
+
+    // 1. Define Subgraph with dynamic names
+    const loadedSubgraphs = new Map<string, GraphState>();
+    loadedSubgraphs.set('SubDynamic', {
+      inner: {
+        nodes: {
+          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'io.input', name: 'In #' } },
+          'in2': { id: 'in2', x: 0, y: 100, config: { typeId: 'io.input', name: 'In #' } },
+          'out1': { id: 'out1', x: 200, y: 0, config: { typeId: 'io.output', name: 'Out #' } }
+        },
+        connections: {
+          'c1': { id: 'c1', fromNodeId: 'in1', fromPort: 'value', toNodeId: 'out1', toPort: 'value' }
+        }
+      },
+      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+    });
+
+    // 2. Main Graph using Subgraph
+    // Inputs sorted by Y: in1 (y=0) -> 'In x', in2 (y=100) -> 'In y' (Total 2 <= 4)
+    // Actually, distinct names 'In #' -> 'In x', 'In y'
+    // Logic: name = 'In #'.
+    // If total=2: <=4. replacement = x/y.
+    // So 'In x', 'In y'.
+
+    // Check Outputs: out1 (total=1) -> 'Out out'?
+    // Logic: total=1. replacement = 'out' (lowercase).
+    // So 'Out out'.
+
+    // Wait, user said: "when there is exactly one input, # should be replaced with in"
+    // So 'In #' -> 'In in'. That sounds redundant.
+    // Usually user sets name to just '#'. Then it becomes 'in'.
+    // If user sets 'Val #', it becomes 'Val x'.
+
+    // Let's test standard case: name="#" -> "x", "y" or "in".
+    // Let's update subgraph definition to use purely "#".
+
+    loadedSubgraphs.set('SubPure', {
+      inner: {
+        nodes: {
+          'in1': { id: 'in1', x: 0, y: 0, config: { typeId: 'io.input', name: '#' } },
+          'in2': { id: 'in2', x: 0, y: 100, config: { typeId: 'io.input', name: '#' } },
+          'out1': { id: 'out1', x: 200, y: 0, config: { typeId: 'io.output', name: '#' } }
+        },
+        connections: {}
+      },
+      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+    });
+
+    const appState: AppState = {
+      graph: {
+        inner: {
+          nodes: {
+            'sub': { id: 'sub', x: 0, y: 0, config: { typeId: 'core.subgraph', subgraphId: 'SubPure' } }
+          },
+          connections: {}
+        },
+        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+      }
+    };
+
+    const { inferredTypes } = compileGraph(appState, loadedSubgraphs, repository);
+    const subTypes = inferredTypes['sub'];
+
+    // Inputs: 2 nodes. Names should be x, y.
+    expect(subTypes.inputs.fields['x']).toBeDefined();
+    expect(subTypes.inputs.fields['y']).toBeDefined();
+
+    // Outputs: 1 node. Name should be 'out'.
+    expect(subTypes.outputs.fields['out']).toBeDefined();
+  });
+});
