@@ -472,7 +472,7 @@ export class RuntimeManager {
             const subMsg: ExecutorWorkerMessage = {
               type: 'UPDATE_INPUT',
               name: targetId,
-              value: { 'value': val }
+              value: { 'value': val } as any
             };
             this.executorWorker.postMessage(subMsg);
           }

@@ -622,7 +622,7 @@ defaultNodeRepository.register({
   outputs: [
     { name: 'value', type: AnyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
   ],
-  compileConfig: (uiConfig) => ({ values: { 'value': uiConfig?.values?.['0'] } }),
+  compileConfig: (uiConfig) => ({ values: { 'value': uiConfig?.values?.['0'] } } as any),
   ui: primitive_input.ui,
 });
 
@@ -646,7 +646,6 @@ defaultNodeRepository.register({
   displayName: 'Subgraph',
   definition: primitive_subgraph,
   inputs: [],
-  compilePorts: primitive_subgraph.compilePorts,
   outputs: [],
   ui: primitive_subgraph.ui,
 

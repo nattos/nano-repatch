@@ -33,7 +33,7 @@ reaction(
 );
 
 // Expose for E2E testing
-if (import.meta.env.DEV) {
+if ((import.meta as any).env.DEV) {
   (window as any).testing = { appController, localController, runtimeManager, workspaceController };
 }
 

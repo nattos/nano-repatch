@@ -380,7 +380,7 @@ export function compileGraph(
     if (nodeDef && nodeDef.kind === 'primitive') {
       const resolvedInputs: Record<string, StructorType> = {};
 
-      if (nodeDef.inputs && nodeDef.inputs.kind === 'record') {
+      if (nodeDef.inputs && (nodeDef.inputs as any).kind === 'record') {
         Object.assign(resolvedInputs, nodeDef.inputs.fields);
       }
 
@@ -435,9 +435,9 @@ export function compileGraph(
           finalInputType = result.inputs;
           outputRecordType = result.outputs;
         } else {
-          outputRecordType = nodeDef.outputs && nodeDef.outputs.kind === 'record'
+          outputRecordType = (nodeDef.outputs && (nodeDef.outputs as any).kind === 'record'
             ? nodeDef.outputs
-            : { kind: 'record', fields: {} };
+            : { kind: 'record', fields: {} }) as RecordType;
         }
       } catch (e) {
         console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);

@@ -137,15 +137,12 @@ function inferTypeFromConfig(config: any): StructorType | undefined {
 
 export const primitive_input: PrimitiveNodeDefinition = {
   id: 'io.input',
+
   kind: 'primitive',
   metadata: {
     category: NodeCategory.IO,
     keywords: ['source', 'in'],
     description: 'Graph input node.'
-  },
-  config: {
-    type: { kind: 'atomic', type: 'string', defaultValue: 'any', optional: true },
-    name: { kind: 'atomic', type: 'string', defaultValue: 'value', optional: true }
   },
   ui: {
     inspector: {
@@ -164,7 +161,10 @@ export const primitive_input: PrimitiveNodeDefinition = {
     // Identity: Output type is same as input type of 'value' (connected) or inferred from 'type' config
     let valType = inputType.fields['value'];
     if (!valType) {
-      valType = inferTypeFromConfig(config);
+      const inferred = inferTypeFromConfig(config);
+      if (inferred) {
+        valType = inferred;
+      }
     }
 
     if (!valType) valType = { kind: 'atomic', type: 'any' };
@@ -301,7 +301,7 @@ export const primitive_subgraph = definePrimitiveNode({
 
     return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
   },
-  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+  execute: (input: any, config: any, context: ExecutionContext) => {
     // Subgraph execution logic would go here.
     return { fields: {} };
   }
