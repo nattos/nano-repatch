@@ -6,9 +6,6 @@ import './math/nodes';
 import './midi/nodes';
 import './nicepattern/nodes';
 import './seq/nodes';
-import '../structor/register-primitives';
-import { registerPrimitives } from '../structor/register-primitives';
-
 // Register all core primitive nodes
-registerPrimitives();
+import '../structor/primitives';
 
