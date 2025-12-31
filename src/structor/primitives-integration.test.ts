@@ -1,9 +1,10 @@
+
 import { describe, it, expect } from 'vitest';
 import { GraphExecutor } from './executor';
 import { NodeRepository } from './repository';
 import { ALL_PRIMITIVES } from './primitives';
 import { compileGraph } from '../builder/compiler';
-import { AppState, GridNode, Connection } from '../builder/state';
+import { AppState, GridNode, Connection, GraphState } from '../builder/state';
 import { numberType, vec4Type } from './std-types';
 
 // Helper to compile GridNodes into GraphDefinition
@@ -11,7 +12,8 @@ export const compileAndRun = (
   nodes: Record<string, { typeId: string, config?: any }>,
   connections: { from: string, port: string, to: string, portIn: string }[],
   monitoredNode: string,
-  monitoredPort: string
+  monitoredPort: string,
+  loadedSubgraphs: Map<string, GraphState> = new Map()
 ) => {
   const repository = new NodeRepository();
 
@@ -45,25 +47,7 @@ export const compileAndRun = (
     });
   });
 
-  // Mock Output Node
-  repository.register({
-    id: 'io.output',
-    version: '1.0.0',
-    displayName: 'Output',
-    definition: {
-      id: 'io.output',
-      kind: 'primitive',
-      configType: { kind: 'record', fields: {}, },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, }),
-      execute: (inputs) => {
-        // console.log('io.output execute inputs:', JSON.stringify(inputs));
-        return { fields: { val: inputs.fields.val }, };
-      },
-    },
-    inputs: [{ name: 'val', type: numberType }],
-    outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {}, })
-  });
+
 
   const gridNodes: Record<string, GridNode> = {};
   const gridConnections: Record<string, Connection> = {};
@@ -93,7 +77,7 @@ export const compileAndRun = (
 
   let connId = 0;
   for (const conn of connections) {
-    const id = `c${connId++}`;
+    const id = 'c' + (connId++).toString();
     gridConnections[id] = {
       id,
       fromNodeId: conn.from,
@@ -104,13 +88,14 @@ export const compileAndRun = (
   }
 
   // Connect monitored node to output
-  const outConnId = `c${connId++}`;
+  const outConnId = 'c' + (connId++).toString();
+
   gridConnections[outConnId] = {
     id: outConnId,
     fromNodeId: monitoredNode,
     fromPort: monitoredPort,
     toNodeId: outId,
-    toPort: 'val'
+    toPort: 'value'
   };
 
   const appState: AppState = {
@@ -120,7 +105,7 @@ export const compileAndRun = (
     }
   };
 
-  const { graph: graphDef, inferredTypes } = compileGraph(appState, new Map(), repository);
+  const { graph: graphDef, inferredTypes } = compileGraph(appState, loadedSubgraphs, repository);
   const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes);
   // console.log('Execution Order:', (executor as any).executionOrder);
   return { executor, getOutput: () => executor.getGraphOutput('test_out') };
@@ -272,11 +257,11 @@ describe('Primitives Integration', () => {
         id: 'io.output',
         kind: 'primitive',
         metadata: { category: 'Mock' },
-        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
-        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+        computeOutputTypes: () => ({ kind: 'record', fields: { value: numberType } }),
+        execute: (inputs) => ({ fields: { value: inputs.fields.value } })
       },
-      inputs: [{ name: 'val', type: numberType }],
-      outputs: [{ name: 'val', type: numberType }],
+      inputs: [{ name: 'value', type: numberType }],
+      outputs: [{ name: 'value', type: numberType }],
       compileConfig: (c) => ({ fields: {} })
     });
 
@@ -291,8 +276,8 @@ describe('Primitives Integration', () => {
           },
           connections: {
             'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'unpack', toPort: 'record' },
-            'c2': { id: 'c2', fromNodeId: 'unpack', fromPort: 'x', toNodeId: 'outX', toPort: 'val' },
-            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+            'c2': { id: 'c2', fromNodeId: 'unpack', fromPort: 'x', toNodeId: 'outX', toPort: 'value' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'value' },
           }
         },
         auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
@@ -363,11 +348,11 @@ describe('Primitives Integration', () => {
         id: 'io.output',
         kind: 'primitive',
         metadata: { category: 'Mock' },
-        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
-        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+        computeOutputTypes: () => ({ kind: 'record', fields: { value: numberType }, }),
+        execute: (inputs) => ({ fields: { value: inputs.fields.value } })
       },
-      inputs: [{ name: 'val', type: numberType }],
-      outputs: [{ name: 'val', type: numberType }],
+      inputs: [{ name: 'value', type: numberType }],
+      outputs: [{ name: 'value', type: numberType }],
       compileConfig: (c) => ({ fields: {} })
     });
 
@@ -384,7 +369,7 @@ describe('Primitives Integration', () => {
           connections: {
             'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'add', toPort: 'values' },
             'c2': { id: 'c2', fromNodeId: 'add', fromPort: 'result', toNodeId: 'unpack', toPort: 'record' },
-            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'value' },
           }
         },
         auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
@@ -460,11 +445,11 @@ describe('Primitives Integration', () => {
         id: 'io.output',
         kind: 'primitive',
         metadata: { category: 'Mock' },
-        computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType } }),
-        execute: (inputs) => ({ fields: { val: inputs.fields.val } })
+        computeOutputTypes: () => ({ kind: 'record', fields: { value: numberType }, }),
+        execute: (inputs) => ({ fields: { value: inputs.fields.value } })
       },
-      inputs: [{ name: 'val', type: numberType }],
-      outputs: [{ name: 'val', type: numberType }],
+      inputs: [{ name: 'value', type: numberType }],
+      outputs: [{ name: 'value', type: numberType }],
       compileConfig: (c) => ({ fields: {} })
     });
 
@@ -480,7 +465,7 @@ describe('Primitives Integration', () => {
           connections: {
             'c1': { id: 'c1', fromNodeId: 'src', fromPort: 'out', toNodeId: 'add', toPort: 'values' },
             'c2': { id: 'c2', fromNodeId: 'add', fromPort: 'result', toNodeId: 'unpack', toPort: 'record' },
-            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'val' },
+            'c3': { id: 'c3', fromNodeId: 'unpack', fromPort: 'w', toNodeId: 'outW', toPort: 'value' },
           }
         },
         auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
@@ -570,6 +555,54 @@ describe('Primitives Integration', () => {
     executor.update({ clock: { beat: 0, dt: 0 } });
     // Expect element-wise addition, not string concatenation
     expect(getOutput()).toEqual([11, 22, 33, 44]);
+  });
+
+  it('should execute a simple subgraph', () => {
+    // 1. Define Subgraph "MyLayer"
+    // Input(val) -> Add(5) -> Output(res)
+    const myLayerId = 'MyLayer';
+    const myLayerState: GraphState = {
+      inner: {
+        nodes: {
+          'in': { id: 'in', x: 0, y: 0, config: { typeId: 'io.input', name: 'val', values: {} } },
+          'add': { id: 'add', x: 100, y: 0, config: { typeId: 'math.add' } },
+          'lit': { id: 'lit', x: 100, y: 50, config: { typeId: 'data.literal', value: 5 } },
+          'out': { id: 'out', x: 200, y: 0, config: { typeId: 'io.output', name: 'res', values: {} } },
+        },
+        connections: {
+          'c1': { id: 'c1', fromNodeId: 'in', fromPort: 'value', toNodeId: 'add', toPort: 'a' },
+          'c2': { id: 'c2', fromNodeId: 'lit', fromPort: 'value', toNodeId: 'add', toPort: 'b' },
+          'c3': { id: 'c3', fromNodeId: 'add', fromPort: 'result', toNodeId: 'out', toPort: 'val' },
+        }
+      },
+      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+    };
+
+    // Fix connection for mock
+    // Input of io.output mock is 'val'.
+    // Origin is 'add.result'.
+    myLayerState.inner.connections['c3'] = { id: 'c3', fromNodeId: 'add', fromPort: 'result', toNodeId: 'out', toPort: 'value' };
+
+    const loadedSubgraphs = new Map<string, GraphState>();
+    loadedSubgraphs.set(myLayerId, myLayerState);
+
+    // 2. Main Graph
+    // Literal(10) -> Subgraph(MyLayer) -> Output
+    const { executor, getOutput } = compileAndRun(
+      {
+        'src': { typeId: 'data.literal', config: { value: 10 } },
+        'sub': { typeId: 'core.subgraph', config: { subgraphId: myLayerId } },
+      },
+      [
+        { from: 'src', port: 'value', to: 'sub', portIn: 'val' }, // Subgraph input 'val'
+        // Subgraph output 'res'
+      ],
+      'sub', 'res',
+      loadedSubgraphs
+    );
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(15);
   });
 });
 

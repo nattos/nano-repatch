@@ -126,15 +126,50 @@ export const primitive_input: PrimitiveNodeDefinition = {
     keywords: ['source', 'in'],
     description: 'Graph input node.'
   },
+  config: {
+    type: { kind: 'atomic', type: 'string', defaultValue: 'any', optional: true },
+    name: { kind: 'atomic', type: 'string', defaultValue: 'value', optional: true }
+  },
+  ui: {
+    inspector: {
+      fields: [
+        {
+          type: 'structor-type',
+          label: 'Type',
+          path: 'type',
+          default: 'any'
+        },
+        { type: 'string', label: 'Name', path: 'name' }
+      ]
+    }
+  },
   computeForwardPorts: (inputType, config, context) => {
-    // Identity: Output type is same as input type of 'value' (injected by executor) or config type
-    const valType = inputType.fields['value'] || (config !== undefined ? inferType(config) : { kind: 'atomic', type: 'any' });
+
+    // Identity: Output type is same as input type of 'value' (connected) or inferred from 'type' config
+    let valType = inputType.fields['value'];
+
+    if (!valType && config) {
+      const typeStr = (config as any).type as string;
+      if (typeStr && typeStr !== 'any') {
+        if (typeStr === 'float') valType = { kind: 'atomic', type: 'number' };
+        else if (typeStr === 'string') valType = { kind: 'atomic', type: 'string' };
+        else if (typeStr.startsWith('float')) {
+          const size = parseInt(typeStr.slice(5));
+          if (!isNaN(size)) {
+            valType = { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
+          }
+        }
+      }
+    }
+
+    if (!valType) valType = { kind: 'atomic', type: 'any' };
     return {
-      inputs: { kind: 'record', fields: {} },
+      inputs: { kind: 'record', fields: { value: anyType } },
       outputs: { kind: 'record', fields: { 'value': valType } }
     };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+
     // Identity: Output value is input 'value' OR config value (from slider)
     const val = input.fields['value'] !== undefined ? input.fields['value'] : config;
     return { fields: { 'value': val } };
@@ -710,6 +745,8 @@ export const primitive_not = defineMathNode(
   (a) => (a === 0) ? 1 : 0,
   'unary'
 );
+
+
 
 export const primitive_hub = definePrimitiveNode({
   id: 'util.hub',

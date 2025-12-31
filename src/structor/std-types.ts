@@ -28,6 +28,20 @@ export const midiStreamType = defineType({
   hint: 'midi-stream'
 });
 
+export const vec2Type = defineType({
+  kind: "array",
+  element: numberType,
+  size: 2,
+  hint: "vec2"
+});
+
+export const vec3Type = defineType({
+  kind: "array",
+  element: numberType,
+  size: 3,
+  hint: "vec3"
+});
+
 export const vec4Type = defineType({
   kind: "array",
   element: numberType,
@@ -73,3 +87,5 @@ export const sequenceStructorType = defineType({
   element: stepStructorType,
   hint: 'step-sequence'
 });
+
+export type UIConfigStructorType = 'float' | 'float2' | 'float3' | 'float4' | 'midi-stream' | 'string' | 'any';

@@ -94,6 +94,27 @@ const renderSelectField = (node: GridNode, field: Extract<InspectorFieldDef, { t
 
 import '../../views/ui-option-bar';
 
+const renderStructorTypeField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'structor-type' }>, onchange: InspectorChangeHandler) => html`
+  <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
+    <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
+    <div style="flex: 1; margin-left: 8px;">
+      <ui-option-bar
+        .value=${getValue(node, field.path, field.default ?? 'float')}
+        .options=${[
+    { label: 'Float', value: 'float' },
+    { label: 'Vec2', value: 'float2' },
+    { label: 'Vec3', value: 'float3' },
+    { label: 'Vec4', value: 'float4' },
+    { label: 'MIDI', value: 'midi-stream' },
+    { label: 'String', value: 'string' },
+    { label: 'Any', value: 'any' }
+  ]}
+        @change=${(e: CustomEvent) => onchange({ [field.path]: e.detail.value })}
+      ></ui-option-bar>
+    </div>
+  </div>
+`;
+
 const renderTabBarField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'tab-bar' }>, onchange: InspectorChangeHandler) => html`
   <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
     <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
@@ -131,6 +152,7 @@ export const createGenericInspector = (fields: InspectorFieldDef[]) => {
         case 'boolean': return renderBooleanField(node, field, onchange);
         case 'select': return renderSelectField(node, field, onchange);
         case 'tab-bar': return renderTabBarField(node, field, onchange);
+        case 'structor-type': return renderStructorTypeField(node, field, onchange);
         case 'button': return renderButtonField(node, field, onchange);
         default: return html``;
       }

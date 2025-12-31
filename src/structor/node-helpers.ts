@@ -14,6 +14,7 @@ import {
   AnalysisContext
 } from './structor';
 import { defaultNodeRepository, PortHint, NodeType } from './repository';
+import { UIConfigStructorType } from './std-types';
 
 // --- Enhanced Node Definition ---
 
@@ -24,6 +25,7 @@ export type InspectorFieldDef =
   | { type: 'boolean'; label: string; path: string; default?: boolean }
   | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
   | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
+  | { type: 'structor-type'; label: string; path: string; default?: UIConfigStructorType }
   | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
   | { type: 'button'; label: string; path: string; text?: string };
 
