@@ -1242,6 +1242,14 @@ export class GraphGrid extends MobxLitElement {
     if (!this.popup) return;
     const typeId = e.detail;
 
+    // Detect Subgraph Alias
+    let realTypeId = typeId;
+    let extraConfig = {};
+    if (!defaultNodeRepository.getNodeType(typeId) && typeId.includes('.')) {
+      realTypeId = 'core.subgraph';
+      extraConfig = { subgraphId: typeId };
+    }
+
     // Phase 1: Create Node if it doesn't exist (Live Preview for Wire Insert)
     if (!this.popup.nodeId) {
       // We are previewing a creation type.
@@ -1249,7 +1257,7 @@ export class GraphGrid extends MobxLitElement {
       // We mark it as 'isNew' in popup so we know to delete it if cancelled.
 
       try {
-        const newNode = appController.createNode(typeId, this.popup.gridX, this.popup.gridY);
+        const newNode = appController.createNode(realTypeId, this.popup.gridX, this.popup.gridY, extraConfig);
 
         // Update Popup State
         this.popup = {
@@ -1265,7 +1273,7 @@ export class GraphGrid extends MobxLitElement {
         // Start Long Edit immediately for this new node
         this.popupLongEdit = appController.beginLongEdit({
           apply: (c) => {
-            c.setNodeConfig(newNode.id, { typeId });
+            c.setNodeConfig(newNode.id, { typeId: realTypeId, ...extraConfig });
 
             // Live Rewire: If inserting on a wire, split the connection now!
             const connectionId = (this.popup as any).connectionId;
@@ -1301,10 +1309,10 @@ export class GraphGrid extends MobxLitElement {
         // CRITICAL FIX: If this is a new node created in this transaction,
         // we MUST re-create it every time apply() runs, because the previous runs (and creation) are rolled back.
         if (this.popup!.isNew) {
-          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
+          c.createNode(realTypeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId!, ...extraConfig });
         } else {
           // Just update config for existing nodes
-          c.setNodeConfig(this.popup!.nodeId!, { typeId });
+          c.setNodeConfig(this.popup!.nodeId!, { typeId: realTypeId, ...extraConfig });
         }
 
         // Live Rewire

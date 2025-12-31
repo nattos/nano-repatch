@@ -773,12 +773,20 @@ export class GraphNode extends MobxLitElement {
   }
 
   private handleSmartTypePreview(e: CustomEvent) {
-    const typeId = e.detail;
+    const rawTypeId = e.detail;
+
+    // Logic repeated from handleEditCommit to ensure preview is valid
+    let typeId = rawTypeId;
+    let extraConfig = {};
+    if (!defaultNodeRepository.getNodeType(rawTypeId) && rawTypeId.includes('.')) {
+      typeId = 'core.subgraph';
+      extraConfig = { subgraphId: rawTypeId };
+    }
 
     if (!this.typeLongEdit) {
       this.typeLongEdit = appController.beginLongEdit({
         apply: (c: AppController) => {
-          c.setNodeConfig(this.node.id, { typeId });
+          c.setNodeConfig(this.node.id, { typeId, ...extraConfig });
         },
         cancel: () => {
           this.typeLongEdit = null;
@@ -786,7 +794,7 @@ export class GraphNode extends MobxLitElement {
       });
     } else {
       this.typeLongEdit.applyAgain((c: AppController) => {
-        c.setNodeConfig(this.node.id, { typeId });
+        c.setNodeConfig(this.node.id, { typeId, ...extraConfig });
       });
     }
   }
