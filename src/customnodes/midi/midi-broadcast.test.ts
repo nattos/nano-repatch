@@ -42,13 +42,13 @@ const compileAndRunMidi = (
       id: 'io.output',
       kind: 'primitive',
       configType: { kind: 'record', fields: {}, },
-      computeForwardPorts: () => ({ inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: { val: midiStreamType } }, }),
+      computeForwardPorts: () => ({ inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: { value: midiStreamType } }, }),
       execute: (inputs) => {
-        return { fields: { val: inputs.fields.val }, };
+        return { fields: { value: inputs.fields.value }, };
       },
     },
-    inputs: [{ name: 'val', type: midiStreamType }],
-    outputs: [{ name: 'val', type: midiStreamType }],
+    inputs: [{ name: 'value', type: midiStreamType }],
+    outputs: [{ name: 'value', type: midiStreamType }],
     compileConfig: (c) => ({ fields: {}, })
   });
 
@@ -116,7 +116,7 @@ const compileAndRunMidi = (
     fromNodeId: monitoredNode,
     fromPort: monitoredPort,
     toNodeId: outId,
-    toPort: 'val'
+    toPort: 'value'
   };
 
   const appState: AppState = {

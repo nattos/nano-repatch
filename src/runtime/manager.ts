@@ -387,7 +387,7 @@ export class RuntimeManager {
     if (nodesToSend.length > 0) {
       const recompileNodes = nodesToSend.filter(n => {
         const type = this.nodeRepository.getNodeType(n.typeId);
-        return type?.shouldRecompileOnConfigChange?.(n.config) ?? false;
+        return (type?.shouldRecompileOnConfigChange as any)?.(n.config) ?? false;
       });
 
       if (recompileNodes.length > 0) {

@@ -376,7 +376,6 @@ export class GraphExecutor {
 
         const result = definition.execute(inputRecord, state.config as any, executionContext);
 
-
         // Handle result (ExecuteResult)
         if ('outputs' in result && 'ui' in result) {
           state.output = result.outputs;

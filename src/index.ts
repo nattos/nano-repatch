@@ -1,3 +1,4 @@
+import './structor/primitives';
 import { MobxLitElement } from './views/mobx-lit-element';
 import { localController } from './builder/controllers';
 import { css, html } from 'lit';

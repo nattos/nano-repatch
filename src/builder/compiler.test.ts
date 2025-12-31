@@ -87,8 +87,8 @@ describe('Graph Compiler', () => {
     const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
 
     // Check Nodes
-    // Should have: n1, n2, sub1.sub_in, sub1.sub_add, sub1.sub_out
-    expect(Object.keys(compiled.nodes)).toHaveLength(5);
+    // Should have: n1, n2, sub1, sub1.sub_in, sub1.sub_add, sub1.sub_out
+    expect(Object.keys(compiled.nodes)).toHaveLength(6);
     expect(compiled.nodes['sub1.sub_add']).toBeDefined();
     expect(compiled.nodes['sub1.sub_add'].definitionId).toBe('math.add');
 
@@ -109,11 +109,11 @@ describe('Graph Compiler', () => {
     // n1 -> sub1.sub_in (was n1 -> sub1:A)
     expect(compiled.connections).toContainEqual({
       fromNode: 'n1', fromPort: 'val',
-      toNode: 'sub1.sub_in', toPort: 'val'
+      toNode: 'sub1.sub_in', toPort: 'value'
     });
     // sub1.sub_out -> n2 (was sub1:B -> n2)
     expect(compiled.connections).toContainEqual({
-      fromNode: 'sub1.sub_out', fromPort: 'val',
+      fromNode: 'sub1.sub_out', fromPort: 'value',
       toNode: 'n2', toPort: 'val'
     });
   });

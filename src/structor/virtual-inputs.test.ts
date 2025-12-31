@@ -37,15 +37,15 @@ describe('Virtual Inputs Integration', () => {
     definition: {
       id: 'io.output',
       kind: 'primitive',
-      configType: { kind: 'record', fields: {},  },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType },  }),
+      configType: { kind: 'record', fields: {}, },
+      computeOutputTypes: () => ({ kind: 'record', fields: { value: numberType }, }),
       execute: (inputs) => {
-        return { fields: { val: inputs.fields.val },  };
+        return { fields: { value: inputs.fields.value }, };
       },
     },
-    inputs: [{ name: 'val', type: numberType }],
-    outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {},  })
+    inputs: [{ name: 'value', type: numberType }],
+    outputs: [{ name: 'value', type: numberType }],
+    compileConfig: (c) => ({ fields: {}, })
   });
 
   const compileAndRun = (
@@ -88,7 +88,7 @@ describe('Virtual Inputs Integration', () => {
       fromNodeId: monitoredNode,
       fromPort: monitoredPort,
       toNodeId: outId,
-      toPort: 'val'
+      toPort: 'value'
     };
 
     const appState: AppState = {

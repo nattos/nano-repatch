@@ -1,3 +1,4 @@
+import './structor/primitives';
 import { vi } from 'vitest';
 
 

@@ -59,6 +59,8 @@ export type ExtendedNodeInputsDef = Record<string, StructorType | ExtendedInputD
 export interface ExtendedOutputDef {
   type: StructorType;
   description?: string;
+  suppressLabel?: boolean;
+  suppressInputEditor?: boolean;
 }
 
 export type ExtendedNodeOutputsDef = Record<string, StructorType | ExtendedOutputDef>;
@@ -133,7 +135,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   extendedOutputs?: ExtendedNodeOutputsDef;
 
   inspectInputs?: boolean;
-  shouldRecompileOnConfigChange?: (uiConfig: any) => boolean;
+  shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
   // onMessage is inherited from PrimitiveNodeDefinition
 }
 
