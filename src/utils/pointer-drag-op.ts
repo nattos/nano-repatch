@@ -24,6 +24,7 @@ export class PointerDragOp {
     complete?: () => void,
     callMoveImmediately?: boolean,
     callMoveBeforeDone?: boolean,
+    threshold?: number,
   }) {
     this.pointerId = e.pointerId;
 
@@ -51,7 +52,8 @@ export class PointerDragOp {
     const delta: Point = [e.clientX - this.startX, e.clientY - this.startY];
     if (!this.initialThresholdReached) {
       const deltaFromStart = Math.abs(delta[0]) + Math.abs(delta[1]);
-      if (deltaFromStart > 5) {
+      const threshold = this.callbacks.threshold ?? 5;
+      if (deltaFromStart > threshold) {
         this.element.setPointerCapture(this.pointerId);
         this.initialThresholdReached = true;
       }

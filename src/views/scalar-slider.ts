@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { CancelReason, PointerDragOp } from '../utils/pointer-drag-op';
 
 @customElement('scalar-slider')
 export class ScalarSlider extends LitElement {
@@ -13,9 +14,9 @@ export class ScalarSlider extends LitElement {
   @state() private isEditing = false;
   @state() private tempValue = '';
 
-  private startX = 0;
   private startValue = 0;
   private rect: DOMRect | null = null;
+  private dragOp: PointerDragOp | null = null;
 
   static styles = css`
     :host {
@@ -119,6 +120,7 @@ export class ScalarSlider extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('keydown', this.handleHostKeyDown);
+    this.dragOp?.dispose();
   }
 
   render() {
@@ -172,44 +174,50 @@ export class ScalarSlider extends LitElement {
       return;
     }
 
-    this.startX = e.clientX;
     this.startValue = this.value;
     this.rect = this.getBoundingClientRect();
     this.isDragging = false;
 
-    this.addEventListener('pointermove', this.handlePointerMove);
-    this.addEventListener('pointerup', this.handlePointerUp);
-    this.addEventListener('lostpointercapture', this.handleLostPointerCapture);
+    this.dragOp = new PointerDragOp(e, this, {
+      threshold: 0, // Request immediate response
+
+      move: (e, delta) => {
+        this.updateValueFromDelta(e, delta[0]);
+        if (!this.isDragging) {
+          this.isDragging = true;
+          this.setAttribute('dragging', '');
+        }
+      },
+
+      accept: () => {
+        // Commit
+        if (this.isDragging) {
+          this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
+        }
+        this.cleanupDrag();
+        this.focus();
+      },
+
+      cancel: (reason) => {
+        if (reason === CancelReason.UserAction || reason === CancelReason.Programmatic) {
+          // Revert
+          this.value = this.startValue;
+          this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
+        }
+        this.cleanupDrag();
+      }
+    });
   }
 
-  private handlePointerMove = (e: PointerEvent) => {
-    const deltaX = e.clientX - this.startX;
-    this.setPointerCapture(e.pointerId);
-
-    // Threshold to start dragging
-    if (!this.isDragging && Math.abs(deltaX) > 1) {
-      this.isDragging = true;
-      this.setAttribute('dragging', '');
-    }
-
-    if (!this.isDragging) return;
-
+  private updateValueFromDelta(e: PointerEvent, deltaX: number) {
     let newValue = this.value;
 
     if (e.shiftKey) {
       // Relative movement
-      // Sensitivity: full range over 200px? or 1000px?
-      // Let's say 1px = 0.1% of range? Or just use step?
-      // User said "move relatively".
-      // Let's use a pixel-to-value ratio.
       const range = this.max - this.min;
-      // If range is infinite, default to step-based.
       if (!Number.isFinite(range)) {
         newValue = this.startValue + (deltaX * 0.1 * this.step);
       } else {
-        // Fine control: 1px = 0.1% of range?
-        // Or just slower than absolute.
-        // Let's map 1px to (range / width) * 0.1
         const width = this.rect?.width || 100;
         const deltaValue = (deltaX / width) * range * 0.1; // 0.1 factor for fine control
         newValue = this.startValue + deltaValue;
@@ -222,7 +230,6 @@ export class ScalarSlider extends LitElement {
         newValue = this.min + ratio * (this.max - this.min);
       } else {
         // Fallback for unbounded: relative drag
-        // 1px = 1 step
         newValue = this.startValue + deltaX * this.step;
       }
     }
@@ -232,47 +239,22 @@ export class ScalarSlider extends LitElement {
     const factor = Math.pow(10, precision);
     newValue = Math.round(newValue * factor) / factor;
 
-    // Clamp (unless Ctrl held? User didn't mention Ctrl for jump, but kept it for bounds)
-    // User said "jump to the value at the cursor's position". This implies bounds.
+    // Bound check (unless Ctrl held?)
     if (!e.ctrlKey) {
       newValue = Math.max(this.min, Math.min(this.max, newValue));
     }
 
     if (newValue !== this.value) {
       this.value = newValue;
-      // EMIT INPUT: Use for live preview (dragging).
-      // Does NOT trigger undo history in GraphNode because it starts a "Long Edit".
       this.dispatchEvent(new CustomEvent('input', { detail: this.value }));
     }
-  };
+  }
 
-  private handlePointerUp = (e: PointerEvent) => {
-    const wasDragging = this.isDragging;
-    this.cleanupDrag(e.pointerId);
-
-    if (wasDragging) {
-      // EMIT CHANGE: Use for commit (release).
-      // Triggers undo history in GraphNode by ending the "Long Edit" or direct commit.
-      this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
-    }
-
-    // Only focus if we weren't dragging (i.e. it was a click) or if drag ended?
-    // Actually, always good to focus?
-    this.focus();
-  };
-
-  private handleLostPointerCapture = (e: PointerEvent) => {
-    this.cleanupDrag(e.pointerId);
-  };
-
-  private cleanupDrag(pointerId: number) {
-    this.releasePointerCapture(pointerId);
-    this.removeEventListener('pointermove', this.handlePointerMove);
-    this.removeEventListener('pointerup', this.handlePointerUp);
-    this.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
+  private cleanupDrag() {
     this.removeAttribute('dragging');
     this.isDragging = false;
     this.rect = null;
+    this.dragOp = null;
   }
 
   private async handleHostKeyDown(e: KeyboardEvent) {
@@ -283,19 +265,13 @@ export class ScalarSlider extends LitElement {
       this.tempValue = e.key === 'Enter' ? this.value.toString() : e.key;
       e.preventDefault();
 
-      // Wait for input to render then focus
       await this.updateComplete;
       const input = this.shadowRoot?.querySelector('input');
       if (input) {
         input.focus();
-        // If we started with a character, maybe don't select all?
-        // User said "The first digit does get entered correctly. However, the text box isn't selected".
-        // If I type '5', tempValue is '5'. Cursor should be at end?
-        // If I hit Enter, tempValue is full value. Select all?
         if (e.key === 'Enter') {
           input.select();
         } else {
-          // Move cursor to end
           input.selectionStart = input.selectionEnd = input.value.length;
         }
       }
@@ -310,7 +286,6 @@ export class ScalarSlider extends LitElement {
     this.isEditing = true;
     this.tempValue = this.value.toString();
 
-    // Wait for input to render then focus and select all
     await this.updateComplete;
     const input = this.shadowRoot?.querySelector('input');
     if (input) {
@@ -337,7 +312,6 @@ export class ScalarSlider extends LitElement {
 
   private commitEdit() {
     if (this.tempValue.trim() === '') {
-      // Blank string -> Revert to default
       this.value = this.defaultValue;
       this.dispatchEvent(new CustomEvent('change', { detail: this.value }));
     } else {
@@ -348,7 +322,6 @@ export class ScalarSlider extends LitElement {
       }
     }
     this.isEditing = false;
-    // Restore focus to the slider
     this.focus();
   }
 }
