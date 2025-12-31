@@ -3,6 +3,37 @@
 This document tracks the active development process.
 For historical logs, see **[docs/dev-log-archive.md](docs/dev-log-archive.md)**.
 
+## Subgraph Quality of Life Improvements (As of 2025-12-31)
+
+This entry documents significant improvements to the subgraph workflow, including canonical display IDs, dynamic debug values, and robust live preview support.
+
+### Features Implemented
+
+1.  **Canonical Subgraph IDs:**
+    *   **Feature:** `core.subgraph` nodes now display their dotted ID (e.g., `sub.dir.graph`) in the node header instead of the generic `core.subgraph` type.
+    *   **Editing:** Double-clicking the type label pre-fills the dotted ID for quick renaming/switching.
+    *   **Display:** The node label (if name is `#`) defaults to the short name of the subgraph (e.g., "graph").
+
+2.  **Debug Values for Subgraphs:**
+    *   **Feature:** Enabling global "Show Debug Values" now works for subgraphs, displaying the real-time values of their output ports.
+    *   **Implementation:** The compiler now generates an `outputRemappings` map, linking the high-level subgraph node's output ports to the internal `io.output` nodes of the flattened graph. This map is transported to the main thread via `GraphCompiledMessage` and consumed by `GraphNode.renderDebugValue`.
+
+3.  **Recursive Subgraph Discovery:**
+    *   **Feature:** The `WorkspaceController` now recursively scans subdirectories for `.json` graph files.
+    *   **Integration:** Discovered subgraphs are automatically added to the `NodeCatalog` with their dotted ID (e.g., `sub.dir.graph`), enabling instant instantiation via search.
+
+### Bug Fixes
+
+1.  **Live Preview Crash:**
+    *   **Issue:** Live-previewing a subgraph (via "Smart Type" or "Add Node" popup) caused the executor to crash with `Definition not found`.
+    *   **Root Cause:** The UI was sending the raw catalog ID (e.g., `sub.graph`) to the executor during preview, instead of the valid `core.subgraph` configuration.
+    *   **Fix:** Updated `GraphNode.handleSmartTypePreview` and `GraphGrid.handlePopupPreview` to intercept dotted IDs and convert them to `{ typeId: 'core.subgraph', subgraphId: '...' }` configuration on the fly.
+
+2.  **Compiler Worker Message:**
+    *   **Issue:** `runtimeManager.outputRemappings` remained empty despite correct compiler logic.
+    *   **Root Cause:** `compiler.worker.ts` was not destructing nor forwarding the `outputRemappings` field in the `GraphCompiledMessage`.
+    *   **Fix:** Updated the worker to correctly forward the remapping data.
+
 ## Sequencer Output & UI Fixes (As of 2025-12-27)
 
 This entry documents the resolution of `seq.sequencer` output issues and UI refinements.

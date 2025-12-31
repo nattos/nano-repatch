@@ -417,3 +417,56 @@ autoBroadcast: {
 *   `flatten` gives you `[EventA, EventB]` (a single merged stream), which is usually what your logic expects.
 
 This pattern eliminates the need for users to manually place "Merge" nodes, making the graph cleaner and more intuitive.
+
+## 11. Type Safety & Best Practices
+
+### Avoiding `any`
+Using `any` undermines the type safety guarantees that the Structor system provides. It can lead to subtle runtime errors, especially when interacting with the Compiler or Executor workers.
+
+*   **DON'T** cast `config` or `context` to `any` to access properties.
+*   **DO** define specific interfaces for your node's configuration and context extension.
+
+```typescript
+// BAD
+const myNode = definePrimitiveNode({
+  // ...
+  execute: (inputs, config, context) => {
+    const val = (config as any).myValue; // Unsafe!
+    return { result: val };
+  }
+});
+
+// GOOD
+interface MyConfig {
+  myValue: number;
+}
+
+const myNode = definePrimitiveNode<MyConfig, MyConfig>({
+  // ...
+  execute: (inputs, config, context) => {
+    const val = config.myValue; // Safe
+    return { result: val };
+  }
+});
+```
+
+
+*   **DON'T** return `any` from type computation functions like `computeForwardPorts`. Always return a strictly typed `RecordType`.
+
+## 6. Advanced UI Customization
+
+### Dynamic Display Labels
+
+Nodes can define a `getDisplayLabel` function to customize the text shown in the node header (when the node name is set to `#` or empty).
+
+```typescript
+export const myNode = definePrimitiveNode({
+  // ...
+  getDisplayLabel: (config) => {
+    // Return a string based on config
+    return config.mode === 'fast' ? 'Fast Node' : 'Slow Node';
+  }
+});
+```
+
+This is useful for nodes where the configuration fundamentally changes the identity or function of the node (e.g., Subgraphs, generic Math nodes).
