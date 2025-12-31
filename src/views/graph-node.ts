@@ -1374,12 +1374,12 @@ export class GraphNode extends MobxLitElement {
                 @dblclick=${(e: MouseEvent) => this.handleDoubleClick('type', e)}
                 style="visibility: ${this.editingField === 'type' ? 'hidden' : 'visible'};"
               >
-                ${this.node.config.typeId}
+                ${this.node.config.typeId === 'core.subgraph' && this.node.config.subgraphId ? this.node.config.subgraphId : this.node.config.typeId}
               </span>
               ${this.editingField === 'type' ? html`
                 <smart-input
                   .catalog=${this.catalog}
-                  .value=${this.node.config.typeId}
+                  .value=${this.node.config.typeId === 'core.subgraph' && this.node.config.subgraphId ? this.node.config.subgraphId : this.node.config.typeId}
                   .autofocus=${true}
                   @commit=${(e: CustomEvent) => this.handleEditCommit('type', e)}
                   @preview-type=${this.handleSmartTypePreview.bind(this)}

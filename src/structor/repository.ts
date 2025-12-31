@@ -118,11 +118,8 @@ export interface NodeType {
    */
   shouldRecompileOnConfigChange?: (config: any) => boolean;
 
-  /**
-   * Returns a dynamic display label for the node based on its configuration.
-   * This is used when the node name is set to "#" or is empty.
-   */
-  getDisplayLabel?: (config: any) => string | undefined;
+
+
 }
 
 export class NodeRepository {
