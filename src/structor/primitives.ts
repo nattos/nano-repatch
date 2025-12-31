@@ -247,6 +247,13 @@ export const primitive_subgraph = definePrimitiveNode({
       ]
     }
   },
+  getDisplayLabel: (config: SubgraphConfig) => {
+    if (config.subgraphId) {
+      const parts = config.subgraphId.split('.');
+      return parts[parts.length - 1];
+    }
+    return undefined;
+  },
   computeForwardPorts: (inputType, config, context) => {
     // Access loadedSubgraphs from context (injected by compiler)
     const ctx = context as SubgraphAnalysisContext;

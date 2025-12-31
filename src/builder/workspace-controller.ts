@@ -193,12 +193,22 @@ export class WorkspaceController {
     }
 
     const entries: FileEntry[] = [];
-    // @ts-ignore - Async iteration on entries
-    for await (const [name, handle] of this.currentDirHandle.entries()) {
-      if (handle.kind === 'file' && name.endsWith('.json')) {
-        entries.push({ name, handle: handle as FileSystemFileHandle });
+
+    const scanDirectory = async (dirHandle: FileSystemDirectoryHandle, pathPrefix: string = '') => {
+      // @ts-ignore - Async iteration
+      for await (const [name, handle] of dirHandle.entries()) {
+        if (handle.kind === 'file' && name.endsWith('.json')) {
+          entries.push({ name: pathPrefix + name, handle: handle as FileSystemFileHandle });
+        } else if (handle.kind === 'directory') {
+          // Skip dot folders (like .git, .gemini)
+          if (!name.startsWith('.')) {
+            await scanDirectory(handle as FileSystemDirectoryHandle, pathPrefix + name + '/');
+          }
+        }
       }
-    }
+    };
+
+    await scanDirectory(this.currentDirHandle);
 
     runInAction(() => {
       this.files = entries.sort((a, b) => a.name.localeCompare(b.name));
@@ -244,7 +254,7 @@ export class WorkspaceController {
         // Let's store by filename for simplicity first.
         // If user enters "foo", they likely mean "foo.json".
         // Let's strip ".json" for the ID key.
-        const id = fileEntry.name.replace('.json', '');
+        const id = fileEntry.name.replace('.json', '').replace(/\//g, '.');
         subgraphs.set(id, graphState);
 
       } catch (e) {

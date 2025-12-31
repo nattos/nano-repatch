@@ -205,6 +205,8 @@ export interface PrimitiveNodeDefinition {
     config: Structor,
     context: ExecutionContext
   ) => any;
+
+  getDisplayLabel?: (config: Structor) => string | undefined;
 }
 
 /**

@@ -101,6 +101,11 @@ export interface NodeType {
   };
 
   /**
+   * Optional callback to determine the dynamic display label of a node.
+   */
+  getDisplayLabel?: (config: any) => string | undefined;
+
+  /**
    * Whether to capture inputs for this node type in the executor.
    */
   inspectInputs?: boolean;
@@ -648,6 +653,7 @@ defaultNodeRepository.register({
   inputs: [],
   outputs: [],
   ui: primitive_subgraph.ui,
+  getDisplayLabel: primitive_subgraph.getDisplayLabel,
 
 });
 

@@ -209,6 +209,8 @@ export interface TypedNodeOptions<
     context: ExecutionContext,
     state: TState
   ) => InferRecord<{ kind: 'record', fields: TOutputs, untagged: [] }> | { outputs: InferRecord<{ kind: 'record', fields: TOutputs, untagged: [] }>; ui?: any };
+
+  getDisplayLabel?: (config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>) => string | undefined;
 }
 
 export function definePrimitiveNode<
@@ -238,6 +240,7 @@ export function definePrimitiveNode<
     configType,
     isRealtime: options.isRealtime,
     onMessage: options.onMessage,
+    getDisplayLabel: options.getDisplayLabel as any, // Cast to generic Structor type
     computeBackwardPorts: options.computeBackwardPorts,
     computeForwardPorts: (i, c, ctx, meta) => {
       if (options.computeForwardPorts) {

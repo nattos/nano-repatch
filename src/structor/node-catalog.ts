@@ -11,7 +11,7 @@ export interface CatalogItem {
 }
 
 export class NodeCatalog {
-  constructor(private repository: NodeRepository) { }
+  constructor(private repository: NodeRepository, private subgraphProvider?: () => string[]) { }
 
   search(query: string): CatalogItem[] {
     const results: CatalogItem[] = [];
@@ -23,11 +23,26 @@ export class NodeCatalog {
     }
 
     // 2. Handle Search
-    // We search across everything: Namespaces, Categories, Nodes
+    // We search across everything: Namespaces, Categories, Nodes, AND Subgraphs
 
     const nodes = Array.from(this.repository.getAllNodeTypes());
     const namespaces = new Set<string>();
     const categories = new Set<string>();
+
+    // Inject Subgraphs as pseudo-nodes
+    const subgraphPaths = this.subgraphProvider ? this.subgraphProvider() : [];
+    const subgraphs = subgraphPaths
+      .filter(path => path.includes('/')) // Ignore root files
+      .map(path => {
+        // sub/dir/graph.json -> sub.dir.graph
+        const noExt = path.replace('.json', '');
+        const dotted = noExt.replace(/\//g, '.');
+        return {
+          id: dotted, // This will be the subgraphId
+          displayName: dotted.split('.').pop()! // Short name
+        };
+      });
+
 
     for (const node of nodes) {
       const parts = node.id.split('.');
@@ -36,6 +51,13 @@ export class NodeCatalog {
       }
       if (node.definition.metadata?.category) {
         categories.add(node.definition.metadata.category);
+      }
+    }
+
+    for (const sub of subgraphs) {
+      const parts = sub.id.split('.');
+      if (parts.length > 1) {
+        namespaces.add(parts[0]);
       }
     }
 
@@ -99,6 +121,33 @@ export class NodeCatalog {
       }
     }
 
+    // Match Subgraphs
+    for (const sub of subgraphs) {
+      let score = 0;
+      const id = sub.id.toLowerCase();
+      const name = sub.displayName.toLowerCase();
+      const fullPath = sub.id; // dotted path is the ID
+
+      if (fullPath === normalizedQuery) score += 12; // Higher than regular nodes? Equal?
+      else if (fullPath.startsWith(normalizedQuery)) score += 6;
+      else if (fullPath.includes(normalizedQuery)) score += 2;
+
+      if (name === normalizedQuery) score += 6;
+      else if (name.startsWith(normalizedQuery)) score += 4;
+      else if (name.includes(normalizedQuery)) score += 2;
+
+      if (score > 0) {
+        results.push({
+          label: sub.displayName, // Show "graph"
+          type: 'node',
+          id: sub.id, // "sub.graph"
+          value: sub.id,
+          detail: 'Subgraph',
+          boost: score
+        });
+      }
+    }
+
     return results.sort((a, b) => {
       const boostDiff = (b.boost || 0) - (a.boost || 0);
       if (boostDiff !== 0) return boostDiff;
@@ -116,9 +165,29 @@ export class NodeCatalog {
 
     const normalizedPrefix = prefix.toLowerCase();
 
-    for (const node of nodes) {
+    // Inject Subgraphs
+    const subgraphPaths = this.subgraphProvider ? this.subgraphProvider() : [];
+    const subgraphs = subgraphPaths
+      .filter(path => path.includes('/'))
+      .map(path => {
+        const noExt = path.replace('.json', '');
+        const dotted = noExt.replace(/\//g, '.');
+        return {
+          id: dotted,
+          displayName: dotted.split('.').pop()!
+        };
+      });
+
+    // Determine matches for both regular nodes and subgraphs
+
+    const allItems = [
+      ...nodes.map(n => ({ id: n.id, displayName: n.displayName, category: n.definition.metadata?.category, isSubgraph: false })),
+      ...subgraphs.map(s => ({ id: s.id, displayName: s.displayName, category: undefined, isSubgraph: true }))
+    ];
+
+    for (const node of allItems) {
       const id = node.id;
-      const category = node.definition.metadata?.category || '';
+      const category = node.category || '';
 
       // Check if node belongs to this prefix path
       // Case 1: Prefix is namespace (e.g. "math") -> match "math.add"
@@ -132,11 +201,6 @@ export class NodeCatalog {
         matches = true;
       }
 
-      // Check Category hierarchy (if prefix matches namespace, and node is in category)
-      // This is tricky. User said: "resolume." should show "IO."
-      // So if we are at "resolume.", we look at all nodes starting with "resolume."
-      // And for each node, we add its Category to the list.
-
       if (matches) {
         // It's a child node.
         // Should we show the node itself? Yes.
@@ -145,20 +209,12 @@ export class NodeCatalog {
           type: 'node',
           id: node.id,
           value: node.id,
-          detail: node.id,
+          detail: node.isSubgraph ? 'Subgraph' : node.id,
           boost: 1
         });
 
         // Should we show its category?
         if (category && !seen.has(category)) {
-          // Only if the prefix doesn't already include the category?
-          // User example: "resolume." -> show "IO."
-          // "resolume.IO." -> show nodes
-
-          // If prefix is just "resolume", we show "IO"
-          // If prefix is "resolume.IO", we don't show "IO" again.
-
-          // Simple heuristic: If the category name is NOT part of the prefix, show it.
           if (!normalizedPrefix.includes(category.toLowerCase())) {
             results.push({
               label: category,
@@ -172,12 +228,9 @@ export class NodeCatalog {
         }
       } else {
         // Handle the case where prefix includes category: "resolume.IO"
-        // We need to match nodes that start with "resolume." AND have category "IO"
-
-        // Split prefix: "resolume" and "IO"
         const parts = normalizedPrefix.split('.');
 
-        if (parts.length === 2) {
+        if (parts.length === 2 && !node.isSubgraph) {
           const ns = parts[0];
           const cat = parts[1];
 
@@ -191,19 +244,18 @@ export class NodeCatalog {
               boost: 1
             });
           }
-        } else if (parts.length === 1) {
-            // Handle Case 3: Prefix is just category name (e.g. "Logic")
-            // And node has that category
-            if (category.toLowerCase() === normalizedPrefix) {
-                 results.push({
-                  label: node.displayName,
-                  type: 'node',
-                  id: node.id,
-                  value: node.id,
-                  detail: node.id,
-                  boost: 1
-                });
-            }
+        } else if (parts.length === 1 && !node.isSubgraph) {
+          // Handle Case 3: Prefix is just category name
+          if (category.toLowerCase() === normalizedPrefix) {
+            results.push({
+              label: node.displayName,
+              type: 'node',
+              id: node.id,
+              value: node.id,
+              detail: node.id,
+              boost: 1
+            });
+          }
         }
       }
     }

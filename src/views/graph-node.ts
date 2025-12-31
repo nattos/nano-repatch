@@ -3,7 +3,7 @@ import { css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { reaction } from 'mobx';
 import { GridNode, LongEdit, AppController } from '../builder/state';
-import { appController, localController, runtimeManager } from '../builder/controllers';
+import { appController, localController, runtimeManager, workspaceController } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { defaultNodeRepository, PortHint, GraphNodeRenderHandlers, InspectorChangeHandler } from '../structor/repository'; // Import repository
@@ -73,7 +73,7 @@ export class GraphNode extends MobxLitElement {
   @property({ type: Number })
   parentZIndex = 100;
 
-  private catalog = new NodeCatalog(defaultNodeRepository);
+  private catalog = new NodeCatalog(defaultNodeRepository, () => workspaceController.files.map(f => f.name));
 
   @state()
   private loadedBodyRenderer: ((node: GridNode, handlers: GraphNodeRenderHandlers) => unknown) | null = null;
@@ -874,7 +874,17 @@ export class GraphNode extends MobxLitElement {
     if (field === 'name') {
       appController.setNodeConfig(this.node.id, { name: value });
     } else {
-      appController.setNodeConfig(this.node.id, { typeId: value });
+      let typeId = value;
+      let extraConfig = {};
+
+      // Auto-detect subgraph by ID
+      // If the type is NOT in the repo, but contains a dot, assume it's a subgraph alias.
+      if (!defaultNodeRepository.getNodeType(value) && value.includes('.')) {
+        typeId = 'core.subgraph';
+        extraConfig = { subgraphId: value };
+      }
+
+      appController.setNodeConfig(this.node.id, { typeId, ...extraConfig });
     }
     this.editingField = null;
   }

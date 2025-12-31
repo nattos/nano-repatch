@@ -6,7 +6,7 @@ import { MobxLitElement } from './mobx-lit-element';
 import { css, html, TemplateResult } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-import { appController, localController, runtimeManager } from '../builder/controllers';
+import { appController, localController, runtimeManager, workspaceController } from '../builder/controllers';
 import { reaction } from 'mobx';
 import { AppController, LongEdit, generateId, GridNode } from '../builder/state';
 import { LocalController, Selectable } from '../builder/local-state';
@@ -430,7 +430,7 @@ export class GraphGrid extends MobxLitElement {
 
   private popupLongEdit: LongEdit | null = null;
 
-  private catalog = new NodeCatalog(defaultNodeRepository);
+  private catalog = new NodeCatalog(defaultNodeRepository, () => workspaceController.files.map(f => f.name));
 
   private handlePointerDown(e: PointerEvent) {
     // If popup is open, close it on click outside (unless clicking inside popup, which is handled by stopPropagation in popup)
@@ -946,7 +946,18 @@ export class GraphGrid extends MobxLitElement {
 
   private handlePopupCommit(e: CustomEvent) {
     if (!this.popup) return;
-    const typeId = e.detail;
+    const rawTypeId = e.detail;
+
+    // Check if this is a Subgraph
+    let typeId = rawTypeId;
+    let extraConfig: any = {};
+
+    const existingType = defaultNodeRepository.getNodeType(rawTypeId);
+    if (!existingType && rawTypeId.includes('.')) {
+      // Assume it's a subgraph if it has dots but isn't a known node
+      typeId = 'core.subgraph';
+      extraConfig.subgraphId = rawTypeId;
+    }
 
     // Unified handling for Creation/Update
     // If we have a previewed node (popup.nodeId exists), we use it.
@@ -961,9 +972,9 @@ export class GraphGrid extends MobxLitElement {
       this.popupLongEdit.applyAgain((c) => {
         // Re-create node if new (same logic as handlePopupPreview)
         if (this.popup!.isNew) {
-          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId! });
+          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId!, ...extraConfig });
         } else {
-          c.setNodeConfig(this.popup!.nodeId!, { typeId });
+          c.setNodeConfig(this.popup!.nodeId!, { typeId, ...extraConfig });
         }
 
         // Re-wire connections (same logic as handlePopupPreview)
@@ -985,13 +996,13 @@ export class GraphGrid extends MobxLitElement {
       this.popupLongEdit = null;
     } else if (targetNodeId) {
       // Just set config if no long edit active (rare if we were previewing)
-      appController.setNodeConfig(targetNodeId, { typeId });
+      appController.setNodeConfig(targetNodeId, { typeId, ...extraConfig });
     } else {
       // No node yet (User typed fast and hit commit without preview, or pure creation)
       // Create it now
       const { gridX, gridY } = this.popup;
       try {
-        const newNode = appController.createNode(typeId, gridX, gridY);
+        const newNode = appController.createNode(typeId, gridX, gridY, extraConfig);
         targetNodeId = newNode.id;
         localController.queueSelectPaths([targetNodeId]);
       } catch (e) {
