@@ -518,6 +518,21 @@ export class GraphNode extends MobxLitElement {
     else if (portName === '' && output.untagged && output.untagged.length > 0) {
       value = output.untagged[0];
       // Type for untagged?
+    } else {
+      // Check Output Remappings (for Subgraphs)
+      const remapping = runtimeManager.outputRemappings[this.node.id];
+      if (remapping && remapping[portName]) {
+        const internalNodeId = remapping[portName];
+        const internalOutput = runtimeManager.outputs.get(internalNodeId);
+        // io.output nodes always output to 'value', which is field 'value' in StructorRecord
+        if (internalOutput && internalOutput.fields && 'value' in internalOutput.fields) {
+          value = internalOutput.fields['value'];
+
+          // Try to infer type from parent node input definition if possible?
+          // Or from the internal node if we had type info for it.
+          // For now, let's just show value.
+        }
+      }
     }
 
     if (value === undefined) return null;

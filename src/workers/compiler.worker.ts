@@ -18,12 +18,13 @@ self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
       const subgraphsMap = new Map<string, GraphState>(Object.entries(subgraphs));
 
       // console.log('Compiler Worker: Compiling graph...');
-      const { graph, inferredTypes, virtualInputMappings } = compileGraph(state, subgraphsMap, defaultNodeRepository);
+      const { graph, inferredTypes, virtualInputMappings, outputRemappings } = compileGraph(state, subgraphsMap, defaultNodeRepository);
       const response: GraphCompiledMessage = {
         type: 'GRAPH_COMPILED',
         graph,
         inferredTypes,
-        virtualInputMappings
+        virtualInputMappings,
+        outputRemappings
       };
 
       self.postMessage(response);

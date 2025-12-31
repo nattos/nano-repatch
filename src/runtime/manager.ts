@@ -232,10 +232,12 @@ export class RuntimeManager {
   }
 
   private virtualInputMappings: Record<string, Record<string, string>> = {};
+  public outputRemappings: Record<string, Record<string, string>> = {};
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
     // console.log('RuntimeManager: Graph compiled, initializing executor worker');
     this.virtualInputMappings = msg.virtualInputMappings || {};
+    this.outputRemappings = msg.outputRemappings || {};
 
     const initMsg: ExecutorWorkerMessage = {
       type: 'INIT_GRAPH',

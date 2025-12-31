@@ -15,7 +15,8 @@ export function compileGraph(
 ): {
   graph: GraphDefinition,
   inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }>,
-  virtualInputMappings: Record<string, Record<string, string>>
+  virtualInputMappings: Record<string, Record<string, string>>,
+  outputRemappings: Record<string, Record<string, string>>
 } {
   const flatNodes: Record<string, NodeInstance> = {};
   const flatConnections: {
@@ -27,6 +28,7 @@ export function compileGraph(
   const flatInputs: Record<string, { nodeId: string; port: string | number }> = {};
   const flatOutputs: Record<string, { nodeId: string; port: string | number }> = {};
   const virtualInputMappings: Record<string, Record<string, string>> = {};
+  const outputRemappings: Record<string, Record<string, string>> = {};
 
   // Helper to process a graph recursively
   function processGraph(
@@ -114,6 +116,24 @@ export function compileGraph(
                 virtualInputMappings[parentSubgraphId] = {};
               }
               virtualInputMappings[parentSubgraphId][portName] = nodeId;
+            }
+          }
+        } else if (!isRoot && (node.config.typeId === 'io.output' || node.config.typeId === 'output')) {
+          // New: Output Remapping for Debug Values
+          if (parentSubgraphId) {
+            const outputNodes = Object.values(graph.inner.nodes)
+              .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+              .sort((a, b) => a.y - b.y);
+
+            const myIndex = outputNodes.findIndex(n => n.id === node.id);
+            if (myIndex !== -1) {
+              const rawName = node.config.name || 'value';
+              const portName = resolvePortName(rawName, myIndex, outputNodes.length, 'output');
+
+              if (!outputRemappings[parentSubgraphId]) {
+                outputRemappings[parentSubgraphId] = {};
+              }
+              outputRemappings[parentSubgraphId][portName] = nodeId;
             }
           }
         }
@@ -470,5 +490,10 @@ export function compileGraph(
     executionOrder
   };
 
-  return { graph, inferredTypes, virtualInputMappings };
+  return {
+    graph,
+    inferredTypes,
+    virtualInputMappings,
+    outputRemappings
+  };
 }
