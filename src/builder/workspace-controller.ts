@@ -262,7 +262,8 @@ export class WorkspaceController {
       }
     }));
 
-    this.localController.setLoadedSubgraphs(subgraphs);
+    // optional chaining because localController might be undefined in tests
+    this.localController?.setLoadedSubgraphs(subgraphs);
   }
 
   @action
