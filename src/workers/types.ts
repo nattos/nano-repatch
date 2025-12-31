@@ -17,6 +17,7 @@ export type GraphCompiledMessage = {
   type: 'GRAPH_COMPILED';
   graph: GraphDefinition;
   inferredTypes: Record<string, { inputs: StructorType; outputs: StructorType }>;
+  virtualInputMappings?: Record<string, Record<string, string>>;
 };
 
 export type CompileConfigsMessage = {

@@ -1,6 +1,6 @@
 import { NodeDefinition, Structor, StructorType } from './structor';
 import {
-  primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output, primitive_subgraph,
+  primitive_add, primitive_clamp, primitive_literal, primitive_apply, primitive_fmod, primitive_input, primitive_output,
   primitive_subtract, primitive_multiply, primitive_divide, primitive_pow, primitive_min, primitive_max,
   primitive_abs, primitive_negate, primitive_ceil, primitive_floor, primitive_round, primitive_sin, primitive_cos, primitive_tan, primitive_sqrt,
   primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
@@ -8,7 +8,8 @@ import {
   primitive_lerp, primitive_map, primitive_hub, primitive_float,
   primitive_pack, primitive_unpack,
   primitive_all_add, primitive_all_subtract, primitive_all_multiply, primitive_all_divide, primitive_all_pow, primitive_all_min, primitive_all_max,
-  primitive_all_and, primitive_all_or, primitive_all_xor, primitive_all_equals, primitive_all_greater_than, primitive_all_less_than
+  primitive_all_and, primitive_all_or, primitive_all_xor, primitive_all_equals, primitive_all_greater_than, primitive_all_less_than,
+  primitive_subgraph
 } from './primitives';
 import type { GraphState, GridNode } from '../builder/state';
 
@@ -621,7 +622,8 @@ defaultNodeRepository.register({
   outputs: [
     { name: 'value', type: AnyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
   ],
-  compileConfig: (uiConfig) => uiConfig?.values?.['0'],
+  compileConfig: (uiConfig) => ({ values: { 'value': uiConfig?.values?.['0'] } }),
+  ui: primitive_input.ui,
 });
 
 defaultNodeRepository.register({
@@ -644,7 +646,9 @@ defaultNodeRepository.register({
   displayName: 'Subgraph',
   definition: primitive_subgraph,
   inputs: [],
+  compilePorts: primitive_subgraph.compilePorts,
   outputs: [],
+  ui: primitive_subgraph.ui,
 
 });
 
@@ -704,3 +708,4 @@ registerAllNode('logic.all.xor', 'XOR All', primitive_all_xor);
 registerAllNode('logic.all.equals', 'Equals All', primitive_all_equals);
 registerAllNode('logic.all.greater_than', 'Greater Than All', primitive_all_greater_than);
 registerAllNode('logic.all.less_than', 'Less Than All', primitive_all_less_than);
+// Force invalidation

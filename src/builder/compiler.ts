@@ -12,7 +12,11 @@ export function compileGraph(
   appState: AppState,
   loadedSubgraphs: Map<string, GraphState>,
   nodeRepository: NodeRepository
-): { graph: GraphDefinition, inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> } {
+): {
+  graph: GraphDefinition,
+  inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }>,
+  virtualInputMappings: Record<string, Record<string, string>>
+} {
   const flatNodes: Record<string, NodeInstance> = {};
   const flatConnections: {
     fromNode: string;
@@ -22,13 +26,15 @@ export function compileGraph(
   }[] = [];
   const flatInputs: Record<string, { nodeId: string; port: string | number }> = {};
   const flatOutputs: Record<string, { nodeId: string; port: string | number }> = {};
+  const virtualInputMappings: Record<string, Record<string, string>> = {};
 
   // Helper to process a graph recursively
   function processGraph(
     graph: GraphState,
     idPrefix: string,
     isRoot: boolean,
-    parentConfigValues: Record<string, any> = {}
+    parentConfigValues: Record<string, any> = {},
+    parentSubgraphId: string | null = null
   ) {
     // 1. Process Nodes
     for (const node of Object.values(graph.inner.nodes)) {
@@ -45,19 +51,27 @@ export function compileGraph(
         }
 
         // Recurse with new prefix
-        processGraph(subgraph, nodeId + '.', false, node.config.values || {});
-      } else {
-        // Regular node (or input/output node acting as identity)
-        // For input/output nodes in subgraphs, they act as identity nodes
-        // that pass data through.
+        // Pass node.id as parentSubgraphId (key for mapping)
+        processGraph(subgraph, nodeId + '.', false, node.config.values || {}, node.id);
 
-        // Construct NodeInstance
+        // Also add the subgraph container node itself to flatNodes so it can be typed/executed (as a wrapper)
+        const nodeType = nodeRepository.getNodeType(node.config.typeId);
+        const instanceConfig = nodeType?.compileConfig
+          ? nodeType.compileConfig(node.config)
+          : (node.config as unknown as Structor);
+
+        flatNodes[nodeId] = {
+          definitionId: node.config.typeId,
+          defaultConfig: instanceConfig,
+        };
+      } else {
+        // Regular node
         const { typeId } = node.config;
 
         const nodeType = nodeRepository.getNodeType(typeId);
         const instanceConfig = nodeType?.compileConfig
           ? nodeType.compileConfig(node.config)
-          : (node.config as unknown as Structor); // Fallback to raw config
+          : (node.config as unknown as Structor);
 
         const instance: NodeInstance = {
           definitionId: typeId,
@@ -66,7 +80,6 @@ export function compileGraph(
 
         flatNodes[nodeId] = instance;
 
-        // If root, register graph inputs/outputs
         if (isRoot) {
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
             const name = node.config.name || node.id;
@@ -77,17 +90,8 @@ export function compileGraph(
           }
         }
 
-        // --- Virtual Input Propagation (for Subgraph Inputs) ---
-        // If this is an io.input node inside a subgraph (not root), check if we have a parent value to inject.
+        // --- Virtual Input Propagation ---
         if (!isRoot && (node.config.typeId === 'io.input' || node.config.typeId === 'input')) {
-          // Iterate over parentConfigValues to see if any match this input node's logical port.
-          // Since we don't have the index here easily without scanning all nodes, we must scan the graph notes first?
-          // Alternatively, since 'parentConfigValues' are keyed by port name (e.g. 'x', 'y' or name 'foo'),
-          // and we have resolvePortName logic...
-          // Actually, we need to know what port name THIS input node corresponds to.
-
-          // Optimization: Pre-calculate port names for the current graph scope?
-          // Or just do a lookup here.
           const inputNodes = Object.values(graph.inner.nodes)
             .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
             .sort((a, b) => a.y - b.y);
@@ -97,16 +101,25 @@ export function compileGraph(
             const rawName = node.config.name || 'value';
             const portName = resolvePortName(rawName, myIndex, inputNodes.length, 'input');
 
+            // 1. Static Injection (Phase 1)
             const injectedValue = parentConfigValues[portName];
             if (injectedValue !== undefined) {
               if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
-              // io.input uses config object or config.value.
               (instance.defaultConfig as any).value = injectedValue;
+            }
+
+            // 2. Dynamic Mapping (Phase 2)
+            if (parentSubgraphId) {
+              if (!virtualInputMappings[parentSubgraphId]) {
+                virtualInputMappings[parentSubgraphId] = {};
+              }
+              virtualInputMappings[parentSubgraphId][portName] = nodeId;
             }
           }
         }
 
-        // Process Virtual Inputs (Configured Values & Defaults)
+        // Process Virtual Inputs (Standard)
+        // ... (rest of function)
         // We need to consider both explicitly configured values AND default values for unconnected ports.
 
         // 1. Determine all potential input ports
@@ -444,69 +457,7 @@ export function compileGraph(
     inferredTypes[id] = types;
   }
 
-  // Synthesis: Backfill Inferred Types for Core.Subgraph Nodes
-  for (const node of Object.values(appState.graph.inner.nodes)) {
-    if (node.config.typeId === 'core.subgraph' || node.config.typeId === 'subgraph') {
-      const subgraphId = node.config.subgraphId;
-      const subgraph = loadedSubgraphs.get(subgraphId);
 
-      if (subgraph) {
-        const inputFields: Record<string, StructorType> = {};
-        const outputFields: Record<string, StructorType> = {};
-
-        const inputNodes = Object.values(subgraph.inner.nodes)
-          .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
-          .sort((a, b) => a.y - b.y);
-
-        inputNodes.forEach((subNode, i) => {
-          const rawName = subNode.config.name || 'value';
-          const portName = resolvePortName(rawName, i, inputNodes.length, 'input');
-          const flattenedNodeId = node.id + '.' + subNode.id;
-
-          const inferred = inferredTypes[flattenedNodeId];
-          if (inferred && inferred.outputs.kind === 'record') {
-            inputFields[portName] = inferred.outputs.fields['value'] || inferred.outputs.fields['0'] || { kind: 'atomic', type: 'any' };
-          } else {
-            const configType = subNode.config.type;
-            if (configType && configType !== 'any') {
-              if (configType === 'float') inputFields[portName] = { kind: 'atomic', type: 'number' };
-              else if (configType === 'string') inputFields[portName] = { kind: 'atomic', type: 'string' };
-              else if (configType.startsWith('float')) {
-                const size = parseInt(configType.slice(5));
-                inputFields[portName] = { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
-              } else {
-                inputFields[portName] = { kind: 'atomic', type: 'any' };
-              }
-            } else {
-              inputFields[portName] = { kind: 'atomic', type: 'any' };
-            }
-          }
-        });
-
-        const outputNodes = Object.values(subgraph.inner.nodes)
-          .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-          .sort((a, b) => a.y - b.y);
-
-        outputNodes.forEach((subNode, i) => {
-          const rawName = subNode.config.name || 'value';
-          const portName = resolvePortName(rawName, i, outputNodes.length, 'output');
-          const flattenedNodeId = node.id + '.' + subNode.id;
-
-          const inferred = inferredTypes[flattenedNodeId];
-          if (inferred && inferred.inputs.kind === 'record') {
-            outputFields[portName] = inferred.inputs.fields['value'] || inferred.inputs.fields['0'] || { kind: 'atomic', type: 'any' };
-          } else {
-            outputFields[portName] = { kind: 'atomic', type: 'any' };
-          }
-        });
-
-        inferredTypes[node.id] = {
-          inputs: { kind: 'record', fields: inputFields },
-          outputs: { kind: 'record', fields: outputFields }
-        };
-      }
-    }
-  }
 
   const graph: GraphDefinition = {
     id: 'compiled-graph',
@@ -519,5 +470,5 @@ export function compileGraph(
     executionOrder
   };
 
-  return { graph, inferredTypes };
+  return { graph, inferredTypes, virtualInputMappings };
 }

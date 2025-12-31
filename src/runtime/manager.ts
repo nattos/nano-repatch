@@ -231,8 +231,12 @@ export class RuntimeManager {
     }
   }
 
+  private virtualInputMappings: Record<string, Record<string, string>> = {};
+
   private handleGraphCompiled(msg: GraphCompiledMessage) {
     // console.log('RuntimeManager: Graph compiled, initializing executor worker');
+    this.virtualInputMappings = msg.virtualInputMappings || {};
+
     const initMsg: ExecutorWorkerMessage = {
       type: 'INIT_GRAPH',
       graph: msg.graph,
@@ -354,7 +358,28 @@ export class RuntimeManager {
       : Object.values(state.graph.inner.nodes);
 
     for (const node of nodesToCheck) {
-      nodesToSend.push({ id: node.id, typeId: node.config.typeId, config: toJS(node.config) });
+      const nodeConfig = toJS(node.config);
+      nodesToSend.push({ id: node.id, typeId: node.config.typeId, config: nodeConfig });
+
+      // Dynamic Propagation for Subgraphs
+      // Check if this node has virtual input mappings (meaning it's a subgraph/parent node)
+      const mappings = this.virtualInputMappings[node.id];
+      if (mappings) {
+        const values = nodeConfig.values || {};
+        for (const [portName, targetId] of Object.entries(mappings)) {
+          const val = values[portName];
+          if (val !== undefined) {
+            // Create a virtual update for the internal io.input node.
+            // simulating a slider update on the internal node.
+            // internal node config compatible with io.input compileConfig: { values: { '0': val } }
+            nodesToSend.push({
+              id: targetId,
+              typeId: 'io.input',
+              config: { values: { '0': val } }
+            });
+          }
+        }
+      }
     }
 
     if (nodesToSend.length > 0) {
@@ -435,6 +460,24 @@ export class RuntimeManager {
         value: JSON.parse(JSON.stringify(update.inputs))
       };
       this.executorWorker.postMessage(msg);
+
+      // Dynamic Propagation for Subgraphs (Fast Path)
+      const mappings = this.virtualInputMappings[update.nodeId];
+      if (mappings) {
+        for (const [portName, val] of Object.entries(update.inputs)) {
+          const targetId = mappings[portName];
+          if (targetId) {
+            // Propagate to internal io.input node
+            // targetId is the flattened ID (e.g. sub1.in_float)
+            const subMsg: ExecutorWorkerMessage = {
+              type: 'UPDATE_INPUT',
+              name: targetId,
+              value: { 'value': val }
+            };
+            this.executorWorker.postMessage(subMsg);
+          }
+        }
+      }
     }
 
     // Trigger step if not realtime

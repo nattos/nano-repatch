@@ -118,6 +118,23 @@ export const primitive_apply: PrimitiveNodeDefinition = {
   }
 };
 
+// Helper to infer type from io.input config
+function inferTypeFromConfig(config: any): StructorType | undefined {
+  if (!config) return undefined;
+  const typeStr = config.type as string;
+  if (!typeStr || typeStr === 'any') return undefined;
+
+  if (typeStr === 'float') return { kind: 'atomic', type: 'number' };
+  if (typeStr === 'string') return { kind: 'atomic', type: 'string' };
+  if (typeStr.startsWith('float')) {
+    const size = parseInt(typeStr.slice(5));
+    if (!isNaN(size)) {
+      return { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
+    }
+  }
+  return undefined;
+}
+
 export const primitive_input: PrimitiveNodeDefinition = {
   id: 'io.input',
   kind: 'primitive',
@@ -144,22 +161,10 @@ export const primitive_input: PrimitiveNodeDefinition = {
     }
   },
   computeForwardPorts: (inputType, config, context) => {
-
     // Identity: Output type is same as input type of 'value' (connected) or inferred from 'type' config
     let valType = inputType.fields['value'];
-
-    if (!valType && config) {
-      const typeStr = (config as any).type as string;
-      if (typeStr && typeStr !== 'any') {
-        if (typeStr === 'float') valType = { kind: 'atomic', type: 'number' };
-        else if (typeStr === 'string') valType = { kind: 'atomic', type: 'string' };
-        else if (typeStr.startsWith('float')) {
-          const size = parseInt(typeStr.slice(5));
-          if (!isNaN(size)) {
-            valType = { kind: 'array', size, element: { kind: 'atomic', type: 'number' } };
-          }
-        }
-      }
+    if (!valType) {
+      valType = inferTypeFromConfig(config);
     }
 
     if (!valType) valType = { kind: 'atomic', type: 'any' };
@@ -169,17 +174,7 @@ export const primitive_input: PrimitiveNodeDefinition = {
     };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-
-    // Identity: Output value is input 'value' OR config.value OR config (fallback)
-    // We prioritize config.value to support injected virtual inputs.
-    let val = input.fields['value'];
-    if (val === undefined) {
-      if (config && (config as any).value !== undefined) {
-        val = (config as any).value;
-      } else {
-        val = config;
-      }
-    }
+    const val = input.fields['value'];
     return { fields: { 'value': val } };
   }
 };
@@ -277,7 +272,8 @@ export const primitive_subgraph = definePrimitiveNode({
       inputNodes.forEach((n, i) => {
         let name = (n.config as any).name || 'value';
         name = resolvePortName(name, i, inputNodes.length, 'input');
-        inputFields[name] = { kind: 'atomic', type: 'any' }; // TODO: Infer type from inside?
+        const inferred = inferTypeFromConfig(n.config);
+        inputFields[name] = inferred || { kind: 'atomic', type: 'any' };
       });
 
       // Compute Outputs from Subgraph Outputs
@@ -310,6 +306,7 @@ export const primitive_subgraph = definePrimitiveNode({
     return { fields: {} };
   }
 });
+
 
 export const primitive_pack = definePrimitiveNode({
   id: 'core.pack',
@@ -1039,7 +1036,8 @@ export const ALL_PRIMITIVES = [
   primitive_and, primitive_or, primitive_xor, primitive_equals, primitive_greater_than, primitive_less_than, primitive_not,
   primitive_pi, primitive_e,
   primitive_lerp, primitive_map, primitive_hub, primitive_float,
-  primitive_input, primitive_output, primitive_subgraph, primitive_literal, primitive_apply,
+  // primitive_input, primitive_output, primitive_subgraph, // Registered manually in repository.ts with enhanced defs
+  primitive_literal, primitive_apply,
   primitive_pack, primitive_unpack,
 
   // All variants
