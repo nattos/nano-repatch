@@ -33,7 +33,7 @@ interface SeqFillUIConfig {
   values?: Record<string, any>;
 }
 
-export const crop = defineNode<any, SeqCropUIConfig, any>({
+export const crop = defineNode({
   id: "seq.crop",
   version: "1.0.0",
   displayName: "Crop Sequence",
@@ -82,14 +82,13 @@ export const crop = defineNode<any, SeqCropUIConfig, any>({
   },
 
   shouldRecompileOnConfigChange: () => true,
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: SeqCropUIConfig) => ({
     // Return Flat Data Structure
     mode: uiConfig.mode || 'start-end'
   }),
 
-  execute: (rawInputs: any, config) => {
-    // Cast raw inputs to the strict Runtime Interface
-    const inputs = rawInputs as SeqCropInputs;
+  execute: (inputs, config) => {
+    // Inputs are strictly typed
     const seq = inputs.seq_in || [];
 
     // Correctly inferred config
@@ -124,7 +123,7 @@ export const crop = defineNode<any, SeqCropUIConfig, any>({
   }
 });
 
-export const fill = defineNode<any, SeqFillUIConfig, any>({
+export const fill = defineNode({
   id: "seq.fill",
   version: "1.0.0",
   displayName: "Fill Sequence",
@@ -169,13 +168,13 @@ export const fill = defineNode<any, SeqFillUIConfig, any>({
   },
 
   shouldRecompileOnConfigChange: () => true,
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: SeqFillUIConfig) => ({
     mode: uiConfig.mode || 'start-length',
     count: uiConfig.count ?? 16
   }),
 
-  execute: (rawInputs: any, config) => {
-    const inputs = rawInputs as SeqFillInputs;
+  execute: (inputs, config) => {
+    // Inputs are strictly typed
     const count = config.count ?? 16;
     const mode = config.mode || 'start-length';
 

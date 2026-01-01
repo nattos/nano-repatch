@@ -2,8 +2,8 @@ import { defineType } from "./type-helpers";
 
 export const numberType = defineType({ kind: "atomic", type: "number", defaultValue: 0 } as const);
 export const stringType = defineType({ kind: "atomic", type: "string" } as const);
-export const booleanType = defineType({ kind: "atomic", type: "boolean" });
-export const anyType = defineType({ kind: "atomic", type: "any" });
+export const booleanType = defineType({ kind: "atomic", type: "boolean" } as const);
+export const anyType = defineType({ kind: "atomic", type: "any" } as const);
 
 export const midiEventType = defineType({
   kind: "record",
@@ -19,35 +19,35 @@ export const midiEventType = defineType({
     value: { ...numberType, optional: true }
   },
   hint: 'midi'
-});
+} as const);
 
 export const midiStreamType = defineType({
   kind: "array",
   size: "dynamic",
   element: midiEventType,
   hint: 'midi-stream'
-});
+} as const);
 
 export const vec2Type = defineType({
   kind: "array",
   element: numberType,
   size: 2,
   hint: "vec2"
-});
+} as const);
 
 export const vec3Type = defineType({
   kind: "array",
   element: numberType,
   size: 3,
   hint: "vec3"
-});
+} as const);
 
 export const vec4Type = defineType({
   kind: "array",
   element: numberType,
   size: 4,
   hint: "vec4"
-});
+} as const);
 
 
 // Note & Sequence Types (moved from nicepattern)
@@ -59,7 +59,7 @@ export const noteStructorType = defineType({
     velocity: numberType,
   },
   untagged: [],
-});
+} as const);
 
 export const noteEventStructorType = defineType({
   kind: "record",
@@ -69,7 +69,7 @@ export const noteEventStructorType = defineType({
     hold: booleanType,
   },
   untagged: [],
-});
+} as const);
 
 export const stepStructorType = defineType({
   kind: "record",
@@ -79,13 +79,13 @@ export const stepStructorType = defineType({
     hold: booleanType,
   },
   untagged: [],
-});
+} as const);
 
 export const sequenceStructorType = defineType({
   kind: "array",
   size: "dynamic",
   element: stepStructorType,
   hint: 'step-sequence'
-});
+} as const);
 
 export type UIConfigStructorType = 'float' | 'float2' | 'float3' | 'float4' | 'midi-stream' | 'string' | 'any';

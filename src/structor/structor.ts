@@ -5,39 +5,40 @@
  * =================================================================== */
 
 export interface AtomicType {
-  kind: 'atomic';
-  type: 'number' | 'string' | 'boolean' | 'any';
-  optional?: boolean;
-  defaultValue?: any;
+  readonly kind: 'atomic';
+  readonly type: 'number' | 'string' | 'boolean' | 'any';
+  readonly optional?: boolean;
+  readonly defaultValue?: any;
 }
 
 export interface FunctorType {
-  kind: 'functor';
-  input: StructorType;
-  output: StructorType;
-  optional?: boolean;
+  readonly kind: 'functor';
+  readonly input: StructorType;
+  readonly output: StructorType;
+  readonly optional?: boolean;
 }
 
 export interface ArrayType {
-  kind: 'array';
-  size: number | 'dynamic'; // 'dynamic' for runtime-sized/ragged arrays
-  element: StructorType;
-  optional?: boolean;
-  hint?: string;
+  readonly kind: 'array';
+  readonly size: number | 'dynamic'; // 'dynamic' for runtime-sized/ragged arrays
+  readonly element: StructorType;
+  readonly optional?: boolean;
+  readonly hint?: string;
 }
 
 export interface RecordType {
-  kind: 'record';
-  fields: Record<string, StructorType>; // Named/tagged inputs
-  optional?: boolean;
-  hint?: string;
+  readonly kind: 'record';
+  readonly fields: Record<string, StructorType>; // Named/tagged inputs
+  readonly optional?: boolean;
+  readonly hint?: string;
+  readonly untagged?: StructorType[];
 }
 
 export interface GraphType {
-  kind: 'graph';
-  inputs: RecordType;
-  outputs: RecordType;
-  optional?: boolean;
+  readonly kind: 'graph';
+  readonly inputs: RecordType;
+  readonly outputs: RecordType;
+  readonly optional?: boolean;
 }
 
 export type StructorType =

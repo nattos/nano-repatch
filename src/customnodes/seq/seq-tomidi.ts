@@ -25,8 +25,8 @@ interface SeqToMidiState {
   }>;
 }
 
-// explicit 'any' generic used to bypass Constraint Mismatch between Def types (Structor) and Runtime types (Interfaces)
-export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
+// explicit 'any' generic removed - using strict inference
+export const tomidi = defineNode({
   id: "seq.tomidi",
   version: "1.0.0",
   displayName: "To MIDI",
@@ -45,13 +45,12 @@ export const tomidi = defineNode<any, {}, {}, any, SeqToMidiState>({
   },
   outputs: { midi_out: midiStreamType },
   isRealtime: () => true,
-  createState: () => ({
+  createState: (): SeqToMidiState => ({
     sequenceStates: new Map()
   }),
-  execute: (rawInputs: any, config, context, state) => {
-    // Cast raw inputs (inferred as any/record) to the strict Runtime Interface
-    const inputs = rawInputs as SeqToMidiInputs;
-    // Inputs are unwrapped Steps
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed now!
+    // inputs.seq_in is inferred as Step[][] because sequenceStructorType is array of Step
     const seqs = inputs.seq_in || [];
 
     const stream: MidiEvent[] = [];

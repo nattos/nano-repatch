@@ -65,8 +65,15 @@ export interface ExtendedOutputDef {
 
 export type ExtendedNodeOutputsDef = Record<string, StructorType | ExtendedOutputDef>;
 
+
 export type SimplifyInputs<T extends ExtendedNodeInputsDef> = {
-  [K in keyof T]: T[K] extends ExtendedInputDef ? T[K]['type'] : T[K]
+  [K in keyof T]: T[K] extends ExtendedInputDef
+  ? (
+    T[K]['allowMultiConnection'] extends true
+    ? { kind: 'array', size: 'dynamic', element: T[K]['type'] }
+    : T[K]['type']
+  )
+  : T[K]
 } & Record<string, StructorType>;
 
 export type SimplifyOutputs<T extends ExtendedNodeOutputsDef> = {
@@ -140,7 +147,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
 }
 
 export function defineNode<
-  TInputs extends ExtendedNodeInputsDef,
+  const TInputs extends ExtendedNodeInputsDef,
   TUIConfig extends Record<string, any> | any = any,
   TCompiledConfig extends NodeConfigDef = any,
   TOutputs extends ExtendedNodeOutputsDef = ExtendedNodeOutputsDef,
