@@ -4,6 +4,7 @@ import {
   numberType,
 } from "../../structor/std-types";
 import { StringType } from "../../structor/type-helpers";
+import { StructorType } from "../../structor/structor";
 import { Step } from "./types";
 
 interface SeqCropInputs {
@@ -69,14 +70,14 @@ export const crop = defineNode({
     // Access mode from top-level config (merged by GraphExecutor)
     const mode = uiConfig.mode || 'start-end';
 
-    const fields: any = {
+    const fields: Record<string, StructorType> = {
       seq_in: sequenceStructorType,
-      start: { type: numberType, defaultValue: 0 }
+      start: { ...numberType, defaultValue: 0 }
     };
     if (mode === 'start-length') {
-      fields['length'] = { type: numberType, defaultValue: 1 };
+      fields['length'] = { ...numberType, defaultValue: 1 };
     } else {
-      fields['end'] = { type: numberType, defaultValue: 1 };
+      fields['end'] = { ...numberType, defaultValue: 1 };
     }
     return { inputs: { kind: 'record', fields }, outputs: { kind: 'record', fields: { seq_out: sequenceStructorType } } };
   },
@@ -156,13 +157,13 @@ export const fill = defineNode({
   },
   computeForwardPorts: (inputTypes, uiConfig) => {
     const mode = uiConfig.mode || 'start-length';
-    const fields: any = {
-      start: { type: numberType, defaultValue: 0 }
+    const fields: Record<string, StructorType> = {
+      start: { ...numberType, defaultValue: 0 }
     };
     if (mode === 'start-length') {
-      fields['length'] = { type: numberType, defaultValue: 0.5 };
+      fields['length'] = { ...numberType, defaultValue: 0.5 };
     } else {
-      fields['end'] = { type: numberType, defaultValue: 1 };
+      fields['end'] = { ...numberType, defaultValue: 1 };
     }
     return { inputs: { kind: 'record', fields }, outputs: { kind: 'record', fields: { seq_out: sequenceStructorType } } };
   },

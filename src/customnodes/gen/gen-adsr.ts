@@ -1,6 +1,7 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, midiStreamType } from "../../structor/std-types";
 import { StringType } from "../../structor/type-helpers";
+import { StructorType } from "../../structor/structor";
 
 const ADSR_PHASE = {
   IDLE: 0,
@@ -72,7 +73,7 @@ export const adsr = defineNode({
     // uiConfig is now the result of compileConfig (flat data)
     const mode = uiConfig.mode || 'D';
 
-    const fields: any = {
+    const fields: Record<string, StructorType> = {
       stream: (inputTypes as any).fields.stream
     };
 

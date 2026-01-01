@@ -9,6 +9,7 @@ export interface AtomicType {
   readonly type: 'number' | 'string' | 'boolean' | 'any';
   readonly optional?: boolean;
   readonly defaultValue?: any;
+  readonly description?: string;
 }
 
 export interface FunctorType {
@@ -24,6 +25,7 @@ export interface ArrayType {
   readonly element: StructorType;
   readonly optional?: boolean;
   readonly hint?: string;
+  readonly description?: string;
 }
 
 export interface RecordType {
@@ -32,6 +34,7 @@ export interface RecordType {
   readonly optional?: boolean;
   readonly hint?: string;
   readonly untagged?: readonly StructorType[];
+  readonly description?: string;
 }
 
 export interface GraphType {

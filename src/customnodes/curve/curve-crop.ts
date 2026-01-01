@@ -1,5 +1,6 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { NumberType, StringType } from "../../structor/type-helpers";
+import { StructorType } from "../../structor/structor";
 
 interface CurveCropUIConfig {
   mode?: string;
@@ -35,16 +36,16 @@ export const curve_crop = defineNode({
     // Mode is at root level config (set by inspector or compileConfig)
     const mode = uiConfig.mode || 'start-end';
 
-    const fields: any = {
-      value: { type: NumberType, description: 'Input value (0-1)', defaultValue: 0 },
-      start: { type: NumberType, description: 'Output at 0', defaultValue: 0 }
+    const fields: Record<string, StructorType> = {
+      value: { ...NumberType, description: 'Input value (0-1)', defaultValue: 0 },
+      start: { ...NumberType, description: 'Output at 0', defaultValue: 0 }
     };
 
     if (mode === 'start-length') {
-      fields['length'] = { type: NumberType, description: 'Length of crop', defaultValue: 1 };
+      fields['length'] = { ...NumberType, description: 'Length of crop', defaultValue: 1 };
     } else {
       // Default: start-end
-      fields['end'] = { type: NumberType, description: 'Output at 1', defaultValue: 1 };
+      fields['end'] = { ...NumberType, description: 'Output at 1', defaultValue: 1 };
     }
 
     return {

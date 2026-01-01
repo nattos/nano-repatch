@@ -1,6 +1,7 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { NodeCategory } from "../../structor/structor";
 import { midiStreamType, numberType } from "../../structor/std-types";
+import { StructorType } from "../../structor/structor";
 import { MidiEvent } from "../../io/midi/types";
 
 interface MidiOnRangeInputs {
@@ -60,15 +61,15 @@ export const midiOnRangeNode = defineNode({
 
   computeForwardPorts: (inputTypes, uiConfig: MidiOnRangeConfig) => {
     const zoneCount = uiConfig.zoneCount ?? 1;
-    const fields: any = {
-      value: { type: numberType },
-      start: { type: numberType, defaultValue: 0 },
-      end: { type: numberType, defaultValue: 1 }
+    const fields: Record<string, StructorType> = {
+      value: { ...numberType },
+      start: { ...numberType, defaultValue: 0 },
+      end: { ...numberType, defaultValue: 1 }
     };
 
     if (zoneCount > 1) {
       for (let i = 1; i <= zoneCount; i++) {
-        fields[`w${i}`] = { type: numberType, defaultValue: 1.0, description: `Weight ${i}` };
+        fields[`w${i}`] = { ...numberType, defaultValue: 1.0, description: `Weight ${i}` };
       }
     }
 
