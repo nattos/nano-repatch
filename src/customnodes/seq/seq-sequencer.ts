@@ -23,7 +23,7 @@ interface SequencerState {
   currentStepIndex: number;
 }
 
-export const sequencer = defineNode<{}, SeqSequencerUIConfig, any, any, SequencerState>({
+export const sequencer = defineNode({
   id: "seq.sequencer",
   version: "1.0.0",
   displayName: "Sequencer",
@@ -45,7 +45,7 @@ export const sequencer = defineNode<{}, SeqSequencerUIConfig, any, any, Sequence
     // Body renderer registered in ui-registration.ts
   },
 
-  compileConfig: (uiConfig) => {
+  compileConfig: (uiConfig: SeqSequencerUIConfig) => {
     // Default sequence: 16 empty steps
     const defaultSeq = Array(16).fill({ noteIndex: null, velocity: 0, hold: false });
     return {
@@ -53,7 +53,7 @@ export const sequencer = defineNode<{}, SeqSequencerUIConfig, any, any, Sequence
     };
   },
 
-  createState: () => ({
+  createState: (): SequencerState => ({
     currentStepIndex: 0
   }),
 

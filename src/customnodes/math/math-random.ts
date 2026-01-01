@@ -33,7 +33,7 @@ interface MathRandomState {
   currentValue: number;
 }
 
-export const random = defineNode<any, MathRandomUIConfig, MathRandomCompiledConfig, any, MathRandomState>({
+export const random = defineNode({
   id: "math.random",
   version: "1.1.0",
   displayName: "Random",
@@ -76,12 +76,12 @@ export const random = defineNode<any, MathRandomUIConfig, MathRandomCompiledConf
     }
   },
 
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: MathRandomUIConfig) => ({
     mode: uiConfig.mode || uiConfig.values?.mode || 'on-trigger',
     seed: uiConfig.seed || uiConfig.values?.seed || 12345
   }),
 
-  computeForwardPorts: (inputTypes, uiConfig) => {
+  computeForwardPorts: (inputTypes, uiConfig: MathRandomUIConfig) => {
     // uiConfig is now compiled flat data
     const mode = uiConfig.mode || 'on-trigger';
 
@@ -105,7 +105,7 @@ export const random = defineNode<any, MathRandomUIConfig, MathRandomCompiledConf
     return true; // Recompile on any change
   },
 
-  createState: (config) => {
+  createState: (config): MathRandomState => {
     // config here is compiled data? No, createState receives executed data?
     // Actually GraphExecutor calls createState with node.config if available.
     // Wait, GraphExecutor `initializeState` uses `node.config`.
@@ -121,7 +121,7 @@ export const random = defineNode<any, MathRandomUIConfig, MathRandomCompiledConf
     };
   },
   execute: (inputs, config, context, state) => {
-    // Strict config
+    // strict strictness
     const mode = config.mode || 'on-trigger';
     const stream = inputs.trigger;
 

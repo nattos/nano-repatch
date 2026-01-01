@@ -22,7 +22,7 @@ interface SeqOneShotState {
   activeNotes: Map<number, number>;
 }
 
-export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
+export const oneshot = defineNode({
   id: "seq.oneshot",
   version: "1.0.0",
   displayName: "One Shot",
@@ -43,7 +43,7 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
   },
   outputs: { midi_out: midiStreamType },
   isRealtime: () => true,
-  createState: () => ({
+  createState: (): SeqOneShotState => ({
     isPlaying: false,
     startTime: 0,
     lastStepIndex: -1,
@@ -51,9 +51,8 @@ export const oneshot = defineNode<any, {}, {}, any, SeqOneShotState>({
     lastHold: false,
     activeNotes: new Map()
   }),
-  execute: (rawInputs: any, config, context, state) => {
-    // Cast raw inputs to the strict Runtime Interface
-    const inputs = rawInputs as SeqOneShotInputs;
+  execute: (inputs, config, context, state) => {
+    // strict
     // Process Trigger
     const triggerStream = inputs.trigger || [];
     let triggered = false;
@@ -157,7 +156,7 @@ interface SeqScanState {
   activeNotes: Map<number, number>;
 }
 
-export const scan = defineNode<any, {}, {}, any, SeqScanState>({
+export const scan = defineNode({
   id: "seq.scan",
   version: "1.0.0",
   displayName: "Scan Sequence",
@@ -176,15 +175,14 @@ export const scan = defineNode<any, {}, {}, any, SeqScanState>({
   },
   outputs: { midi_out: midiStreamType },
   isRealtime: () => true,
-  createState: () => ({
+  createState: (): SeqScanState => ({
     lastStepIndex: -1,
     lastNoteIndex: null,
     lastHold: false,
     activeNotes: new Map()
   }),
-  execute: (rawInputs: any, config, context, state) => {
-    // Cast raw inputs to the strict Runtime Interface
-    const inputs = rawInputs as SeqScanInputs;
+  execute: (inputs, config, context, state) => {
+    // strict
     const seq = inputs.seq_in || [];
 
     const pos = inputs.pos ?? 0;

@@ -76,7 +76,7 @@ interface OrthomodState {
   phase: number;
 }
 
-export const orthomod = defineNode<any, { seed?: number }, { seed: typeof NumberType }, any, OrthomodState>({
+export const orthomod = defineNode({
   id: "nicepattern.orthomod",
   version: "1.0.0",
   displayName: "Orthomod",
@@ -116,7 +116,7 @@ export const orthomod = defineNode<any, { seed?: number }, { seed: typeof Number
     inspector: { fields: OrthomodFields },
   },
   isRealtime: () => true,
-  createState: () => ({
+  createState: (): OrthomodState => ({
     linearEnv: 0.0,
     gateOpen: false,
     active: false,
@@ -126,7 +126,7 @@ export const orthomod = defineNode<any, { seed?: number }, { seed: typeof Number
     currentEffectiveCurve: 1.5,
     phase: 0.0
   }),
-  execute: (inputs, config, context, state: OrthomodState) => {
+  execute: (inputs, config, context, state) => {
     const dt = context.clock.dt;
     state.phase += dt; // Accumulate time in seconds
     const now = state.phase;
@@ -268,7 +268,7 @@ export const orthomod = defineNode<any, { seed?: number }, { seed: typeof Number
       }
     };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { seed?: number }) => ({
     seed: uiConfig?.seed ?? 12345
   })
 });

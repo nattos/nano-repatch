@@ -14,7 +14,8 @@ interface MidiOnChangeState {
   lastValue: any;
 }
 
-export const midiOnChangeNode = defineNode<any, MidiOnChangeConfig, any, any, MidiOnChangeState>({
+// using strict inference
+export const midiOnChangeNode = defineNode({
   id: "midi.onchange",
   version: "1.0.0",
   displayName: "MIDI On Change",
@@ -40,9 +41,9 @@ export const midiOnChangeNode = defineNode<any, MidiOnChangeConfig, any, any, Mi
     }
   },
   isRealtime: () => true,
-  createState: () => ({ lastValue: undefined }),
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiOnChangeInputs;
+  createState: (): MidiOnChangeState => ({ lastValue: undefined }),
+  execute: (inputs, config, context, state) => {
+    // inputs.value is inferred as any (AnyType)
     const value = inputs.value;
     // console.log('MidiOnChange Exec:', { value, lastValue: state.lastValue });
     const root = config.rootNote ?? 60;
@@ -71,7 +72,7 @@ export const midiOnChangeNode = defineNode<any, MidiOnChangeConfig, any, any, Mi
 
     return { stream };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: MidiOnChangeConfig) => ({
     rootNote: uiConfig.rootNote ?? 60
   })
 });

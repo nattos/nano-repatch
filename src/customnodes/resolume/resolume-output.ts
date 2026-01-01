@@ -13,7 +13,7 @@ interface ResolumeOutputState {
   lastValue: any;
 }
 
-export const resolumeOutputNode = defineNode<any, { path?: string }, { path: typeof StringType }, any, ResolumeOutputState>({
+export const resolumeOutputNode = defineNode({
   id: 'resolume.output',
   version: '1.0.0',
   displayName: 'Resolume Output',
@@ -37,11 +37,12 @@ export const resolumeOutputNode = defineNode<any, { path?: string }, { path: typ
     return parts[parts.length - 1] || uiConfig.path;
   },
 
-  createState: (config, context) => {
+  createState: (config, context): ResolumeOutputState => {
     return { lastValue: undefined as any };
   },
 
   execute: (inputs, config, context, state) => {
+    // using strict inference
     if (config.path && inputs.value !== undefined) {
       const newValue = inputs.value;
       const lastValue = state.lastValue;
@@ -64,7 +65,7 @@ export const resolumeOutputNode = defineNode<any, { path?: string }, { path: typ
     }
     return {};
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { path?: string }) => ({
     path: uiConfig.path ?? ''
   }),
 });

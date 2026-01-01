@@ -13,7 +13,7 @@ interface ToneSynthState {
   contextId: string;
 }
 
-export const toneSynthLayer = defineNode<any, {}, {}, any, ToneSynthState>({
+export const toneSynthLayer = defineNode({
   id: "nicepattern.tone_synth_layer",
   version: "1.0.0",
   displayName: "Tone Synth Layer",
@@ -33,7 +33,7 @@ export const toneSynthLayer = defineNode<any, {}, {}, any, ToneSynthState>({
   },
   ui: { inspector: { fields: [] } }, // Removed LayerFields
   isRealtime: () => true,
-  createState: (config, context) => {
+  createState: (config, context): ToneSynthState => {
     return {
       layer: new ToneSynthLayer({}),
       lastActive: false,

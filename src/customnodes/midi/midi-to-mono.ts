@@ -21,8 +21,8 @@ const MidiToMonoFields: InspectorFieldDef[] = [
   }
 ];
 
-// explicit 'any' to bypass constraint
-export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: number, priority?: string }, { channel: typeof NumberType, rootNote: typeof NumberType, priority: { kind: 'atomic', type: 'string', optional?: boolean } }, any, { activeNotes: { note: number, velocity: number }[], gate: number }>({
+// strict type inference
+export const midiToMonoNode = defineNode({
   id: "midi.to_mono",
   version: "1.0.0",
   displayName: "MIDI to Mono",
@@ -49,12 +49,12 @@ export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: num
     frequency: numberType
   },
   ui: { inspector: { fields: MidiToMonoFields } },
-  createState: () => ({
+  createState: (): { activeNotes: { note: number, velocity: number }[], gate: number } => ({
     activeNotes: [],
     gate: 0
   }),
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiToMonoInputs;
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed
     const channel = config.channel || 1;
     const rootNote = config.rootNote ?? 60;
     const stream = inputs.stream || [];
@@ -97,7 +97,7 @@ export const midiToMonoNode = defineNode<any, { channel?: number, rootNote?: num
       };
     }
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { channel?: number, rootNote?: number, priority?: string }) => ({
     channel: uiConfig.channel ?? 1,
     rootNote: uiConfig.rootNote ?? 60,
     priority: uiConfig.priority ?? 'last'

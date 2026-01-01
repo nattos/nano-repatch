@@ -135,7 +135,7 @@ export const MagnetoFields: InspectorFieldDef[] = [
     { type: 'number', label: 'Seed', path: 'seed', step: 1, min: 0, max: 999999 }
 ];
 
-export const magneto = defineNode<any, { seed?: number }, { seed: typeof NumberType }, any, MagnetoState>({
+export const magneto = defineNode({
     id: "nicepattern.magneto",
     version: "1.0.0",
     displayName: "Magneto",
@@ -202,7 +202,7 @@ export const magneto = defineNode<any, { seed?: number }, { seed: typeof NumberT
             }
         }
     },
-    execute: (inputs, config, context, state: MagnetoState) => {
+    execute: (inputs, config, context, state) => {
         const dt = context.clock.dt;
 
         // Inputs - Parse MIDI
@@ -408,7 +408,7 @@ export const magneto = defineNode<any, { seed?: number }, { seed: typeof NumberT
             ui: uiData
         };
     },
-    compileConfig: (uiConfig) => ({
+    compileConfig: (uiConfig: { seed?: number }) => ({
         seed: uiConfig?.seed ?? 1337
     })
 });

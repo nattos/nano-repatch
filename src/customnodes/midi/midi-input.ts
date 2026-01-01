@@ -14,8 +14,8 @@ const MidiCcInputFields: InspectorFieldDef[] = [
   { type: 'string', label: 'Device ID', path: 'deviceId', placeholder: 'Optional Device ID' }
 ];
 
-// explicit 'any' to bypass constraint
-export const midiInputNode = defineNode<any, { deviceId?: string }, { deviceId: { kind: 'atomic', type: 'string', optional?: boolean, defaultValue?: string } }>({
+// strict type inference
+export const midiInputNode = defineNode({
   id: "midi.input",
   version: "1.0.0",
   displayName: "MIDI Input",
@@ -45,13 +45,13 @@ export const midiInputNode = defineNode<any, { deviceId?: string }, { deviceId: 
 
     return { stream: midiEvents || [] };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { deviceId?: string }) => ({
     deviceId: uiConfig.deviceId
   }),
 });
 
-// explicit 'any' to bypass constraint
-export const midiCcInputNode = defineNode<any, { channel?: number, cc?: number, deviceId?: string }, { channel: typeof NumberType, cc: typeof NumberType, deviceId: { kind: 'atomic', type: 'string', optional?: boolean } }>({
+// strict type inference
+export const midiCcInputNode = defineNode({
   id: "midi.cc.input",
   version: "1.0.0",
   displayName: "MIDI CC Input",
@@ -81,7 +81,7 @@ export const midiCcInputNode = defineNode<any, { channel?: number, cc?: number, 
 
     return { value };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { channel?: number, cc?: number, deviceId?: string }) => ({
     channel: uiConfig.channel ?? 1,
     cc: uiConfig.cc ?? 0,
     deviceId: uiConfig.deviceId

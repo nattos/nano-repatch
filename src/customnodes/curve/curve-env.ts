@@ -93,7 +93,7 @@ type CurveEnvCompiledConfig = {
   config: typeof AnyType; // Complex object structure
 };
 
-export const curve_env = defineNode<any, CurveEnvUIConfig, CurveEnvCompiledConfig, any, CurveEnvState>({
+export const curve_env = defineNode({
   id: 'curve.env',
   version: '1.0.0',
   displayName: 'Curve Envelope',
@@ -116,7 +116,7 @@ export const curve_env = defineNode<any, CurveEnvUIConfig, CurveEnvCompiledConfi
     lastSegmentIndex: 0
   }),
   autoBroadcast: true,
-  compileConfig: (uiConfig) => {
+  compileConfig: (uiConfig: CurveEnvUIConfig) => {
     // Prefer root-level 'config' or 'curveData', fallback to values
     const sourceConfig = uiConfig.config ?? uiConfig.curveData ?? uiConfig.values?.config;
 

@@ -17,8 +17,8 @@ const MidiNoteFields: InspectorFieldDef[] = [
 ];
 
 // midi.filter: uses inputs, config is empty
-// explicit 'any' to bypass constraint
-export const midiFilterNode = defineNode<any, { channel?: number, note?: number }, {}>({
+// strict type inference
+export const midiFilterNode = defineNode({
   id: "midi.filter",
   version: "1.0.0",
   displayName: "MIDI Filter",
@@ -40,10 +40,12 @@ export const midiFilterNode = defineNode<any, { channel?: number, note?: number 
     stream: { combine: { reduce: 'flatten' } }
   },
   ui: { inspector: { fields: MidiNoteFields } }, // Reuse MidiNoteFields
-  execute: (rawInputs: any, config: any) => {
-    const inputs = rawInputs as MidiFilterInputs;
-    const channel = (inputs.channel as number) ?? 1;
-    const targetNote = (inputs.note as number) ?? 60;
+  execute: (inputs, config) => {
+    // Virtual Inputs are handled by compileConfig merging into config, OR by direct input injection if strict
+    // But here 'channel' and 'note' are inputs with defaults.
+    // In strict mode, 'inputs' has 'channel' and 'note'.
+    const channel = inputs.channel ?? 1;
+    const targetNote = inputs.note ?? 60;
     const stream = inputs.stream || [];
 
     const filteredStream: MidiEvent[] = [];
@@ -62,7 +64,7 @@ export const midiFilterNode = defineNode<any, { channel?: number, note?: number 
 
     return { stream: filteredStream };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { channel?: number, note?: number }) => ({
     // Return values for Virtual Inputs
     channel: uiConfig.channel ?? 1,
     note: uiConfig.note ?? 60

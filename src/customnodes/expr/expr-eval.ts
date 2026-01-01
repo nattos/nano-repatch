@@ -29,7 +29,7 @@ const ExpressionFields: InspectorFieldDef[] = [
   { type: 'string', label: 'Expression', path: 'code', placeholder: 'e.g. sin(time) * 0.5' }
 ];
 
-export const expressionNode = defineNode<any, { code?: string }, { code: typeof StringType, graph: typeof AnyType }>({
+export const expressionNode = defineNode({
   id: "logic.expression",
   version: "1.0.0",
   displayName: "Expression",
@@ -48,7 +48,7 @@ export const expressionNode = defineNode<any, { code?: string }, { code: typeof 
   },
   autoBroadcast: false, // We handle raw inputs
   ui: { inspector: { fields: ExpressionFields } },
-  compileConfig: (uiConfig) => {
+  compileConfig: (uiConfig: { code?: string }) => {
     const code = uiConfig.code || '';
     // Compile code to graph
     const graph = getCompiledGraph(code);
@@ -81,7 +81,7 @@ export const expressionNode = defineNode<any, { code?: string }, { code: typeof 
       outputs: [{ name: 'result', type: AnyType, description: 'Result' }]
     };
   },
-  execute: (inputs, config: { code: string, graph: ExecutionGraph }, context) => {
+  execute: (inputs, config, context) => {
     // The executor worker receives the Compiled config.
     // So config.graph should be present.
     const graph = config.graph;

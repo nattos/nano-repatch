@@ -2,7 +2,7 @@ import { defineNode, registerNode } from '../../structor/node-helpers';
 import { NodeCategory } from '../../structor/structor';
 import { numberType } from '../../structor/std-types';
 
-export const debugScopeNode = defineNode<any, {}, {}>({
+export const debugScopeNode = defineNode({
   id: 'debug.scope',
   version: '1.0.0',
   displayName: 'Scope',
@@ -19,7 +19,7 @@ export const debugScopeNode = defineNode<any, {}, {}>({
   },
   config: {},
   inspectInputs: true,
-  execute: (inputs) => {
+  execute: (inputs: { value: number }) => {
     return { value: inputs.value };
   },
   compileConfig: (uiConfig) => ({})

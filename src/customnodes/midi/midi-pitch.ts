@@ -11,8 +11,8 @@ interface MidiPitchInputs extends MidiStreamInput {
 }
 
 // midi.pitch: uses inputs, config is empty
-// explicit 'any' to bypass constraint
-export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
+// strict type inference
+export const midiPitchNode = defineNode({
   id: "midi.pitch",
   version: "1.0.0",
   displayName: "MIDI Pitch",
@@ -32,8 +32,7 @@ export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
   autoBroadcast: {
     stream: { combine: { reduce: 'flatten' } }
   },
-  execute: (rawInputs: any, config) => {
-    const inputs = rawInputs as MidiPitchInputs;
+  execute: (inputs, config) => {
     // Inputs drove by generic Logic
     const shift = (inputs.pitch ?? 0) as number;
     const stream = inputs.stream || [];
@@ -50,7 +49,7 @@ export const midiPitchNode = defineNode<any, { pitch?: number }, {}>({
 
     return { stream: processedStream };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { pitch?: number }) => ({
     pitch: uiConfig.pitch ?? 0
   }),
 });

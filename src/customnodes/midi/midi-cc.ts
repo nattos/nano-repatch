@@ -14,8 +14,8 @@ const MidiCcFields: InspectorFieldDef[] = [
   { type: 'number', label: 'CC', path: 'cc', min: 0, max: 127, step: 1 }
 ];
 
-// explicit 'any' to bypass constraint
-export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { channel: typeof NumberType, cc: typeof NumberType }, any, { value: number }>({
+// strict type inference
+export const midiCcNode = defineNode({
   id: "midi.cc",
   version: "1.0.0",
   displayName: "MIDI CC",
@@ -38,9 +38,9 @@ export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { c
     value: numberType
   },
   ui: { inspector: { fields: MidiCcFields } },
-  createState: () => ({ value: 0 }),
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiCcInputs;
+  createState: (): { value: number } => ({ value: 0 }),
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed
     const channel = config.channel || 1;
     const targetCc = config.cc || 0;
 
@@ -56,7 +56,7 @@ export const midiCcNode = defineNode<any, { channel?: number, cc?: number }, { c
 
     return { value: state.value };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { channel?: number, cc?: number }) => ({
     channel: uiConfig.channel ?? 1,
     cc: uiConfig.cc ?? 0
   }),

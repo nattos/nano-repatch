@@ -5,7 +5,7 @@ interface SawtoothState {
   phase: number;
 }
 
-export const sawtooth = defineNode<any, {}, {}, any, SawtoothState>({
+export const sawtooth = defineNode({
   id: "gen.sawtooth",
   version: "1.0.0",
   displayName: "Sawtooth",
@@ -25,7 +25,7 @@ export const sawtooth = defineNode<any, {}, {}, any, SawtoothState>({
   outputs: { out: numberType },
   autoBroadcast: true,
   isRealtime: () => true,
-  createState: () => ({
+  createState: (): SawtoothState => ({
     phase: 0
   }),
   execute: (inputs, config, context, state) => {

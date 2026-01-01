@@ -23,7 +23,7 @@ export function createLayerNode(
   displayName: string,
   LayerClass: new (config: LayerConfig) => AbstractLayer
 ) {
-  return defineNode<any, {}, {}, any, LayerState>({
+  return defineNode({
     id,
     version: "1.0.0",
     displayName,
@@ -43,7 +43,7 @@ export function createLayerNode(
     },
     ui: { inspector: { fields: [] } }, // Removed LayerFields (targetNote)
     isRealtime: () => true,
-    createState: (config, context) => {
+    createState: (config, context): LayerState => {
       return {
         layer: new LayerClass({}),
         lastActive: false,

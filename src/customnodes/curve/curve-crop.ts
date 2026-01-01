@@ -18,7 +18,7 @@ const curveCropInputs = {
   length: { type: NumberType, defaultValue: 1, optional: true }
 };
 
-export const curve_crop = defineNode<typeof curveCropInputs, CurveCropUIConfig, CurveCropCompiledConfig>({
+export const curve_crop = defineNode({
   id: 'curve.crop',
   version: '1.0.0',
   displayName: 'Curve Crop',
@@ -74,7 +74,7 @@ export const curve_crop = defineNode<typeof curveCropInputs, CurveCropUIConfig, 
     }
   },
 
-  compileConfig: (uiConfig) => {
+  compileConfig: (uiConfig: CurveCropUIConfig) => {
     // Return Flat Data Structure (handled by GraphExecutor normalization and valid for ComputeForwardPorts)
     const mode = uiConfig.mode || 'start-end';
     return {
@@ -85,7 +85,7 @@ export const curve_crop = defineNode<typeof curveCropInputs, CurveCropUIConfig, 
   autoBroadcast: true,
   inspectInputs: true,
   execute: (inputs, config, context) => {
-    // config is strictly typed as InferRecord<{ fields: CurveCropCompiledConfig }>
+    // config corresponds to the return type of compileConfig
     const mode = config.mode || 'start-end';
 
     const start = inputs.start ?? 0;

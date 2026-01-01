@@ -21,7 +21,7 @@ const createBinaryOpNode = (
   displayName: string,
   description: string,
   op: (a: Step, b: Step) => Step
-) => defineNode<any, {}, {}>({
+) => defineNode({
   id: `seq.${id}`,
   version: "1.0.0",
   displayName,
@@ -35,13 +35,14 @@ const createBinaryOpNode = (
     }
   },
   outputs: { seq_out: sequenceStructorType },
-  execute: (rawInputs: any) => {
-    const inputs = (rawInputs as SeqBinaryOpInputs).inputs || [];
-    if (inputs.length === 0) return { seq_out: [] };
+  execute: (inputs) => {
+    // strict inference
+    const seqs = inputs.inputs || [];
+    if (seqs.length === 0) return { seq_out: [] };
 
     // Find max length for wrapping
     let len = 0;
-    inputs.forEach(s => len = Math.max(len, s.length));
+    seqs.forEach(s => len = Math.max(len, s.length));
     if (len === 0) return { seq_out: [] };
 
     const outSeq: Step[] = [];
@@ -50,15 +51,15 @@ const createBinaryOpNode = (
       // Start with Empty/Inactive accumulator
       let acc: Step = { ...EmptyStep };
 
-      const firstSeq = inputs[0];
+      const firstSeq = seqs[0];
       if (firstSeq.length > 0) {
         acc = { ...firstSeq[i % firstSeq.length] };
       } else {
         acc = { ...EmptyStep };
       }
 
-      for (let j = 1; j < inputs.length; j++) {
-        const seq = inputs[j];
+      for (let j = 1; j < seqs.length; j++) {
+        const seq = seqs[j];
         const stepB = (seq.length > 0) ? seq[i % seq.length] : EmptyStep;
         acc = op(acc, stepB);
       }
@@ -94,8 +95,8 @@ export const or = createBinaryOpNode(
   (a, b) => isActive(b) ? b : a
 );
 
-// explicit 'any' generic used to bypass Constraint Mismatch
-export const negate = defineNode<any, {}, {}>({
+// strict
+export const negate = defineNode({
   id: "seq.negate",
   version: "1.0.0",
   displayName: "Sequence Negate",
@@ -108,9 +109,8 @@ export const negate = defineNode<any, {}, {}>({
     seq_in: { type: sequenceStructorType }
   },
   outputs: { seq_out: sequenceStructorType },
-  execute: (rawInputs: any) => {
-    // Cast raw inputs to the strict Runtime Interface
-    const inputs = rawInputs as SeqNegateInputs;
+  execute: (inputs) => {
+    // strict
     const seq = inputs.seq_in || [];
     const outSeq = seq.map((s) => {
       const step: Step = { ...s };

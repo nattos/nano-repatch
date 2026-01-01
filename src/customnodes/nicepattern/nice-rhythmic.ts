@@ -9,7 +9,7 @@ const RhythmicFields: InspectorFieldDef[] = [
   { type: 'number', label: 'Target Note', path: 'targetNote' }
 ];
 
-export const rhythmicGenerator = defineNode<any, { targetNote?: number }, { targetNote: typeof NumberType }>({
+export const rhythmicGenerator = defineNode({
   id: "nicepattern.rhythmic_generator",
   version: "1.0.0",
   displayName: "Rhythmic Generator",
@@ -37,7 +37,7 @@ export const rhythmicGenerator = defineNode<any, { targetNote?: number }, { targ
     }
     return { seq_out: sequence };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { targetNote?: number }) => ({
     targetNote: uiConfig.targetNote ?? 60
   }),
 });

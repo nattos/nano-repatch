@@ -26,7 +26,7 @@ interface AdsrState {
   activeNotes: number;
 }
 
-export const adsr = defineNode<any, AdsrUIConfig, AdsrCompiledConfig, any, AdsrState>({
+export const adsr = defineNode({
   id: "gen.adsr",
   version: "1.0.0",
   displayName: "ADSR",
@@ -65,7 +65,7 @@ export const adsr = defineNode<any, AdsrUIConfig, AdsrCompiledConfig, any, AdsrS
       ]
     }
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: AdsrUIConfig) => ({
     mode: uiConfig.mode || uiConfig.values?.mode || 'D'
   }),
   computeForwardPorts: (inputTypes, uiConfig) => {
@@ -105,7 +105,7 @@ export const adsr = defineNode<any, AdsrUIConfig, AdsrCompiledConfig, any, AdsrS
   shouldRecompileOnConfigChange: (uiConfig) => {
     return true;
   },
-  createState: () => ({
+  createState: (): AdsrState => ({
     phase: ADSR_PHASE.IDLE,
     value: 0.0,
     time: 0.0,

@@ -8,8 +8,8 @@ interface MidiTriggerInputs {
   trigger: number;
 }
 
-// explicit 'any' to bypass constraint
-export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: number, trigger?: number }, { pitch: { kind: 'atomic', type: 'number', defaultValue?: number }, velocity: { kind: 'atomic', type: 'number', defaultValue?: number, range?: number[] }, trigger: typeof NumberType }, any, { lastTrigger: number }>({
+// strict type inference
+export const midiTriggerNode = defineNode({
   id: "midi.trigger",
   version: "1.0.0",
   displayName: "MIDI Trigger",
@@ -30,9 +30,9 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
     stream: midiStreamType
   },
   isRealtime: () => true,
-  createState: () => ({ lastTrigger: 0 }),
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiTriggerInputs;
+  createState: (): { lastTrigger: number } => ({ lastTrigger: 0 }),
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed
     const pitch = config.pitch || 60;
     const velocity = config.velocity || 1.0;
     const trigger = inputs.trigger || 0;
@@ -56,7 +56,7 @@ export const midiTriggerNode = defineNode<any, { pitch?: number, velocity?: numb
 
     return { stream };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { pitch?: number, velocity?: number, trigger?: number }) => ({
     pitch: uiConfig.pitch ?? 60,
     velocity: uiConfig.velocity ?? 1.0,
     trigger: uiConfig.trigger

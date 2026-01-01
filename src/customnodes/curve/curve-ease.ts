@@ -3,7 +3,7 @@ import { NumberType } from "../../structor/type-helpers";
 import { NodeCategory } from "../../structor/structor";
 import { curveStructorType, GraphWidgetConfig } from "./types";
 
-const executeCurveEase = (inputs: any, config: any) => {
+const executeCurveEase = (inputs: { value?: number, easing?: GraphWidgetConfig }, config: any) => {
   const value = inputs.value as number;
   // Use input easing if provided
   const easingConfig = inputs.easing as GraphWidgetConfig;

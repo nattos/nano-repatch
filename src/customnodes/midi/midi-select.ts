@@ -9,8 +9,8 @@ interface MidiStreamInput {
 }
 interface MidiSelectInputs extends MidiStreamInput { }
 
-// explicit 'any' to bypass constraint
-export const midiSelectNode = defineNode<any, { count?: number, root?: number, skip?: number }, { count: typeof NumberType, root: typeof NumberType, skip: typeof NumberType }>({
+// strict type inference
+export const midiSelectNode = defineNode({
   id: "midi.select",
   version: "1.0.0",
   displayName: "MIDI Select",
@@ -33,7 +33,7 @@ export const midiSelectNode = defineNode<any, { count?: number, root?: number, s
   outputs: {},
   dynamicOutputType: midiStreamType,
   isRealtime: () => true,
-  computeForwardPorts: (inputTypes, uiConfig, context) => {
+  computeForwardPorts: (inputTypes, uiConfig: { count?: number, root?: number, skip?: number }, context) => {
     const count = (uiConfig.count as number) || 4;
     const outputs: any = {};
 
@@ -50,8 +50,7 @@ export const midiSelectNode = defineNode<any, { count?: number, root?: number, s
   shouldRecompileOnConfigChange: (uiConfig) => {
     return true;
   },
-  execute: (rawInputs: any, config, context) => {
-    const inputs = rawInputs as MidiSelectInputs;
+  execute: (inputs, config, context) => {
     const stream = inputs.stream || [];
     const count = config.count || 4;
     const root = config.root || 60;
@@ -83,7 +82,7 @@ export const midiSelectNode = defineNode<any, { count?: number, root?: number, s
 
     return { ...results };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { count?: number, root?: number, skip?: number }) => ({
     count: uiConfig.count ?? 4,
     root: uiConfig.root ?? 60,
     skip: uiConfig.skip ?? 1

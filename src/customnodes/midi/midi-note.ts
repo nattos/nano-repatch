@@ -14,8 +14,8 @@ const MidiNoteFields: InspectorFieldDef[] = [
   { type: 'number', label: 'Note', path: 'note', min: 0, max: 127, step: 1 }
 ];
 
-// explicit 'any' to bypass constraint
-export const midiNoteNode = defineNode<any, { channel?: number, note?: number }, { channel: typeof NumberType, note: typeof NumberType }, any, { velocity: number, gate: number }>({
+// strict type inference
+export const midiNoteNode = defineNode({
   id: "midi.note",
   version: "1.0.0",
   displayName: "MIDI Note",
@@ -40,9 +40,9 @@ export const midiNoteNode = defineNode<any, { channel?: number, note?: number },
     gate: numberType
   },
   ui: { inspector: { fields: MidiNoteFields } },
-  createState: () => ({ velocity: 0, gate: 0 }),
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiNoteInputs;
+  createState: (): { velocity: number, gate: number } => ({ velocity: 0, gate: 0 }),
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed
     const channel = config.channel || 1;
     const targetNote = config.note || 60;
 
@@ -67,7 +67,7 @@ export const midiNoteNode = defineNode<any, { channel?: number, note?: number },
       gate: state.gate
     };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { channel?: number, note?: number }) => ({
     channel: uiConfig.channel ?? 1,
     note: uiConfig.note ?? 60
   }),

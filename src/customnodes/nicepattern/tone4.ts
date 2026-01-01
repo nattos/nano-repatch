@@ -16,7 +16,7 @@ interface Tone4State {
   lastRoot: number;
 }
 
-export const createTone4State = () => ({
+export const createTone4State = (): Tone4State => ({
   initialized: false,
   contextId: '',
   masterGain: null,

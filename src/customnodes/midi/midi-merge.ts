@@ -8,7 +8,7 @@ interface MidiStreamInput {
 }
 interface MidiMergeInputs extends MidiStreamInput { }
 
-// explicit 'any' to bypass constraint
+// strict type inference
 export const midiMergeNode = defineNode({
   id: "midi.merge",
   version: "1.0.0",
@@ -28,8 +28,7 @@ export const midiMergeNode = defineNode({
     stream: { combine: { reduce: 'flatten' } }
   },
   config: {},
-  execute: (rawInputs: any, config, context) => {
-    const inputs = rawInputs as MidiMergeInputs;
+  execute: (inputs, config, context) => {
     return { stream: inputs.stream || [] };
   },
   compileConfig: () => ({})

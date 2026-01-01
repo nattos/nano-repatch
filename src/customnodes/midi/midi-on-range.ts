@@ -23,7 +23,7 @@ for (let i = 1; i <= 16; i++) {
   weightInputs[`w${i}`] = { type: numberType, defaultValue: 1.0, optional: true, description: `Weight ${i}` };
 }
 
-export const midiOnRangeNode = defineNode<any, MidiOnRangeConfig, any, any, MidiOnRangeState>({
+export const midiOnRangeNode = defineNode({
   id: "midi.onrange",
   version: "1.0.0",
   displayName: "MIDI On Range",
@@ -56,9 +56,9 @@ export const midiOnRangeNode = defineNode<any, MidiOnRangeConfig, any, any, Midi
     }
   },
   isRealtime: () => true,
-  createState: () => ({ activeZoneIndex: null }),
+  createState: (): MidiOnRangeState => ({ activeZoneIndex: null }),
 
-  computeForwardPorts: (inputTypes, uiConfig) => {
+  computeForwardPorts: (inputTypes, uiConfig: MidiOnRangeConfig) => {
     const zoneCount = uiConfig.zoneCount ?? 1;
     const fields: any = {
       value: { type: numberType },
@@ -79,8 +79,10 @@ export const midiOnRangeNode = defineNode<any, MidiOnRangeConfig, any, any, Midi
   },
   shouldRecompileOnConfigChange: () => true,
 
-  execute: (rawInputs: any, config, context, state) => {
-    const inputs = rawInputs as MidiOnRangeInputs;
+  execute: (inputs, config, context, state) => {
+    // Inputs are strictly typed (including w1..w16 from weightInputs + any extras)
+    // Dynamic inputs (w1..w16) are in `weightInputs` but `inputs` is inferred from `defineNode`'s `inputs`.
+    // Since `weightInputs` is spread into `inputs`, inference sees them.
     // console.log('MidiOnRange Exec Inputs:', inputs);
     const value = inputs.value ?? 0;
     const start = inputs.start ?? 0;
@@ -175,7 +177,7 @@ export const midiOnRangeNode = defineNode<any, MidiOnRangeConfig, any, any, Midi
 
     return { stream };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: MidiOnRangeConfig) => ({
     rootNote: uiConfig.rootNote ?? 60,
     zoneCount: uiConfig.zoneCount ?? 1,
     noteSkip: uiConfig.noteSkip ?? 1

@@ -12,7 +12,7 @@ const ChaosFields: InspectorFieldDef[] = [
   { type: 'number', label: 'Seed', path: 'seed' }
 ];
 
-export const chaosGenerator = defineNode<any, { minNote?: number, maxNote?: number, seed?: number }, { minNote: typeof NumberType, maxNote: typeof NumberType, seed: typeof NumberType }>({
+export const chaosGenerator = defineNode({
   id: "nicepattern.chaos_generator",
   version: "1.0.0",
   displayName: "Chaos Generator",
@@ -26,6 +26,7 @@ export const chaosGenerator = defineNode<any, { minNote?: number, maxNote?: numb
   outputs: { seq_out: sequenceStructorType },
   ui: { inspector: { fields: ChaosFields } },
   execute: (inputs, config, context) => {
+    // using strict inference
     const { minNote, maxNote, seed } = config;
     const density = inputs.density ?? 0.5;
     const rng = new SeededRandom(seed ?? 12345); // Default seed if not provided
@@ -41,7 +42,7 @@ export const chaosGenerator = defineNode<any, { minNote?: number, maxNote?: numb
     }
     return { seq_out: sequence };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { minNote?: number, maxNote?: number, seed?: number }) => ({
     minNote: uiConfig.minNote ?? 60,
     maxNote: uiConfig.maxNote ?? 60,
     seed: uiConfig.seed ?? 12345,

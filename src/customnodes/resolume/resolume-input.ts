@@ -15,7 +15,7 @@ interface ResolumeInputState {
   callback: (val: any) => void;
 }
 
-export const resolumeInputNode = defineNode<any, { path?: string }, { path: typeof StringType }, any, ResolumeInputState>({
+export const resolumeInputNode = defineNode({
   id: 'resolume.input',
   version: '1.0.0',
   displayName: 'Resolume Input',
@@ -40,7 +40,7 @@ export const resolumeInputNode = defineNode<any, { path?: string }, { path: type
     return parts[parts.length - 1] || uiConfig.path;
   },
 
-  createState: (config, context) => {
+  createState: (config, context): ResolumeInputState => {
     // Initial state
     const state = {
       value: 0 as any,
@@ -64,6 +64,7 @@ export const resolumeInputNode = defineNode<any, { path?: string }, { path: type
   },
 
   execute: (inputs, config, context, state) => {
+    // using strict inference
     // Check for path change
     if (config.path !== state.currentPath) {
       // Unsubscribe from old
@@ -83,7 +84,7 @@ export const resolumeInputNode = defineNode<any, { path?: string }, { path: type
 
     return { value: state?.value ?? 0 };
   },
-  compileConfig: (uiConfig) => ({
+  compileConfig: (uiConfig: { path?: string }) => ({
     path: uiConfig.path ?? ''
   }),
 });
