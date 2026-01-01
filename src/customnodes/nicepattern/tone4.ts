@@ -1,5 +1,5 @@
 
-import { defineNode } from "../../structor/node-helpers";
+import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, vec4Type } from "../../structor/std-types";
 import { VirtualAudioContext, VirtualOscillatorNode, VirtualGainNode } from "../../audio/virtual-audio";
 
@@ -81,7 +81,7 @@ export const tone4 = defineNode({
     // Update Master Volume
     const masterVol = Math.max(0, Math.min(1, inputs.gain ?? 0.5));
     if (state.masterGain) {
-        state.masterGain.gain.setTargetAtTime(masterVol, now, 0.05);
+      state.masterGain.gain.setTargetAtTime(masterVol, now, 0.05);
     }
 
     // Update Frequencies (if changed)
@@ -89,24 +89,24 @@ export const tone4 = defineNode({
     // Quantize root to integer MIDI note (0-127), default to 69 (A4 = 440Hz)
     // Range is clamped to [0, 127]
     const midiNote = (typeof rootRaw === 'number' && Number.isFinite(rootRaw))
-        ? Math.floor(Math.max(0, Math.min(127, rootRaw)))
-        : 69;
+      ? Math.floor(Math.max(0, Math.min(127, rootRaw)))
+      : 69;
 
     // Convert MIDI to Frequency
     // f = 440 * 2^((d - 69) / 12)
     const rootFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
 
     if (Math.abs(rootFreq - state.lastRoot) > 0.01) {
-        state.voices.forEach(v => {
-            if (state.lastRoot === -1) {
-                // First update: Snap immediately to avoid startup sweep (440Hz -> Target)
-                v.osc.frequency.setValueAtTime(rootFreq * v.freqRatio, now);
-            } else {
-                // Subsequent updates: Glide
-                v.osc.frequency.setTargetAtTime(rootFreq * v.freqRatio, now, 0.05);
-            }
-        });
-        state.lastRoot = rootFreq;
+      state.voices.forEach(v => {
+        if (state.lastRoot === -1) {
+          // First update: Snap immediately to avoid startup sweep (440Hz -> Target)
+          v.osc.frequency.setValueAtTime(rootFreq * v.freqRatio, now);
+        } else {
+          // Subsequent updates: Glide
+          v.osc.frequency.setTargetAtTime(rootFreq * v.freqRatio, now, 0.05);
+        }
+      });
+      state.lastRoot = rootFreq;
     }
 
     // Update Voice Gains from Vector
@@ -114,11 +114,13 @@ export const tone4 = defineNode({
     const vec = (Array.isArray(vecRaw) && vecRaw.length === 4) ? vecRaw : [0, 0, 0, 0];
 
     state.voices.forEach((v, i) => {
-        const val = Math.max(0, Math.min(1, vec[i] ?? 0));
-        // Use smoothing to avoid clicks
-        v.gain.gain.setTargetAtTime(val, now, 0.02);
+      const val = Math.max(0, Math.min(1, vec[i] ?? 0));
+      // Use smoothing to avoid clicks
+      v.gain.gain.setTargetAtTime(val, now, 0.02);
     });
 
     return {};
   }
 });
+
+registerNode(tone4);

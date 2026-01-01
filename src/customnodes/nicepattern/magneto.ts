@@ -1,4 +1,4 @@
-import { defineNode, InspectorFieldDef } from "../../structor/node-helpers";
+import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
 import { NumberType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
@@ -412,3 +412,5 @@ export const magneto = defineNode<any, { seed?: number }, { seed: typeof NumberT
         seed: uiConfig?.seed ?? 1337
     })
 });
+
+registerNode(magneto);

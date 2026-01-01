@@ -3,6 +3,7 @@ import {
 } from "../../io/midi/types";
 import {
   defineNode,
+  registerNode,
   InspectorFieldDef
 } from "../../structor/node-helpers";
 import {
@@ -271,3 +272,5 @@ export const orthomod = defineNode<any, { seed?: number }, { seed: typeof Number
     seed: uiConfig?.seed ?? 12345
   })
 });
+
+registerNode(orthomod);
