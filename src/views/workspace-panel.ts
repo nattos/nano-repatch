@@ -94,7 +94,8 @@ export class WorkspacePanel extends MobxLitElement {
   private async confirmNewGraph() {
     if (this.newGraphName) {
       try {
-        await workspaceController.createNewGraph(this.newGraphName);
+        const normalizedName = this.newGraphName.replace(/\./g, '/');
+        await workspaceController.createNewGraph(normalizedName);
         this.isCreatingGraph = false;
         this.newGraphName = '';
       } catch (e) {

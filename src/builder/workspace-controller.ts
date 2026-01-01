@@ -274,7 +274,7 @@ export class WorkspaceController {
     if (!fileEntry) {
       // Try to find it if it's not in the list yet (e.g. on initial load)
       try {
-        const handle = await this.currentDirHandle.getFileHandle(filename);
+        const handle = await this.getFileHandleByPath(filename, false);
         await this.loadFileHandle(handle, filename);
       } catch (e) {
         console.error(`File ${filename} not found`, e);
@@ -305,6 +305,25 @@ export class WorkspaceController {
     }
   }
 
+  private async getFileHandleByPath(path: string, create: boolean = false): Promise<FileSystemFileHandle> {
+    if (!this.currentDirHandle) throw new Error('No directory handle');
+
+    const parts = path.split('/');
+    const name = parts.pop()!;
+    let dirHandle = this.currentDirHandle;
+
+    for (const part of parts) {
+      if (create) {
+        dirHandle = await dirHandle.getDirectoryHandle(part, { create: true });
+      } else {
+        // If not creating, this might fail if dir doesn't exist
+        dirHandle = await dirHandle.getDirectoryHandle(part);
+      }
+    }
+
+    return dirHandle.getFileHandle(name, { create });
+  }
+
   @action
   async saveCurrentGraph() {
     if (!this.currentDirHandle || !this.currentGraphId) return;
@@ -313,7 +332,15 @@ export class WorkspaceController {
     const json = JSON.stringify(state, null, 2);
 
     try {
-      const handle = await this.currentDirHandle.getFileHandle(this.currentGraphId, { create: true });
+      // Try to find in cache first
+      let handle: FileSystemFileHandle;
+      const cached = this.files.find(f => f.name === this.currentGraphId);
+      if (cached) {
+        handle = cached.handle;
+      } else {
+        handle = await this.getFileHandleByPath(this.currentGraphId, true);
+      }
+
       const writable = await handle.createWritable();
       await writable.write(json);
       await writable.close();
@@ -329,11 +356,12 @@ export class WorkspaceController {
   async createNewGraph(filename: string) {
     if (!this.currentDirHandle) return;
 
+    // Ensure extension
     if (!filename.endsWith('.json')) {
       filename += '.json';
     }
 
-    // Check if exists
+    // Check if exists (files are stored with relative paths)
     if (this.files.some(f => f.name === filename)) {
       throw new Error('File already exists');
     }
@@ -342,7 +370,8 @@ export class WorkspaceController {
     const emptyGraph: GraphInnerState = { nodes: {}, connections: {} };
 
     try {
-      const handle = await this.currentDirHandle.getFileHandle(filename, { create: true });
+      const handle = await this.getFileHandleByPath(filename, true);
+
       const writable = await handle.createWritable();
       await writable.write(JSON.stringify(emptyGraph, null, 2));
       await writable.close();
