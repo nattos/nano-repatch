@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { compileGraph } from './compiler';
 import { AppState, GraphState } from './state';
 import { defaultNodeRepository } from '../structor/repository';
@@ -183,6 +183,60 @@ describe('Graph Compiler', () => {
         toNode: 'n1', toPort: 'min'
       });
     });
+  });
+
+  it('should prevent infinite recursion for cyclic subgraphs', () => {
+    // A -> A
+    const recursiveSubgraph = createGraph(
+      [
+        { id: 'in', x: 0, y: 0, config: { typeId: 'io.input' } },
+        // This node refers back to the subgraph itself
+        { id: 'recurse', x: 0, y: 0, config: { typeId: 'core.subgraph', subgraphId: 'cyclic_sub' } }
+      ],
+      []
+    );
+
+    const loadedSubgraphs = new Map([['cyclic_sub', recursiveSubgraph]]);
+
+    const mainGraph = createGraph(
+      [
+        { id: 'main', x: 0, y: 0, config: { typeId: 'core.subgraph', subgraphId: 'cyclic_sub' } }
+      ],
+      []
+    );
+
+    const appState: AppState = { graph: mainGraph };
+
+    // Spy on console.error to verify detection and suppress output
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+    const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+
+    // Should have:
+    // 1. main (the top level wrapper) -> Wait, compileGraph logic:
+    // processGraph(mainGraph) -> finds 'main' node.
+    //   It processes subgraph 'cyclic_sub'.
+    //   -> processGraph(recursiveSubgraph, 'main.')
+    //      -> finds 'main.in' (io.input) -> Added.
+    //      -> finds 'main.recurse' (core.subgraph, id='cyclic_sub')
+    //         -> Cycle check: recursionPath has 'cyclic_sub'?
+    //            Top level 'main' node added 'cyclic_sub' to path.
+    //            So YES.
+    //         -> Log error.
+    //         -> Skip processing 'main.recurse'.
+
+    // So 'main.recurse' should NOT be in flatNodes.
+    // 'main.in' SHOULD be in flatNodes.
+    // The top level 'main' node ITSELF is added to flatNodes as a wrapper (lines 65 in compiler.ts).
+
+    expect(compiled.nodes['main']).toBeDefined(); // The wrapper
+    expect(compiled.nodes['main.in']).toBeDefined(); // The first level content
+    expect(compiled.nodes['main.recurse']).toBeUndefined(); // The skipped recursive node
+    expect(compiled.nodes['main.recurse.in']).toBeUndefined(); // Grandchildren should definitely not exist
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Cycle detected'));
+
+    consoleSpy.mockRestore();
   });
 });
 

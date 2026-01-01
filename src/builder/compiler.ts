@@ -36,15 +36,23 @@ export function compileGraph(
     idPrefix: string,
     isRoot: boolean,
     parentConfigValues: Record<string, any> = {},
-    parentSubgraphId: string | null = null
+    parentSubgraphId: string | null = null,
+    recursionPath: Set<string> = new Set()
   ) {
     // 1. Process Nodes
     for (const node of Object.values(graph.inner.nodes)) {
       const nodeId = idPrefix + node.id;
 
       if (node.config.typeId === 'core.subgraph' || node.config.typeId === 'subgraph') {
-        // Recursively process subgraph
         const subgraphId = node.config.subgraphId;
+
+        // Cycle Detection
+        if (recursionPath.has(subgraphId)) {
+          console.error(`Cycle detected: Subgraph ${subgraphId} includes itself (stack: ${Array.from(recursionPath).join(' -> ')}). Skipping.`);
+          continue;
+        }
+
+        // Recursively process subgraph
         const subgraph = loadedSubgraphs.get(subgraphId);
 
         if (!subgraph) {
@@ -52,9 +60,12 @@ export function compileGraph(
           continue;
         }
 
-        // Recurse with new prefix
+        // Recurse with new prefix and updated path
+        const newPath = new Set(recursionPath);
+        newPath.add(subgraphId);
+
         // Pass node.id as parentSubgraphId (key for mapping)
-        processGraph(subgraph, nodeId + '.', false, node.config.values || {}, node.id);
+        processGraph(subgraph, nodeId + '.', false, node.config.values || {}, node.id, newPath);
 
         // Also add the subgraph container node itself to flatNodes so it can be typed/executed (as a wrapper)
         const nodeType = nodeRepository.getNodeType(node.config.typeId);
