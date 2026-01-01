@@ -57,7 +57,7 @@ export const midiToMonoNode = defineNode({
     // Inputs are strictly typed
     const channel = config.channel || 1;
     const rootNote = config.rootNote ?? 60;
-    const stream = inputs.stream || [];
+    const stream = (inputs.stream || []) as MidiEvent[];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
@@ -65,7 +65,7 @@ export const midiToMonoNode = defineNode({
           if (event.type === 'note_on') {
             // Remove existing instance of this note to move it to top (retrigger)
             state.activeNotes = state.activeNotes.filter(n => n.note !== event.note);
-            state.activeNotes.push({ note: event.note, velocity: event.velocity / 127.0 });
+            state.activeNotes.push({ note: event.note!, velocity: (event.velocity ?? 0) / 127.0 });
           } else if (event.type === 'note_off') {
             state.activeNotes = state.activeNotes.filter(n => n.note !== event.note);
           }

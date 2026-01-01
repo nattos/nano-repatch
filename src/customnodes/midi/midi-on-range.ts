@@ -39,9 +39,9 @@ export const midiOnRangeNode = defineNode({
     ...weightInputs
   },
   config: {
-    rootNote: { type: numberType, defaultValue: 60 },
-    zoneCount: { type: numberType, defaultValue: 1 },
-    noteSkip: { type: numberType, defaultValue: 1 }
+    rootNote: { ...numberType, defaultValue: 60, description: 'Root Note' },
+    zoneCount: { ...numberType, defaultValue: 1, description: 'Number of Zones' },
+    noteSkip: { ...numberType, defaultValue: 1 }
   },
   outputs: {
     stream: midiStreamType

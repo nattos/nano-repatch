@@ -31,7 +31,7 @@ export interface RecordType {
   readonly fields: Record<string, StructorType>; // Named/tagged inputs
   readonly optional?: boolean;
   readonly hint?: string;
-  readonly untagged?: StructorType[];
+  readonly untagged?: readonly StructorType[];
 }
 
 export interface GraphType {
@@ -242,26 +242,30 @@ export interface NodeInstance {
  * This is the "query" a node sends to the broadcast engine
  * to request its data in a specific shape.
  */
+// Extracted for use in AutoBroadcastDef
+export interface TypedBroadcastChannel {
+  /** Which *named* input fields to pull from. `['*']` means all. */
+  fromFields: string[];
+  /**
+   * How to combine all collected inputs for this channel.
+   */
+  combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' | 'flatten' };
+  /**
+   * (Optional) Request that all data in this channel be coerced to a number
+   * during the broadcast operation.
+   */
+  coerceTo?: 'number';
+}
+
+/**
+ * This is the "query" a node sends to the broadcast engine
+ * to request its data in a specific shape.
+ */
 export interface BroadcastConfig {
   /**
    * Defines the output "channels" the node's logic will receive.
    */
-  outputs: Record<
-    string,
-    {
-      /** Which *named* input fields to pull from. `['*']` means all. */
-      fromFields: string[];
-      /**
-       * How to combine all collected inputs for this channel.
-       */
-      combine?: 'collect' | { reduce: 'min' | 'max' | 'add' | 'first' | 'flatten' };
-      /**
-       * (Optional) Request that all data in this channel be coerced to a number
-       * during the broadcast operation.
-       */
-      coerceTo?: 'number';
-    }
-  >;
+  outputs: Record<string, TypedBroadcastChannel>;
 
   /**
    * How to align the resulting channels relative to each other.

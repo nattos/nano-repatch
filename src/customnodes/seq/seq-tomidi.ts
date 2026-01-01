@@ -38,7 +38,7 @@ export const tomidi = defineNode({
   config: {},
   inputs: {
     seq_in: {
-      type: { kind: "array", size: "dynamic", element: sequenceStructorType },
+      type: sequenceStructorType,
       description: "Input sequence(s)",
       allowMultiConnection: true
     }
@@ -51,7 +51,8 @@ export const tomidi = defineNode({
   execute: (inputs, config, context, state) => {
     // Inputs are strictly typed now!
     // inputs.seq_in is inferred as Step[][] because sequenceStructorType is array of Step
-    const seqs = inputs.seq_in || [];
+    // Updated definition means seqs is correctly inferred as Step[][]
+    const seqs = (inputs.seq_in || []) as Step[][];
 
     const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;

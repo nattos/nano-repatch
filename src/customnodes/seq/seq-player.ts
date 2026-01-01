@@ -54,7 +54,7 @@ export const oneshot = defineNode({
   execute: (inputs, config, context, state) => {
     // strict
     // Process Trigger
-    const triggerStream = inputs.trigger || [];
+    const triggerStream = (inputs.trigger || []) as MidiEvent[];
     let triggered = false;
     if (Array.isArray(triggerStream)) {
       for (const e of triggerStream) {
@@ -183,8 +183,7 @@ export const scan = defineNode({
   }),
   execute: (inputs, config, context, state) => {
     // strict
-    const seq = inputs.seq_in || [];
-
+    const seq = (inputs.seq_in || []) as Step[];
     const pos = inputs.pos ?? 0;
     const stream: MidiEvent[] = [];
 

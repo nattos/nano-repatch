@@ -34,7 +34,7 @@ export const midiSelectNode = defineNode({
   dynamicOutputType: midiStreamType,
   isRealtime: () => true,
   computeForwardPorts: (inputTypes, uiConfig: { count?: number, root?: number, skip?: number }, context) => {
-    const count = (uiConfig.count as number) || 4;
+    const count = uiConfig.count || 4;
     const outputs: any = {};
 
     for (let i = 0; i < count; i++) {
@@ -51,7 +51,7 @@ export const midiSelectNode = defineNode({
     return true;
   },
   execute: (inputs, config, context) => {
-    const stream = inputs.stream || [];
+    const stream = (inputs.stream || []) as MidiEvent[];
     const count = config.count || 4;
     const root = config.root || 60;
     const skip = config.skip || 1;

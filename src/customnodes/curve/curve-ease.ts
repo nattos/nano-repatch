@@ -145,7 +145,7 @@ export const curve_ease = defineNode({
       untagged: []
     };
   },
-  execute: executeCurveEase
+  execute: executeCurveEase as any
 });
 
 export const curve_ease4 = defineNode({
@@ -198,7 +198,7 @@ export const curve_ease4 = defineNode({
       untagged: []
     };
   },
-  execute: executeCurveEase
+  execute: executeCurveEase as any
 });
 
 registerNode(curve_ease);

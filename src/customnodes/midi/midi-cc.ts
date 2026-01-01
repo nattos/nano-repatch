@@ -44,12 +44,12 @@ export const midiCcNode = defineNode({
     const channel = config.channel || 1;
     const targetCc = config.cc || 0;
 
-    const stream = inputs.stream || [];
+    const stream = (inputs.stream || []) as MidiEvent[];
 
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
         if (event.type === 'cc' && event.channel === channel && event.cc === targetCc) {
-          state.value = event.value / 127.0;
+          state.value = (event.value ?? 0) / 127.0;
         }
       }
     }

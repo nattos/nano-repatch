@@ -29,7 +29,7 @@ export const midiMergeNode = defineNode({
   },
   config: {},
   execute: (inputs, config, context) => {
-    return { stream: inputs.stream || [] };
+    return { stream: (inputs.stream || []) as MidiEvent[] };
   },
   compileConfig: () => ({})
 });

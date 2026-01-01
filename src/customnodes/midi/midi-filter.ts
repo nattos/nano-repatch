@@ -46,7 +46,7 @@ export const midiFilterNode = defineNode({
     // In strict mode, 'inputs' has 'channel' and 'note'.
     const channel = inputs.channel ?? 1;
     const targetNote = inputs.note ?? 60;
-    const stream = inputs.stream || [];
+    const stream = (inputs.stream || []) as MidiEvent[];
 
     const filteredStream: MidiEvent[] = [];
 

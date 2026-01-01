@@ -29,7 +29,7 @@ const createBinaryOpNode = (
   config: {},
   inputs: {
     inputs: {
-      type: { kind: "array", size: "dynamic", element: sequenceStructorType },
+      type: sequenceStructorType,
       description: "Sequences",
       allowMultiConnection: true
     }
@@ -37,7 +37,7 @@ const createBinaryOpNode = (
   outputs: { seq_out: sequenceStructorType },
   execute: (inputs) => {
     // strict inference
-    const seqs = inputs.inputs || [];
+    const seqs = (inputs.inputs || []) as Step[][];
     if (seqs.length === 0) return { seq_out: [] };
 
     // Find max length for wrapping
@@ -111,7 +111,7 @@ export const negate = defineNode({
   outputs: { seq_out: sequenceStructorType },
   execute: (inputs) => {
     // strict
-    const seq = inputs.seq_in || [];
+    const seq = (inputs.seq_in || []) as Step[];
     const outSeq = seq.map((s) => {
       const step: Step = { ...s };
 

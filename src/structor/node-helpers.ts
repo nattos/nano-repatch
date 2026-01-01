@@ -11,7 +11,8 @@ import {
   StructorType,
   ExecutionContext,
   RecordType,
-  AnalysisContext
+  AnalysisContext,
+  TypedBroadcastChannel
 } from './structor';
 import { defaultNodeRepository, PortHint, NodeType } from './repository';
 import { UIConfigStructorType } from './std-types';
@@ -66,12 +67,27 @@ export interface ExtendedOutputDef {
 export type ExtendedNodeOutputsDef = Record<string, StructorType | ExtendedOutputDef>;
 
 
-export type SimplifyInputs<T extends ExtendedNodeInputsDef> = {
+export type AutoBroadcastDef = boolean | Record<string, Partial<TypedBroadcastChannel>>;
+
+export type SimplifyInputs<
+  T extends ExtendedNodeInputsDef,
+  TBroadcast extends AutoBroadcastDef | undefined = undefined
+> = {
   [K in keyof T]: T[K] extends ExtendedInputDef
   ? (
-    T[K]['allowMultiConnection'] extends true
-    ? { kind: 'array', size: 'dynamic', element: T[K]['type'] }
-    : T[K]['type']
+    // Check for flatten in broadcast config
+    (TBroadcast extends Record<string, any>
+      ? (K extends keyof TBroadcast
+        ? (TBroadcast[K]['combine'] extends { reduce: 'flatten' } ? true : false)
+        : false)
+      : false
+    ) extends true
+    ? T[K]['type'] // Flattened -> Base type
+    : (
+      T[K]['allowMultiConnection'] extends true
+      ? { kind: 'array', size: 'dynamic', element: T[K]['type'] }
+      : T[K]['type']
+    )
   )
   : T[K]
 } & Record<string, StructorType>;
@@ -85,9 +101,11 @@ export interface EnhancedNodeOptions<
   TUIConfig extends Record<string, any> | any, // Allow strict structural typing
   TCompiledConfig extends NodeConfigDef,
   TOutputs extends ExtendedNodeOutputsDef,
-  TState = undefined
-> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config' | 'shouldRecompileOnConfigChange' | 'getDisplayLabel'> { // Exclude config to redefine it
+  TState = undefined,
+  TAutoBroadcast extends AutoBroadcastDef | undefined = undefined
+> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config' | 'shouldRecompileOnConfigChange' | 'getDisplayLabel' | 'autoBroadcast'> { // Exclude config to redefine it
   inputs?: TInputs;
+  autoBroadcast?: TAutoBroadcast; // Explicit override
   outputs: TOutputs; // Explicit override
   dynamicOutputType?: StructorType;
   ui?: NodeUI;
@@ -123,7 +141,7 @@ export interface EnhancedNodeOptions<
   config?: TCompiledConfig;
 
   execute: (
-    inputs: InferRecord<{ kind: 'record', fields: SimplifyInputs<TInputs> }>,
+    inputs: InferRecord<{ kind: 'record', fields: SimplifyInputs<TInputs, TAutoBroadcast> }>,
     config: InferRecord<{ kind: 'record', fields: TCompiledConfig }>, // This is the compiled runtime config
     context: ExecutionContext,
     state: TState
@@ -151,9 +169,10 @@ export function defineNode<
   TUIConfig extends Record<string, any> | any = any,
   TCompiledConfig extends NodeConfigDef = any,
   TOutputs extends ExtendedNodeOutputsDef = ExtendedNodeOutputsDef,
-  TState = undefined
+  TState = undefined,
+  const TAutoBroadcast extends AutoBroadcastDef | undefined = undefined
 >(
-  options: EnhancedNodeOptions<TInputs, TUIConfig, TCompiledConfig, TOutputs, TState>
+  options: EnhancedNodeOptions<TInputs, TUIConfig, TCompiledConfig, TOutputs, TState, TAutoBroadcast>
 ): EnhancedNodeDefinition {
   // 1. Strip down inputs to NodeInputsDef (just types) for definePrimitiveNode
   const simpleInputs: NodeInputsDef = {};
@@ -185,6 +204,7 @@ export function defineNode<
 
   const primitiveDef = definePrimitiveNode({
     ...options,
+    autoBroadcast: options.autoBroadcast,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
     computeForwardPorts: (inputTypes: any, config: any, context: any, backwardMetadata?: any) => {

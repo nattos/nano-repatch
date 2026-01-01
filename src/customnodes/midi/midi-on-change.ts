@@ -28,7 +28,7 @@ export const midiOnChangeNode = defineNode({
     value: { type: AnyType, description: "Input Value" }
   },
   config: {
-    rootNote: { type: numberType, defaultValue: 60 }
+    rootNote: { ...numberType, defaultValue: 60 }
   },
   outputs: {
     stream: midiStreamType

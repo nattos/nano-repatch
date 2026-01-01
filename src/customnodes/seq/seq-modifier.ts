@@ -134,7 +134,7 @@ export const fill = defineNode({
   },
   config: {
     mode: { kind: 'atomic', type: 'string', defaultValue: 'start-length' },
-    count: { type: numberType, defaultValue: 16 }
+    count: { ...numberType, defaultValue: 16 }
   },
   inputs: {
     start: { type: numberType, defaultValue: 0 },

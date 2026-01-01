@@ -1,6 +1,7 @@
 import { defineNode, registerNode } from "../../structor/node-helpers";
 import { numberType, midiStreamType } from "../../structor/std-types";
 import { StringType } from "../../structor/type-helpers";
+import { MidiEvent } from "../../io/midi/types";
 
 // Simple LCG PRNG
 function lcg(seed: number) {
@@ -123,7 +124,7 @@ export const random = defineNode({
   execute: (inputs, config, context, state) => {
     // strict strictness
     const mode = config.mode || 'on-trigger';
-    const stream = inputs.trigger;
+    const stream = inputs.trigger as MidiEvent[];
 
     if (mode === 'free-run') {
       // Generate new value every frame
