@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { compileAndRun } from './primitives-integration.test';
+import { compileAndRun } from '../test/integration-utils';
 
 describe('All Operators Integration', () => {
   it('should preserve vector input (identity): math.all.add([1, 2, 3]) = [1, 2, 3]', () => {

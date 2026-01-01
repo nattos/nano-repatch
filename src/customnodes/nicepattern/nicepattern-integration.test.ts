@@ -24,10 +24,9 @@ const manySequencesType = defineType({
 });
 import { compileGraph } from '../../builder/compiler';
 import { AppState, GridNode, Connection } from '../../builder/state';
+import { compileAndRun } from '../../test/integration-utils';
 
-describe('NicePattern Integration', () => {
-  const repository = new NodeRepository();
-
+function registerNicePatternNodes(repository: NodeRepository) {
   // Register nodes manually for the test repository
   repository.register({
     id: 'nicepattern.rhythmic_generator',
@@ -107,11 +106,11 @@ describe('NicePattern Integration', () => {
       id: 'io.output',
       kind: 'primitive',
       configType: { kind: 'record', fields: {}, },
-      computeOutputTypes: () => ({ kind: 'record', fields: { val: numberType }, }),
-      execute: (inputs) => ({ fields: { val: inputs.fields.val }, }),
+      computeOutputTypes: () => ({ kind: 'record', fields: { value: numberType }, }),
+      execute: (inputs) => ({ fields: { value: inputs.fields.value }, }),
     },
-    inputs: [{ name: 'val', type: anyType }],
-    outputs: [{ name: 'val', type: anyType }],
+    inputs: [{ name: 'value', type: anyType }],
+    outputs: [{ name: 'value', type: anyType }],
     compileConfig: (c) => ({ fields: {}, })
   });
 
@@ -131,76 +130,20 @@ describe('NicePattern Integration', () => {
     outputs: [{ name: 'val', type: anyType }],
     compileConfig: (c) => c
   });
+}
 
-  // Helper to compile GridNodes into GraphDefinition
-  const compileAndRun = (
-    nodes: Record<string, { typeId: string, config?: any }>,
-    connections: { from: string, port: string, to: string, portIn: string }[]
-  ) => {
-    const gridNodes: Record<string, GridNode> = {};
-    const gridConnections: Record<string, Connection> = {};
-
-    let x = 0;
-    for (const [id, def] of Object.entries(nodes)) {
-      gridNodes[id] = {
-        id,
-        x: x++,
-        y: 0,
-        config: {
-          typeId: def.typeId,
-          values: {},
-          ...def.config
-        }
-      };
-    }
-
-    let connId = 0;
-    for (const conn of connections) {
-      const id = `c${connId++}`;
-      gridConnections[id] = {
-        id,
-        fromNodeId: conn.from,
-        fromPort: conn.port,
-        toNodeId: conn.to,
-        toPort: conn.portIn
-      };
-    }
-
-    const appState: AppState = {
-      graph: {
-        inner: { nodes: gridNodes, connections: gridConnections },
-        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
-      }
-    };
-
-    const { graph } = compileGraph(appState, new Map(), repository);
-    const graphDef = graph;
-    return new GraphExecutor(graphDef, repository);
-  };
-
-  const compileAndRunwithOutput = (
-    nodes: Record<string, { typeId: string, config?: any }>,
-    connections: { from: string, port: string, to: string, portIn: string }[],
-    monitoredNode: string,
-    monitoredPort: string
-  ) => {
-    // Add output node
-    const nodesWithOutput = { ...nodes, 'out_node': { typeId: 'io.output', config: { name: 'test_out' } } };
-    const connectionsWithOutput = [
-      ...connections,
-      { from: monitoredNode, port: monitoredPort, to: 'out_node', portIn: 'val' }
-    ];
-
-    const executor = compileAndRun(nodesWithOutput, connectionsWithOutput);
-    return { executor, getOutput: () => executor.getNodeOutput('out_node')?.fields?.val };
-  };
+describe('NicePattern Integration', () => {
+  const repository = new NodeRepository();
+  registerNicePatternNodes(repository);
 
   it('should compile and run rhythmic generator', () => {
-    const executor = compileAndRun(
+    const { executor } = compileAndRun(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } }
       },
-      []
+      [],
+      'gen', 'seq_out',
+      registerNicePatternNodes
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });
@@ -208,12 +151,13 @@ describe('NicePattern Integration', () => {
   });
 
   it('should generate a rhythmic sequence (compiled)', () => {
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } }
       },
       [],
-      'gen', 'seq_out'
+      'gen', 'seq_out',
+      registerNicePatternNodes
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });
@@ -226,15 +170,16 @@ describe('NicePattern Integration', () => {
   });
 
   it('should process pattern events from sequence (compiled)', () => {
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 0.5 } } },
-        'pat': { typeId: 'seq.tomidi', config: {} }
+        'tomidi': { typeId: 'seq.tomidi' }
       },
       [
-        { from: 'gen', port: 'seq_out', to: 'pat', portIn: 'seq_in' }
+        { from: 'gen', port: 'seq_out', to: 'tomidi', portIn: 'seq_in' }
       ],
-      'pat', 'midi_out'
+      'tomidi', 'midi_out',
+      registerNicePatternNodes
     );
 
     executor.update({ clock: { beat: 0, dt: 0.1 } });
@@ -255,20 +200,22 @@ describe('NicePattern Integration', () => {
 
 
   it('should process multiple sequence inputs on named port', () => {
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'gen1': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
         'gen2': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 62, values: { density: 1.0 } } },
-        'pat': { typeId: 'seq.tomidi', config: {} }
+        'tomidi': { typeId: 'seq.tomidi' }
       },
       [
-        { from: 'gen1', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
-        { from: 'gen2', port: 'seq_out', to: 'pat', portIn: 'seq_in' }
+        { from: 'gen1', port: 'seq_out', to: 'tomidi', portIn: 'seq_in' },
+        { from: 'gen2', port: 'seq_out', to: 'tomidi', portIn: 'seq_in' }
       ],
-      'pat', 'midi_out'
+      'tomidi', 'midi_out',
+      registerNicePatternNodes
     );
 
-    executor.update({ clock: { beat: 0, dt: 0.1 } });
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
     const stream = getOutput() as any[];
 
     expect(stream).toBeDefined();
@@ -281,12 +228,13 @@ describe('NicePattern Integration', () => {
   });
 
   it('should generate chaos sequence', () => {
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'chaos': { typeId: 'nicepattern.chaos_generator', config: { minNote: 60, maxNote: 62, seed: 123, values: { density: 1.0 } } }
       },
       [],
-      'chaos', 'seq_out'
+      'chaos', 'seq_out',
+      registerNicePatternNodes
     );
 
     executor.update({ clock: { beat: 0, dt: 0 } });
@@ -300,17 +248,18 @@ describe('NicePattern Integration', () => {
 
   it('should process layers', () => {
     // Gen -> Pattern -> Gate Layer
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'gen': { typeId: 'nicepattern.rhythmic_generator', config: { targetNote: 60, values: { density: 1.0 } } },
-        'pat': { typeId: 'seq.tomidi', config: {} },
-        'gate': { typeId: 'nicepattern.gate_layer', config: { targetNote: 60 } }
+        'tomidi': { typeId: 'seq.tomidi' },
+        'gate': { typeId: 'nicepattern.gate_layer', config: {}, values: { gate: 0.5 } }
       },
       [
-        { from: 'gen', port: 'seq_out', to: 'pat', portIn: 'seq_in' },
-        { from: 'pat', port: 'midi_out', to: 'gate', portIn: 'midi_in' }
+        { from: 'gen', port: 'seq_out', to: 'tomidi', portIn: 'seq_in' },
+        { from: 'tomidi', port: 'midi_out', to: 'gate', portIn: 'midi_in' }
       ],
-      'gate', 'out'
+      'gate', 'out',
+      registerNicePatternNodes
     );
 
     executor.update({ clock: { beat: 0, dt: 0.1 } });
@@ -373,6 +322,8 @@ describe('NicePattern Integration', () => {
       }
     };
 
+    console.log('io.input def:', repository.get('io.input'));
+
     const { graph } = compileGraph(appState, new Map(), repository);
     const graphDef = graph;
     const executor = new GraphExecutor(graphDef, repository);
@@ -418,15 +369,16 @@ describe('NicePattern Integration', () => {
 
   it('should generate Note Off when input sequence is removed (stuck note fix)', () => {
     // pattern node connected to manual input
-    const { executor, getOutput } = compileAndRunwithOutput(
+    const { executor, getOutput } = compileAndRun(
       {
         'manual_seq': { typeId: 'io.input', config: { value: [] } },
-        'pat': { typeId: 'seq.tomidi', config: {} }
+        'tomidi': { typeId: 'seq.tomidi' }
       },
       [
-        { from: 'manual_seq', port: 'val', to: 'pat', portIn: 'seq_in' }
+        { from: 'manual_seq', port: 'val', to: 'tomidi', portIn: 'seq_in' }
       ],
-      'pat', 'midi_out'
+      'tomidi', 'midi_out',
+      registerNicePatternNodes
     );
 
     // 1. Input active sequence (Step 0: Note 60)

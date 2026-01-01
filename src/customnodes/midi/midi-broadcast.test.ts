@@ -7,18 +7,11 @@ import { numberType, midiStreamType } from '../../structor/std-types';
 import { midiTriggerNode, midiMergeNode } from './nodes';
 import { MidiEvent } from '../../io/midi/types';
 
-// Simplified compileAndRun for MIDI nodes
-const compileAndRunMidi = (
-  nodes: Record<string, { typeId: string, config?: any, values?: any }>,
-  connections: { from: string, port: string, to: string, portIn: string }[],
-  monitoredNode: string,
-  monitoredPort: string
-) => {
-  const repository = new NodeRepository();
+import { compileAndRun } from '../../test/integration-utils';
 
-  // Register MIDI nodes
+function registerMidiNodes(repo: NodeRepository) {
   [midiTriggerNode, midiMergeNode].forEach(def => {
-    repository.register({
+    repo.register({
       id: def.id,
       version: '1.0.0',
       displayName: def.displayName,
@@ -32,111 +25,12 @@ const compileAndRunMidi = (
       compileConfig: def.compileConfig
     });
   });
-
-  // Mock Output Node
-  repository.register({
-    id: 'io.output',
-    version: '1.0.0',
-    displayName: 'Output',
-    definition: {
-      id: 'io.output',
-      kind: 'primitive',
-      configType: { kind: 'record', fields: {}, },
-      computeForwardPorts: () => ({ inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: { value: midiStreamType } }, }),
-      execute: (inputs) => {
-        return { fields: { value: inputs.fields.value }, };
-      },
-    },
-    inputs: [{ name: 'value', type: midiStreamType }],
-    outputs: [{ name: 'value', type: midiStreamType }],
-    compileConfig: (c) => ({ fields: {}, })
-  });
-
-  // Register Generic Output for numeric checks if needed
-  repository.register({
-    id: 'io.output.num',
-    version: '1.0.0',
-    displayName: 'Output Num',
-    definition: {
-      id: 'io.output.num',
-      kind: 'primitive',
-      configType: { kind: 'record', fields: {}, },
-      computeForwardPorts: () => ({ inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: { val: numberType } }, }),
-      execute: (inputs) => {
-        return { fields: { val: inputs.fields.val }, };
-      },
-    },
-    inputs: [{ name: 'val', type: numberType }],
-    outputs: [{ name: 'val', type: numberType }],
-    compileConfig: (c) => ({ fields: {}, })
-  });
-
-  const gridNodes: Record<string, GridNode> = {};
-  const gridConnections: Record<string, Connection> = {};
-
-  let x = 0;
-  for (const [id, def] of Object.entries(nodes)) {
-    gridNodes[id] = {
-      id,
-      x: x++,
-      y: 0,
-      config: {
-        typeId: def.typeId,
-        values: def.values || {},
-        ...def.config
-      }
-    };
-  }
-
-  // Add output node
-  const outId = 'out_node';
-  gridNodes[outId] = {
-    id: outId,
-    x: x++,
-    y: 0,
-    config: { typeId: 'io.output', name: 'test_out', values: {} }
-  };
-
-  let connId = 0;
-  for (const conn of connections) {
-    const id = `c${connId++}`;
-    gridConnections[id] = {
-      id,
-      fromNodeId: conn.from,
-      fromPort: conn.port,
-      toNodeId: conn.to,
-      toPort: conn.portIn
-    };
-  }
-
-  // Connect monitored node to output
-  const outConnId = `c${connId++}`;
-  gridConnections[outConnId] = {
-    id: outConnId,
-    fromNodeId: monitoredNode,
-    fromPort: monitoredPort,
-    toNodeId: outId,
-    toPort: 'value'
-  };
-
-  const appState: AppState = {
-    graph: {
-      inner: { nodes: gridNodes, connections: gridConnections },
-      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
-    }
-  };
-
-  const { graph: graphDef, inferredTypes } = compileGraph(appState, new Map(), repository);
-  const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes);
-  console.error('Execution Order:', (executor as any).executionOrder);
-  console.error('Node States Size:', (executor as any).nodeStates.size);
-  return { executor, getOutput: () => executor.getGraphOutput('test_out') };
-};
+}
 
 describe('MIDI Broadcast Integration', () => {
   it('should merge multiple midi streams using manual logic (current)', () => {
     // 2 Triggers -> 1 Merge -> Output
-    const { executor, getOutput } = compileAndRunMidi(
+    const { executor, getOutput } = compileAndRun(
       {
         't1': { typeId: 'midi.trigger', values: { trigger: 0 }, config: { pitch: 60 } },
         't2': { typeId: 'midi.trigger', values: { trigger: 0 }, config: { pitch: 62 } },
@@ -146,7 +40,8 @@ describe('MIDI Broadcast Integration', () => {
         { from: 't1', port: 'stream', to: 'merge', portIn: 'stream' },
         { from: 't2', port: 'stream', to: 'merge', portIn: 'stream' }
       ],
-      'merge', 'stream'
+      'merge', 'stream',
+      registerMidiNodes
     );
 
     // Initial state: empty

@@ -44,6 +44,7 @@ export const tomidi = defineNode({
     }
   },
   outputs: { midi_out: midiStreamType },
+  autoBroadcast: true,
   isRealtime: () => true,
   createState: (): SeqToMidiState => ({
     sequenceStates: new Map()

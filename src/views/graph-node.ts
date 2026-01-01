@@ -183,6 +183,36 @@ export class GraphNode extends MobxLitElement {
       justify-content: center;
     }
 
+    /* Minimal Mode: Hide port labels */
+    :host([data-state="minimal"]) .port-label {
+      display: none;
+    }
+
+    /* IO Slider Styling */
+    .has-io-slider .node-title {
+      margin-top: -18px; /* Move title block up */
+    }
+
+    .has-io-slider .editable-label-wrapper.name {
+      place-content: center;
+    }
+
+    .has-io-slider .editable-label-wrapper.type {
+      position: absolute;
+      bottom: 2px;
+    }
+
+    /* Hide redundant labels */
+    .has-io-slider .port-label,
+    .has-io-slider .slider-label {
+      display: none !important;
+    }
+
+    .has-io-slider .virtual-inputs-container {
+      width: calc(100% - 16px);
+      margin-left: -5px;
+    }
+
     .node {
       position: absolute;
       background-color: var(--node-bg);
@@ -348,87 +378,14 @@ export class GraphNode extends MobxLitElement {
       /* height: ${ROW_HEIGHT}px; Removed to allow slider to be 22px */
     }
 
-
-
-
-
-
     /* Pill Style for IO Nodes */
-    .io-pill {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 100%;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0 4px;
-      position: relative;
-      background: var(--bg-color);
-      border-radius: 20px; /* Fully rounded */
-      border: 1px solid var(--node-border);
+    :host([data-io-type="input"]) {
+      .ports-wrapper .inputs {
+        visibility: hidden;
+      }
     }
-
-    :host([data-io-type="input"]) .io-pill {
-      /* Input Node: Port on Right. Text Align Right. */
-      flex-direction: row;
-      padding-right: 0; /* Port handled separately */
-      justify-content: flex-end;
-    }
-
-    :host([data-io-type="output"]) .io-pill {
-      /* Output Node: Port on Left. Text Align Left. */
-      flex-direction: row-reverse;
-      padding-left: 0;
-      justify-content: flex-end;
-    }
-
-    .io-pill .content {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      line-height: 1.1;
-      padding: 0 12px;
-      flex-grow: 1;
-    }
-
-    /* Input text aligned right */
-    :host([data-io-type="input"]) .io-pill .content {
-      align-items: flex-end;
-      text-align: right;
-    }
-
-    /* Output text aligned left */
-    :host([data-io-type="output"]) .io-pill .content {
-      align-items: flex-start;
-      text-align: left;
-    }
-
-    .io-pill .title {
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-    }
-
-    .io-pill .subtitle {
-      font-size: 10px;
-      color: var(--text-muted);
-      opacity: 0.7;
-    }
-
-    /* Accent Bar */
-    .io-pill .accent {
-        width: 4px;
-        height: 24px;
-        border-radius: 2px;
-        background-color: var(--node-accent-color, #444);
-        margin: 0 4px;
-    }
-
 
     /* Output Port Styling override for Pill */
-    /* We want port circle to be visually part of the pill edge or just outside? */
-    /* Screenshot shows port circle ON the edge or connected. */
-    /* Standard port rendering is absolute. We just need to ensure z-index. */
 
     .debug-chip-wrapper {
       position: absolute;
@@ -1129,71 +1086,6 @@ export class GraphNode extends MobxLitElement {
     }
   }
 
-  private renderIOPill(displayName: string, typeColor: string, isSelected: boolean, isQueued: boolean, inputs: PortHint[], outputs: PortHint[], connectedPorts: Set<string>) {
-    const ioType = (this.node.config.typeId === 'io.input' || this.node.config.typeId === 'resolume.input') ? 'input' : 'output';
-    const label = displayName;
-    const subtitle = this.node.config.typeId;
-
-    let portTemplate = html``;
-
-    if (ioType === 'input') {
-      // Input Node = Source = Output Port on Right
-      const port = outputs[0];
-      if (port) {
-        portTemplate = html`
-              <div class="port-wrapper" style="top: 8px; position: absolute; right: -6px; height: 24px; z-index: 10;">
-                <graph-port
-                  .nodeId=${this.node.id}
-                  .name=${port.name}
-                  type="out"
-                  .description=${port.description || ''}
-                  ?hideLabel=${true}
-                ></graph-port>
-              </div>
-            `;
-      }
-    } else {
-      // Output Node = Sink = Input Port on Left
-      const port = inputs[0];
-      if (port) {
-        portTemplate = html`
-              <div class="port-wrapper" style="top: 8px; position: absolute; left: -6px; height: 24px; z-index: 10;">
-                <graph-port
-                  .nodeId=${this.node.id}
-                  .name=${port.name}
-                  type="in"
-                  .description=${port.description || ''}
-                  ?hideLabel=${true}
-                ></graph-port>
-              </div>
-            `;
-      }
-    }
-
-    const style = `transform: translate(0, 0); width: 100%; height: 100%; --node-accent-color: ${typeColor};`;
-
-    return html`
-    <div
-      class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''}"
-      style="${style}"
-      data-state="pill"
-    >
-       <div class="io-pill">
-          <div class="content">
-              <div class="title">${label}</div>
-              <div class="subtitle">${subtitle}</div>
-          </div>
-
-           <div class="accent"></div>
-
-          ${portTemplate}
-       </div>
-
-       ${this.renderDebugValue(ioType === 'input' ? (outputs[0]?.name || '') : (inputs[0]?.name || ''))}
-    </div>
-    `;
-  }
-
   render() {
     const { selection, inflightPortConnectionOperation, queuedSelection } = localController.observableState;
     const isSelected = selection.has(this.node.id);
@@ -1359,7 +1251,7 @@ export class GraphNode extends MobxLitElement {
 
     return html`
       <div
-        class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''}"
+        class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''} ${this.hasIoSlider(inputs) ? 'has-io-slider' : ''}"
         style="${style}"
         data-state="${state}"
       >
@@ -1439,6 +1331,13 @@ export class GraphNode extends MobxLitElement {
             </div>
           `;
     });
+  }
+
+  private hasIoSlider(inputs: PortHint[]): boolean {
+    if (this.node.config.typeId !== 'io.input') return false;
+    if (inputs.length !== 1) return false;
+    const input = inputs[0];
+    return input.type.kind === 'atomic' && input.type.type === 'number';
   }
 
   private shouldHideLabel(portName: string, type: 'in' | 'out', outputs: PortHint[], inputs: PortHint[], connectedPorts: Set<any>): boolean {

@@ -7,112 +7,7 @@ import { compileGraph } from '../builder/compiler';
 import { AppState, GridNode, Connection, GraphState } from '../builder/state';
 import { numberType, vec4Type } from './std-types';
 
-// Helper to compile GridNodes into GraphDefinition
-export const compileAndRun = (
-  nodes: Record<string, { typeId: string, config?: any }>,
-  connections: { from: string, port: string, to: string, portIn: string }[],
-  monitoredNode: string,
-  monitoredPort: string,
-  loadedSubgraphs: Map<string, GraphState> = new Map()
-) => {
-  const repository = new NodeRepository();
-
-  // Register all primitives
-  ALL_PRIMITIVES.forEach(def => {
-    repository.register({
-      id: def.id,
-      version: '1.0.0',
-      displayName: def.id,
-      definition: def,
-      inputs: Object.entries((def as any).inputs || {}).map(([name, type]) => ({
-        name,
-        type: type as any,
-        allowMultiConnection: (type as any).allowMultiConnection
-      })),
-      outputs: Object.entries((def as any).outputs || {}).map(([name, type]) => ({ name, type: type as any })),
-      compileConfig: (uiConfig) => {
-        // For literal, extract the value
-        if (def.id === 'data.literal') {
-          return uiConfig?.value;
-        }
-        // For lerp, handle clamp
-        if (def.id === 'math.lerp') {
-          return { fields: { clamp: uiConfig?.clamp ?? true }, };
-        }
-        if (def.id === 'core.pack') {
-          return { fields: { targetType: uiConfig?.targetType ?? 'infer' } };
-        }
-        return { fields: {}, };
-      }
-    });
-  });
-
-
-
-  const gridNodes: Record<string, GridNode> = {};
-  const gridConnections: Record<string, Connection> = {};
-
-  let x = 0;
-  for (const [id, def] of Object.entries(nodes)) {
-    gridNodes[id] = {
-      id,
-      x: x++,
-      y: 0,
-      config: {
-        typeId: def.typeId,
-        values: {},
-        ...def.config
-      }
-    };
-  }
-
-  // Add output node
-  const outId = 'out_node';
-  gridNodes[outId] = {
-    id: outId,
-    x: x++,
-    y: 0,
-    config: { typeId: 'io.output', name: 'test_out', values: {} }
-  };
-
-  let connId = 0;
-  for (const conn of connections) {
-    const id = 'c' + (connId++).toString();
-    gridConnections[id] = {
-      id,
-      fromNodeId: conn.from,
-      fromPort: conn.port,
-      toNodeId: conn.to,
-      toPort: conn.portIn
-    };
-  }
-
-  // Connect monitored node to output
-  const outConnId = 'c' + (connId++).toString();
-
-  gridConnections[outConnId] = {
-    id: outConnId,
-    fromNodeId: monitoredNode,
-    fromPort: monitoredPort,
-    toNodeId: outId,
-    toPort: 'value'
-  };
-
-  const appState: AppState = {
-    graph: {
-      inner: { nodes: gridNodes, connections: gridConnections },
-      auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
-    }
-  };
-
-  const { graph: graphDef, inferredTypes } = compileGraph(appState, loadedSubgraphs, repository);
-  const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes);
-  // console.log('Execution Order:', (executor as any).executionOrder);
-  return { executor, getOutput: () => executor.getGraphOutput('test_out') };
-};
-
-
-
+import { compileAndRun } from '../test/integration-utils';
 describe('Primitives Integration', () => {
   it('should chain math operations: (5 + 3) * 2 = 16', () => {
     const { executor, getOutput } = compileAndRun(
@@ -598,6 +493,7 @@ describe('Primitives Integration', () => {
         // Subgraph output 'res'
       ],
       'sub', 'res',
+      undefined,
       loadedSubgraphs
     );
 

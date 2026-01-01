@@ -36,7 +36,7 @@ export const primitive_input: PrimitiveNodeDefinition = {
           type: 'structor-type',
           label: 'Type',
           path: 'type',
-          default: 'any'
+          default: 'float'
         },
         { type: 'string', label: 'Name', path: 'name' }
       ]
@@ -52,9 +52,9 @@ export const primitive_input: PrimitiveNodeDefinition = {
       }
     }
 
-    if (!valType) valType = { kind: 'atomic', type: 'any' };
+    if (!valType) valType = { kind: 'atomic', type: 'number' };
     return {
-      inputs: { kind: 'record', fields: { value: anyType } },
+      inputs: { kind: 'record', fields: { value: { kind: 'atomic', type: 'number' } } },
       outputs: { kind: 'record', fields: { 'value': valType } }
     };
   },

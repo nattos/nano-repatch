@@ -97,6 +97,7 @@ function fromStructor(value: Structor, type: StructorType): any {
             result[k] = fromStructor(rec.fields[k], fieldType);
           }
         }
+
         return result;
       }
       // Fallback: treat as plain object (already unwrapped or loose)
@@ -107,6 +108,7 @@ function fromStructor(value: Structor, type: StructorType): any {
           result[k] = fromStructor((value as any)[k], fieldType);
         }
       }
+
       return result;
     }
     return value;
@@ -301,12 +303,26 @@ export function definePrimitiveNode<
         const broadcasted = context.broadcast(broadcastConfig, rawInput);
 
         const result = broadcasted.apply((args: any) => {
+
           // Unwrap inputs
           const inputs: any = {};
           for (const [key, type] of Object.entries(options.inputs!)) {
             const isCollect = broadcastConfig.outputs[key]?.combine === 'collect';
             if (isCollect && Array.isArray(args[key])) {
-              inputs[key] = args[key].map((v: any) => fromStructor(v, type));
+              const mapped = args[key].map((v: any) => {
+                // If v is a collected list of inputs (e.g. Reference<Sequence>[]), we needs to map each one.
+                if (Array.isArray(v) && v.length > 0 && Array.isArray(v[0]) && type.kind === 'array' && type.element.kind === 'record') {
+                  return v.map(item => fromStructor(item, type));
+                }
+                return fromStructor(v, type);
+              });
+              // Conditional flatten: If mapped is [ [Seq1, Seq2] ], flatten to [Seq1, Seq2].
+              // Detect by checking if element 0 is Array of Arrays.
+              if (mapped.length === 1 && Array.isArray(mapped[0]) && mapped[0].length > 0 && Array.isArray(mapped[0][0])) {
+                inputs[key] = mapped[0];
+              } else {
+                inputs[key] = mapped;
+              }
             } else {
               const val = fromStructor(args[key], type);
               inputs[key] = val !== undefined ? val : (type as any).defaultValue;
@@ -314,7 +330,10 @@ export function definePrimitiveNode<
           }
           // console.error('Execute Inputs:', JSON.stringify(inputs));
 
+
           // Execute
+
+
           const execResult = options.execute(inputs, processedConfig, context, state);
           // console.error('Execute Result:', JSON.stringify(execResult));
           return execResult;

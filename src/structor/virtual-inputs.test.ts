@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { compileAndRun } from '../test/integration-utils';
 import { GraphExecutor } from './executor';
 import { NodeRepository } from './repository';
 import { ALL_PRIMITIVES } from './primitives';
@@ -48,61 +48,6 @@ describe('Virtual Inputs Integration', () => {
     compileConfig: (c) => ({ fields: {}, })
   });
 
-  const compileAndRun = (
-    nodes: Record<string, { typeId: string, config?: any }>,
-    monitoredNode: string,
-    monitoredPort: string
-  ) => {
-    const gridNodes: Record<string, GridNode> = {};
-    const gridConnections: Record<string, Connection> = {};
-
-    let x = 0;
-    for (const [id, def] of Object.entries(nodes)) {
-      gridNodes[id] = {
-        id,
-        x: x++,
-        y: 0,
-        config: {
-          typeId: def.typeId,
-          // Simulate how the UI might structure config for virtual inputs
-          // The executor expects values in `values` property
-          values: def.config?.values || {},
-          ...def.config
-        }
-      };
-    }
-
-    // Add output node
-    const outId = 'out_node';
-    gridNodes[outId] = {
-      id: outId,
-      x: x++,
-      y: 0,
-      config: { typeId: 'io.output', name: 'test_out', values: {} }
-    };
-
-    // Connect monitored node to output
-    const outConnId = 'c_out';
-    gridConnections[outConnId] = {
-      id: outConnId,
-      fromNodeId: monitoredNode,
-      fromPort: monitoredPort,
-      toNodeId: outId,
-      toPort: 'value'
-    };
-
-    const appState: AppState = {
-      graph: {
-        inner: { nodes: gridNodes, connections: gridConnections },
-        auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
-      }
-    };
-
-    const { graph: graphDef } = compileGraph(appState, new Map(), repository);
-    const executor = new GraphExecutor(graphDef, repository);
-    return { executor, getOutput: () => executor.getGraphOutput('test_out') };
-  };
-
   it('should use virtual inputs for math.add when disconnected', () => {
     const { executor, getOutput } = compileAndRun(
       {
@@ -114,6 +59,7 @@ describe('Virtual Inputs Integration', () => {
           }
         }
       },
+      [],
       'add', 'result'
     );
 
@@ -131,6 +77,7 @@ describe('Virtual Inputs Integration', () => {
           }
         }
       },
+      [],
       'lerp', 'result'
     );
 
@@ -149,6 +96,7 @@ describe('Virtual Inputs Integration', () => {
           }
         }
       },
+      [],
       'clamp', 'result'
     );
 

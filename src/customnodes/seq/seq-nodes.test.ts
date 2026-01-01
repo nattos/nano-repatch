@@ -8,7 +8,12 @@ import { defaultNodeRepository } from '../../structor/repository';
 import './nodes';
 
 describe('Sequence Nodes', () => {
-  const mockBroadcast = (config: any, inputs: any) => ({ apply: (fn: Function) => fn(inputs) });
+  const mockBroadcast = (config: any, inputs: any) => ({
+    apply: (fn: Function) => {
+      const value = inputs.fields ? inputs.fields : inputs;
+      return fn(value);
+    }
+  });
 
   describe('seq.crop', () => {
     it('should pass through steps inside range', () => {
@@ -137,7 +142,7 @@ describe('Sequence Nodes', () => {
   });
 
   describe('Binary Operations', () => {
-    const context = { nodeState: new Map() } as any;
+    const context = { nodeState: new Map(), broadcast: mockBroadcast } as any;
 
     const runOp = (node: any, seqs: any[]) => {
       const inputs = {
@@ -233,7 +238,7 @@ describe('Sequence Nodes', () => {
       };
 
       // Step 0. Context beat 0.
-      const ctx0 = { clock: { beat: 0, dt: 0.1 }, time: 0, audio: null, midi: null, nodeState: new Map() };
+      const ctx0 = { clock: { beat: 0, dt: 0.1 }, time: 0, audio: null, midi: null, nodeState: new Map(), broadcast: mockBroadcast };
       // Pass state via nodeState map or directly?
       // Wrapper uses nodeState map to retrieve/create state.
       // But definePrimitiveNode wrapper calls options.execute(..., state).
@@ -248,14 +253,14 @@ describe('Sequence Nodes', () => {
 
       // Step 0.1 beat. Still step 0?
       // 0.1 * 4 = 0.4. Floor = 0. Same step.
-      const ctx1 = { clock: { beat: 0.1, dt: 0.1 }, time: 0.1, audio: null, midi: null, nodeState: ctx0.nodeState };
+      const ctx1 = { clock: { beat: 0.1, dt: 0.1 }, time: 0.1, audio: null, midi: null, nodeState: ctx0.nodeState, broadcast: mockBroadcast };
       const res1 = tomidi.execute(inputs as any, { fields: {} } as any, ctx1 as any);
       expect(res1.fields.midi_out).toHaveLength(0); // No change
 
       // Step 0.25 beat. Step 1 (0.25 * 4 = 1).
       // Step 1 is rest. Expect Note Off 60?
       // tomidi logic: "ShouldRelease".
-      const ctx2 = { clock: { beat: 0.25, dt: 0.1 }, time: 0.25, audio: null, midi: null, nodeState: ctx0.nodeState };
+      const ctx2 = { clock: { beat: 0.25, dt: 0.1 }, time: 0.25, audio: null, midi: null, nodeState: ctx0.nodeState, broadcast: mockBroadcast };
       const res2 = tomidi.execute(inputs as any, { fields: {} } as any, ctx2 as any);
 
       const events2 = res2.fields.midi_out as any[];
