@@ -2,27 +2,81 @@
 
 This guide explains how to create new primitive nodes using the `src/structor/type-helpers.ts` utilities. These helpers provide type safety, automatic data marshalling, and boilerplate reduction.
 
-## 1. The `definePrimitiveNode` Helper
+## 1. The `defineNode` Helper
 
-The core utility is `definePrimitiveNode`. It wraps your node logic to handle:
-*   **Static Analysis:** Automatically generates `computeOutputTypes`.
-*   **Data Marshalling:** Unwraps `StructorRecord` inputs into plain JavaScript objects and wraps outputs back.
-*   **Broadcasting:** Optionally handles the complex "Universal Broadcast" logic for you.
-*   **State Management:** Provides a type-safe way to initialize and access node state.
+The core utility is `defineNode` (which wraps `definePrimitiveNode`). It handles:
+*   **Static Analysis:** Automatically inferring input/output types from definitions.
+*   **Type Safety:** Uses TypeScript 5.0+ `const` generics to preserve literal types for strict inference.
+*   **Registration:** Automatically registers the node in the `NodeRepository`.
 
 ### Basic Usage
 
 ```typescript
-import { definePrimitiveNode, NumberType } from './type-helpers';
+import { defineNode } from './node-helpers';
+import { numberType } from './std-types';
 
-export const myAddNode = definePrimitiveNode({
+export const myAddNode = defineNode({
   id: 'math.add',
-  inputs: { a: NumberType, b: NumberType },
-  outputs: { result: NumberType },
-  autoBroadcast: true, // <--- The magic switch
+  version: '1.0.0',
+  displayName: 'Add',
+  inputs: {
+    a: numberType,
+    b: numberType
+  },
+  outputs: {
+    result: numberType
+  },
+  autoBroadcast: {
+    // Strict Type Inference:
+    // If flattening is used, the runtime type is inferred as scalar[] instead of scalar[][].
+    a: { combine: { reduce: 'flatten' } }
+  },
   execute: (inputs, config, context) => {
-    // inputs is typed as { a: number, b: number }
-    // This function is called for every element if inputs are arrays!
+    // 'inputs' is strictly inferred!
+    // inputs.a is inferred as number[] (due to flattening)
+    // inputs.b is inferred as number
+    return { result: (inputs.a[0] || 0) + inputs.b };
+  }
+});
+```
+
+### Typed Configurations
+
+You can enforce type safety for your `uiConfig` by defining it in the generics or letting inference handle it via `compileConfig`.
+
+**CRITICAL: Config Schema Definition**
+When defining `config` schemas for `defineNode`, you MUST use valid `StructorType` objects. **Do not wrap them** in `{ type: ... }` like you do for inputs.
+
+**Incorrect:**
+```typescript
+config: {
+  // WRONG: This style is for inputs only
+  rootNote: { type: numberType, defaultValue: 60 }
+}
+```
+
+**Correct:**
+```typescript
+config: {
+  // CORRECT: Spread the type and add properties directly
+  rootNote: { ...numberType, defaultValue: 60 }
+}
+```
+
+This ensures TypeScript correctly asserts the type of `config` in `execute` and `compileConfig`.
+
+```typescript
+export const myNode = defineNode({
+  // ...
+  config: {
+    mode: { ...stringType, defaultValue: 'fast' }
+  },
+  // uiConfig is strictly inferred as { mode: string }
+  compileConfig: (uiConfig) => {
+    return { ...uiConfig, computed: true };
+  }
+});
+```element if inputs are arrays!
     return { result: inputs.a + inputs.b };
   }
 });
