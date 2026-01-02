@@ -41,8 +41,8 @@ export const midiTriggerNode = defineNode({
 
     if (trigger > state.lastTrigger) {
       // Rising Edge: Synchronous Trigger (Note On then Note Off)
-      const vel = Math.floor(velocity * 127);
-      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: vel, deviceId: 'virtual', time: 0 });
+      // Velocity is 0-1 float
+      stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: velocity, deviceId: 'virtual', time: 0 });
       stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual', time: 0 });
       if (context.markSelfDirty) context.markSelfDirty();
     }

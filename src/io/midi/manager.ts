@@ -91,14 +91,14 @@ export class MidiManager {
 
     // Note On (0x9)
     if (command === 0x9) {
-      const velocity = data2;
-      if (velocity > 0) {
+      const rawVelocity = data2;
+      if (rawVelocity > 0) {
         this.state.addEvent({
           deviceId,
           channel,
           type: 'note_on',
           note: data1,
-          velocity: velocity,
+          velocity: rawVelocity / 127.0,
           time: Date.now()
         });
       } else {

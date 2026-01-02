@@ -62,7 +62,7 @@ export const midiOnChangeNode = defineNode({
 
     if (changed) {
       // Trigger Note On -> Note Off pair immediately
-      stream.push({ type: 'note_on', note: root, velocity: 127, channel: 1, time: 0, deviceId: 'onchange' });
+      stream.push({ type: 'note_on', note: root, velocity: 1.0, channel: 1, time: 0, deviceId: 'onchange' });
       stream.push({ type: 'note_off', note: root, velocity: 0, channel: 1, time: 0, deviceId: 'onchange' });
       state.lastValue = value;
     } else if (state.lastValue === undefined && value !== undefined) {

@@ -154,7 +154,7 @@ export const midiOnRangeNode = defineNode({
       if (state.activeZoneIndex === null) {
         // Entered Range
         const note = root + (targetZone * skip);
-        stream.push({ type: 'note_on', note, velocity: 127, channel: 1, time: 0, deviceId: 'onrange' });
+        stream.push({ type: 'note_on', note, velocity: 1.0, channel: 1, time: 0, deviceId: 'onrange' });
         state.activeZoneIndex = targetZone;
       } else if (state.activeZoneIndex !== targetZone) {
         // Changed Zone
@@ -162,7 +162,7 @@ export const midiOnRangeNode = defineNode({
         stream.push({ type: 'note_off', note: oldNote, velocity: 0, channel: 1, time: 0, deviceId: 'onrange' });
 
         const newNote = root + (targetZone * skip);
-        stream.push({ type: 'note_on', note: newNote, velocity: 127, channel: 1, time: 0, deviceId: 'onrange' });
+        stream.push({ type: 'note_on', note: newNote, velocity: 1.0, channel: 1, time: 0, deviceId: 'onrange' });
         state.activeZoneIndex = targetZone;
       }
 

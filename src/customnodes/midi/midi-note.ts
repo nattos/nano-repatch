@@ -52,7 +52,7 @@ export const midiNoteNode = defineNode({
       for (const event of stream) {
         if (event.channel === channel) {
           if (event.type === 'note_on' && event.note === targetNote) {
-            state.velocity = (event.velocity ?? 0) / 127.0;
+            state.velocity = (event.velocity ?? 0);
             state.gate = 1;
           } else if (event.type === 'note_off' && event.note === targetNote) {
             state.gate = 0;

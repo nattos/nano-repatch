@@ -38,7 +38,7 @@ describe('MIDI Integration', () => {
   const createGraph = (nodeId: string, definitionId: string, config: any): GraphDefinition => ({
     id: 'test-graph',
     kind: 'graph',
-    type: { kind: 'graph', inputs: { kind: 'record', fields: {},  }, outputs: { kind: 'record', fields: {},  } },
+    type: { kind: 'graph', inputs: { kind: 'record', fields: {}, }, outputs: { kind: 'record', fields: {}, } },
     nodes: {
       [nodeId]: { definitionId, defaultConfig: config }
     },
@@ -61,7 +61,7 @@ describe('MIDI Integration', () => {
     channel,
     type: 'cc',
     cc,
-    value,
+    value: value / 127.0,
     time: 0
   });
 
@@ -70,7 +70,7 @@ describe('MIDI Integration', () => {
     channel,
     type: 'note_on',
     note,
-    velocity,
+    velocity: velocity / 127.0,
     time: 0
   });
 
@@ -95,30 +95,12 @@ describe('MIDI Integration', () => {
     expect(executor.getGraphOutput('value')).toBe(0);
 
     // Send CC 7 on Channel 1 with value 64 (approx 0.5)
-    // Note: The input to the executor for 'stream' expects an array of StructorRecords
-    // BUT the node implementation casts it to Array<{ status... }>.
-    // This means the node implementation expects RAW objects if coming from outside,
-    // OR StructorRecords if coming from another node?
-    // The executor.setInput puts the value directly into the input record.
-    // If we pass StructorRecords here, the node will receive StructorRecords.
-    // So `event.status` would be undefined.
-
-    // I should update the node implementation to handle StructorRecords!
-    // OR I should update the test to pass what the node expects if I want to cheat.
-    // But "promoting to core" means doing it right.
-    // The node should expect StructorRecords.
-
-    // I will update the test to pass StructorRecords, AND update the node implementation to read from .fields.
-
+    // Note: Test helper now normalizes 64 -> 64/127.
     const stream = [
       createCcEvent(1, 7, 64)
     ];
     executor.setInput('midi_in', stream as any);
     executor.update({});
-
-    // Wait, I need to update the node implementation first or this will fail.
-    // I'll update the node implementation in the next step.
-    // For now, I'll write the test assuming the node will be fixed.
 
     const output = executor.getGraphOutput('value') as number;
     expect(output).toBeCloseTo(64 / 127.0);

@@ -7,7 +7,7 @@ export interface MidiBaseEvent {
 export interface MidiNoteOnEvent extends MidiBaseEvent {
   type: 'note_on';
   note: number;
-  velocity: number;
+  velocity: number; // 0.0 - 1.0 (float)
 }
 
 export interface MidiNoteOffEvent extends MidiBaseEvent {
