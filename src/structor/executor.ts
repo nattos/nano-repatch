@@ -197,6 +197,26 @@ export class GraphExecutor {
       // Update isRealtime based on new FULL config
       state.isRealtime = (nodeDef as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(state.config ?? { fields: {} }) ?? false;
       this.markDirty(nodeId);
+
+      // Recursive propagation for subgraph virtual inputs
+      if (this.graph.virtualInputMappings && this.graph.virtualInputMappings[nodeId]) {
+        const mappings = this.graph.virtualInputMappings[nodeId];
+        const newValues = (state.config as any)?.values || {};
+
+        for (const [portName, targetNodeId] of Object.entries(mappings)) {
+          if (portName in newValues) {
+            const newValue = newValues[portName];
+            // Propagate to the inner node by updating its 'values' config
+            // We do a partial update of just this value to avoid overwriting other state
+            const targetState = this.nodeStates.get(targetNodeId);
+            if (targetState) {
+              // If target is io.input, we need to update 'values'
+              // We construct a specific update object
+              this.setNodeConfig(targetNodeId, { values: { [portName]: newValue } });
+            }
+          }
+        }
+      }
     }
   }
 
@@ -243,10 +263,11 @@ export class GraphExecutor {
     if (!state.isDirty) return;
 
     const instance = this.graph.nodes[nodeId];
+
     const definition = this.repository.get(instance.definitionId);
 
     if (!definition || definition.kind !== 'primitive') {
-      if (!definition) console.warn(`Definition not found for node ${nodeId} (defId: ${instance.definitionId})`);
+      if (!definition) console.warn(`Definition not found for node ${nodeId}(defId: ${instance.definitionId})`);
       return;
     }
 
@@ -348,7 +369,7 @@ export class GraphExecutor {
         // Only collect if input is NOT array (merging scalars or elements).
         // UNLESS explicit allowMultiConnection is set.
         if (schema && schema.allowMultiConnection) {
-          // console.error(`[Executor] allowMultiConnection detected for ${port} values=`, JSON.stringify(values));
+          // console.error(`[Executor] allowMultiConnection detected for ${ port } values = `, JSON.stringify(values));
           inputRecord.fields[port] = values;
         } else if (isArrayType && !Array.isArray(lastValue)) {
           // It expects array, but getting scalars -> collect all
@@ -426,7 +447,7 @@ export class GraphExecutor {
 
       state.isDirty = false;
     } catch (error) {
-      console.error(`Error executing node ${nodeId} (${definition.id}):`, error);
+      console.error(`Error executing node ${nodeId} (${definition.id}): `, error);
       throw error; // Re-throw to stop execution or handle gracefully
     }
   }

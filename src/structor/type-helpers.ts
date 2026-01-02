@@ -68,7 +68,7 @@ export function defineRecordType<T>(def: TypedRecordType<T>): RecordType {
 
 // --- Marshalling Helpers ---
 
-function fromStructor(value: Structor, type: StructorType): any {
+export function fromStructor(value: Structor, type: StructorType): any {
   if (value === undefined || value === null) return value;
 
   if (type.kind === 'atomic') {
@@ -117,7 +117,7 @@ function fromStructor(value: Structor, type: StructorType): any {
   return value;
 }
 
-function toStructor(value: any, type: StructorType): Structor {
+export function toStructor(value: any, type: StructorType): Structor {
   if (value === undefined || value === null) return value; // Or throw?
 
   if (type.kind === 'atomic') return value;

@@ -1,5 +1,5 @@
 import { registerNode } from '../node-helpers';
-import { definePrimitiveNode } from '../type-helpers';
+import { definePrimitiveNode, toStructor, fromStructor } from '../type-helpers';
 import { NodeCategory, StructorType, StructorRecord, Structor, ExecutionContext, PrimitiveNodeDefinition } from '../structor';
 import { anyType } from '../std-types';
 
@@ -20,6 +20,14 @@ function inferTypeFromConfig(config: any): StructorType | undefined {
   return undefined;
 }
 
+const inputConfigType = {
+  kind: 'record',
+  fields: {
+    name: { kind: 'atomic', type: 'string' },
+    type: anyType
+  }
+} as const; // Cast as const or ensure type compatibility if needed, but simple object is fine for now if structure matches RecordType
+
 export const primitive_input: PrimitiveNodeDefinition = {
   id: 'io.input',
 
@@ -29,6 +37,7 @@ export const primitive_input: PrimitiveNodeDefinition = {
     keywords: ['source', 'in'],
     description: 'Graph input node.'
   },
+  configType: inputConfigType as any,
   ui: {
     inspector: {
       fields: [
@@ -58,9 +67,17 @@ export const primitive_input: PrimitiveNodeDefinition = {
       outputs: { kind: 'record', fields: { 'value': valType } }
     };
   },
-  execute: (input: StructorRecord, config: any, context: ExecutionContext) => {
-    const portName = config.name || 'value';
+  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
+    // We assume config is always Structural (compiled or normalized by Executor)
+    // because compileConfig and configType are defined and registered.
+    const fields = (config as StructorRecord)?.fields;
+    const portName = (fields?.name as string) ?? 'value';
+
+    // Fallback? If fields is undefined, it means config was raw and uncompiled/unnormalized.
+    // This shouldn't happen in standard flow. If it does, we default to 'value'.
+
     const val = input.fields[portName] !== undefined ? input.fields[portName] : input.fields['value'];
+
     return { fields: { 'value': val } };
   }
 };
@@ -72,5 +89,12 @@ registerNode({
   extendedOutputs: {
     value: { type: anyType, description: 'The input value.', suppressInputEditor: true, suppressLabel: true }
   },
-  compileConfig: (uiConfig) => ({ values: { 'value': uiConfig?.values?.['0'] } } as any)
+  compileConfig: (config) => {
+    const structor = toStructor(config, inputConfigType as any);
+    // Preserve virtual inputs which are not part of the strict schema but used by executor
+    if ((config as any).values) {
+      (structor as any).values = (config as any).values;
+    }
+    return structor;
+  }
 });

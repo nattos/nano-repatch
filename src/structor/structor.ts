@@ -237,6 +237,7 @@ export interface GraphDefinition {
   inputs: Record<string, { nodeId: string; port: string | number }>;
   outputs: Record<string, { nodeId: string; port: string | number }>;
   executionOrder?: string[];
+  virtualInputMappings?: Record<string, Record<string, string>>; // ParentNodeId -> PortName -> ChildNodeId
 }
 
 // Added for GraphDefinition

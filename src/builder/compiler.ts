@@ -117,6 +117,7 @@ export function compileGraph(
 
         flatNodes[nodeId] = instance;
 
+
         if (isRoot) {
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
             const name = node.config.name || node.id;
@@ -145,6 +146,13 @@ export function compileGraph(
               if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
               (instance.defaultConfig as any).values[portName] = injectedValue;
 
+              // Ensure the inner node knows its resolved name (e.g. replacing '#' with 'in')
+              if ((instance.defaultConfig as any).fields) {
+                (instance.defaultConfig as any).fields.name = portName;
+              } else {
+                (instance.defaultConfig as any).name = portName;
+              }
+
               // 2. Dynamic Mapping (Phase 2)
               if (parentSubgraphId) {
                 if (!virtualInputMappings[parentSubgraphId]) {
@@ -163,10 +171,7 @@ export function compileGraph(
               .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
               .sort((a, b) => a.y - b.y);
 
-
             const myIndex = outputNodes.findIndex(n => n.id === node.id);
-
-
             if (myIndex !== -1) {
               const rawName = node.config.name || 'value';
               const portName = resolvePortName(rawName, myIndex, outputNodes.length, 'output');
@@ -293,7 +298,11 @@ export function compileGraph(
             if (inputNode) {
               // Rewire: Destination is the 'input' node inside the subgraph
               toNodeId = idPrefix + toNode.id + '.' + inputNode.id;
-              toPort = 'value'; // Input nodes receive on 'value' (identity)
+              // Use the named port (resolved) to match Virtual Input injection keys.
+              // This ensures that REAL connections override Virtual Inputs in Executor.
+              // (If we used 'value', Executor would see 'value' (conn) and 'in' (virtual) separately,
+              // and io.input would pick 'in', ignoring the connection.)
+              toPort = toPort;
             }
           }
         }
@@ -586,7 +595,8 @@ export function compileGraph(
     connections: validConnections,
     inputs: flatInputs,
     outputs: flatOutputs,
-    executionOrder
+    executionOrder,
+    virtualInputMappings // Attach mappings for Executor
   };
 
   return {
