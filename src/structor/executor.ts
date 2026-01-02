@@ -209,6 +209,8 @@ export class GraphExecutor {
   }
 
   public update(context: Partial<ExecutionContext>): void {
+    const nodesToDirtyNextFrame = new Set<string>();
+
     // Mark realtime nodes as dirty
     for (const [nodeId, state] of this.nodeStates) {
       if (state.isRealtime) {
@@ -365,7 +367,10 @@ export class GraphExecutor {
         repository: this.repository,
         nodeState: this.userNodeStates,
         nodeId: nodeId,
-        requestUiOutputs: true // Always true for now as requested
+        requestUiOutputs: true, // Always true for now as requested
+        markSelfDirty: () => {
+          nodesToDirtyNextFrame.add(nodeId);
+        }
       };
 
       // Execute
@@ -396,6 +401,12 @@ export class GraphExecutor {
         throw error; // Re-throw to stop execution or handle gracefully
       }
     }
+
+    // Process re-dirty requests for the next frame
+    for (const nodeId of nodesToDirtyNextFrame) {
+      this.markDirty(nodeId);
+    }
+    // No need to clear local variable
   }
 
   public getOutputs(): Map<string, StructorRecord> {

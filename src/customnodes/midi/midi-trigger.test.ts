@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { midiOnChangeNode, midiOnRangeNode } from './nodes';
+import { midiTriggerNode } from './midi-trigger';
 import { MidiEvent } from '../../io/midi/types';
 
 // Helper to wrap inputs into Structor format expected by Node Wrapper
@@ -171,6 +172,60 @@ describe('MIDI Trigger Nodes', () => {
       expect(stream).toHaveLength(2);
       expect(stream[1].fields).toMatchObject({ type: 'note_on', note: 61 });
       expect(state.activeZoneIndex).toBe(1);
+    });
+  });
+  describe('midi.trigger', () => {
+    it('should NOT be realtime', () => {
+      // @ts-ignore
+      expect(midiTriggerNode.isRealtime).toBeUndefined();
+    });
+
+    it('should send Note On/Off pair and mark dirty on Trigger (Rising Edge)', () => {
+      const markSelfDirty = vi.fn();
+      const context = { ...createMockContext(), markSelfDirty };
+      const config = { pitch: 60, velocity: 1.0 };
+
+      // Initialize state
+      const state = midiTriggerNode.createState(config, context);
+
+      // Trigger!
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context, state);
+      const stream = res.stream || [];
+
+      expect(stream).toHaveLength(2);
+      expect(stream[0]).toMatchObject({ type: 'note_on', note: 60 });
+      expect(stream[1]).toMatchObject({ type: 'note_off', note: 60 });
+
+      // Expect it to request re-execution to clear output
+      expect(markSelfDirty).toHaveBeenCalled();
+      expect(state.lastTrigger).toBe(1);
+    });
+
+    it('should NOT trigger on Falling Edge', () => {
+      const markSelfDirty = vi.fn();
+      const context = { ...createMockContext(), markSelfDirty };
+      const config = { pitch: 60 };
+      const state = { lastTrigger: 1 }; // Already triggered
+
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 0 }), config, context, state);
+      const stream = res.stream || [];
+
+      expect(stream).toHaveLength(0);
+      expect(markSelfDirty).not.toHaveBeenCalled();
+      expect(state.lastTrigger).toBe(0);
+    });
+
+    it('should NOT trigger on Steady State (High)', () => {
+      const markSelfDirty = vi.fn();
+      const context = { ...createMockContext(), markSelfDirty };
+      const config = { pitch: 60 };
+      const state = { lastTrigger: 1 };
+
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context, state);
+      const stream = res.stream || [];
+
+      expect(stream).toHaveLength(0);
+      expect(markSelfDirty).not.toHaveBeenCalled();
     });
   });
 });

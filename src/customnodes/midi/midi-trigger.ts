@@ -29,7 +29,6 @@ export const midiTriggerNode = defineNode({
   outputs: {
     stream: midiStreamType
   },
-  isRealtime: () => true,
   createState: (): { lastTrigger: number } => ({ lastTrigger: 0 }),
   execute: (inputs, config, context, state) => {
     // Inputs are strictly typed
@@ -40,16 +39,12 @@ export const midiTriggerNode = defineNode({
 
     const stream: MidiEvent[] = [];
 
-    // Logic: Pulse / Trigger
-    // Rising Edge -> Note On + Start Timer (0.1s default duration)
-    // Timer Expire -> Note Off
-    // Falling Edge -> Note Off (Early release)
-
     if (trigger > state.lastTrigger) {
       // Rising Edge: Synchronous Trigger (Note On then Note Off)
       const vel = Math.floor(velocity * 127);
       stream.push({ type: 'note_on', channel: 1, note: pitch, velocity: vel, deviceId: 'virtual', time: 0 });
       stream.push({ type: 'note_off', channel: 1, note: pitch, velocity: 0, deviceId: 'virtual', time: 0 });
+      if (context.markSelfDirty) context.markSelfDirty();
     }
 
     state.lastTrigger = trigger;
