@@ -3,22 +3,22 @@ import './graph-connection';
 import { WireRenderer, WireRendererContext } from './wire-renderer';
 import { SmartInput } from '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
-import { css, html, TemplateResult } from 'lit';
+import { css, html } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
+import { GridPopupManager } from './grid/popup-manager';
+import { SelectionInteraction } from './grid/selection-interaction';
+import { GridInputLogic } from './grid/grid-input-logic';
 import { repeat } from 'lit/directives/repeat.js';
 import { appController, localController, runtimeManager, workspaceController } from '../builder/controllers';
 import { reaction } from 'mobx';
-import { AppController, LongEdit, generateId, GridNode } from '../builder/state';
-import { LocalController, Selectable } from '../builder/local-state';
+import { LongEdit, generateId, GridNode } from '../builder/state';
+import { Selectable } from '../builder/local-state';
 import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
-import { defaultNodeRepository, PortHint } from '../structor/repository';
-import { NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED } from '../constants';
-import { getNodeVisualState } from '../utils/node-width-utils';
-import { calculatePortY } from '../utils/node-width-utils';
+import { defaultNodeRepository } from '../structor/repository';
 import { globalStyles } from '../styles';
-import { GRID_UNIT, GRID_GAP, GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING } from '../constants';
+import { GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING } from '../constants';
 
 
 interface WireInsert {
@@ -422,109 +422,61 @@ export class GraphGrid extends MobxLitElement {
 
   @state()
   private selectionBox: { x: number, y: number, w: number, h: number } | null = null;
+
+  private popupManager = new GridPopupManager(appController);
+
+  private selectionInteraction = new SelectionInteraction({
+    element: this,
+    getScrollState: () => ({ scrollLeft: this.scrollLeft, scrollTop: this.scrollTop }),
+    getBoundingClientRect: () => this.getBoundingClientRect(),
+    getNodes: () => {
+      return Array.from(this.shadowRoot?.querySelectorAll('graph-node') || []) as HTMLElement[];
+    },
+    setSelectionBox: (box) => { this.selectionBox = box; },
+    onSelectionChange: (ids, isAdditive) => {
+      if (isAdditive) {
+        // If additive (Shift held), we keep the committed selection (handled by local-state logic)
+        // and ONLY update the queued selection to match the current Rubberband set.
+        // The visualizer usually shows (Selection U QueuedSelection).
+        localController.setQueuedSelection(ids);
+      } else {
+        // If not additive, we clear committed selection and set Queued to new set.
+        // localController.queueSelectPaths(ids, false) does:
+        //  if (!additive) { selection.clear(); queuedSelection.clear(); }
+        //  queuedSelection.add(...);
+        // This is exactly what we want.
+        localController.queueSelectPaths(ids, false);
+      }
+    }
+  }, localController);
+
+  private inputLogic = new GridInputLogic({
+    element: this,
+    getScrollState: () => ({ scrollLeft: this.scrollLeft, scrollTop: this.scrollTop }),
+    getBoundingClientRect: () => this.getBoundingClientRect(),
+    closePopup: () => { this.popupManager.commit(); },
+  }, appController, localController, runtimeManager, this.selectionInteraction, this.popupManager);
   @state()
   private pendingWireInsert: WireInsert | null = null;
 
-  @state()
-  popup: { x: number, y: number, gridX: number, gridY: number, initialValue: string, nodeId?: string, isNew?: boolean, connectionId?: string } | null = null;
-
-  private popupLongEdit: LongEdit | null = null;
+  /*
+   * Popups are now managed by GridPopupManager
+   */
+  // private popup: ... = null;
+  // private popupLongEdit: LongEdit | null = null;
 
   private catalog = new NodeCatalog(defaultNodeRepository, () => workspaceController.files.map(f => f.name));
 
   private handlePointerDown(e: PointerEvent) {
-    // If popup is open, close it on click outside (unless clicking inside popup, which is handled by stopPropagation in popup)
-    if (this.popup) {
-      const path = e.composedPath();
-      const isPopup = path.some(el => (el as Element).classList?.contains('popup-container'));
-      if (!isPopup) {
-        const smartInput = this.shadowRoot?.querySelector('smart-input') as SmartInput;
-        if (smartInput) {
-          smartInput.commit();
-        } else {
-          this.handlePopupCancel();
-        }
-      }
-    }
-
-    // Resume audio on any interaction
-    runtimeManager.resumeAudio();
-
-    const path = e.composedPath();
-    const isNode = path.some(el => (el as Element).tagName === 'GRAPH-NODE');
-    const isConnection = path.some(el => (el as Element).tagName === 'GRAPH-CONNECTION');
-    // Also ignore wires (divs with .wire-segment class)
-    const isWire = path.some(el => (el as Element).classList?.contains('wire-segment'));
-
-    if (isNode || isConnection || isWire) return;
-
-    // Start rubberband selection
-    const rect = this.getBoundingClientRect();
-    const startX = e.clientX - rect.left + this.scrollLeft;
-    const startY = e.clientY - rect.top + this.scrollTop;
-
-    let lastSelectedIdsStr = '';
-
-    new PointerDragOp(e, this, {
-      move: (e, delta) => {
-        const currentX = e.clientX - rect.left + this.scrollLeft;
-        const currentY = e.clientY - rect.top + this.scrollTop;
-
-        const x = Math.min(startX, currentX);
-        const y = Math.min(startY, currentY);
-        const w = Math.abs(currentX - startX);
-        const h = Math.abs(currentY - startY);
-
-        this.selectionBox = { x, y, w, h };
-
-        // Calculate selection
-        // Note: With variable grid sizes, pixel-based selection is harder.
-        // But we can still use the approximate positions or query the DOM elements.
-        // For now, let's keep the simplified logic assuming standard sizes for selection calculation,
-        // or iterate over nodes and check their bounding rects (better).
-
-        const selectedIds: string[] = [];
-        const { nodes } = appController.observableState.graph.inner;
-
-        // We can use the rendered DOM nodes to check intersection
-        const nodeElements = this.shadowRoot?.querySelectorAll('graph-node');
-        if (nodeElements) {
-          nodeElements.forEach(el => {
-            const nodeRect = el.getBoundingClientRect();
-            // Convert nodeRect to grid-relative coords (same space as selectionBox)
-            const nodeX = nodeRect.left - rect.left + this.scrollLeft;
-            const nodeY = nodeRect.top - rect.top + this.scrollTop;
-
-            if (x < nodeX + nodeRect.width && x + w > nodeX &&
-              y < nodeY + nodeRect.height && y + h > nodeY) {
-              const id = (el as HTMLElement).dataset.id;
-              if (id) selectedIds.push(id);
-            }
-          });
-        }
-
-        selectedIds.sort();
-        const currentSelectedIdsStr = selectedIds.join(',');
-        if (currentSelectedIdsStr !== lastSelectedIdsStr) {
-          localController.queueSelectPaths(selectedIds);
-          lastSelectedIdsStr = currentSelectedIdsStr;
-        }
-      },
-      accept: () => {
-        this.selectionBox = null;
-      },
-      cancel: () => {
-        this.selectionBox = null;
-        console.log('Selection cancelled. Forcing red selection box (if visible).');
-        // If selectionBox was not null, we could change its color here.
-        // For example: this.selectionBox = { ...this.selectionBox, color: 'red' };
-        // But since it's set to null, this change won't be visible.
-        localController.queueSelectPaths([]);
-      }
-    });
+    this.inputLogic.handlePointerDown(e);
   }
 
   private handleDblClick(e: MouseEvent) {
+    this.inputLogic.handleDblClick(e);
+  }
+
+  private _legacy_handleDblClick(e: MouseEvent) {
+    return; /*
     const path = e.composedPath();
     const target = path[0] as HTMLElement;
 
@@ -693,7 +645,7 @@ export class GraphGrid extends MobxLitElement {
 
     // Fallback for clicks on grid background (if any)
     // With full grid coverage, this might not be reached often.
-  }
+  */ }
 
   private handleConnectionDelete(e: CustomEvent<{ connectionId: string }>) {
     appController.deleteConnection(e.detail.connectionId);
@@ -944,107 +896,6 @@ export class GraphGrid extends MobxLitElement {
     }
   }
 
-  private handlePopupCommit(e: CustomEvent) {
-    if (!this.popup) return;
-    const rawTypeId = e.detail;
-
-    // Check if this is a Subgraph
-    let typeId = rawTypeId;
-    let extraConfig: any = {};
-
-    const existingType = defaultNodeRepository.getNodeType(rawTypeId);
-    if (!existingType && rawTypeId.includes('.')) {
-      // Assume it's a subgraph if it has dots but isn't a known node
-      typeId = 'core.subgraph';
-      extraConfig.subgraphId = rawTypeId;
-    }
-
-    // Unified handling for Creation/Update
-    // If we have a previewed node (popup.nodeId exists), we use it.
-    // If not, we create one.
-
-    let targetNodeId = this.popup.nodeId;
-
-    // Handle Long Edit Commit first
-    if (this.popupLongEdit) {
-      // Ensure we apply the FINAL selected typeId, because the user might have
-      // clicked a suggestion different from the currently previewed one.
-      this.popupLongEdit.applyAgain((c) => {
-        // Re-create node if new (same logic as handlePopupPreview)
-        if (this.popup!.isNew) {
-          c.createNode(typeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId!, ...extraConfig });
-        } else {
-          c.setNodeConfig(this.popup!.nodeId!, { typeId, ...extraConfig });
-        }
-
-        // Re-wire connections (same logic as handlePopupPreview)
-        const connectionId = (this.popup as any).connectionId;
-        if (connectionId) {
-          const oldConn = appController.observableState.graph.inner.connections[connectionId];
-          if (oldConn) {
-            const nodeType = defaultNodeRepository.getNodeType(typeId);
-            const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-            const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-            c.deleteConnection(connectionId);
-            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
-            c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-          }
-        }
-      });
-      this.popupLongEdit.accept();
-      this.popupLongEdit = null;
-    } else if (targetNodeId) {
-      // Just set config if no long edit active (rare if we were previewing)
-      appController.setNodeConfig(targetNodeId, { typeId, ...extraConfig });
-    } else {
-      // No node yet (User typed fast and hit commit without preview, or pure creation)
-      // Create it now
-      const { gridX, gridY } = this.popup;
-      try {
-        const newNode = appController.createNode(typeId, gridX, gridY, extraConfig);
-        targetNodeId = newNode.id;
-        localController.queueSelectPaths([targetNodeId]);
-      } catch (e) {
-        console.error("Failed to create node:", e);
-        this.popup = null;
-        return;
-      }
-    }
-
-    // Now handle connection splitting if applicable
-    // This applies whether we reused a preview node or created a new one
-    const connectionId = (this.popup as any).connectionId;
-    if (connectionId && targetNodeId) {
-      try {
-        // Handle Wire Split
-        const oldConn = appController.observableState.graph.inner.connections[connectionId];
-        if (oldConn) {
-          const nodeType = defaultNodeRepository.getNodeType(typeId);
-          const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-          const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-          appController.transaction((c) => {
-            // Delete old
-            c.deleteConnection(connectionId);
-
-            // Connect Old Start -> New Node
-            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, targetNodeId!, firstInput);
-
-            // Connect New Node -> Old End
-            c.createConnection(targetNodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-          });
-        }
-      } catch (e) {
-        console.error("Failed to split connection:", e);
-      }
-    }
-
-    // Defer popup removal
-    setTimeout(() => {
-      this.popup = null;
-    }, 0);
-  }
 
   private handleKeyDown(e: KeyboardEvent) {
     if (!this.pendingWireInsert || this.popup) return;
@@ -1238,127 +1089,6 @@ export class GraphGrid extends MobxLitElement {
     this.requestUpdate();
   }
 
-  private handlePopupPreview(e: CustomEvent) {
-    if (!this.popup) return;
-    const typeId = e.detail;
-
-    // Detect Subgraph Alias
-    let realTypeId = typeId;
-    let extraConfig = {};
-    if (!defaultNodeRepository.getNodeType(typeId) && typeId.includes('.')) {
-      realTypeId = 'core.subgraph';
-      extraConfig = { subgraphId: typeId };
-    }
-
-    // Phase 1: Create Node if it doesn't exist (Live Preview for Wire Insert)
-    if (!this.popup.nodeId) {
-      // We are previewing a creation type.
-      // Create the node FOR REAL (it's the only way to render it currently)
-      // We mark it as 'isNew' in popup so we know to delete it if cancelled.
-
-      try {
-        const newNode = appController.createNode(realTypeId, this.popup.gridX, this.popup.gridY, extraConfig);
-
-        // Update Popup State
-        this.popup = {
-          ...this.popup,
-          nodeId: newNode.id,
-          isNew: true
-        };
-
-        // Select it?
-        // localController.queueSelectPaths([newNode.id]);
-        // Maybe not needed if we are editing?
-
-        // Start Long Edit immediately for this new node
-        this.popupLongEdit = appController.beginLongEdit({
-          apply: (c) => {
-            c.setNodeConfig(newNode.id, { typeId: realTypeId, ...extraConfig });
-
-            // Live Rewire: If inserting on a wire, split the connection now!
-            const connectionId = (this.popup as any).connectionId;
-            if (connectionId) {
-              const oldConn = appController.observableState.graph.inner.connections[connectionId];
-              if (oldConn) {
-                // Use default ports from repository or fallback
-                const nodeType = defaultNodeRepository.getNodeType(typeId);
-                const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-                const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-                c.deleteConnection(connectionId);
-                c.createConnection(oldConn.fromNodeId, oldConn.fromPort, newNode.id, firstInput);
-                c.createConnection(newNode.id, firstOutput, oldConn.toNodeId, oldConn.toPort);
-              }
-            }
-          },
-          cancel: () => {
-            this.popupLongEdit = null;
-            // handlePopupCancel will handle deletion of 'isNew' node
-          }
-        });
-
-      } catch (e) {
-        console.error("Failed to create preview node:", e);
-      }
-      return;
-    }
-
-    // Phase 2: Update Existing Node (or just-created preview node)
-    if (this.popup.nodeId) {
-      const applyCallback = (c: any) => {
-        // CRITICAL FIX: If this is a new node created in this transaction,
-        // we MUST re-create it every time apply() runs, because the previous runs (and creation) are rolled back.
-        if (this.popup!.isNew) {
-          c.createNode(realTypeId, this.popup!.gridX, this.popup!.gridY, { id: this.popup!.nodeId!, ...extraConfig });
-        } else {
-          // Just update config for existing nodes
-          c.setNodeConfig(this.popup!.nodeId!, { typeId: realTypeId, ...extraConfig });
-        }
-
-        // Live Rewire
-        const connectionId = (this.popup as any).connectionId;
-        if (connectionId) {
-          const oldConn = appController.observableState.graph.inner.connections[connectionId];
-          if (oldConn) {
-            const nodeType = defaultNodeRepository.getNodeType(typeId);
-            const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-            const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-            c.deleteConnection(connectionId);
-            c.createConnection(oldConn.fromNodeId, oldConn.fromPort, this.popup!.nodeId!, firstInput);
-            c.createConnection(this.popup!.nodeId!, firstOutput, oldConn.toNodeId, oldConn.toPort);
-          }
-        }
-      };
-
-      if (!this.popupLongEdit) {
-        this.popupLongEdit = appController.beginLongEdit({
-          apply: applyCallback,
-          cancel: () => {
-            this.popupLongEdit = null;
-          }
-        });
-      } else {
-        this.popupLongEdit.applyAgain(applyCallback);
-      }
-    }
-  }
-
-  private handlePopupCancel() {
-    if (this.popupLongEdit) {
-      this.popupLongEdit.cancel();
-      this.popupLongEdit = null;
-    }
-
-    if (this.popup && this.popup.isNew && this.popup.nodeId) {
-      // User cancelled creation flow (either empty space dbl click or wire insert), delete the temp node
-      appController.deleteNode(this.popup.nodeId);
-    }
-    // Note: If popup.nodeId was set but NOT isNew, it means we were editing an existing node (if supported).
-    // In that case, we do NOT delete it.
-
-    this.popup = null;
-  }
 
   private getNodeHeight(nodeId: string): number {
     const node = appController.observableState.graph.inner.nodes[nodeId];
@@ -1451,6 +1181,8 @@ export class GraphGrid extends MobxLitElement {
   }
 
   private getRowHeight(gridY: number): number {
+    // console.log('DEBUG: gridMetrics', localController.observableState?.gridMetrics);
+    if (!localController.observableState?.gridMetrics) return 80;
     return localController.observableState.gridMetrics.rows.get(gridY) || 80;
   }
 
@@ -1704,15 +1436,18 @@ export class GraphGrid extends MobxLitElement {
         <div class="selection-box" style="left: ${this.selectionBox.x}px; top: ${this.selectionBox.y}px; width: ${this.selectionBox.w}px; height: ${this.selectionBox.h}px;"></div>
       ` : ''}
 
-      ${this.popup ? html`
-        <div class="popup-container" style="left: ${this.popup.x}px; top: ${this.popup.y}px;">
+      ${this.popupManager.popup ? html`
+        <div class="popup-container" style="left: ${this.popupManager.popup.x}px; top: ${this.popupManager.popup.y}px;">
             <smart-input
                 .catalog=${this.catalog}
-                .value=${this.popup.initialValue}
+                .value=${this.popupManager.popup.initialValue}
                 .autofocus=${true}
-                @commit=${this.handlePopupCommit.bind(this)}
-                @preview-type=${this.handlePopupPreview.bind(this)}
-                @cancel=${this.handlePopupCancel.bind(this)}
+                @commit=${(e: CustomEvent) => {
+          this.popupManager.updatePreview(e.detail);
+          this.popupManager.commit();
+        }}
+                @preview-type=${(e: CustomEvent) => this.popupManager.updatePreview(e.detail)}
+                @cancel=${() => this.popupManager.cancel()}
             ></smart-input>
         </div>
       ` : ''}
@@ -1722,11 +1457,11 @@ export class GraphGrid extends MobxLitElement {
 
 
     ${Object.values(connections).map(conn => {
-      // Register selectable for Inspector with caching to avoid infinite loops
-      const selectable = this.getConnectionSelectable(conn.id);
-      localController.defineSelectable(selectable);
-      return '';
-    })}
+          // Register selectable for Inspector with caching to avoid infinite loops
+          const selectable = this.getConnectionSelectable(conn.id);
+          localController.defineSelectable(selectable);
+          return '';
+        })}
 
         ${(() => {
         const wireCtx: WireRendererContext = {
@@ -1766,26 +1501,6 @@ export class GraphGrid extends MobxLitElement {
     const col = 2 * preview.x + 3;
     const row = 2 * preview.y + 2;
 
-    // TODO: Handle height? For now assuming 1x1 cell + gap handling?
-    // Grid row height is variable.
-    // If preview.y points to a valid row, it uses that row's height.
-    // If it extrapolates, it uses auto/minmax?
-    // But RenderGridCells creates rows up to 'rows'.
-    // If we drag beyond known rows, CSS Grid implicit rows take over?
-    // We didn't define grid-auto-rows.
-    // But we defined `grid-template-rows`.
-    // If `row` exceeds defined rows, it might be 0 height or default.
-    // `GraphGrid` CSS has `grid-auto-rows: minmax(1px, auto)` commented out, but actually:
-    // `grid-template-rows` is explicit loop.
-    // We might need to ensure the preview has height if outside?
-    // But `getGridCell` extrapolates logic.
-    // If `preview.y` > existing rows, we are in "Empty Space".
-    // We rely on Grid Container expanding?
-    // Let's assume it works or just renders 0 height if row doesn't exist.
-    // Actually, `grid-row` placement forces the grid to expand.
-    // And size? `min-height: 80px`.
-    // Let's force min-height style.
-
     return html`
       <div class="drag-preview" style="grid-column: ${col}; grid-row: ${row}; min-height: 80px;"></div>
     `;
@@ -1824,6 +1539,7 @@ export class GraphGrid extends MobxLitElement {
               .gridRow=${`${row}`}
               .parentZIndex=${isSelected ? 110 : 100}
               data-io-type=${ioType || ''}
+              data-id=${node.id}
             ></graph-node>
           `;
   }

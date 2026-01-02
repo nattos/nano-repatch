@@ -540,6 +540,14 @@ export class LocalController {
   }
 
   @action
+  public setQueuedSelection(paths: string[]): void {
+    this.observableState.queuedSelection.clear();
+    for (const p of paths) {
+      this.observableState.queuedSelection.add(p);
+    }
+  }
+
+  @action
   public setInflightPortConnectionOperation(port: { nodeId: string; port: string; type: 'in' | 'out'; } | null): void {
     this.observableState.inflightPortConnectionOperation = port;
   }

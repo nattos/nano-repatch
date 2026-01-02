@@ -1,8 +1,10 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 import { reaction } from 'mobx';
-import { GridNode, LongEdit, AppController } from '../builder/state';
+
+import { AppController, GridNode, LongEdit } from '../builder/state';
 import { appController, localController, runtimeManager, workspaceController } from '../builder/controllers';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { PointerDragOp } from '../utils/pointer-drag-op';
@@ -13,6 +15,8 @@ import { getNodeVisualState, shouldShowInputEditor } from '../utils/node-width-u
 import '../components/smart-input';
 import './scalar-slider';
 import { NodeCatalog } from '../structor/node-catalog';
+import { NodeInteraction } from './node/node-interaction';
+import { renderOutputs, shouldHideLabel, hasIoSlider } from './node/port-renderer';
 import './graph-port';
 import { globalStyles } from '../styles';
 import { formatValue } from './formatters';
@@ -23,10 +27,8 @@ import {
   NODE_WIDTH_MINIMAL,
   ROW_HEIGHT,
   HEADER_HEIGHT,
-  NODE_PADDING_X,
   NODE_PADDING_Y,
   SLIDER_LABEL_WIDTH,
-  SLIDER_HEIGHT,
   PIP_OFFSET_X,
   LABEL_PADDING_X,
   NODE_BORDER_WIDTH
@@ -35,20 +37,6 @@ import {
 
 @customElement('graph-node')
 export class GraphNode extends MobxLitElement {
-  // RENDER PLAN:
-  // 1. Get NodeType from repository using node.config.typeId.
-  // 2. Render input and output ports based on NodeType.inputs and NodeType.outputs.
-  //    - Position them dynamically around the node.
-  //    - The `data-port` attribute on the port element will be the PortHint.name.
-  // 3. For "virtual inputs" (inputs with `defaultValue`):
-  //    - Check if there's an incoming connection for that port.
-  //    - If not, render an input control on the node (e.g., a slider for range, number input otherwise).
-  //    - When this control is changed, it should update the node's config.
-  //      `appController.setNodeConfig(this.node.id, { values: { min: 0.5 } })`
-  // 4. Update port connection logic:
-  //    - `handlePortClick` should use the `PortHint.name` from `data-port`.
-  //    - When creating a connection, the `from.port` and `to.port` will be the correct names.
-
   @property({ attribute: false })
   node!: GridNode;
 
@@ -95,8 +83,6 @@ export class GraphNode extends MobxLitElement {
   private sliderLongEdit: LongEdit | null = null;
   private activeSliderPort: string | null = null;
 
-
-
   static readonly styles = [
     ...globalStyles,
     css`
@@ -121,8 +107,6 @@ export class GraphNode extends MobxLitElement {
       justify-self: center;
       align-self: center;
     }
-
-
 
     :host([data-state="normal"]) {
       width: ${NODE_WIDTH_NORMAL}px;
@@ -565,111 +549,24 @@ export class GraphNode extends MobxLitElement {
     }
   }
 
+
+  private interaction = new NodeInteraction({
+    element: this,
+    get node() { return (this as any).element.node; },
+    getRootNode: () => this.getRootNode(),
+    getBoundingClientRect: () => this.getBoundingClientRect(),
+    addDragTransform: (x, y) => { this.style.transform = `translate(${x}px, ${y}px)`; },
+    clearDragTransform: () => { this.style.transform = ''; },
+    setDragState: (dragged) => {
+      if (dragged) this.dataset.dragged = 'true';
+      else delete this.dataset.dragged;
+    }
+  }, appController, localController);
+
   private handlePointerDown(e: PointerEvent) {
-    // Ignore if clicking on a port circle or virtual input field
-    // We need to check composedPath to drill into Shadow DOM
-    const path = e.composedPath();
-    const isPortCircle = path.some(el => (el as Element).classList?.contains('port'));
-    const isInteractiveContent = path.some(el => (el as HTMLElement).classList?.contains('virtual-inputs-container'));
-
-    if (isPortCircle || isInteractiveContent) {
-      return;
-    }
-
-    // If the node is not selected, select it (replacing current selection)
-    if (!localController.observableState.selection.has(this.node.id)) {
-      localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
-    }
-
-    // Track if a drag actually occurred
-    let dragOccurred = false;
-
-    // Resolve Grid Host for coordinate mapping
-    const gridHost = (this.getRootNode() as ShadowRoot)?.host as HTMLElement;
-
-    new PointerDragOp(e, this, {
-      move: (e, delta) => {
-        dragOccurred = true;
-        this.style.transform = `translate(${delta[0]}px, ${delta[1]}px)`;
-
-        // Calculate Snapped Grid Position for Preview
-        if (gridHost) {
-          const rect = this.getBoundingClientRect();
-          const gridRect = gridHost.getBoundingClientRect();
-          const ANCHOR_BIAS = 40;
-          let anchorX = rect.left + (rect.width / 2);
-          if (delta[0] < 0) anchorX = rect.left + ANCHOR_BIAS;
-          else if (delta[0] > 0) anchorX = rect.right - ANCHOR_BIAS;
-
-          let anchorY = rect.top + (rect.height / 2);
-          if (delta[1] < 0) anchorY = rect.top + ANCHOR_BIAS;
-          else if (delta[1] > 0) anchorY = rect.bottom - ANCHOR_BIAS;
-
-          const relativeX = anchorX - gridRect.left + gridHost.scrollLeft;
-          const relativeY = anchorY - gridRect.top + gridHost.scrollTop;
-
-          const cell = localController.getGridCellFromPixels(relativeX, relativeY);
-          localController.setDragPreview({ x: cell.x, y: cell.y, w: 1, h: 1 });
-        }
-      },
-      accept: (e, delta) => {
-        localController.setDragPreview(null);
-        this.handleDragAccept(e, delta);
-      },
-      cancel: () => {
-        localController.setDragPreview(null);
-        this.style.transform = '';
-      }
-    });
+    this.interaction.handlePointerDown(e);
   }
 
-  private handleDragAccept(e: MouseEvent, delta: [number, number]) {
-    // Resolve Grid Host for coordinate mapping (re-resolve to be safe)
-    const gridHost = (this.getRootNode() as ShadowRoot)?.host as HTMLElement;
-    if (!gridHost) return;
-
-    // Use current bounding box (which includes the drag transform) to find center
-    const rect = this.getBoundingClientRect();
-    const gridRect = gridHost.getBoundingClientRect();
-
-    // Directional Bias Logic
-    const ANCHOR_BIAS = 40;
-
-    // X Axis
-    let anchorX = rect.left + (rect.width / 2);
-    if (delta[0] < 0) anchorX = rect.left + ANCHOR_BIAS;
-    else if (delta[0] > 0) anchorX = rect.right - ANCHOR_BIAS;
-
-    // Y Axis
-    let anchorY = rect.top + (rect.height / 2);
-    if (delta[1] < 0) anchorY = rect.top + ANCHOR_BIAS;
-    else if (delta[1] > 0) anchorY = rect.bottom - ANCHOR_BIAS;
-
-    // Convert to relative grid coordinates
-    const relativeX = anchorX - gridRect.left + gridHost.scrollLeft;
-    const relativeY = anchorY - gridRect.top + gridHost.scrollTop;
-
-    // Get exact target cell using the SAME logic as the preview
-    const targetCell = localController.getGridCellFromPixels(relativeX, relativeY);
-
-    // Calculate Grid Delta
-    const dx = targetCell.x - this.node.x;
-    const dy = targetCell.y - this.node.y;
-
-    const selectedNodeIds = Array.from(localController.observableState.selection.keys())
-      .filter(id => id.startsWith('node-'));
-
-    const { dx: constrainedDx, dy: constrainedDy } = appController.calculateConstrainedMove(selectedNodeIds, dx, dy);
-
-    appController.moveNodes(selectedNodeIds, constrainedDx, constrainedDy);
-
-    this.style.transform = '';
-
-    this.dataset.dragged = 'true';
-    setTimeout(() => {
-      delete this.dataset.dragged;
-    }, 0);
-  }
 
 
 
@@ -711,11 +608,22 @@ export class GraphNode extends MobxLitElement {
     localController.queueSelectPaths([this.node.id], e.shiftKey || e.ctrlKey || e.metaKey);
   }
 
+  private debugDisposer: (() => void) | null = null;
+
   connectedCallback() {
     super.connectedCallback();
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('pointerup', this.handlePointerUp);
     this.addEventListener('click', this.handleClick as EventListener);
+
+    // Setup debug value reaction
+    this.debugDisposer = reaction(
+      () => [
+        localController.observableState.localSettings.showDebugValues,
+        runtimeManager.outputs.get(this.node.id)
+      ],
+      () => this.requestUpdate()
+    );
   }
 
   disconnectedCallback() {
@@ -723,6 +631,11 @@ export class GraphNode extends MobxLitElement {
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('pointerup', this.handlePointerUp);
     this.removeEventListener('click', this.handleClick as EventListener);
+
+    if (this.debugDisposer) {
+      this.debugDisposer();
+      this.debugDisposer = null;
+    }
   }
 
   private handleTypeChange(e: Event) {
@@ -1160,7 +1073,7 @@ export class GraphNode extends MobxLitElement {
             .name=${input.name}
             type="in"
             .description=${input.description || ''}
-            ?hideLabel="${isPill ? true : this.shouldHideLabel(input.name, 'in', outputs, inputs, connectedPorts)}"
+            ?hideLabel="${isPill ? true : shouldHideLabel(input.name, 'in', inputs, outputs, connectedPorts)}"
           ></graph-port>
         </div>
       `);
@@ -1251,7 +1164,7 @@ export class GraphNode extends MobxLitElement {
 
     return html`
       <div
-        class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''} ${this.hasIoSlider(inputs) ? 'has-io-slider' : ''}"
+        class="node ${isSelected ? 'selected' : ''} ${isQueued ? 'queued' : ''} ${hasIoSlider(this.node.config.typeId, inputs) ? 'has-io-slider' : ''}"
         style="${style}"
         data-state="${state}"
       >
@@ -1260,7 +1173,7 @@ export class GraphNode extends MobxLitElement {
             ${inputElements}
           </div>
           <div class="outputs">
-            ${this.renderOutputs(outputs, inputs, connectedPorts, isPill)}
+            ${renderOutputs(this.node.id, outputs, inputs, connectedPorts, isPill, (name) => this.renderDebugValue(name))}
           </div>
         </div>
         <div class="node-main-content">
@@ -1315,60 +1228,5 @@ export class GraphNode extends MobxLitElement {
     `;
   }
 
-  private renderOutputs(outputs: PortHint[], inputs: PortHint[], connectedPorts: Set<any>, isPill: boolean) {
-    return outputs.map((output, index) => {
-      const top = isPill ? 11 : (HEADER_HEIGHT + index * ROW_HEIGHT); // 11px for single pill output
-      return html`
-            <div class="port-wrapper" style="top: ${top}px; position: absolute; right: 0;">
-              ${this.renderDebugValue(output.name)}
-              <graph-port
-                .nodeId=${this.node.id}
-                .name=${output.name}
-                type="out"
-                .description=${output.description || ''}
-                ?hideLabel="${isPill ? true : this.shouldHideLabel(output.name, 'out', outputs, inputs, connectedPorts)}"
-              ></graph-port>
-            </div>
-          `;
-    });
-  }
 
-  private hasIoSlider(inputs: PortHint[]): boolean {
-    if (this.node.config.typeId !== 'io.input') return false;
-    if (inputs.length !== 1) return false;
-    const input = inputs[0];
-    return input.type.kind === 'atomic' && input.type.type === 'number';
-  }
-
-  private shouldHideLabel(portName: string, type: 'in' | 'out', outputs: PortHint[], inputs: PortHint[], connectedPorts: Set<any>): boolean {
-    // For Pill, we hide labels in the loop directly, but let's keep this clean.
-
-    if (type === 'in') {
-      const input = inputs.find(i => i.name === portName);
-      if (input) {
-        if (input.suppressLabel) return true;
-        const isConnected = connectedPorts.has(input.name);
-        if (shouldShowInputEditor(input, isConnected)) {
-          // If we are showing an editor, we hide the label
-          return true;
-        }
-      }
-    }
-
-    if (type === 'out') {
-      const output = outputs.find(o => o.name === portName);
-      if (output && output.suppressLabel) return true;
-
-      const outputIndex = outputs.findIndex(o => o.name === portName);
-      if (outputIndex !== -1 && outputIndex < inputs.length) {
-        const input = inputs[outputIndex];
-        const isConnected = connectedPorts.has(input.name);
-        if (shouldShowInputEditor(input, isConnected)) {
-          // Corresponding input has an editor, so hide output label too
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 }

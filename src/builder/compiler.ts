@@ -402,6 +402,8 @@ export function compileGraph(
   Object.keys(flatNodes).forEach(nodeId => inDegree.set(nodeId, 0));
 
   flatConnections.forEach((conn, index) => {
+    if (!flatNodes[conn.fromNode] || !flatNodes[conn.toNode]) return;
+
     if (!adjacency.has(conn.fromNode)) {
       adjacency.set(conn.fromNode, []);
     }
@@ -440,7 +442,9 @@ export function compileGraph(
     }
   }
 
-  const validConnections = flatConnections.filter((_, index) => validConnectionIndices.has(index));
+  const validConnections = flatConnections
+    .filter((_, index) => validConnectionIndices.has(index))
+    .filter(c => flatNodes[c.fromNode] && flatNodes[c.toNode]);
 
   // --- Type Compilation Passes ---
 
