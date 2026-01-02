@@ -50,12 +50,6 @@ export interface NodeType {
   getBodyHeight?: (node: GridNode) => number;
 
   /**
-   * For dynamic nodes (like Subgraphs), allows resolving actual ports at runtime
-   * based on internal state or sub-graph definition.
-   */
-  compilePorts?: (node: GridNode, context: any) => { inputs: PortHint[], outputs: PortHint[] };
-
-  /**
    * A custom Lit-element renderer for the node's inspector content.
    */
   renderInspector?: (node: GridNode, onchange: InspectorChangeHandler) => unknown;

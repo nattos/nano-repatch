@@ -58,8 +58,9 @@ export const primitive_input: PrimitiveNodeDefinition = {
       outputs: { kind: 'record', fields: { 'value': valType } }
     };
   },
-  execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    const val = input.fields['value'];
+  execute: (input: StructorRecord, config: any, context: ExecutionContext) => {
+    const portName = config.name || 'value';
+    const val = input.fields[portName] !== undefined ? input.fields[portName] : input.fields['value'];
     return { fields: { 'value': val } };
   }
 };

@@ -32,7 +32,6 @@ export class GraphExecutor {
     dirtyNodeIds?: string[]
   ) {
     this.inferredNodeTypes = inferredNodeTypes;
-    this.executionOrder = graph.executionOrder || [];
 
     // Build downstream map for dirty propagation
     for (const conn of graph.connections) {
@@ -42,10 +41,39 @@ export class GraphExecutor {
       this.downstreamMap.get(conn.fromNode)!.push(conn.toNode);
     }
 
+    // Split execution order
+    this.splitExecutionOrder(graph.executionOrder || []);
+
     this.initializeStates(initialStates, dirtyNodeIds);
   }
 
-  // private compile() { ... } // Removed
+  private mainExecutionOrder: string[] = [];
+  // OwnerId -> Tag -> NodeIds[]
+  private taggedExecutionOrders: Map<string, Map<string, string[]>> = new Map();
+
+  private splitExecutionOrder(fullOrder: string[]) {
+    this.mainExecutionOrder = [];
+    this.taggedExecutionOrders.clear();
+
+    for (const nodeId of fullOrder) {
+      const node = this.graph.nodes[nodeId];
+      if (node.executionTag && node.executionOwnerId) {
+        // console.log(`[Executor] Node ${nodeId} Tagged tag=${node.executionTag} owner=${node.executionOwnerId}`);
+        if (!this.taggedExecutionOrders.has(node.executionOwnerId)) {
+          this.taggedExecutionOrders.set(node.executionOwnerId, new Map());
+        }
+        const tagMap = this.taggedExecutionOrders.get(node.executionOwnerId)!;
+        if (!tagMap.has(node.executionTag)) {
+          tagMap.set(node.executionTag, []);
+        }
+        tagMap.get(node.executionTag)!.push(nodeId);
+      } else {
+        this.mainExecutionOrder.push(nodeId);
+      }
+    }
+
+
+  }
 
   public getInferredNodeTypes() {
     return this.inferredNodeTypes;
@@ -54,7 +82,6 @@ export class GraphExecutor {
   public getNodeState(nodeId: string): NodeState | undefined {
     return this.nodeStates.get(nodeId);
   }
-
 
   private initializeStates(initialStates?: Map<string, NodeState>, dirtyNodeIds?: string[]) {
     const explicitDirtySet = new Set(dirtyNodeIds || []);
@@ -99,13 +126,6 @@ export class GraphExecutor {
     }
   }
 
-  // Also recover userNodeStates (internal state of nodes)
-  // We need to pass this in too?
-  // The `NodeState` interface doesn't include `userNodeStates`.
-  // `userNodeStates` is a separate map in `GraphExecutor`.
-  // We need to handle that too.
-
-
   public setInput(inputName: string, value: Structor): void {
     this.graphInputs.set(inputName, value);
     const connection = this.graph.inputs[inputName];
@@ -120,8 +140,6 @@ export class GraphExecutor {
       // 1. Normalize Config: If definition specifies a Record config, move top-level props to 'fields'
       const nodeDef = this.repository.get(state.definitionId);
       const configType = (nodeDef as PrimitiveNodeDefinition)?.configType;
-
-
 
       let normalizedConfig = config;
 
@@ -175,11 +193,6 @@ export class GraphExecutor {
         // Direct replacement (primitive or array)
         state.config = normalizedConfig;
       }
-      // Re-fetch definition or cast existing? We have nodeDef but need to match original logic if it used instance.
-      // Original logic:
-      // const instance = this.graph.nodes[nodeId];
-      // const definition = this.repository.get(instance.definitionId);
-      // We can reuse nodeDef as it comes from state.definitionId which is initialized from instance.definitionId.
 
       // Update isRealtime based on new FULL config
       state.isRealtime = (nodeDef as Partial<PrimitiveNodeDefinition>)?.isRealtime?.(state.config ?? { fields: {} }) ?? false;
@@ -194,9 +207,6 @@ export class GraphExecutor {
   public hasNode(nodeId: string): boolean {
     return this.nodeStates.has(nodeId);
   }
-
-
-  // Method merged/restored below
 
   public markDirty(nodeId: string): void {
     const state = this.nodeStates.get(nodeId);
@@ -218,195 +228,207 @@ export class GraphExecutor {
       }
     }
 
-    // console.log(`[Executor] Update start. Node count: ${this.executionOrder.length}`);
-    for (const nodeId of this.executionOrder) {
-      const state = this.nodeStates.get(nodeId)!;
-      if (!state.isDirty) continue;
-
-      const instance = this.graph.nodes[nodeId];
-      const definition = this.repository.get(instance.definitionId);
-
-      if (!definition || definition.kind !== 'primitive') {
-        if (!definition) console.warn(`Definition not found for node ${nodeId} (defId: ${instance.definitionId})`);
-        continue;
-      }
-
-      // 2. Collect inputs
-      const inputRecord: StructorRecord = { fields: {} };
-
-      const nodeType = this.repository.getNodeType(instance.definitionId);
-
-      // Helper to aggregate inputs
-      const inputsByPort = new Map<string, Structor[]>();
-
-      const addToPort = (port: string, value: Structor) => {
-        if (!inputsByPort.has(port)) {
-          inputsByPort.set(port, []);
-        }
-        inputsByPort.get(port)!.push(value);
-      };
-
-      // Collect inputs from connections
-      if (this.graph.connections) {
-        for (const conn of this.graph.connections) {
-          if (conn.toNode === nodeId) {
-            const sourceNode = conn.fromNode;
-            const sourcePort = conn.fromPort;
-
-            const sourceState = this.nodeStates.get(sourceNode);
-            const sourceOutput = sourceState ? sourceState.output : undefined;
-
-            if (sourceOutput && sourceOutput.fields) {
-              if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
-                const value = sourceOutput.fields[sourcePort];
-                addToPort(conn.toPort.toString(), value);
-              }
-            }
-          }
-        }
-      }
-
-
-      for (const [graphInputName, conn] of Object.entries(this.graph.inputs)) {
-        if (conn.nodeId === nodeId) {
-          const value = this.graphInputs.get(graphInputName);
-          if (value !== undefined) {
-            addToPort(conn.port.toString(), value);
-          }
-        }
-      }
-
-      // Handle virtual inputs (values from config)
-      if (state.config && typeof state.config === 'object' && 'values' in state.config) {
-        const values = (state.config as any).values;
-        if (values && typeof values === 'object') {
-          for (const [portName, value] of Object.entries(values)) {
-            // Only use virtual input if the port is NOT already connected/set
-            if (!inputsByPort.has(portName)) {
-              addToPort(portName, value as Structor);
-            }
-          }
-        }
-      }
-
-      // Apply default values from Node Definition
-      // AND resolve final input shape (Scalar vs Array)
-
-      const inputSchema = nodeType?.inputs;
-
-      // Process collected inputs into final record
-      // We iterate over everything we collected, plus defaults for missing ones.
-
-      const allPorts = new Set<string>([...inputsByPort.keys()]);
-      const inputSchemaMap = new Map<string, any>();
-
-      if (Array.isArray(inputSchema)) {
-        inputSchema.forEach(p => {
-          allPorts.add(p.name);
-          inputSchemaMap.set(p.name, p);
-        });
-      } else if (inputSchema) {
-        Object.entries(inputSchema).forEach(([k, v]) => {
-          allPorts.add(k);
-          inputSchemaMap.set(k, v);
-        });
-      }
-
-      // Process collected inputs into final record
-      // We iterate over everything we collected, plus defaults for missing ones.
-
-
-
-      for (const port of allPorts) {
-        const schema = inputSchemaMap.get(port);
-        // console.error(`[Executor] schema check port=${port}`, JSON.stringify(schema));
-        const values = inputsByPort.get(port);
-        // console.error(`[Executor] schema check port=${port}`, JSON.stringify(schema));
-
-        // Determine if it expects an array input
-        // schema matches PortHint interface or StructorType
-        const schemaType = schema ? (schema.type || schema) : undefined;
-        const isArrayType = schemaType && schemaType.kind === 'array';
-
-        if (values && values.length > 0) {
-          // console.error(`[Executor] Collecting inputs for node=${nodeId} port=${port} values=`, JSON.stringify(values));
-          const lastValue = values[values.length - 1];
-          // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
-          // Only collect if input is NOT array (merging scalars or elements).
-          // UNLESS explicit allowMultiConnection is set.
-          if (schema && schema.allowMultiConnection) {
-            // console.error(`[Executor] allowMultiConnection detected for ${port} values=`, JSON.stringify(values));
-            inputRecord.fields[port] = values;
-          } else if (isArrayType && !Array.isArray(lastValue)) {
-            // It expects array, but getting scalars -> collect all
-            inputRecord.fields[port] = values;
-          } else {
-            // It expects scalar OR input is already array -> take last
-            inputRecord.fields[port] = lastValue;
-          }
-        } else {
-          // No values connected. Check default.
-          // Note: Virtual inputs (config.values) were already added to inputsByPort above.
-          if (schema && schema.defaultValue !== undefined) {
-            inputRecord.fields[port] = schema.defaultValue;
-          }
-        }
-      }
-
-      const executionContext: ExecutionContext = {
-        ...context,
-        // Ensure required properties are present if not in context (though context is partial)
-        // Actually, we provide the missing parts below.
-        // But TypeScript might complain if we spread Partial into ExecutionContext.
-        // We need to construct it carefully.
-
-        // We need to provide defaults for clock if missing
-        clock: context.clock ?? { beat: 0, dt: 0 },
-        audio: context.audio,
-        broadcast: (config, inputs) => broadcast(config, inputs),
-        repository: this.repository,
-        nodeState: this.userNodeStates,
-        nodeId: nodeId,
-        requestUiOutputs: true, // Always true for now as requested
-        markSelfDirty: () => {
-          nodesToDirtyNextFrame.add(nodeId);
-        }
-      };
-
-      // Execute
-      try {
-        // Capture inputs if requested
-        if ((definition as any).inspectInputs) {
-          this.inspectedInputs.set(nodeId, inputRecord);
-        }
-
-        const result = definition.execute(inputRecord, state.config as any, executionContext);
-
-        // Handle result (ExecuteResult)
-        if ('outputs' in result && 'ui' in result) {
-          state.output = result.outputs;
-          (state as any).uiOutput = result.ui;
-        } else if ('outputs' in result) {
-          state.output = result.outputs as StructorRecord;
-          // No UI output
-          (state as any).uiOutput = undefined;
-        } else {
-          state.output = result as StructorRecord;
-          (state as any).uiOutput = undefined;
-        }
-
-        state.isDirty = false;
-      } catch (error) {
-        console.error(`Error executing node ${nodeId} (${definition.id}):`, error);
-        throw error; // Re-throw to stop execution or handle gracefully
-      }
+    for (const nodeId of this.mainExecutionOrder) {
+      this.executeNode(nodeId, context, nodesToDirtyNextFrame);
     }
 
     // Process re-dirty requests for the next frame
     for (const nodeId of nodesToDirtyNextFrame) {
       this.markDirty(nodeId);
     }
-    // No need to clear local variable
+  }
+
+  private executeNode(nodeId: string, context: Partial<ExecutionContext>, nodesToDirtyNextFrame: Set<string>) {
+    const state = this.nodeStates.get(nodeId)!;
+    if (!state.isDirty) return;
+
+    const instance = this.graph.nodes[nodeId];
+    const definition = this.repository.get(instance.definitionId);
+
+    if (!definition || definition.kind !== 'primitive') {
+      if (!definition) console.warn(`Definition not found for node ${nodeId} (defId: ${instance.definitionId})`);
+      return;
+    }
+
+    // 2. Collect inputs
+    const inputRecord: StructorRecord = { fields: {} };
+
+    const nodeType = this.repository.getNodeType(instance.definitionId);
+
+    // Helper to aggregate inputs
+    const inputsByPort = new Map<string, Structor[]>();
+
+    const addToPort = (port: string, value: Structor) => {
+      if (!inputsByPort.has(port)) {
+        inputsByPort.set(port, []);
+      }
+      inputsByPort.get(port)!.push(value);
+    };
+
+    // Collect inputs from connections
+    if (this.graph.connections) {
+      for (const conn of this.graph.connections) {
+        if (conn.toNode === nodeId) {
+          const sourceNode = conn.fromNode;
+          const sourcePort = conn.fromPort;
+
+          const sourceState = this.nodeStates.get(sourceNode);
+          const sourceOutput = sourceState ? sourceState.output : undefined;
+
+          if (sourceOutput && sourceOutput.fields) {
+            if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
+              const value = sourceOutput.fields[sourcePort];
+              addToPort(conn.toPort.toString(), value);
+            }
+          }
+        }
+      }
+    }
+
+    for (const [graphInputName, conn] of Object.entries(this.graph.inputs)) {
+      if (conn.nodeId === nodeId) {
+        const value = this.graphInputs.get(graphInputName);
+        if (value !== undefined) {
+          addToPort(conn.port.toString(), value);
+        }
+      }
+    }
+
+    // Handle virtual inputs (values from config)
+    if (state.config && typeof state.config === 'object' && 'values' in state.config) {
+      const values = (state.config as any).values;
+      if (values && typeof values === 'object') {
+        for (const [portName, value] of Object.entries(values)) {
+          // Only use virtual input if the port is NOT already connected/set
+          if (!inputsByPort.has(portName)) {
+            addToPort(portName, value as Structor);
+          }
+        }
+      }
+    }
+
+    // Apply default values from Node Definition
+    // AND resolve final input shape (Scalar vs Array)
+
+    const inputSchema = nodeType?.inputs;
+
+    // Process collected inputs into final record
+    // We iterate over everything we collected, plus defaults for missing ones.
+
+    const allPorts = new Set<string>([...inputsByPort.keys()]);
+    const inputSchemaMap = new Map<string, any>();
+
+    if (Array.isArray(inputSchema)) {
+      inputSchema.forEach(p => {
+        allPorts.add(p.name);
+        inputSchemaMap.set(p.name, p);
+      });
+    } else if (inputSchema) {
+      Object.entries(inputSchema).forEach(([k, v]) => {
+        allPorts.add(k);
+        inputSchemaMap.set(k, v);
+      });
+    }
+
+    // Process collected inputs into final record
+    // We iterate over everything we collected, plus defaults for missing ones.
+
+    for (const port of allPorts) {
+      const schema = inputSchemaMap.get(port);
+      const values = inputsByPort.get(port);
+
+      // Determine if it expects an array input
+      // schema matches PortHint interface or StructorType
+      const schemaType = schema ? (schema.type || schema) : undefined;
+      const isArrayType = schemaType && schemaType.kind === 'array';
+
+      if (values && values.length > 0) {
+        const lastValue = values[values.length - 1];
+        // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
+        // Only collect if input is NOT array (merging scalars or elements).
+        // UNLESS explicit allowMultiConnection is set.
+        if (schema && schema.allowMultiConnection) {
+          // console.error(`[Executor] allowMultiConnection detected for ${port} values=`, JSON.stringify(values));
+          inputRecord.fields[port] = values;
+        } else if (isArrayType && !Array.isArray(lastValue)) {
+          // It expects array, but getting scalars -> collect all
+          inputRecord.fields[port] = values;
+        } else {
+          // It expects scalar OR input is already array -> take last
+          inputRecord.fields[port] = lastValue;
+        }
+      } else {
+        // No values connected. Check default.
+        // Note: Virtual inputs (config.values) were already added to inputsByPort above.
+        if (schema && schema.defaultValue !== undefined) {
+          inputRecord.fields[port] = schema.defaultValue;
+        }
+      }
+    }
+
+    const executionContext: ExecutionContext = {
+      ...context,
+      // Ensure required properties are present if not in context (though context is partial)
+      // Actually, we provide the missing parts below.
+      // But TypeScript might complain if we spread Partial into ExecutionContext.
+      // We need to construct it carefully.
+
+      // We need to provide defaults for clock if missing
+      clock: context.clock ?? { beat: 0, dt: 0 },
+      audio: context.audio,
+      broadcast: (config, inputs) => broadcast(config, inputs),
+      repository: this.repository,
+      nodeState: this.userNodeStates,
+      nodeId: nodeId,
+      requestUiOutputs: true, // Always true for now as requested
+      markSelfDirty: () => {
+        nodesToDirtyNextFrame.add(nodeId);
+      },
+      executeSubgraph: (tag: string) => {
+        if (this.taggedExecutionOrders.has(nodeId)) {
+          const tagMap = this.taggedExecutionOrders.get(nodeId)!;
+          if (tagMap.has(tag)) {
+            const subgraphNodes = tagMap.get(tag)!;
+            // Execute all nodes in the subgraph
+            for (const subNodeId of subgraphNodes) {
+              // Force dirty to ensure execution
+              const subState = this.nodeStates.get(subNodeId);
+              if (subState) subState.isDirty = true;
+
+              this.executeNode(subNodeId, context, nodesToDirtyNextFrame);
+            }
+          }
+        }
+      }
+    };
+
+    // Execute
+    try {
+      // Capture inputs if requested
+      if ((definition as any).inspectInputs) {
+        this.inspectedInputs.set(nodeId, inputRecord);
+      }
+
+      const result = definition.execute(inputRecord, state.config as any, executionContext);
+
+      // Handle result (ExecuteResult)
+      if ('outputs' in result && 'ui' in result) {
+        state.output = result.outputs;
+        (state as any).uiOutput = result.ui;
+      } else if ('outputs' in result) {
+        state.output = result.outputs as StructorRecord;
+        // No UI output
+        (state as any).uiOutput = undefined;
+      } else {
+        state.output = result as StructorRecord;
+        (state as any).uiOutput = undefined;
+      }
+
+      state.isDirty = false;
+    } catch (error) {
+      console.error(`Error executing node ${nodeId} (${definition.id}):`, error);
+      throw error; // Re-throw to stop execution or handle gracefully
+    }
   }
 
   public getOutputs(): Map<string, StructorRecord> {

@@ -1,7 +1,8 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { AnyType, NumberType, StringType } from "../../structor/type-helpers";
 import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
-import { NodeCategory } from "../../structor/structor";
+import { NodeCategory, StructorType } from "../../structor/structor";
+import { anyType, numberType } from "../../structor/std-types";
 
 // Singleton instances for compilation and execution
 const compiler = new GraphCompiler();
@@ -58,8 +59,8 @@ export const expressionNode = defineNode({
       graph: graph as any
     };
   },
-  compilePorts: (node, context) => {
-    const code = node.config.code || '';
+  computeForwardPorts: (inputTypes, uiConfig) => {
+    const code = uiConfig.code || '';
     const graph = getCompiledGraph(code);
 
     // Find all input nodes
@@ -70,15 +71,15 @@ export const expressionNode = defineNode({
       }
     }
 
-    const inputs = Array.from(inputNames).map(name => ({
-      name,
-      type: NumberType, // Assume numbers for math expressions
-      description: `Variable ${name}`
-    }));
+    const inputs: Array<[string, StructorType]> = Array.from(inputNames).map(name =>
+      [name, {
+        ...numberType, // Assume numbers for math expressions
+        description: `Variable ${name}`
+      }]);
 
     return {
-      inputs,
-      outputs: [{ name: 'result', type: AnyType, description: 'Result' }]
+      inputs: { kind: 'record', fields: Object.fromEntries(inputs) },
+      outputs: { kind: 'record', fields: { result: { ...anyType, description: 'Result' } } }
     };
   },
   execute: (inputs, config, context) => {

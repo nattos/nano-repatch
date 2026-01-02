@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { expressionNode } from './nodes';
 import { ExecutionGraph } from './parser';
-import { AnyType } from '../../structor/type-helpers';
 
 describe('Expression Node Optimization', () => {
   const code = 'a * 2';
@@ -38,10 +37,12 @@ describe('Expression Node Optimization', () => {
     const node = { config: { code } };
 
     // Reset cache or ensure compilePorts logic prioritizes context
-    const ports = expressionNode.compilePorts!(node, context);
+    const ports = expressionNode.computeForwardPorts!({}, node.config, context);
 
-    expect(ports?.inputs).toHaveLength(1);
-    expect(ports?.inputs[0].name).toBe('a');
+    // computeForwardPorts returns { inputs: { ... }, outputs: ... }
+    // fields are in inputs.fields
+    expect(Object.keys(ports?.inputs?.fields || {})).toHaveLength(1);
+    expect(Object.keys(ports?.inputs?.fields || {})[0]).toBe('a');
   });
 
   it('compilePorts should fallback to parsing if compiledConfig missing', () => {
@@ -51,9 +52,9 @@ describe('Expression Node Optimization', () => {
     };
     const node = { config: { code: 'b + 1' } };
 
-    const ports = expressionNode.compilePorts!(node, context);
-    expect(ports?.inputs).toHaveLength(1);
-    expect(ports?.inputs[0].name).toBe('b');
+    const ports = expressionNode.computeForwardPorts!({}, node.config, context);
+    expect(Object.keys(ports?.inputs?.fields || {})).toHaveLength(1);
+    expect(Object.keys(ports?.inputs?.fields || {})[0]).toBe('b');
   });
 
   // 3. Verify execute

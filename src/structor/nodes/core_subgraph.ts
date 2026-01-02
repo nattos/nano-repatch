@@ -45,8 +45,59 @@ export function resolvePortName(name: string, index: number, total: number, kind
   return name.replace(/#/g, replacement);
 }
 
+export const computeSubgraphPorts = (inputType: any, config: any, context: any) => {
+  // Access loadedSubgraphs from context (injected by compiler)
+  const ctx = context as SubgraphAnalysisContext;
+  const loadedSubgraphs = ctx.loadedSubgraphs;
+
+  if (!loadedSubgraphs) {
+    return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
+  }
+
+  // FIXME: There's a widespread problem where configs are typed as Structors, but they aren't actually.
+  const subgraphId = (config as any as SubgraphConfig).subgraphId;
+  const subgraph = loadedSubgraphs.get(subgraphId);
+
+  if (subgraph) {
+    const subgraphNodes = Object.values(subgraph.inner.nodes);
+
+    // Compute Inputs from Subgraph Inputs
+    const inputFields: Record<string, StructorType> = {};
+    const inputNodes = subgraphNodes
+      .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+      .sort((a, b) => a.y - b.y);
+
+    inputNodes.forEach((n, i) => {
+      let name = (n.config as any).name || 'value';
+      name = resolvePortName(name, i, inputNodes.length, 'input');
+      const inferred = inferTypeFromConfig(n.config);
+      inputFields[name] = inferred || { kind: 'atomic', type: 'any' };
+    });
+
+    // Compute Outputs from Subgraph Outputs
+    const outputFields: Record<string, StructorType> = {};
+    const outputNodes = subgraphNodes
+      .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+      .sort((a, b) => a.y - b.y);
+
+    outputNodes.forEach((n, i) => {
+      let name = (n.config as any).name || 'value';
+      name = resolvePortName(name, i, outputNodes.length, 'output');
+      outputFields[name] = { kind: 'atomic', type: 'any' };
+    });
+
+    return {
+      inputs: { kind: 'record', fields: inputFields },
+      outputs: { kind: 'record', fields: outputFields }
+    };
+  }
+
+  return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
+};
+
 export const primitive_subgraph = definePrimitiveNode({
   id: 'core.subgraph',
+  subgraphExpansionTag: 'inline',
   metadata: {
     category: NodeCategory.Core,
     keywords: ['nested', 'graph'],
@@ -73,55 +124,7 @@ export const primitive_subgraph = definePrimitiveNode({
     }
     return undefined;
   },
-  computeForwardPorts: (inputType, config, context) => {
-    // Access loadedSubgraphs from context (injected by compiler)
-    const ctx = context as SubgraphAnalysisContext;
-    const loadedSubgraphs = ctx.loadedSubgraphs;
-
-    if (!loadedSubgraphs) {
-      return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
-    }
-
-    // FIXME: There's a widespread problem where configs are typed as Structors, but they aren't actually.
-    const subgraphId = (config as any as SubgraphConfig).subgraphId;
-    const subgraph = loadedSubgraphs.get(subgraphId);
-
-    if (subgraph) {
-      const subgraphNodes = Object.values(subgraph.inner.nodes);
-
-      // Compute Inputs from Subgraph Inputs
-      const inputFields: Record<string, StructorType> = {};
-      const inputNodes = subgraphNodes
-        .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
-        .sort((a, b) => a.y - b.y);
-
-      inputNodes.forEach((n, i) => {
-        let name = (n.config as any).name || 'value';
-        name = resolvePortName(name, i, inputNodes.length, 'input');
-        const inferred = inferTypeFromConfig(n.config);
-        inputFields[name] = inferred || { kind: 'atomic', type: 'any' };
-      });
-
-      // Compute Outputs from Subgraph Outputs
-      const outputFields: Record<string, StructorType> = {};
-      const outputNodes = subgraphNodes
-        .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-        .sort((a, b) => a.y - b.y);
-
-      outputNodes.forEach((n, i) => {
-        let name = (n.config as any).name || 'value';
-        name = resolvePortName(name, i, outputNodes.length, 'output');
-        outputFields[name] = { kind: 'atomic', type: 'any' };
-      });
-
-      return {
-        inputs: { kind: 'record', fields: inputFields },
-        outputs: { kind: 'record', fields: outputFields }
-      };
-    }
-
-    return { inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } };
-  },
+  computeForwardPorts: computeSubgraphPorts,
   execute: (input: any, config: any, context: ExecutionContext) => {
     // Subgraph execution logic would go here.
     return { fields: {} };

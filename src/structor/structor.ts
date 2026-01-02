@@ -108,6 +108,7 @@ export interface ExecutionContext {
   requestUiOutputs?: boolean;
   time?: number; // Absolute time in seconds
   markSelfDirty?: () => void;
+  executeSubgraph?: (tag: string) => void;
 };
 
 
@@ -212,6 +213,14 @@ export interface PrimitiveNodeDefinition {
   ) => any;
 
   getDisplayLabel?: (config: Structor) => string | undefined;
+
+  /**
+   * Defines a tag for subgraph expansion.
+   * If present, the compiler will expand this node as a subgraph.
+   * "inline" means standard inline expansion.
+   * Any other string means the nodes are expanded but deferred/conditional.
+   */
+  subgraphExpansionTag?: string;
 }
 
 /**
@@ -234,6 +243,8 @@ export interface GraphDefinition {
 export interface NodeInstance {
   definitionId: string;
   defaultConfig?: Structor;
+  executionTag?: string; // If set, this node is not part of the main execution loop
+  executionOwnerId?: string; // The ID of the node that "owns" this subgraph (e.g. the thensubgraph node)
 }
 
 

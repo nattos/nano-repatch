@@ -9,6 +9,7 @@ import * as Utils from './nodes/utils';
 import * as IOInput from './nodes/io_input';
 import * as IOOutput from './nodes/io_output';
 import * as CoreSubgraph from './nodes/core_subgraph';
+import * as CoreThenSubgraph from './nodes/core_thensubgraph';
 import * as CorePack from './nodes/core_pack';
 import * as CoreUnpack from './nodes/core_unpack';
 import * as DataLiteral from './nodes/data_literal';
@@ -24,6 +25,7 @@ export * from './nodes/utils';
 export * from './nodes/io_input';
 export * from './nodes/io_output';
 export * from './nodes/core_subgraph';
+export * from './nodes/core_thensubgraph';
 export * from './nodes/core_pack';
 export * from './nodes/core_unpack';
 export * from './nodes/data_literal';
@@ -33,7 +35,7 @@ export * from './nodes/functional';
 // Aggregate ALL_PRIMITIVES for tests and legacy registration tools
 const modules = [
   Binary, Unary, List, Constants, Utils, IOInput, IOOutput,
-  CoreSubgraph, CorePack, CoreUnpack, DataLiteral, DataHub, Functional
+  CoreSubgraph, CoreThenSubgraph, CorePack, CoreUnpack, DataLiteral, DataHub, Functional
 ];
 
 export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = modules.flatMap(mod =>

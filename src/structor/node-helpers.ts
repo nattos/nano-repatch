@@ -113,8 +113,8 @@ export interface EnhancedNodeOptions<
   displayName?: string;
   aliases?: string[];
   compileConfig?: (uiConfig: TUIConfig) => any; // Returns TCompiledConfig (raw values struct) or just any
-  compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
   getDisplayLabel?: (uiConfig: TUIConfig) => string | undefined;
+  subgraphExpansionTag?: string;
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
@@ -154,8 +154,8 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   displayName: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
-  compilePorts?: (node: any, context: any) => { inputs: PortHint[], outputs: PortHint[] };
   getDisplayLabel?: (uiConfig: any) => string | undefined;
+  subgraphExpansionTag?: string; // Inherited from PrimitiveNodeDefinition but explicit here for clarity if needed
   extendedInputs?: ExtendedNodeInputsDef;
   extendedOutputs?: ExtendedNodeOutputsDef;
 
@@ -241,8 +241,8 @@ export function defineNode<
     displayName: options.displayName || options.id,
     aliases: options.aliases,
     compileConfig: options.compileConfig,
-    compilePorts: options.compilePorts,
     getDisplayLabel: options.getDisplayLabel,
+    subgraphExpansionTag: options.subgraphExpansionTag,
     extendedInputs: options.inputs,
     extendedOutputs: options.outputs,
 
@@ -296,7 +296,6 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inputs,
     outputs,
     compileConfig: def.compileConfig,
-    compilePorts: def.compilePorts,
     getDisplayLabel: def.getDisplayLabel,
 
     inspectInputs: def.inspectInputs,
