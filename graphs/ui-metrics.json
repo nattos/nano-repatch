@@ -1799,7 +1799,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",
@@ -1910,7 +1910,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",
@@ -1947,7 +1947,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -1976,7 +1976,7 @@
                 "defaultValue": 0
               },
               "size": 4,
-              "hint": "vec4"
+              "hint": "float4"
             },
             "size": 1
           }
@@ -1999,7 +1999,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -2578,7 +2578,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",

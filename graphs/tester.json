@@ -1916,7 +1916,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",
@@ -2027,7 +2027,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",
@@ -2064,7 +2064,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -2093,7 +2093,7 @@
                 "defaultValue": 0
               },
               "size": 4,
-              "hint": "vec4"
+              "hint": "float4"
             },
             "size": 1
           }
@@ -2116,7 +2116,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -2742,7 +2742,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           },
           "ch1": {
             "kind": "atomic",
@@ -2799,7 +2799,7 @@
               "defaultValue": 0
             },
             "size": 4,
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -2882,7 +2882,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       }
@@ -2915,7 +2915,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -2943,7 +2943,7 @@
             "defaultValue": 0
           }
         },
-        "hint": "vec4"
+        "hint": "float4"
       }
     },
     "node-d66f5099-288b-4b16-958a-32fcef548315": {
@@ -2999,7 +2999,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       }
@@ -3062,7 +3062,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -3090,7 +3090,7 @@
             "defaultValue": 0
           }
         },
-        "hint": "vec4"
+        "hint": "float4"
       }
     },
     "node-702872f8-a238-44f8-ad32-2a6447a9ce99": {
@@ -3356,7 +3356,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       }
@@ -3513,7 +3513,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       },
@@ -3541,7 +3541,7 @@
             "defaultValue": 0
           }
         },
-        "hint": "vec4"
+        "hint": "float4"
       }
     },
     "node-5f33f391-85ff-4e7e-8ecd-cbc2a841a010": {
@@ -3597,7 +3597,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       }

@@ -103,7 +103,7 @@
                 "defaultValue": 0
               }
             },
-            "hint": "vec4"
+            "hint": "float4"
           }
         }
       }

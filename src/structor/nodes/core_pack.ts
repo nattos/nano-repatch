@@ -23,9 +23,9 @@ export const primitive_pack = definePrimitiveNode({
           path: 'targetType',
           options: [
             { label: 'Infer', value: 'infer' },
-            { label: 'Vec2', value: 'float2' },
-            { label: 'Vec3', value: 'float3' },
-            { label: 'Vec4', value: 'float4' }
+            { label: 'float2', value: 'float2' },
+            { label: 'float3', value: 'float3' },
+            { label: 'float4', value: 'float4' }
           ]
         }
       ]
@@ -97,7 +97,7 @@ export const primitive_pack = definePrimitiveNode({
         kind: 'array',
         size: 4,
         element: numberType,
-        hint: 'vec4'
+        hint: 'float4'
       };
     } else if (type === 'float3') {
       inputFields.x = numberType;
@@ -107,7 +107,7 @@ export const primitive_pack = definePrimitiveNode({
         kind: 'array',
         size: 3,
         element: numberType,
-        hint: 'vec3'
+        hint: 'float3'
       };
     } else { // float2
       inputFields.x = numberType;
@@ -116,7 +116,7 @@ export const primitive_pack = definePrimitiveNode({
         kind: 'array',
         size: 2,
         element: numberType,
-        hint: 'vec2'
+        hint: 'float2'
       };
     }
 

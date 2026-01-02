@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orthomod, generateCodes, vec4Type } from './orthomod';
+import { orthomod, generateCodes, float4Type } from './orthomod';
 import { numberType, midiStreamType } from '../../structor/std-types';
 import { AnyType as anyType } from '../../structor/type-helpers';
 import { registerNicePatternUI } from './ui-registration';
@@ -45,7 +45,7 @@ describe('Orthomod Node', () => {
       ],
       outputs: [
         { name: 'env', type: numberType },
-        { name: 'vec', type: vec4Type },
+        { name: 'vec', type: float4Type },
         { name: 'ch1', type: numberType },
         { name: 'ch2', type: numberType },
         { name: 'ch3', type: numberType },

@@ -1,5 +1,5 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
-import { numberType, booleanType, vec4Type, midiEventType, midiStreamType } from "../../structor/std-types";
+import { numberType, booleanType, float4Type, midiEventType, midiStreamType } from "../../structor/std-types";
 import { NumberType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
 
@@ -162,7 +162,7 @@ export const magneto = defineNode({
     },
     outputs: {
         env: { type: numberType, description: "Envelope Output (Tension)" },
-        vec: vec4Type, // [Tension, Ext, Spring, Mag]
+        vec: float4Type, // [Tension, Ext, Spring, Mag]
         ch1: { type: numberType, description: "Channel 1 (Tension)" },
         ch2: { type: numberType, description: "Channel 2 (Extension)" },
         ch3: { type: numberType, description: "Channel 3 (Spring Force)" },

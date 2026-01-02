@@ -154,7 +154,7 @@ export interface PrimitiveNodeDefinition {
     context: AnalysisContext,
   ) => {
     inputRequirements: RecordType;
-    // Arbitrary data to pass to the forward pass (e.g. "I decided to be vec3")
+    // Arbitrary data to pass to the forward pass (e.g. "I decided to be float3")
     backwardMetadata?: any;
   };
 

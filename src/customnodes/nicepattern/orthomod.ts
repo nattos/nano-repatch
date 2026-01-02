@@ -9,7 +9,7 @@ import {
 import {
   numberType,
   midiStreamType,
-  vec4Type
+  float4Type
 } from "../../structor/std-types";
 import { defineType, NumberType } from "../../structor/type-helpers";
 import { SeededRandom } from "./utils";
@@ -103,7 +103,7 @@ export const orthomod = defineNode({
   },
   outputs: {
     env: { type: numberType, description: "Envelope Output (0-1)" },
-    vec: { type: vec4Type, description: "Channel Values [c1, c2, c3, c4]" },
+    vec: { type: float4Type, description: "Channel Values [c1, c2, c3, c4]" },
     ch1: { type: numberType, description: "Channel 1" },
     ch2: { type: numberType, description: "Channel 2" },
     ch3: { type: numberType, description: "Channel 3" },

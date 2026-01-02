@@ -1,0 +1,51 @@
+{
+  "nodes": {
+    "node-b21f93f7-3eeb-4c85-957c-23f4da11b9bf": {
+      "id": "node-b21f93f7-3eeb-4c85-957c-23f4da11b9bf",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "core.subgraph",
+        "name": "#",
+        "values": {
+          "a": 0.25,
+          "#": 0,
+          "x": 0.26,
+          "y": 0.85
+        },
+        "subgraphId": "subgraph-child"
+      }
+    },
+    "node-c0616b7c-dffb-4190-af46-0dda00eb0dac": {
+      "id": "node-c0616b7c-dffb-4190-af46-0dda00eb0dac",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "core.subgraph",
+        "name": "#",
+        "values": {},
+        "subgraphId": "sub.test"
+      }
+    },
+    "node-8068e146-e958-4c7b-b311-6b7ad6b424d0": {
+      "id": "node-8068e146-e958-4c7b-b311-6b7ad6b424d0",
+      "x": 4,
+      "y": 5,
+      "config": {
+        "typeId": "core.unpack",
+        "name": "#",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-97b517e2-5651-416b-9bf8-e29fd4686432": {
+      "id": "conn-97b517e2-5651-416b-9bf8-e29fd4686432",
+      "fromNodeId": "node-c0616b7c-dffb-4190-af46-0dda00eb0dac",
+      "fromPort": "out",
+      "toNodeId": "node-8068e146-e958-4c7b-b311-6b7ad6b424d0",
+      "toPort": "record"
+    }
+  },
+  "inferredNodeTypes": {}
+}

@@ -141,7 +141,7 @@ describe('All Operators Integration', () => {
     expect(getOutput()).toEqual([11, 22, 33]);
   });
 
-  it('should element-wise add multiple Record inputs (vec4): math.all.add({x:1...}, {x:10...}) = {x:11...} or [11...]', () => {
+  it('should element-wise add multiple Record inputs (float4): math.all.add({x:1...}, {x:10...}) = {x:11...} or [11...]', () => {
     const { executor, getOutput } = compileAndRun(
       {
         'v1': { typeId: 'data.literal', config: { value: { x: 1, y: 2, z: 3, w: 4 } } },

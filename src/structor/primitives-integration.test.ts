@@ -5,7 +5,7 @@ import { NodeRepository } from './repository';
 import { ALL_PRIMITIVES } from './primitives';
 import { compileGraph } from '../builder/compiler';
 import { AppState, GridNode, Connection, GraphState } from '../builder/state';
-import { numberType, vec4Type } from './std-types';
+import { numberType, float4Type } from './std-types';
 
 import { compileAndRun } from '../test/integration-utils';
 describe('Primitives Integration', () => {
@@ -113,7 +113,7 @@ describe('Primitives Integration', () => {
     expect(getOutput()).toBe(5);
   });
 
-  it('should unpack vec4 to x, y, z, w', () => {
+  it('should unpack float4 to x, y, z, w', () => {
     const repository = new NodeRepository();
     // Register unpack
     // @ts-ignore
@@ -123,24 +123,24 @@ describe('Primitives Integration', () => {
       version: '1.0.0',
       displayName: 'Unpack',
       definition: unpackDef,
-      inputs: [{ name: 'record', type: vec4Type }],
+      inputs: [{ name: 'record', type: float4Type }],
       outputs: []
     });
 
-    // Register Mock Vec4 Source
+    // Register Mock Float4 Source
     repository.register({
-      id: 'mock.vec4',
+      id: 'mock.float4',
       version: '1.0.0',
-      displayName: 'Vec4',
+      displayName: 'Float4',
       definition: {
-        id: 'mock.vec4',
+        id: 'mock.float4',
         kind: 'primitive',
         metadata: { category: 'Mock' },
-        computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
+        computeOutputTypes: () => ({ kind: 'record', fields: { out: float4Type } }),
         execute: () => ({ fields: { out: [10, 20, 30, 40] } })
       },
       inputs: [],
-      outputs: [{ name: 'out', type: vec4Type }]
+      outputs: [{ name: 'out', type: float4Type }]
     });
 
     // Register Output (Mock)
@@ -164,7 +164,7 @@ describe('Primitives Integration', () => {
       graph: {
         inner: {
           nodes: {
-            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.float4' } },
             'unpack': { id: 'unpack', x: 100, y: 0, config: { typeId: 'core.unpack' } },
             'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
             'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
@@ -196,7 +196,7 @@ describe('Primitives Integration', () => {
       version: '1.0.0',
       displayName: 'Unpack',
       definition: unpackDef,
-      inputs: [{ name: 'record', type: vec4Type }],
+      inputs: [{ name: 'record', type: float4Type }],
       outputs: []
     });
 
@@ -217,20 +217,20 @@ describe('Primitives Integration', () => {
       compileConfig: () => ({ fields: {} })
     });
 
-    // Register Mock Vec4 Source
+    // Register Mock Float4 Source
     repository.register({
-      id: 'mock.vec4',
+      id: 'mock.float4',
       version: '1.0.0',
-      displayName: 'Vec4',
+      displayName: 'Float4',
       definition: {
-        id: 'mock.vec4',
+        id: 'mock.float4',
         kind: 'primitive',
         metadata: { category: 'Mock' },
-        computeOutputTypes: () => ({ kind: 'record', fields: { out: vec4Type } }),
+        computeOutputTypes: () => ({ kind: 'record', fields: { out: float4Type } }),
         execute: () => ({ fields: { out: [10, 20, 30, 40] } })
       },
       inputs: [],
-      outputs: [{ name: 'out', type: vec4Type }],
+      outputs: [{ name: 'out', type: float4Type }],
       compileConfig: () => ({ fields: {} })
     });
 
@@ -255,7 +255,7 @@ describe('Primitives Integration', () => {
       graph: {
         inner: {
           nodes: {
-            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.vec4' } },
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.float4' } },
             'add': { id: 'add', x: 100, y: 0, config: { typeId: 'math.all.add' } },
             'unpack': { id: 'unpack', x: 200, y: 0, config: { typeId: 'core.unpack' } },
             'outX': { id: 'outX', x: 200, y: 0, config: { typeId: 'io.output', name: 'outX' } },
@@ -288,7 +288,7 @@ describe('Primitives Integration', () => {
       version: '1.0.0',
       displayName: 'Unpack',
       definition: unpackDef,
-      inputs: [{ name: 'record', type: vec4Type }],
+      inputs: [{ name: 'record', type: float4Type }],
       outputs: []
     });
 
@@ -309,13 +309,13 @@ describe('Primitives Integration', () => {
       compileConfig: () => ({ fields: {} })
     });
 
-    // Register Mock Record Vec4 Source
+    // Register Mock Record Float4 Source
     repository.register({
-      id: 'mock.rec_vec4',
+      id: 'mock.rec_float4',
       version: '1.0.0',
-      displayName: 'RecVec4',
+      displayName: 'RecFloat4',
       definition: {
-        id: 'mock.rec_vec4',
+        id: 'mock.rec_float4',
         kind: 'primitive',
         metadata: { category: 'Mock' },
         // Use computeForwardPorts instead of computeOutputTypes for Compiler compatibility
@@ -352,7 +352,7 @@ describe('Primitives Integration', () => {
       graph: {
         inner: {
           nodes: {
-            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.rec_vec4' } },
+            'src': { id: 'src', x: 0, y: 0, config: { typeId: 'mock.rec_float4' } },
             'add': { id: 'add', x: 100, y: 0, config: { typeId: 'math.all.add' } },
             'unpack': { id: 'unpack', x: 200, y: 0, config: { typeId: 'core.unpack' } },
             'outW': { id: 'outW', x: 200, y: 100, config: { typeId: 'io.output', name: 'outW' } }
@@ -393,7 +393,7 @@ describe('Primitives Integration', () => {
     expect(getOutput()).toBe(30);
   });
 
-  it('should produce an Array (vec4) when targetType is float4 in core.pack', () => {
+  it('should produce an Array (float4) when targetType is float4 in core.pack', () => {
     const { executor, getOutput } = compileAndRun(
       {
         'x': { typeId: 'data.literal', config: { value: 1 } },
@@ -417,7 +417,7 @@ describe('Primitives Integration', () => {
     expect(Array.isArray(result)).toBe(true);
     expect(result).toEqual([1, 2, 3, 4]);
   });
-  it('should treat two vec4 arrays as two inputs to math.all.add (Vector Math)', () => {
+  it('should treat two float4 arrays as two inputs to math.all.add (Vector Math)', () => {
     const { executor, getOutput } = compileAndRun(
       {
         'vecA': { typeId: 'data.literal', config: { value: [1, 2, 3, 4] } },

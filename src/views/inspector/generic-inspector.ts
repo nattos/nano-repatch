@@ -3,6 +3,7 @@ import { GridNode } from '../../builder/state';
 import { InspectorChangeHandler, defaultNodeRepository } from '../../structor/repository';
 import { ROW_HEIGHT } from '../../constants';
 import { InspectorFieldDef } from '../../structor/node-helpers';
+import '../../views/ui-option-bar';
 
 const getValue = (node: GridNode, path: string, fallback: any) => {
   // 1. Try config value
@@ -92,8 +93,6 @@ const renderSelectField = (node: GridNode, field: Extract<InspectorFieldDef, { t
   </div>
 `;
 
-import '../../views/ui-option-bar';
-
 const renderStructorTypeField = (node: GridNode, field: Extract<InspectorFieldDef, { type: 'structor-type' }>, onchange: InspectorChangeHandler) => html`
   <div class="field" style="height: ${ROW_HEIGHT}px; display: flex; align-items: center; justify-content: space-between;">
     <label style="color: var(--text-muted); font-size: 0.7em;">${field.label}</label>
@@ -101,13 +100,13 @@ const renderStructorTypeField = (node: GridNode, field: Extract<InspectorFieldDe
       <ui-option-bar
         .value=${getValue(node, field.path, field.default ?? 'float')}
         .options=${[
-    { label: 'Float', value: 'float' },
-    { label: 'Vec2', value: 'float2' },
-    { label: 'Vec3', value: 'float3' },
-    { label: 'Vec4', value: 'float4' },
-    { label: 'MIDI', value: 'midi-stream' },
-    { label: 'String', value: 'string' },
-    { label: 'Any', value: 'any' }
+    { label: 'float', value: 'float' },
+    { label: 'float2', value: 'float2' },
+    { label: 'float3', value: 'float3' },
+    { label: 'float4', value: 'float4' },
+    { label: 'midi', value: 'midi-stream' },
+    { label: 'string', value: 'string' },
+    { label: 'any', value: 'any' }
   ]}
         @change=${(e: CustomEvent) => onchange({ [field.path]: e.detail.value })}
       ></ui-option-bar>

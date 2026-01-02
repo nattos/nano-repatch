@@ -1,6 +1,6 @@
 
 import { defineNode, registerNode } from "../../structor/node-helpers";
-import { numberType, vec4Type } from "../../structor/std-types";
+import { numberType, float4Type } from "../../structor/std-types";
 import { VirtualAudioContext, VirtualOscillatorNode, VirtualGainNode } from "../../audio/virtual-audio";
 
 interface Tone4State {
@@ -34,7 +34,7 @@ export const tone4 = defineNode({
     description: '4-voice additive synth driven by vector input.'
   },
   inputs: {
-    vec: { type: vec4Type, description: "Modulation Vector [c1, c2, c3, c4]" },
+    vec: { type: float4Type, description: "Modulation Vector [c1, c2, c3, c4]" },
     root: { type: numberType, defaultValue: 60, description: "Root Note (MIDI)", range: [0, 127] },
     gain: { type: numberType, defaultValue: 0.5, description: "Master Volume" }
   },

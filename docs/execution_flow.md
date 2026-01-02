@@ -58,8 +58,8 @@ If a config change affects ports (e.g., changing 'Pack' node from Float2 to Floa
 Some nodes (like `Pack`, `Unpack`, `Math`) have dynamic ports that depend on their configuration or connected neighbors.
 
 1.  **Compiler (Inference Pass):**
-    *   **Backward Pass:** Propagates type requirements from outputs to inputs (e.g., "Result connected to Vec4 input -> I should be Vec4").
-    *   **Forward Pass:** Computes actual types based on config and backward hints (e.g., "Config is 'Vec3' -> I am Vec3").
+    *   **Backward Pass:** Propagates type requirements from outputs to inputs (e.g., "Result connected to Float4 input -> I should be Float4").
+    *   **Forward Pass:** Computes actual types based on config and backward hints (e.g., "Config is 'Float3' -> I am Float3").
     *   **Result:** `inferredNodeTypes` map containing exact `RecordType` for inputs/outputs.
 
 2.  **Sync to UI:**

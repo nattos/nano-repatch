@@ -10,10 +10,10 @@ import { AnalysisContext, NodeCategory, PrimitiveNodeDefinition, StructorType } 
 
 // --- Mocks ---
 
-const vec3Type = defineType({
+const float3Type = defineType({
     kind: 'record',
     fields: { x: numberType, y: numberType, z: numberType },
-    hint: 'vec3'
+    hint: 'float3'
 });
 
 const packNodeDef: PrimitiveNodeDefinition = {
@@ -26,34 +26,34 @@ const packNodeDef: PrimitiveNodeDefinition = {
     computeBackwardPorts: (outputReqs, config) => {
         const targetType = (config as any)?.targetType || 'infer';
 
-        let inferredType: 'vec2' | 'vec3' | 'vec4' | null = null;
+        let inferredType: 'float2' | 'float3' | 'float4' | null = null;
 
         if (targetType === 'infer') {
-             // Look at output requirements
-             // Downstream expects something from our 'result' port
-             const resultReq = outputReqs.fields['result'];
+            // Look at output requirements
+            // Downstream expects something from our 'result' port
+            const resultReq = outputReqs.fields['result'];
 
-             if (resultReq) {
-                 // Check if the required type looks like a vec3 (has x, y, z)
-                 if (resultReq.kind === 'record') {
-                      if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z']) {
-                           inferredType = 'vec3';
-                      } else if (resultReq.fields['x'] && resultReq.fields['y']) {
-                           inferredType = 'vec2';
-                      }
-                 }
-                 // Or if it IS the vec3 type (by reference or hint)
-                 // For this test, we look at structure
-             }
+            if (resultReq) {
+                // Check if the required type looks like a float3 (has x, y, z)
+                if (resultReq.kind === 'record') {
+                    if (resultReq.fields['x'] && resultReq.fields['y'] && resultReq.fields['z']) {
+                        inferredType = 'float3';
+                    } else if (resultReq.fields['x'] && resultReq.fields['y']) {
+                        inferredType = 'float2';
+                    }
+                }
+                // Or if it IS the float3 type (by reference or hint)
+                // For this test, we look at structure
+            }
         } else {
-             inferredType = targetType as any;
+            inferredType = targetType as any;
         }
 
         const inputReqs: any = { kind: 'record', fields: {} };
-        if (inferredType === 'vec3') {
+        if (inferredType === 'float3') {
             inputReqs.fields = { x: numberType, y: numberType, z: numberType };
-        } else if (inferredType === 'vec2') {
-             inputReqs.fields = { x: numberType, y: numberType };
+        } else if (inferredType === 'float2') {
+            inputReqs.fields = { x: numberType, y: numberType };
         }
 
         return {
@@ -64,18 +64,18 @@ const packNodeDef: PrimitiveNodeDefinition = {
 
     // FORWARD PASS: Generate final inputs/outputs
     computeForwardPorts: (inputs, config, context, meta) => {
-        const type = meta?.inferredType || 'vec2'; // Default to vec2 if nothing known
+        const type = meta?.inferredType || 'float2'; // Default to float2 if nothing known
 
         const outputFields: any = {};
-        if (type === 'vec3') {
-             outputFields['result'] = vec3Type;
+        if (type === 'float3') {
+            outputFields['result'] = float3Type;
         } else {
-             outputFields['result'] = { kind: 'record', fields: { x: numberType, y: numberType }, hint: 'vec2' };
+            outputFields['result'] = { kind: 'record', fields: { x: numberType, y: numberType }, hint: 'float2' };
         }
 
         // Inputs are what we decided we needed
         const inputFields: any = {};
-        if (type === 'vec3') {
+        if (type === 'float3') {
             inputFields['x'] = numberType;
             inputFields['y'] = numberType;
             inputFields['z'] = numberType;
@@ -101,7 +101,7 @@ const sinkNodeDef: PrimitiveNodeDefinition = {
     kind: 'primitive',
     metadata: { category: NodeCategory.Debug },
     inputs: {
-        val: vec3Type // Explicitly requires vec3
+        val: float3Type // Explicitly requires float3
     },
     computeOutputTypes: () => ({ kind: 'record', fields: {} }),
     execute: () => ({})
@@ -116,7 +116,7 @@ describe('Compiler Two-Phase Pass', () => {
         repo.register({ id: 'test.sink', version: '1.0.0', displayName: 'Sink', definition: sinkNodeDef });
     });
 
-    it('Propagates requirements backwards (Pack infers Vec3 from Sink)', async () => {
+    it('Propagates requirements backwards (Pack infers Float3 from Sink)', async () => {
         const appState: AppState = {
             graph: {
                 inner: {
@@ -137,7 +137,7 @@ describe('Compiler Two-Phase Pass', () => {
         const packTypes = inferredTypes['n1'];
         expect(packTypes).to.exist;
 
-        // Check Inputs: Should have inferred x, y, z because Sink requires vec3
+        // Check Inputs: Should have inferred x, y, z because Sink requires float3
         const inputs = packTypes.inputs as any;
         expect(inputs.fields['x']).to.exist;
         expect(inputs.fields['y']).to.exist;
@@ -145,6 +145,6 @@ describe('Compiler Two-Phase Pass', () => {
 
         // Check Outputs
         const outputs = packTypes.outputs as any;
-        expect(outputs.fields['result']).to.exist; // And it should be compatible with vec3
+        expect(outputs.fields['result']).to.exist; // And it should be compatible with float3
     });
 });

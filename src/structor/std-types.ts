@@ -28,25 +28,25 @@ export const midiStreamType = defineType({
   hint: 'midi-stream'
 } as const);
 
-export const vec2Type = defineType({
+export const float2Type = defineType({
   kind: "array",
   element: numberType,
   size: 2,
-  hint: "vec2"
+  hint: "float2"
 } as const);
 
-export const vec3Type = defineType({
+export const float3Type = defineType({
   kind: "array",
   element: numberType,
   size: 3,
-  hint: "vec3"
+  hint: "float3"
 } as const);
 
-export const vec4Type = defineType({
+export const float4Type = defineType({
   kind: "array",
   element: numberType,
   size: 4,
-  hint: "vec4"
+  hint: "float4"
 } as const);
 
 
