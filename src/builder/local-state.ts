@@ -184,6 +184,18 @@ export class LocalController {
       if (Object.keys(fields).length > 0) {
         inputs = Object.entries(fields).map(([name, type]) => {
           const repoPort = nodeType?.inputs?.find(p => p.name === name);
+          // Safety: type might be undefined if compilation failed or intermediate state
+          if (!type) {
+            console.warn(`[LocalController] Inferred input '${name}' for node '${nodeId}' has undefined type.`);
+            return {
+              name,
+              type: { kind: 'atomic', type: 'any' } as StructorType,
+              description: repoPort?.description || name,
+              defaultValue: repoPort?.defaultValue,
+              ...repoPort
+            };
+          }
+
           return {
             name,
             type: type as StructorType,

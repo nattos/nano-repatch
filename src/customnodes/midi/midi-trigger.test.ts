@@ -182,47 +182,70 @@ describe('MIDI Trigger Nodes', () => {
 
     it('should send Note On/Off pair and mark dirty on Trigger (Rising Edge)', () => {
       const markSelfDirty = vi.fn();
-      const context = { ...createMockContext(), markSelfDirty };
+      const context = createMockContext();
+      context.markSelfDirty = markSelfDirty;
       const config = { pitch: 60, velocity: 1.0 };
 
       // Initialize state
-      const state = midiTriggerNode.createState(config, context);
+      // When executing via wrapper, we rely on context.nodeState.
+      // But createState initializes it.
+      // To simulate fresh state, we don't need to do anything as get() returns undefined -> create.
+      // Or we can manually seed it.
 
       // Trigger!
-      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context, state);
-      const stream = res.stream || [];
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context) as any;
+
+      // Result Structure:
+      // Typically { fields: { stream: [...] } } or { outputs: { fields: ... }, ui: ... }
+      // Let's safe access
+      const outputs = res.outputs ? res.outputs.fields : (res.fields || {});
+      const stream = outputs.stream || [];
 
       expect(stream).toHaveLength(2);
-      expect(stream[0]).toMatchObject({ type: 'note_on', note: 60 });
-      expect(stream[1]).toMatchObject({ type: 'note_off', note: 60 });
+      expect(stream[0].fields).toMatchObject({ type: 'note_on', note: 60 });
+      expect(stream[1].fields).toMatchObject({ type: 'note_off', note: 60 });
 
       // Expect it to request re-execution to clear output
       expect(markSelfDirty).toHaveBeenCalled();
+
+      const state = context.nodeState.get('test-node');
       expect(state.lastTrigger).toBe(1);
     });
 
     it('should NOT trigger on Falling Edge', () => {
       const markSelfDirty = vi.fn();
-      const context = { ...createMockContext(), markSelfDirty };
+      const context = createMockContext();
+      context.markSelfDirty = markSelfDirty;
       const config = { pitch: 60 };
-      const state = { lastTrigger: 1 }; // Already triggered
 
-      const res = midiTriggerNode.execute(wrapInputs({ trigger: 0 }), config, context, state);
-      const stream = res.stream || [];
+      // Seed State: Already Triggered
+      const state = { lastTrigger: 1 };
+      context.nodeState.set('test-node', state);
+
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 0 }), config, context) as any;
+
+      const outputs = res.outputs ? res.outputs.fields : (res.fields || {});
+      const stream = outputs.stream || [];
 
       expect(stream).toHaveLength(0);
       expect(markSelfDirty).not.toHaveBeenCalled();
+
       expect(state.lastTrigger).toBe(0);
     });
 
     it('should NOT trigger on Steady State (High)', () => {
       const markSelfDirty = vi.fn();
-      const context = { ...createMockContext(), markSelfDirty };
+      const context = createMockContext();
+      context.markSelfDirty = markSelfDirty;
       const config = { pitch: 60 };
-      const state = { lastTrigger: 1 };
 
-      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context, state);
-      const stream = res.stream || [];
+      // Seed State: Already High
+      const state = { lastTrigger: 1 };
+      context.nodeState.set('test-node', state);
+
+      const res = midiTriggerNode.execute(wrapInputs({ trigger: 1 }), config, context) as any;
+      const outputs = res.outputs ? res.outputs.fields : (res.fields || {});
+      const stream = outputs.stream || [];
 
       expect(stream).toHaveLength(0);
       expect(markSelfDirty).not.toHaveBeenCalled();

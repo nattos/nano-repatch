@@ -74,23 +74,21 @@ export const adsr = defineNode({
     const mode = uiConfig.mode || 'D';
 
     const fields: Record<string, StructorType> = {
-      stream: (inputTypes as any).fields.stream
+      stream: midiStreamType
     };
 
-    const allInputs = (inputTypes as any).fields;
-
     if (mode === 'ADSR') {
-      fields.attack = allInputs.attack;
-      fields.decay = allInputs.decay;
-      fields.sustain = allInputs.sustain;
-      fields.release = allInputs.release;
+      fields.attack = numberType;
+      fields.decay = numberType;
+      fields.sustain = numberType;
+      fields.release = numberType;
     } else if (mode === 'ADS') {
-      fields.attack = allInputs.attack;
-      fields.decay = allInputs.decay;
-      fields.sustain = allInputs.sustain;
+      fields.attack = numberType;
+      fields.decay = numberType;
+      fields.sustain = numberType;
       // No release
     } else if (mode === 'D') {
-      fields.decay = allInputs.decay;
+      fields.decay = numberType;
       // No attack, sustain, release
     }
 
