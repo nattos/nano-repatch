@@ -184,8 +184,12 @@ export function defineNode<
       // It's ExtendedInputDef
       const ext = val as ExtendedInputDef;
       const type = ext.type;
+      const inputType = ext.allowMultiConnection
+        ? { kind: 'array', size: 'dynamic', element: type } as StructorType
+        : type;
+
       simpleInputs[key] = {
-        ...type,
+        ...inputType,
         redirect: ext.redirect,
         defaultValue: 'defaultValue' in ext ? ext.defaultValue : (type as any).defaultValue
       };

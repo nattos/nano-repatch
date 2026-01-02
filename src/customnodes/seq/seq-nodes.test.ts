@@ -10,7 +10,17 @@ import './nodes';
 describe('Sequence Nodes', () => {
   const mockBroadcast = (config: any, inputs: any) => ({
     apply: (fn: Function) => {
-      const value = inputs.fields ? inputs.fields : inputs;
+      const value = inputs.fields ? { ...inputs.fields } : { ...inputs };
+      // Handle flattening if requested in config
+      if (config && config.outputs) {
+        for (const [key, outConfig] of Object.entries(config.outputs)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const c = outConfig as any;
+          if (c.combine?.reduce === 'flatten' && Array.isArray(value[key])) {
+            value[key] = value[key].flat();
+          }
+        }
+      }
       return fn(value);
     }
   });
@@ -144,13 +154,25 @@ describe('Sequence Nodes', () => {
   describe('Binary Operations', () => {
     const context = { nodeState: new Map(), broadcast: mockBroadcast } as any;
 
+    const wrapStep = (step: any) => ({
+      kind: 'record',
+      fields: {
+        noteIndex: { kind: 'atomic', type: 'any', value: step.noteIndex },
+        velocity: { kind: 'atomic', type: 'number', value: step.velocity },
+        hold: { kind: 'atomic', type: 'boolean', value: step.hold }
+      }
+    });
+
+    const wrapSequence = (seq: any[]) => seq.map(wrapStep);
+
     const runOp = (node: any, seqs: any[]) => {
       const inputs = {
         fields: {
-          inputs: seqs
+          inputs: seqs.map(wrapSequence)
         }
       };
       const result = node.execute(inputs as any, { fields: {} } as any, context, {});
+      // result.fields.seq_out is StructorArray (Array)
       return result.fields.seq_out as any[];
     };
 
@@ -279,11 +301,13 @@ describe('Sequence Nodes', () => {
       } as any;
 
       const inputs = {
-        seq_in: [
-          { noteIndex: 60, velocity: 1, hold: false }
-        ],
-        trigger: [{ type: 'note_on', note: 60, velocity: 1 }],
-        duration: 1.0
+        fields: {
+          seq_in: [
+            { noteIndex: 60, velocity: 1, hold: false }
+          ],
+          trigger: [[{ type: 'note_on', note: 60, velocity: 1 }]],
+          duration: 1.0
+        }
       };
 
       // Trigger frame
@@ -296,7 +320,12 @@ describe('Sequence Nodes', () => {
 
       // Advance time. 10.5. t=0.5. Still step 0 (length 1).
       const ctx1 = { clock: { beat: 0 }, audio: mockAudio(10.5), nodeState: ctx0.nodeState, broadcast: ctx0.broadcast } as any;
-      const inputsNoTrig = { ...inputs, trigger: [] };
+      const inputsNoTrig = {
+        fields: {
+          ...inputs.fields,
+          trigger: []
+        }
+      };
 
       const res1 = oneshot.execute(inputsNoTrig as any, { fields: {} } as any, ctx1 as any); // clear trigger
       expect(res1.fields.midi_out).toHaveLength(0); // Same note held

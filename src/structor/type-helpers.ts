@@ -300,6 +300,7 @@ export function definePrimitiveNode<
             combine: combine ?? undefined
           };
         }
+        // console.error('Broadcast call:', { nodeId: options.id, configKeys: Object.keys(broadcastConfig.outputs) });
         const broadcasted = context.broadcast(broadcastConfig, rawInput);
 
         const result = broadcasted.apply((args: any) => {
@@ -312,20 +313,44 @@ export function definePrimitiveNode<
               const mapped = args[key].map((v: any) => {
                 // If v is a collected list of inputs (e.g. Reference<Sequence>[]), we needs to map each one.
                 if (Array.isArray(v) && v.length > 0 && Array.isArray(v[0]) && type.kind === 'array' && type.element.kind === 'record') {
-                  return v.map(item => fromStructor(item, type));
+                  return v.map(item => fromStructor(item, type.element));
+                }
+
+                // Logic: If type is Nested (Array<Array>), we expect v to be Array.
+                // If v is flat Array (Stream), and type is Nested, use type.element (Unwrap as Stream).
+                // If type is Not Nested (Array), and v is Array (Stream), use type (Unwrap as Stream).
+                const typeIsNested = type.element?.kind === 'array';
+                const valueIsNested = Array.isArray(v) && v.length > 0 && Array.isArray(v[0]);
+
+                if (typeIsNested && !valueIsNested) {
+                  return fromStructor(v, type.element);
                 }
                 return fromStructor(v, type);
               });
-              // Conditional flatten: If mapped is [ [Seq1, Seq2] ], flatten to [Seq1, Seq2].
-              // Detect by checking if element 0 is Array of Arrays.
-              if (mapped.length === 1 && Array.isArray(mapped[0]) && mapped[0].length > 0 && Array.isArray(mapped[0][0])) {
+
+              // Conditional flatten:
+              // If we collected a single stream [Stream], flatten to Stream if type expects Stream (not Nested).
+              // If type expects List of Streams (Nested), keep [Stream] (or [ [Seq1] ]).
+              // We check type.element.kind to see if the NODE TYPE expects a nested array.
+              const typeIsNested = type.element?.kind === 'array';
+              if (mapped.length === 1 && Array.isArray(mapped[0]) && !typeIsNested) {
                 inputs[key] = mapped[0];
               } else {
                 inputs[key] = mapped;
               }
             } else {
-              const val = fromStructor(args[key], type);
-              inputs[key] = val !== undefined ? val : (type as any).defaultValue;
+              const val = args[key];
+              // Heuristic: if type anticipates nesting (Wrapped Array) but value is flat (Scalar/Stream), unwrap using inner element.
+              const typeIsNested = type.element?.kind === 'array';
+              const valueIsNested = Array.isArray(val) && val.length > 0 && Array.isArray(val[0]);
+
+              let unwrap;
+              if (type.kind === 'array' && typeIsNested && !valueIsNested) {
+                unwrap = fromStructor(val, type.element);
+              } else {
+                unwrap = fromStructor(val, type);
+              }
+              inputs[key] = unwrap !== undefined ? unwrap : (type as any).defaultValue;
             }
           }
           // console.error('Execute Inputs:', JSON.stringify(inputs));

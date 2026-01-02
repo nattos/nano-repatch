@@ -56,8 +56,8 @@ export const toneSynthLayer = defineNode({
     }
 
     const activeLayer = state.layer;
-    const stream = (inputs.midi_in || []).flat() as unknown as MidiEvent[];
-    // Removed targetNote
+    // Flattening handled by autoBroadcast
+    const stream = (inputs.midi_in || []) as MidiEvent[];
 
     let hasNoteOn = false;
 

@@ -33,9 +33,10 @@ export const oneshot = defineNode({
   },
   config: {},
   autoBroadcast: {
-    trigger: { combine: { reduce: 'flatten' } },
-    seq_in: { combine: { reduce: 'first' } }
+    seq_in: { combine: { reduce: 'first' } },
+    trigger: { combine: { reduce: 'flatten' } }
   },
+  reshape: 'none',
   inputs: {
     seq_in: { type: sequenceStructorType, description: "Input sequence" },
     trigger: { type: midiStreamType, description: "Trigger", allowMultiConnection: true },
@@ -52,16 +53,15 @@ export const oneshot = defineNode({
     activeNotes: new Map()
   }),
   execute: (inputs, config, context, state) => {
-    // strict
-    // Process Trigger
-    const triggerStream = (inputs.trigger || []) as MidiEvent[];
+    // Process Trigger (Polyphonic aware)
+    // Flattening handled by autoBroadcast.trigger.combine.reduce = 'flatten'
+    const allEvents = (inputs.trigger || []) as MidiEvent[];
     let triggered = false;
-    if (Array.isArray(triggerStream)) {
-      for (const e of triggerStream) {
-        if (e.type === 'note_on' && e.velocity > 0) {
-          triggered = true;
-          break;
-        }
+
+    for (const e of allEvents) {
+      if (e && e.type === 'note_on' && e.velocity > 0) {
+        triggered = true;
+        break;
       }
     }
 
@@ -169,6 +169,7 @@ export const scan = defineNode({
   autoBroadcast: {
     seq_in: { combine: { reduce: 'first' } }
   },
+  reshape: 'none',
   inputs: {
     seq_in: { type: sequenceStructorType, description: "Input sequence" },
     pos: { type: numberType, defaultValue: 0, description: "Position (0-1)" }

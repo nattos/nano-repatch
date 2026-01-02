@@ -53,8 +53,8 @@ export function createLayerNode(
     },
     execute: (inputs, config, context, state) => {
       const activeLayer = state.layer as AbstractLayer;
-      const stream = (inputs.midi_in || []).flat() as unknown as MidiEvent[];
-      // Removed targetNote
+      // Flattening handled by autoBroadcast.midi_in.combine.reduce = 'flatten'
+      const stream = (inputs.midi_in || []) as MidiEvent[];
 
       // Process MIDI stream
       for (const event of stream) {

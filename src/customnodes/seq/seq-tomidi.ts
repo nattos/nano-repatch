@@ -45,6 +45,7 @@ export const tomidi = defineNode({
   },
   outputs: { midi_out: midiStreamType },
   autoBroadcast: true,
+  reshape: 'none',
   isRealtime: () => true,
   createState: (): SeqToMidiState => ({
     sequenceStates: new Map()
@@ -53,7 +54,13 @@ export const tomidi = defineNode({
     // Inputs are strictly typed now!
     // inputs.seq_in is inferred as Step[][] because sequenceStructorType is array of Step
     // Updated definition means seqs is correctly inferred as Step[][]
-    const seqs = (inputs.seq_in || []) as Step[][];
+    const rawSeqs = (inputs.seq_in || []) as any[];
+
+    // Normalize inputs: Handle potential double-wrapping (Step[][][] -> Step[][])
+    let seqs = rawSeqs;
+    if (seqs.length === 1 && Array.isArray(seqs[0]) && seqs[0].length > 0 && Array.isArray(seqs[0][0])) {
+      seqs = seqs[0];
+    }
 
     const stream: MidiEvent[] = [];
     const stepsPerBeat = 4;
