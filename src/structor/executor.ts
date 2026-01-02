@@ -40,6 +40,9 @@ export class GraphExecutor {
       }
       this.downstreamMap.get(conn.fromNode)!.push(conn.toNode);
     }
+    if (this.graph.connections) {
+      // console.log(`DEBUG: Executor graph.connections length: ${this.graph.connections.length}`);
+    }
 
     // Split execution order
     this.splitExecutionOrder(graph.executionOrder || []);
@@ -212,7 +215,7 @@ export class GraphExecutor {
             if (targetState) {
               // If target is io.input, we need to update 'values'
               // We construct a specific update object
-              this.setNodeConfig(targetNodeId, { values: { [portName]: newValue } });
+              this.setNodeConfig(targetNodeId, { values: { [portName]: newValue } } as any);
             }
           }
         }
@@ -278,6 +281,8 @@ export class GraphExecutor {
 
     // Helper to aggregate inputs
     const inputsByPort = new Map<string, Structor[]>();
+
+
 
     const addToPort = (port: string, value: Structor) => {
       if (!inputsByPort.has(port)) {

@@ -124,7 +124,7 @@ export const primitive_subgraph = definePrimitiveNode({
     }
     return undefined;
   },
-  computeForwardPorts: computeSubgraphPorts,
+  computeForwardPorts: computeSubgraphPorts as any,
   execute: (input: any, config: any, context: ExecutionContext) => {
     // Subgraph execution logic would go here.
     return { fields: {} };

@@ -48,7 +48,7 @@ export function compileGraph(
 
       // Check for subgraph expansion
       // We look at the definition's tag
-      const subgraphTag = nodeType?.definition.subgraphExpansionTag;
+      const subgraphTag = (nodeType?.definition as any)?.subgraphExpansionTag;
 
 
       if (subgraphTag) {
@@ -141,25 +141,33 @@ export function compileGraph(
 
             // 1. Static Injection (Phase 1)
             const injectedValue = parentConfigValues[portName];
+
+            if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
+
             if (injectedValue !== undefined) {
-              if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
               if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
               (instance.defaultConfig as any).values[portName] = injectedValue;
+            }
 
-              // Ensure the inner node knows its resolved name (e.g. replacing '#' with 'in')
-              if ((instance.defaultConfig as any).fields) {
-                (instance.defaultConfig as any).fields.name = portName;
-              } else {
-                (instance.defaultConfig as any).name = portName;
-              }
+            // Ensure the inner node knows its resolved name (e.g. replacing '#' with 'in')
+            if ((instance.defaultConfig as any).fields) {
+              (instance.defaultConfig as any).fields.name = portName;
+            } else {
+              (instance.defaultConfig as any).name = portName;
+            }
 
-              // 2. Dynamic Mapping (Phase 2)
-              if (parentSubgraphId) {
-                if (!virtualInputMappings[parentSubgraphId]) {
-                  virtualInputMappings[parentSubgraphId] = {};
-                }
-                virtualInputMappings[parentSubgraphId][portName] = nodeId;
+            // Ensure the port is in 'values' so Executor scans it for connections
+            if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
+            if (!Object.prototype.hasOwnProperty.call((instance.defaultConfig as any).values, portName)) {
+              (instance.defaultConfig as any).values[portName] = undefined;
+            }
+
+            // 2. Dynamic Mapping (Phase 2)
+            if (parentSubgraphId) {
+              if (!virtualInputMappings[parentSubgraphId]) {
+                virtualInputMappings[parentSubgraphId] = {};
               }
+              virtualInputMappings[parentSubgraphId][portName] = nodeId;
             }
           }
         }
@@ -237,152 +245,152 @@ export function compileGraph(
         }
       }
 
-      // 2. Process Connections
-      for (const conn of Object.values(graph.inner.connections)) {
-        // Resolve Source
-        let fromNodeId = idPrefix + conn.fromNodeId;
-        let fromPort = conn.fromPort;
-
-        const fromNode = graph.inner.nodes[conn.fromNodeId];
-        // Check if fromNode is a subgraph expander
-        const fromNodeType = fromNode ? nodeRepository.getNodeType(fromNode.config.typeId) : undefined;
-        const fromIsSubgraph = fromNodeType?.definition.subgraphExpansionTag;
-
-        if (fromNode && fromIsSubgraph) {
-          // Connection FROM a subgraph node (output of subgraph)
-          const subgraphId = fromNode.config.subgraphId;
-          const subgraph = loadedSubgraphs.get(subgraphId);
-          if (subgraph) {
-            const outputNodes = Object.values(subgraph.inner.nodes)
-              .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-              .sort((a, b) => a.y - b.y);
-
-            const outputNode = outputNodes.find((n, i) => {
-              const rawName = (n.config as any).name || 'value';
-              const portName = resolvePortName(rawName, i, outputNodes.length, 'output');
-              return portName === fromPort;
-            });
-
-            if (outputNode) {
-              // Rewire: Source is the 'output' node inside the subgraph
-              fromNodeId = idPrefix + fromNode.id + '.' + outputNode.id;
-              fromPort = 'value'; // Output nodes output on 'value' (identity)
-            }
-          }
-        }
-
-        // Resolve Destination
-        let toNodeId = idPrefix + conn.toNodeId;
-        let toPort = conn.toPort;
-
-        const toNode = graph.inner.nodes[conn.toNodeId];
-        // Check if toNode is a subgraph expander
-        const toNodeType = toNode ? nodeRepository.getNodeType(toNode.config.typeId) : undefined;
-        const toIsSubgraph = toNodeType?.definition.subgraphExpansionTag;
-
-        if (toNode && toIsSubgraph) {
-          // Connection TO a subgraph node (input of subgraph)
-          const subgraphId = toNode.config.subgraphId;
-          const subgraph = loadedSubgraphs.get(subgraphId);
-          if (subgraph) {
-            const inputNodes = Object.values(subgraph.inner.nodes)
-              .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
-              .sort((a, b) => a.y - b.y);
-
-            const inputNode = inputNodes.find((n, i) => {
-              const rawName = (n.config as any).name || 'value';
-              const portName = resolvePortName(rawName, i, inputNodes.length, 'input');
-              return portName === toPort;
-            });
-
-            if (inputNode) {
-              // Rewire: Destination is the 'input' node inside the subgraph
-              toNodeId = idPrefix + toNode.id + '.' + inputNode.id;
-              // Use the named port (resolved) to match Virtual Input injection keys.
-              // This ensures that REAL connections override Virtual Inputs in Executor.
-              // (If we used 'value', Executor would see 'value' (conn) and 'in' (virtual) separately,
-              // and io.input would pick 'in', ignoring the connection.)
-              toPort = toPort;
-            }
-          }
-        }
-
-        let validSource = true;
-        if (fromNode && fromIsSubgraph) {
-          // If fromNodeId was not updated, it means rewiring failed (port not found)
-          // CHECK: If the port belongs to the Wrapper (non-rewired), it's valid.
-          // We can verify if the Wrapper has this port defined.
-          // But for now, we assume if it didn't match Inner, it targets Wrapper.
-          // The original logic marked it invalid if name matched wrapper? No.
-          // Original logic: if (fromNodeId === idPrefix + conn.fromNodeId) validSource = false;
-          // This assumed ALL ports on subgraph node MUST map to inner nodes.
-          // But core.thensubgraph has 'midi_in' on the wrapper.
-          // SO we must allow wrapper ports.
-          // We should check if the port exists on the Wrapper Definition?
-          // Or just assume validity if it is not rewired.
-
-          // However, standard `core.subgraph` (inline) has NO wrapper ports.
-          // `core.thensubgraph` (tagged) HAS wrapper ports.
-          // We can distinguish by tag?
-          // If tag == 'inline', strict rewiring?
-          // If tag != 'inline', allow wrapper?
-          if (fromIsSubgraph === 'inline' && fromNodeId === idPrefix + conn.fromNodeId) {
-            validSource = false;
-          }
-        }
-
-        let validDest = true;
-        if (toNode && toIsSubgraph) {
-          if (toIsSubgraph === 'inline' && toNodeId === idPrefix + conn.toNodeId) {
-            validDest = false;
-          }
-        }
-
-        if (validSource && validDest) {
-          flatConnections.push({
-            fromNode: fromNodeId,
-            fromPort,
-            toNode: toNodeId,
-            toPort
-          });
-
-          // Implicit Dependency Injection for Non-Inline Subgraphs
-          // Ensures that the Wrapper Node (Host) is sorted correctly relative to peers.
-          // Case 1: Subgraph Output (Wrapper -> Peer via Inner)
-          // Order: Wrapper -> Peer. (Wrapper must run to produce output)
-          if (fromIsSubgraph && fromIsSubgraph !== 'inline') {
-            const wrapperId = idPrefix + conn.fromNodeId;
-            // If rewired (targeting inner node), add dependency Wrapper -> Destination
-            if (fromNodeId !== wrapperId) {
-              flatConnections.push({
-                fromNode: wrapperId,
-                fromPort: '___control___',
-                toNode: toNodeId,
-                toPort: '___control___'
-              });
-            }
-          }
-
-          // Case 2: Subgraph Input (Peer -> Wrapper via Inner)
-          // Order: Peer -> Wrapper. (Wrapper must run to consume input)
-          if (toIsSubgraph && toIsSubgraph !== 'inline') {
-            const wrapperId = idPrefix + conn.toNodeId;
-            // If rewired (targeting inner node), add dependency Source -> Wrapper
-            if (toNodeId !== wrapperId) {
-              flatConnections.push({
-                fromNode: fromNodeId,
-                fromPort: '___control___',
-                toNode: wrapperId,
-                toPort: '___control___'
-              });
-            }
-          }
-        }
-
-      }
     }
 
+    // 2. Process Connections
+    for (const conn of Object.values(graph.inner.connections)) {
+      // Resolve Source
+      let fromNodeId = idPrefix + conn.fromNodeId;
+      let fromPort = conn.fromPort;
+
+      const fromNode = graph.inner.nodes[conn.fromNodeId];
+      // Check if fromNode is a subgraph expander
+      const fromNodeType = fromNode ? nodeRepository.getNodeType(fromNode.config.typeId) : undefined;
+      const fromIsSubgraph = (fromNodeType?.definition as any)?.subgraphExpansionTag;
+
+      if (fromNode && fromIsSubgraph) {
+        // Connection FROM a subgraph node (output of subgraph)
+        const subgraphId = fromNode.config.subgraphId;
+        const subgraph = loadedSubgraphs.get(subgraphId);
+        if (subgraph) {
+          const outputNodes = Object.values(subgraph.inner.nodes)
+            .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+            .sort((a, b) => a.y - b.y);
+
+          const outputNode = outputNodes.find((n, i) => {
+            const rawName = (n.config as any).name || 'value';
+            const portName = resolvePortName(rawName, i, outputNodes.length, 'output');
+            return portName === fromPort;
+          });
+
+          if (outputNode) {
+            // Rewire: Source is the 'output' node inside the subgraph
+            fromNodeId = idPrefix + fromNode.id + '.' + outputNode.id;
+            fromPort = 'value'; // Output nodes output on 'value' (identity)
+          }
+        }
+      }
+
+      // Resolve Destination
+      let toNodeId = idPrefix + conn.toNodeId;
+      let toPort = conn.toPort;
+
+      const toNode = graph.inner.nodes[conn.toNodeId];
+      // Check if toNode is a subgraph expander
+      const toNodeType = toNode ? nodeRepository.getNodeType(toNode.config.typeId) : undefined;
+      const toIsSubgraph = (toNodeType?.definition as any)?.subgraphExpansionTag;
+
+      if (toNode && toIsSubgraph) {
+        // Connection TO a subgraph node (input of subgraph)
+        const subgraphId = toNode.config.subgraphId;
+        const subgraph = loadedSubgraphs.get(subgraphId);
+        if (subgraph) {
+          const inputNodes = Object.values(subgraph.inner.nodes)
+            .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
+            .sort((a, b) => a.y - b.y);
+
+          const inputNode = inputNodes.find((n, i) => {
+            const rawName = (n.config as any).name || 'value';
+            const portName = resolvePortName(rawName, i, inputNodes.length, 'input');
+            return portName === toPort;
+          });
+
+          if (inputNode) {
+            // Rewire: Destination is the 'input' node inside the subgraph
+            toNodeId = idPrefix + toNode.id + '.' + inputNode.id;
+            // Use the named port (resolved) to match Virtual Input injection keys.
+            // This ensures that REAL connections override Virtual Inputs in Executor.
+            // (If we used 'value', Executor would see 'value' (conn) and 'in' (virtual) separately,
+            // and io.input would pick 'in', ignoring the connection.)
+            toPort = toPort;
+          }
+        }
+      }
+
+      let validSource = true;
+      if (fromNode && fromIsSubgraph) {
+        // If fromNodeId was not updated, it means rewiring failed (port not found)
+        // CHECK: If the port belongs to the Wrapper (non-rewired), it's valid.
+        // We can verify if the Wrapper has this port defined.
+        // But for now, we assume if it didn't match Inner, it targets Wrapper.
+        // The original logic marked it invalid if name matched wrapper? No.
+        // Original logic: if (fromNodeId === idPrefix + conn.fromNodeId) validSource = false;
+        // This assumed ALL ports on subgraph node MUST map to inner nodes.
+        // But core.thensubgraph has 'midi_in' on the wrapper.
+        // SO we must allow wrapper ports.
+        // We should check if the port exists on the Wrapper Definition?
+        // Or just assume validity if it is not rewired.
+
+        // However, standard `core.subgraph` (inline) has NO wrapper ports.
+        // `core.thensubgraph` (tagged) HAS wrapper ports.
+        // We can distinguish by tag?
+        // If tag == 'inline', strict rewiring?
+        // If tag != 'inline', allow wrapper?
+        if (fromIsSubgraph === 'inline' && fromNodeId === idPrefix + conn.fromNodeId) {
+          validSource = false;
+        }
+      }
+
+      let validDest = true;
+      if (toNode && toIsSubgraph) {
+        if (toIsSubgraph === 'inline' && toNodeId === idPrefix + conn.toNodeId) {
+          validDest = false;
+        }
+      }
+
+      if (validSource && validDest) {
+        flatConnections.push({
+          fromNode: fromNodeId,
+          fromPort,
+          toNode: toNodeId,
+          toPort
+        });
+
+        // Implicit Dependency Injection for Non-Inline Subgraphs
+        // Ensures that the Wrapper Node (Host) is sorted correctly relative to peers.
+        // Case 1: Subgraph Output (Wrapper -> Peer via Inner)
+        // Order: Wrapper -> Peer. (Wrapper must run to produce output)
+        if (fromIsSubgraph && fromIsSubgraph !== 'inline') {
+          const wrapperId = idPrefix + conn.fromNodeId;
+          // If rewired (targeting inner node), add dependency Wrapper -> Destination
+          if (fromNodeId !== wrapperId) {
+            flatConnections.push({
+              fromNode: wrapperId,
+              fromPort: '___control___',
+              toNode: toNodeId,
+              toPort: '___control___'
+            });
+          }
+        }
+
+        // Case 2: Subgraph Input (Peer -> Wrapper via Inner)
+        // Order: Peer -> Wrapper. (Wrapper must run to consume input)
+        if (toIsSubgraph && toIsSubgraph !== 'inline') {
+          const wrapperId = idPrefix + conn.toNodeId;
+          // If rewired (targeting inner node), add dependency Source -> Wrapper
+          if (toNodeId !== wrapperId) {
+            flatConnections.push({
+              fromNode: fromNodeId,
+              fromPort: '___control___',
+              toNode: wrapperId,
+              toPort: '___control___'
+            });
+          }
+        }
+      }
+    }
   }
+
 
   processGraph(appState.graph, '', true);
 

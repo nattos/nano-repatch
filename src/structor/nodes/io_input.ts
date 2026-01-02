@@ -72,12 +72,14 @@ export const primitive_input: PrimitiveNodeDefinition = {
     // because compileConfig and configType are defined and registered.
     const fields = (config as StructorRecord)?.fields;
     const portName = (fields?.name as string) ?? 'value';
+    // if (portName !== 'value' && !input.fields[portName]) {
+    //   console.log(`DEBUG: io.input MISSING port '${portName}'. Has:`, Object.keys(input.fields));
+    // }
 
     // Fallback? If fields is undefined, it means config was raw and uncompiled/unnormalized.
     // This shouldn't happen in standard flow. If it does, we default to 'value'.
 
     const val = input.fields[portName] !== undefined ? input.fields[portName] : input.fields['value'];
-
     return { fields: { 'value': val } };
   }
 };

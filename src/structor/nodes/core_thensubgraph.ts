@@ -36,7 +36,7 @@ export const primitive_thensubgraph = definePrimitiveNode({
     }
     return 'OnNote';
   },
-  computeForwardPorts: (inputType, config, context) => {
+  computeForwardPorts: ((inputType: any, config: any, context: any) => {
     // Get base subgraph ports
     const basePorts = computeSubgraphPorts(inputType, config, context);
 
@@ -50,7 +50,7 @@ export const primitive_thensubgraph = definePrimitiveNode({
       inputs: { kind: 'record', fields: inputs },
       outputs: basePorts.outputs
     };
-  },
+  }) as any,
   execute: (input: any, config: any, context: ExecutionContext) => {
     const stream = input.midi_in || [];
     const events = Array.isArray(stream) ? stream : [];
@@ -116,4 +116,4 @@ export const primitive_thensubgraph = definePrimitiveNode({
   }
 });
 
-registerNode(primitive_thensubgraph);
+registerNode(primitive_thensubgraph as any);

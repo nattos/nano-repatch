@@ -322,11 +322,11 @@ export function definePrimitiveNode<
                 // Logic: If type is Nested (Array<Array>), we expect v to be Array.
                 // If v is flat Array (Stream), and type is Nested, use type.element (Unwrap as Stream).
                 // If type is Not Nested (Array), and v is Array (Stream), use type (Unwrap as Stream).
-                const typeIsNested = type.element?.kind === 'array';
+                const typeIsNested = (type as any).element?.kind === 'array';
                 const valueIsNested = Array.isArray(v) && v.length > 0 && Array.isArray(v[0]);
 
                 if (typeIsNested && !valueIsNested) {
-                  return fromStructor(v, type.element);
+                  return fromStructor(v, (type as any).element);
                 }
                 return fromStructor(v, type);
               });
@@ -335,7 +335,7 @@ export function definePrimitiveNode<
               // If we collected a single stream [Stream], flatten to Stream if type expects Stream (not Nested).
               // If type expects List of Streams (Nested), keep [Stream] (or [ [Seq1] ]).
               // We check type.element.kind to see if the NODE TYPE expects a nested array.
-              const typeIsNested = type.element?.kind === 'array';
+              const typeIsNested = (type as any).element?.kind === 'array';
               if (mapped.length === 1 && Array.isArray(mapped[0]) && !typeIsNested) {
                 inputs[key] = mapped[0];
               } else {
@@ -344,7 +344,7 @@ export function definePrimitiveNode<
             } else {
               const val = args[key];
               // Heuristic: if type anticipates nesting (Wrapped Array) but value is flat (Scalar/Stream), unwrap using inner element.
-              const typeIsNested = type.element?.kind === 'array';
+              const typeIsNested = (type as any).element?.kind === 'array';
               const valueIsNested = Array.isArray(val) && val.length > 0 && Array.isArray(val[0]);
 
               let unwrap;

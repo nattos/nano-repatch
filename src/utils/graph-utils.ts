@@ -29,7 +29,7 @@ export function getPortPosition(
   let ports: any[] = [];
 
   if (nodeType) {
-    const dynamicInfo = nodeType.compilePorts?.(node, { loadedSubgraphs, compiledConfig });
+    const dynamicInfo = (nodeType as any).compilePorts?.(node, { loadedSubgraphs, compiledConfig });
     if (dynamicInfo) {
       ports = type === 'in' ? dynamicInfo.inputs : dynamicInfo.outputs;
     } else {

@@ -43,6 +43,12 @@ export const compileAndRun = (
         if (def.id === 'core.pack') {
           return { ...uiConfig, fields: { targetType: uiConfig?.targetType ?? 'infer' } };
         }
+        if (def.id === 'io.input') {
+          return {
+            fields: { name: uiConfig?.name ?? 'value' },
+            values: uiConfig?.values
+          };
+        }
         return uiConfig ?? { fields: {} };
       }
     });
@@ -59,10 +65,10 @@ export const compileAndRun = (
       kind: 'primitive',
       configType: { kind: 'record', fields: {}, },
       computeOutputTypes: () => ({ kind: 'record', fields: { value: { kind: 'atomic', type: 'any' } }, }),
-      execute: (inputs) => {
+      execute: (inputs: any) => {
         return { fields: { value: inputs.fields.value }, };
       },
-    },
+    } as any,
     inputs: [{ name: 'value', type: { kind: 'atomic', type: 'any' } as any }],
     outputs: [{ name: 'value', type: { kind: 'atomic', type: 'any' } as any }],
     compileConfig: (c) => ({ fields: {}, })

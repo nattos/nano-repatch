@@ -109,7 +109,7 @@ describe('Graph Compiler', () => {
     // n1 -> sub1.sub_in (was n1 -> sub1:A)
     expect(compiled.connections).toContainEqual({
       fromNode: 'n1', fromPort: 'val',
-      toNode: 'sub1.sub_in', toPort: 'value'
+      toNode: 'sub1.sub_in', toPort: 'A'
     });
     // sub1.sub_out -> n2 (was sub1:B -> n2)
     expect(compiled.connections).toContainEqual({

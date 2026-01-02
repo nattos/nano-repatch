@@ -14,7 +14,16 @@ describe('core.thensubgraph Integration', () => {
       id: def.id,
       definition: def,
       inputs: [], // Simplified for test
-      outputs: []
+      outputs: [],
+      compileConfig: (uiConfig) => {
+        if (def.id === 'io.input') {
+          return {
+            fields: { name: uiConfig?.name ?? 'value' },
+            values: uiConfig?.values
+          };
+        }
+        return uiConfig ?? { fields: {} };
+      }
     } as any));
   });
 
@@ -139,6 +148,8 @@ describe('core.thensubgraph Integration', () => {
     // 'trigger' node (io.input) value will be noteOn.
     // 'sub' input midi_in will be noteOn.
     // 'sub' triggers. 'sub.in1' runs. 'out' runs.
+
+
 
     const outputAfter = executor.getGraphOutput('final');
     expect(outputAfter).toBe(10);
