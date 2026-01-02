@@ -153,75 +153,80 @@ export function compileGraph(
                 virtualInputMappings[parentSubgraphId][portName] = nodeId;
               }
             }
-          } else if (!isRoot && (node.config.typeId === 'io.output' || node.config.typeId === 'output')) {
-            // New: Output Remapping for Debug Values
-            if (parentSubgraphId) {
-              const outputNodes = Object.values(graph.inner.nodes)
-                .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
-                .sort((a, b) => a.y - b.y);
+          }
+        }
 
-              const myIndex = outputNodes.findIndex(n => n.id === node.id);
-              if (myIndex !== -1) {
-                const rawName = node.config.name || 'value';
-                const portName = resolvePortName(rawName, myIndex, outputNodes.length, 'output');
+        if (!isRoot && (node.config.typeId === 'io.output' || node.config.typeId === 'output')) {
+          // New: Output Remapping for Debug Values
+          if (parentSubgraphId) {
+            const outputNodes = Object.values(graph.inner.nodes)
+              .filter(n => n.config.typeId === 'io.output' || n.config.typeId === 'output')
+              .sort((a, b) => a.y - b.y);
 
-                if (!outputRemappings[parentSubgraphId]) {
-                  outputRemappings[parentSubgraphId] = {};
-                }
-                outputRemappings[parentSubgraphId][portName] = nodeId;
+
+            const myIndex = outputNodes.findIndex(n => n.id === node.id);
+
+
+            if (myIndex !== -1) {
+              const rawName = node.config.name || 'value';
+              const portName = resolvePortName(rawName, myIndex, outputNodes.length, 'output');
+
+              if (!outputRemappings[parentSubgraphId]) {
+                outputRemappings[parentSubgraphId] = {};
               }
+              outputRemappings[parentSubgraphId][portName] = nodeId;
             }
           }
+        }
 
-          // Process Virtual Inputs (Standard)
-          // ... (rest of function)
-          // We need to consider both explicitly configured values AND default values for unconnected ports.
+        // Process Virtual Inputs (Standard)
+        // ... (rest of function)
+        // We need to consider both explicitly configured values AND default values for unconnected ports.
 
-          // 1. Determine all potential input ports
-          let inputPorts: { name: string, defaultValue?: any }[] = [];
-          if (nodeType) {
-            if (Array.isArray(nodeType.inputs)) {
-              inputPorts = nodeType.inputs;
-            } else if (nodeType.inputs && (nodeType.inputs as any).kind === 'record') {
-              // Convert RecordType to simplified input list for virtual processing
-              inputPorts = Object.entries((nodeType.inputs as any).fields || {}).map(([key, val]) => ({
-                name: key,
-                defaultValue: (val as any).defaultValue
-              }));
+        // 1. Determine all potential input ports
+        let inputPorts: { name: string, defaultValue?: any }[] = [];
+        if (nodeType) {
+          if (Array.isArray(nodeType.inputs)) {
+            inputPorts = nodeType.inputs;
+          } else if (nodeType.inputs && (nodeType.inputs as any).kind === 'record') {
+            // Convert RecordType to simplified input list for virtual processing
+            inputPorts = Object.entries((nodeType.inputs as any).fields || {}).map(([key, val]) => ({
+              name: key,
+              defaultValue: (val as any).defaultValue
+            }));
+          }
+        }
+
+        // 2. Collect all port names to process (defined inputs + any extra keys in config.values)
+        const portsToProcess = new Set<string>(inputPorts.map(p => p.name));
+        if (node.config.values) {
+          Object.keys(node.config.values).forEach(k => portsToProcess.add(k));
+        }
+
+        for (const portName of portsToProcess) {
+          // Check if this port is already connected in the original graph
+          const isConnected = Object.values(graph.inner.connections).some(
+            c => c.toNodeId === node.id && c.toPort === portName
+          );
+
+          if (!isConnected) {
+            // Determine value: Config > Default > undefined
+            let value = node.config.values?.[portName];
+
+            if (value === undefined) {
+              const portDef = inputPorts.find(p => p.name === portName);
+              if (portDef && portDef.defaultValue !== undefined) {
+                value = portDef.defaultValue;
+              } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
+                value = ((portDef as any).type as any).defaultValue;
+              }
             }
-          }
 
-          // 2. Collect all port names to process (defined inputs + any extra keys in config.values)
-          const portsToProcess = new Set<string>(inputPorts.map(p => p.name));
-          if (node.config.values) {
-            Object.keys(node.config.values).forEach(k => portsToProcess.add(k));
-          }
-
-          for (const portName of portsToProcess) {
-            // Check if this port is already connected in the original graph
-            const isConnected = Object.values(graph.inner.connections).some(
-              c => c.toNodeId === node.id && c.toPort === portName
-            );
-
-            if (!isConnected) {
-              // Determine value: Config > Default > undefined
-              let value = node.config.values?.[portName];
-
-              if (value === undefined) {
-                const portDef = inputPorts.find(p => p.name === portName);
-                if (portDef && portDef.defaultValue !== undefined) {
-                  value = portDef.defaultValue;
-                } else if (portDef && (portDef as any).type && ((portDef as any).type as any).defaultValue !== undefined) {
-                  value = ((portDef as any).type as any).defaultValue;
-                }
-              }
-
-              if (value !== undefined) {
-                // Inject into defaultConfig.values so GraphExecutor can pick it up dynamically
-                if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
-                if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
-                (instance.defaultConfig as any).values[portName] = value;
-              }
+            if (value !== undefined) {
+              // Inject into defaultConfig.values so GraphExecutor can pick it up dynamically
+              if (!instance.defaultConfig) instance.defaultConfig = { fields: {} };
+              if (!(instance.defaultConfig as any).values) (instance.defaultConfig as any).values = {};
+              (instance.defaultConfig as any).values[portName] = value;
             }
           }
         }
