@@ -39,7 +39,8 @@ describe('LocalController Worker Integration', () => {
   let controller: LocalController;
 
   beforeEach(() => {
-    controller = new LocalController();
+    const mockAppController = {} as any;
+    controller = new LocalController(mockAppController);
   });
 
   it('updates wire layout asynchronously via worker', async () => {

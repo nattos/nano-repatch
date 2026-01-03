@@ -1,4 +1,5 @@
-import { AppController, LocalController } from '../../builder/state';
+import { AppController } from '../../builder/state';
+import { LocalController } from '../../builder/local-state';
 import { defaultNodeRepository } from '../../structor/repository';
 import { GridPopupManager } from './popup-manager';
 import { SelectionInteraction } from './selection-interaction';

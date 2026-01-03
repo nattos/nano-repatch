@@ -18,7 +18,7 @@ export class GridPopupManager {
   private longEdit: any | null = null; // Type: LongEdit, but avoiding strict dependency on class instance structure if tricky
 
   constructor(private appController: AppController) {
-    makeAutoObservable(this, { appController: false });
+    makeAutoObservable(this);
   }
 
   startCreation(x: number, y: number, gridX: number, gridY: number, initialValue: string, connectionId?: string) {

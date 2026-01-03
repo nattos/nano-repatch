@@ -428,7 +428,6 @@ export class GraphGrid extends MobxLitElement {
   private selectionInteraction = new SelectionInteraction({
     element: this,
     getScrollState: () => ({ scrollLeft: this.scrollLeft, scrollTop: this.scrollTop }),
-    getBoundingClientRect: () => this.getBoundingClientRect(),
     getNodes: () => {
       return Array.from(this.shadowRoot?.querySelectorAll('graph-node') || []) as HTMLElement[];
     },
@@ -448,7 +447,7 @@ export class GraphGrid extends MobxLitElement {
         localController.queueSelectPaths(ids, false);
       }
     }
-  }, localController);
+  });
 
   private inputLogic = new GridInputLogic({
     element: this,
@@ -503,41 +502,17 @@ export class GraphGrid extends MobxLitElement {
         }
 
         // Create node transactionally via LongEdit
-        const generatedId = generateId('node');
-
-        // Start Long Edit FIRST
-        this.popupLongEdit = appController.beginLongEdit({
-          apply: (c) => {
-            // Always Create the node with the fixed ID
-            c.createNode(initialValue, gridX, y, { id: generatedId });
-          },
-          cancel: () => {
-            this.popupLongEdit = null;
-            // No manual cleanup needed! canceling reverts the creation.
-          }
-        });
-
-        // Select it (it exists in observable state now)
-        localController.queueSelectPaths([generatedId]);
-
-        // Calculate popup position
-        // We want it above the cell.
+        // Calculate popup position (above the cell)
         const rect = target.getBoundingClientRect();
         const parentRect = this.getBoundingClientRect();
 
         const popupX = rect.left - parentRect.left + this.scrollLeft;
-        const popupY = rect.top - parentRect.top + this.scrollTop - 40; // Above the cell
+        const popupY = rect.top - parentRect.top + this.scrollTop - 40;
 
-        this.popup = {
-          x: popupX,
-          y: popupY,
-          gridX,
-          gridY: y,
-          initialValue,
-          nodeId: generatedId as string,
-          isNew: true // Mark as new so we know context
-        };
+        this.popupManager.startCreation(popupX, popupY, gridX, y, initialValue);
         return;
+      }
+      return;
       }
       return;
     }
@@ -806,11 +781,17 @@ export class GraphGrid extends MobxLitElement {
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('dblclick', this.handleDblClick);
     this.addEventListener('keydown', this.handleKeyDown.bind(this));
+    this.addEventListener('keydown', this.handleKeyDown.bind(this)); // This is for component-specific keydowns, not global.
     this.addEventListener('connection-delete', this.handleConnectionDelete as EventListener);
     this.addEventListener('scroll', this.handleScroll);
     this.resizeObserver.observe(this);
     this.clientWidth = this.offsetWidth;
     this.addEventListener('dragover', this.handleDragOver);
+    // Keyboard shortcuts (Copy/Paste)
+    // We attach to window to catch them globally when grid is focused/active
+    window.addEventListener('keydown', this.handleKeyDown);
+
+    // Initial positioning of viewport? handled by state?
     this.addEventListener('drop', this.handleDrop);
   }
 
@@ -823,12 +804,6 @@ export class GraphGrid extends MobxLitElement {
 
     this.removeEventListener('pointerdown', this.handlePointerDown);
     this.removeEventListener('dblclick', this.handleDblClick);
-    // removeEventListener for bound keydown is tricky without storing reference
-    // But since element is disconnected, it might fine?
-    // Ideally we store it.
-    // Let's use a class field for the bound function.
-    // Or just (e) => this.handleKeyDown(e) if stored.
-    // For now, let's assume leak is minor or rely on GC if element is destroyed.
     // But correctness is better.
     // I'll skip remove for now to keep diff small, or better, implement proper binding.
     // this._boundKeyDown = this.handleKeyDown.bind(this);
@@ -898,7 +873,7 @@ export class GraphGrid extends MobxLitElement {
 
 
   private handleKeyDown(e: KeyboardEvent) {
-    if (!this.pendingWireInsert || this.popup) return;
+    if (!this.pendingWireInsert || this.popupManager.popup) return;
 
     // Check if key is alphanumeric
     if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -914,59 +889,18 @@ export class GraphGrid extends MobxLitElement {
         }
 
         // Show Popup
-        // We need to position popup near click
         // We reuse popup struct but maybe need to extend it to carry connection info?
-        if (!cx) {
-          this.pendingWireInsert = null;
-          return;
-        }
-
-        const generatedId = generateId('node');
         const initialValue = e.key;
         const connectionId = this.pendingWireInsert.wireId;
 
-        // Start Long Edit with Creation + Rewire Logic
-        this.popupLongEdit = appController.beginLongEdit({
-          apply: (c) => {
-            // 1. Create Node (default hub for now, will be updated by handlePopupPreview immediately after input?)
-            // Actually, 'initialValue' is just the first char.
-            // The popup will be initialized with this char.
-            // The node type defaults to hub until committed or updated.
-            // Wait, smart-input usually sends `preview` event with matched type.
-            // So we create a default node here.
-            c.createNode('util.hub', foundX, foundY, { id: generatedId });
-
-            // 2. Initial Rewire (assume Hub behaviors)
-            // Or shoud we wait for preview?
-            // If we rewire now, we use hub ports.
-            const oldConn = appController.observableState.graph.inner.connections[connectionId];
-            if (oldConn) {
-              const nodeType = defaultNodeRepository.getNodeType('util.hub');
-              const firstInput = nodeType?.inputs?.[0]?.name || 'in';
-              const firstOutput = nodeType?.outputs?.[0]?.name || 'out';
-
-              c.deleteConnection(connectionId);
-              c.createConnection(oldConn.fromNodeId, oldConn.fromPort, generatedId, firstInput);
-              c.createConnection(generatedId, firstOutput, oldConn.toNodeId, oldConn.toPort);
-            }
-          },
-          cancel: () => {
-            this.popupLongEdit = null;
-          }
-        });
-
-        localController.queueSelectPaths([generatedId]);
-
-        this.popup = {
-          x: this.pendingWireInsert.x,
-          y: this.pendingWireInsert.y - 40,
-          gridX: foundX,
-          gridY: foundY,
-          initialValue: e.key,
-          connectionId,
-          nodeId: generatedId,
-          isNew: true
-        };
+        this.popupManager.startCreation(
+          this.pendingWireInsert.x,
+          this.pendingWireInsert.y - 40,
+          foundX,
+          foundY,
+          initialValue,
+          connectionId
+        );
 
         this.pendingWireInsert = null;
       }
@@ -1488,6 +1422,7 @@ export class GraphGrid extends MobxLitElement {
 
 
     ${repeat(Object.values(nodes), node => node.id, node => this.renderGraphNode(node, outputCol))}
+    ${this.renderGhosts(outputCol)}
     ${this.renderDragPreview(outputCol)}
       </div>
     `;
@@ -1504,6 +1439,60 @@ export class GraphGrid extends MobxLitElement {
     return html`
       <div class="drag-preview" style="grid-column: ${col}; grid-row: ${row}; min-height: 80px;"></div>
     `;
+  }
+
+  private renderGhosts(outputCol: number) {
+    const { selection, isDraggingSelection, altKeyPressed } = localController.observableState;
+    if (!isDraggingSelection || !altKeyPressed) return '';
+
+    const selectedNodes: GridNode[] = [];
+    for (const [id] of selection) {
+      const node = appController.observableState.graph.inner.nodes[id];
+      if (node) selectedNodes.push(node);
+    }
+
+    return repeat(selectedNodes, n => n.id + '-ghost', node => {
+      // Reuse renderGraphNode logic but force style
+      // We can manually construct the element or factor out logic
+      // Factoring out logic is cleaner but `renderGraphNode` is coupled to checks.
+      // Let's copy-paste essential logic for safety or create a helper.
+
+      const incomingConnections = appController.observableState.graph.auxiliary.incomingConnections.get(node.id) || [];
+
+      // Calculate grid position
+      let col = 0;
+      let ioType: 'input' | 'output' | undefined;
+
+      if (node.config.typeId === 'io.input' || node.config.typeId === 'resolume.input') {
+        col = 1;
+        ioType = 'input';
+      } else if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') {
+        col = outputCol;
+        ioType = 'output';
+      } else {
+        col = 2 * node.x + 3;
+      }
+
+      const row = 2 * node.y + 2;
+      const gridColStyle = `${col} / span 1`;
+      const gridRowStyle = `${row}`;
+
+      return html`
+        <graph-node
+          .node=${node}
+          .incomingConnections=${incomingConnections}
+          .isQueued=${false}
+          .x=${node.x}
+          .y=${node.y}
+          .gridColumn=${gridColStyle}
+          .gridRow=${gridRowStyle}
+          .parentZIndex=${90}
+          data-io-type=${ioType || ''}
+          data-id=${node.id + '-ghost'}
+          style="grid-column: ${gridColStyle}; grid-row: ${gridRowStyle}; opacity: 0.5; filter: grayscale(1); pointer-events: none;"
+        ></graph-node>
+      `;
+    });
   }
 
   private renderGraphNode(node: GridNode, outputCol: number) {

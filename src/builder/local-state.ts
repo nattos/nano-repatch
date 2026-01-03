@@ -1,7 +1,7 @@
 import { HTMLTemplateResult } from 'lit';
 import { observable, makeObservable, action, runInAction, toJS } from 'mobx';
 import { LayoutResult } from '../layout/wire-layout';
-import { GraphState, GridNode } from './state';
+import { GraphState, GridNode, Connection, AppController } from './state';
 import { settingsManager } from './settings-manager';
 import { StructorType } from '../structor/structor';
 import { defaultNodeRepository, PortHint } from '../structor/repository';
@@ -26,6 +26,12 @@ export interface LocalState {
   layoutVersion: number;
   viewport: { x: number, y: number, w: number, h: number };
   dragPreview: { x: number, y: number, w: number, h: number } | null;
+
+  clipboard: { nodes: GridNode[]; connections: Connection[] } | null;
+
+  // Interaction State
+  isDraggingSelection: boolean;
+  altKeyPressed: boolean;
 
   // Serialized settings.
   localSettings: LocalSettings;
@@ -71,7 +77,7 @@ export class LocalController {
 
   private layoutWorker: Worker;
 
-  constructor() {
+  constructor(private appController: AppController) {
     this.observableState = observable({
       selection: new Map<string, Selectable>(),
       queuedSelection: new Set<string>(),
@@ -86,6 +92,7 @@ export class LocalController {
       effectiveNodeTypes: new Map<string, { inputs: PortHint[], outputs: PortHint[] }>(),
       viewport: { x: 0, y: 0, w: 0, h: 0 },
       dragPreview: null,
+      clipboard: null,
       gridMetrics: {
         cells: new Map(),
         columns: new Map(),
@@ -99,6 +106,9 @@ export class LocalController {
         activeTab: 'library',
         enableResolumeIO: false
       },
+      // Interaction State
+      isDraggingSelection: false,
+      altKeyPressed: false,
     });
     makeObservable(this);
 
@@ -595,6 +605,18 @@ export class LocalController {
     this.observableState.loadedSubgraphs = subgraphs;
   }
 
+  @action
+  public setIsDraggingSelection(isDragging: boolean): void {
+    this.observableState.isDraggingSelection = isDragging;
+  }
+
+  @action
+  public setAltKeyPressed(pressed: boolean): void {
+    if (this.observableState.altKeyPressed !== pressed) {
+      this.observableState.altKeyPressed = pressed;
+    }
+  }
+
   public getViewportCenterGridCoordinates(): { x: number, y: number } {
     // Proposal:
     // Add `viewport` to `LocalState`.
@@ -603,7 +625,7 @@ export class LocalController {
 
     // Let's start by adding the interface to LocalState, then implementing the sync.
     const { viewport } = this.observableState;
-    if (!viewport) return { x: 5, y: 5 }; // Fallback
+    if (!viewport || viewport.w === 0 || viewport.h === 0) return { x: 5, y: 5 }; // Fallback
 
     // Assuming 50px grid approximation or use GridMetrics?
     // Grid cells are variable width.
@@ -649,6 +671,54 @@ export class LocalController {
 
     return { x: 5, y: gridY };
   }
+
+  @action
+  public copyToClipboard(): void {
+    const state = this.appController.getState();
+    const selection = this.observableState.selection;
+    if (selection.size === 0) return;
+
+    const selectedNodeIds: string[] = [];
+    for (const [path] of selection) {
+      // Assuming path is node ID.
+      // Filter out non-node selections like wires for now?
+      // Actually connectivity is implicitly handled by duplicateNodes logic usually,
+      // but here we want to capture connectivity between selected nodes explicitly.
+      if (state.graph.inner.nodes[path]) {
+        selectedNodeIds.push(path);
+      }
+    }
+
+    if (selectedNodeIds.length === 0) return;
+
+    const nodes = selectedNodeIds.map(id => state.graph.inner.nodes[id]);
+    const connections = Object.values(state.graph.inner.connections).filter((c: any) =>
+      selectedNodeIds.includes(c.fromNodeId) && selectedNodeIds.includes(c.toNodeId)
+    );
+
+    this.observableState.clipboard = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      connections: JSON.parse(JSON.stringify(connections))
+    };
+  }
+
+  public findFreeSpace(gridX: number, checkY: number): { x: number, y: number } {
+    const nodes = this.appController.getState().graph.inner.nodes;
+    let targetY = checkY;
+    let attempts = 0;
+    const maxAttempts = 50; // Increased search range
+
+    while (attempts < maxAttempts) {
+      // Check for collision with any existing node
+      const occupied = Object.values(nodes).some((n: any) => n.x === gridX && n.y === targetY);
+      if (!occupied) return { x: gridX, y: targetY };
+      targetY++;
+      attempts++;
+    }
+    // Fallback if full: checkY
+    return { x: gridX, y: checkY };
+  }
+
 
   public getGridCellFromPixels(x: number, y: number): { x: number, y: number } {
     const { rowOffsets, colOffsets, rows, columnWidths } = this.observableState.gridMetrics;

@@ -533,6 +533,63 @@ export class AppController {
     }
   }
 
+  public duplicateNodes(nodeIds: string[], offset: { x: number, y: number } = { x: 0, y: 0 }): string[] {
+    const state = this.getState();
+    const newIds: string[] = [];
+    const idMap = new Map<string, string>(); // Old ID -> New ID
+
+    const mutations: AppMutation[] = [];
+
+    // 1. Create Copies
+    for (const id of nodeIds) {
+      const originalNode = state.graph.inner.nodes[id];
+      if (!originalNode) continue;
+
+      const newId = generateId('node');
+      newIds.push(newId);
+      idMap.set(id, newId);
+
+      const newNode: GridNode = {
+        ...originalNode,
+        id: newId,
+        x: originalNode.x + offset.x,
+        y: originalNode.y + offset.y,
+        config: JSON.parse(JSON.stringify(originalNode.config)) // Deep copy config
+      };
+
+      mutations.push({ type: 'node.create', node: newNode });
+    }
+
+    // 2. Duplicate Internal Connections
+    // Only copy connections where BOTH ends are within the duplicated set
+    const internalConnections = Object.values(state.graph.inner.connections).filter(conn =>
+      nodeIds.includes(conn.fromNodeId) && nodeIds.includes(conn.toNodeId)
+    );
+
+    for (const conn of internalConnections) {
+      const newFromId = idMap.get(conn.fromNodeId);
+      const newToId = idMap.get(conn.toNodeId);
+
+      if (newFromId && newToId) {
+        const newConnection: Connection = {
+          id: generateId('conn'),
+          fromNodeId: newFromId,
+          fromPort: conn.fromPort,
+          toNodeId: newToId,
+          toPort: conn.toPort
+        };
+        mutations.push({ type: 'connection.create', connection: newConnection });
+      }
+    }
+
+    if (mutations.length > 0) {
+      mutations.push({ type: 'graph.recompile' });
+      this.dispatch(mutations);
+    }
+
+    return newIds;
+  }
+
   public calculateConstrainedMove(nodeIds: string[], dx: number, dy: number): { dx: number, dy: number } {
     const state = this.getState();
     let constrainedDx = dx;

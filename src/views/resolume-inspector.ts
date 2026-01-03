@@ -397,29 +397,13 @@ export class ResolumeInspector extends MobxLitElement {
 
   private handleDoubleClick(e: MouseEvent, param: ResolumeParameter) {
     // Systemic insertion using LocalController's viewport knowledge
-    // This avoids querying the DOM for graph-grid or its shadow root which is flaky/encapsulated.
     const { x: gridX, y: gridY } = localController.getViewportCenterGridCoordinates();
 
-    // Check for collision with existing nodes
-    const nodes = appController.getState().graph.inner.nodes;
-    let targetY = gridY;
-    let attempts = 0;
-    const maxAttempts = 10;
+    const spot = localController.findFreeSpace(gridX, gridY);
 
-    // Use specific X column logic if needed (e.g. output parameters), but viewport center is safe default.
-    // If we wanted to be smarter:
-    // If output param, try to put near Output column?
-    // But "viewport center" is standard user expectation.
-
-    while (attempts < maxAttempts) {
-      const occupied = Object.values(nodes).some(n => n.x === gridX && n.y === targetY);
-      if (!occupied) break;
-      targetY++;
-      attempts++;
-    }
-
-    appController.createNode('resolume.output', gridX, targetY, { path: param.path });
+    appController.createNode('resolume.output', spot.x, spot.y, { path: param.path });
   }
+
 
   private renderRange(param: ResolumeParameter) {
     const percentage = (typeof param.value === 'number') ? Math.min(100, Math.max(0, param.value * 100)) : 0;

@@ -1038,7 +1038,7 @@ export class GraphNode extends MobxLitElement {
     const connectedPorts = new Set(incomingConnections.map(connId => {
       const conn = appController.observableState.graph.inner.connections[connId];
       return conn ? conn.toPort : null;
-    }).filter(port => port !== null));
+    }).filter((port): port is string => port !== null));
 
     const isQueued = this.isQueued;
     const typeColor = cssColorFromHash(this.node.config.typeId);

@@ -235,4 +235,53 @@ describe('AppController', () => {
             dispose();
         });
     });
+
+    describe('duplicateNodes', () => {
+        it('duplicates single node', () => {
+            const node = controller.createNode('test.type', 0, 0);
+            const newIds = controller.duplicateNodes([node.id], { x: 5, y: 5 });
+
+            expect(newIds.length).toBe(1);
+            const newNode = controller.getState().graph.inner.nodes[newIds[0]];
+            expect(newNode).toBeDefined();
+            expect(newNode.id).not.toBe(node.id);
+            expect(newNode.config.typeId).toBe('test.type');
+            expect(newNode.x).toBe(5);
+            expect(newNode.y).toBe(5);
+        });
+
+        it('duplicates multiple nodes and their internal connection', () => {
+            const n1 = controller.createNode('test.type', 0, 0);
+            const n2 = controller.createNode('test.type', 10, 0);
+            const c1 = controller.createConnection(n1.id, 'out', n2.id, 'in');
+
+            // Add external connection (should NOT copy)
+            const n3 = controller.createNode('test.type', 20, 0);
+            const c2 = controller.createConnection(n2.id, 'out', n3.id, 'in');
+
+            const newIds = controller.duplicateNodes([n1.id, n2.id], { x: 5, y: 5 });
+
+            expect(newIds.length).toBe(2);
+            const s = controller.getState();
+            const newN1 = s.graph.inner.nodes[newIds[0]];
+            const newN2 = s.graph.inner.nodes[newIds[1]];
+
+            // Check positions
+            expect(newN1.x).toBe(5);
+            expect(newN2.x).toBe(15);
+
+            // Check Connections
+            const connections = Object.values(s.graph.inner.connections);
+
+            // Should find exactly one connection between newN1 and newN2
+            const internalConn = connections.find(c => c.fromNodeId === newN1.id && c.toNodeId === newN2.id);
+            expect(internalConn).toBeDefined();
+            expect(internalConn!.fromPort).toBe('out');
+            expect(internalConn!.toPort).toBe('in');
+
+            // Should NOT find connection from newN2 to n3 (or new equivalent of n3)
+            const externalConn = connections.find(c => c.fromNodeId === newN2.id && c.toNodeId === n3.id);
+            expect(externalConn).toBeUndefined();
+        });
+    });
 });

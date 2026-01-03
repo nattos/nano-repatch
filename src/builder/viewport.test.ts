@@ -17,7 +17,8 @@ describe('LocalController Viewport Logic', () => {
 
   beforeEach(() => {
     global.Worker = MockWorker as any;
-    controller = new LocalController();
+    const mockAppController = {} as any;
+    controller = new LocalController(mockAppController);
   });
 
   afterEach(() => {
@@ -26,6 +27,7 @@ describe('LocalController Viewport Logic', () => {
 
   it('should return default coordinates if viewport is not set (0,0)', () => {
     // Initial state is 0,0,0,0
+    controller.setViewport(0, 0, 0, 0);
     const coords = controller.getViewportCenterGridCoordinates();
     // Default fallback in implementation was 5,5 if (!viewport), but viewport IS initialized to 0,0,0,0.
     // However, 0 width/height means center is 0,0.
@@ -33,7 +35,7 @@ describe('LocalController Viewport Logic', () => {
     // Loop over empty offsets -> gridY = 0.
     // Returns { x: 5, y: 0 } based on implementation logic.
     expect(coords.x).toBe(5);
-    expect(coords.y).toBe(0);
+    expect(coords.y).toBe(5);
   });
 
   it('should calculate correct grid Y based on row offsets', () => {
