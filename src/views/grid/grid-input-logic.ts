@@ -65,6 +65,12 @@ export class GridInputLogic {
           gridX = parseInt(rawX || '0');
         }
 
+        // Check if a node already exists at this location
+        const nodes = Object.values(this.appController.observableState.graph.inner.nodes);
+        const occupied = nodes.some(n => n.x === gridX && n.y === gridY);
+
+        if (occupied) return;
+
         // Calculate visual position for popup
         const rect = target.getBoundingClientRect();
         const parentRect = this.host.getBoundingClientRect();

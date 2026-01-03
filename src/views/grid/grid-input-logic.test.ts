@@ -113,6 +113,32 @@ describe('GridInputLogic', () => {
     expect(mockPopupManager.startCreation).toHaveBeenCalledWith(100, 60, 5, 10, 'util.hub'); // 100 - (0 host left) + 0 scroll = 100. 100 - (0 host top) + 0 scroll - 40 = 60.
   });
 
+  it('does NOT start creation popup if cell is occupied', () => {
+    // Occupy the target cell
+    mockAppController.observableState.graph.inner.nodes = {
+      'existing-node': { x: 5, y: 10, config: { typeId: 'test.type' } }
+    };
+
+    const cell = document.createElement('div');
+    cell.classList.add('cell', 'node-cell');
+    cell.dataset.x = '5';
+    cell.dataset.y = '10';
+    vi.spyOn(cell, 'getBoundingClientRect').mockReturnValue({ left: 100, top: 100 } as DOMRect);
+
+    const e = {
+      composedPath: () => [cell],
+      clientX: 100,
+      clientY: 100
+    } as unknown as MouseEvent;
+
+    logic.handleDblClick(e);
+
+    expect(mockPopupManager.startCreation).not.toHaveBeenCalled();
+
+    // Reset state
+    mockAppController.observableState.graph.inner.nodes = {};
+  });
+
   it('deletes node on double click', () => {
     const node = document.createElement('graph-node');
     node.setAttribute('data-id', 'test-node');
