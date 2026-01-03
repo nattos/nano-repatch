@@ -12,6 +12,7 @@ import * as CoreSubgraph from './nodes/core_subgraph';
 import * as CoreThenSubgraph from './nodes/core_thensubgraph';
 import * as CorePack from './nodes/core_pack';
 import * as CoreUnpack from './nodes/core_unpack';
+import * as CoreIfThen from './nodes/core_ifthen';
 import * as DataLiteral from './nodes/data_literal';
 import * as DataHub from './nodes/data_hub';
 import * as Functional from './nodes/functional';
@@ -28,6 +29,7 @@ export * from './nodes/core_subgraph';
 export * from './nodes/core_thensubgraph';
 export * from './nodes/core_pack';
 export * from './nodes/core_unpack';
+export * from './nodes/core_ifthen';
 export * from './nodes/data_literal';
 export * from './nodes/data_hub';
 export * from './nodes/functional';
@@ -35,7 +37,7 @@ export * from './nodes/functional';
 // Aggregate ALL_PRIMITIVES for tests and legacy registration tools
 const modules = [
   Binary, Unary, List, Constants, Utils, IOInput, IOOutput,
-  CoreSubgraph, CoreThenSubgraph, CorePack, CoreUnpack, DataLiteral, DataHub, Functional
+  CoreSubgraph, CoreThenSubgraph, CorePack, CoreUnpack, CoreIfThen, DataLiteral, DataHub, Functional
 ];
 
 export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = modules.flatMap(mod =>

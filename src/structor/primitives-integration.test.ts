@@ -589,4 +589,68 @@ describe('Primitives Integration', () => {
     // Outputs: 1 node. Name should be 'out'.
     expect(subTypes.outputs.fields['out']).toBeDefined();
   });
+
+  it('should implicitly group and conditionally execute nodes with core.ifthen', () => {
+    // 1. Define Graph
+    // Trigger -> IfThen (contains Inner)
+    // Inner -> Outer
+
+    // Note On Event
+    const noteOn = [{ type: 'note_on', channel: 0, note: 60, velocity: 127 }];
+
+    const { executor, getOutput, updateConfig } = compileAndRun(
+      {
+        't1': { typeId: 'data.literal', x: -2, y: 0, config: { value: [] as any } },
+        'if': { typeId: 'core.ifthen', x: 0, y: 0, config: { width: 10, height: 10 } },
+        'in1': { typeId: 'data.literal', x: 1, y: 1, config: { value: 10 } },
+        'c5': { typeId: 'data.literal', x: 20, y: 10, config: { value: 5 } },
+        'out1': { typeId: 'math.add', x: 20, y: 0 }
+      },
+      [
+        { from: 't1', port: 'value', to: 'if', portIn: 'midi_in' },
+        { from: 'in1', port: 'value', to: 'out1', portIn: 'a' },
+        { from: 'c5', port: 'value', to: 'out1', portIn: 'b' }
+      ],
+      'out1', 'result'
+    );
+
+    // 1. Run without trigger
+    // 'in1' is implicitly owned by 'if'. It should NOT run.
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(5); // Default value 0 used for missing input from in1
+
+    // 2. Run WITH trigger
+    updateConfig('t1', { value: noteOn });
+    console.log('Executor Downstream Map:', (executor as any).downstreamMap);
+    console.log('Executor Execution Order:', (executor as any).mainExecutionOrder);
+
+    executor.update({ clock: { beat: 0, dt: 0 } });
+
+    // 'if' runs -> triggers 'onTrigger' -> 'in1' runs (output 10).
+    // 'out1' runs -> reads 10 + 5 -> 15.
+    expect(getOutput()).toBe(15);
+
+    // 3. Run again WITHOUT trigger
+    updateConfig('t1', { value: [] });
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(15); // Stale value preserved
+    expect(getOutput()).toBe(15); // Stale value preserved
+  });
+
+  test('should handle empty core.ifthen node without error', () => {
+    // Regression test for "Subgraph undefined not found"
+    const { executor } = compileAndRun(
+      {
+        'if': { typeId: 'core.ifthen', x: 0, y: 0, config: { width: 3, height: 3 } },
+      },
+      [],
+      'if', 'out' // Dummy connection
+    );
+
+    // Should assume no error occurred during compilation
+    expect(executor).toBeDefined();
+
+    // Execution should be safe
+    executor.update({ clock: { beat: 0, dt: 0 } });
+  });
 });

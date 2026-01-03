@@ -221,6 +221,12 @@ export interface PrimitiveNodeDefinition {
    * Any other string means the nodes are expanded but deferred/conditional.
    */
   subgraphExpansionTag?: string;
+
+  /**
+   * Optional function to determine implicitly owned child nodes.
+   * Used for spatial grouping (e.g. core.ifthen).
+   */
+  getChildren?: (node: any, allNodes: any) => string[];
 }
 
 /**

@@ -238,5 +238,78 @@ describe('Graph Compiler', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('should compile implicit node groups using getChildren', () => {
+    // 1. Setup Mock Parent Implementation
+    const getChildren = vi.fn((node, allNodes) => {
+      // Logic: return ID of any node with type 'child'
+      return [];
+    });
+
+    const mockParentType = {
+      definition: { getChildren, kind: 'primitive' },
+      inputs: [],
+      outputs: []
+    };
+
+    const mockChildType = {
+      definition: { kind: 'primitive' },
+      inputs: [{ name: 'in' }],
+      outputs: [{ name: 'out' }]
+    };
+
+    const spy = vi.spyOn(defaultNodeRepository, 'getNodeType').mockImplementation((typeId: string) => {
+      if (typeId === 'parent') return mockParentType as any;
+      if (typeId === 'child') return mockChildType as any;
+      return undefined;
+    });
+
+    // 2. Create Graph
+    // Parent P, Child C, External E
+    // E -> C -> E
+    const graph = createGraph(
+      [
+        { id: 'parent1', config: { typeId: 'parent' } },
+        { id: 'child1', config: { typeId: 'child' } }, // Implicitly owned by parent1
+        { id: 'ext1', config: { typeId: 'child' } } // External node
+      ],
+      [
+        { fromNode: 'ext1', fromPort: 'out', toNode: 'child1', toPort: 'in' },
+        // { fromNode: 'child1', fromPort: 'out', toNode: 'ext1', toPort: 'in' }, // Removed cycle
+        { fromNode: 'parent1', fromPort: 'out', toNode: 'ext1', toPort: 'ctrl' } // Dependency
+      ]
+    );
+
+    // Refine getChildren to only pick 'child1'
+    getChildren.mockImplementation((node, allNodes) => {
+      if (node.id === 'parent1') return ['child1'];
+      return [];
+    });
+
+    const appState: AppState = { graph };
+    const loadedSubgraphs = new Map();
+
+    const { graph: compiled } = compileGraph(appState, loadedSubgraphs, defaultNodeRepository);
+
+    // 3. Assertions
+    // 'parent1' should exist
+    expect(compiled.nodes['parent1']).toBeDefined();
+    // 'child1' should NOT exist at root
+    expect(compiled.nodes['child1']).toBeUndefined();
+    // 'parent1.child1' SHOULD exist (recursive processing)
+    expect(compiled.nodes['parent1.child1']).toBeDefined();
+    // 'ext1' should exist
+    expect(compiled.nodes['ext1']).toBeDefined();
+
+    // Connection Rewiring
+    // ext1 -> parent1.child1 (was ext1 -> child1)
+    expect(compiled.connections).toContainEqual({
+      fromNode: 'ext1', fromPort: 'out',
+      toNode: 'parent1.child1', toPort: 'in'
+    });
+
+    // Cleanup
+    spy.mockRestore();
+  });
 });
 

@@ -85,8 +85,8 @@ export const compileAndRun = (
   for (const [id, def] of Object.entries(nodes)) {
     gridNodes[id] = {
       id,
-      x: x++,
-      y: 0,
+      x: (def as any).x !== undefined ? (def as any).x : x++,
+      y: (def as any).y !== undefined ? (def as any).y : 0,
       config: {
         typeId: def.typeId,
         values: def.values || {},
@@ -95,11 +95,20 @@ export const compileAndRun = (
     };
   }
 
+  // Determine max X to place output node safely
+  let maxX = x;
+  Object.values(gridNodes).forEach(n => {
+    if (n.x >= maxX) maxX = n.x + 1;
+    // Also consider width if available in config?
+    // But gridNodes doesn't have width in root property, it's in config or implicit.
+    // Let's just add a generous buffer.
+  });
+
   // Add output node
   const outId = 'out_node';
   gridNodes[outId] = {
     id: outId,
-    x: x++,
+    x: maxX + 20, // Add buffer to avoid being captured by wide nodes like ifthen
     y: 0,
     config: { typeId: 'io.output', name: 'test_out', values: {} }
   };
@@ -142,6 +151,7 @@ export const compileAndRun = (
   return {
     executor,
     getOutput: () => executor.getGraphOutput('test_out'),
+    updateConfig: (nodeId: string, newConfig: any) => executor.setNodeConfig(nodeId, newConfig),
     repository // Export repo for manual checks
   };
 };

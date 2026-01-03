@@ -34,24 +34,107 @@ export function compileGraph(
   function processGraph(
     graph: GraphState,
     idPrefix: string,
-    isRoot: boolean,
+    // Removed isRoot, as implicit grouping should work in nested graphs too.
     parentConfigValues: Record<string, any> = {},
     parentSubgraphId: string | null = null,
     recursionPath: Set<string> = new Set(),
     executionTag: string | undefined = undefined,
     executionOwnerId: string | undefined = undefined
   ) {
+    // 0. Local Pre-calculation: Identify Parent-Child Relationships in THIS graph scope
+    const childToParent = new Map<string, string>();
+    const parentNodes = new Set<string>();
+
+    for (const node of Object.values(graph.inner.nodes)) {
+      const nodeType = nodeRepository.getNodeType(node.config.typeId);
+      if (nodeType && nodeType.definition.getChildren) {
+        const children = nodeType.definition.getChildren(node, graph.inner.nodes);
+        for (const childId of children) {
+          if (childToParent.has(childId)) {
+            console.warn(`Node ${childId} is owned by multiple parents! Keeping ${childToParent.get(childId)}, ignoring ${node.id}.`);
+            continue;
+          }
+          childToParent.set(childId, node.id);
+        }
+        if (children.length > 0) {
+          parentNodes.add(node.id);
+        }
+      }
+    }
+
     // 1. Process Nodes
     for (const node of Object.values(graph.inner.nodes)) {
+      // Skip if this node is implicitly owned by another node in the SAME graph level
+      if (childToParent.has(node.id)) {
+        continue;
+      }
+
       const nodeId = idPrefix + node.id;
       const nodeType = nodeRepository.getNodeType(node.config.typeId);
 
       // Check for subgraph expansion
-      // We look at the definition's tag
-      const subgraphTag = (nodeType?.definition as any)?.subgraphExpansionTag;
+      // Explicit Subgraph (External File) vs Implicit Subgraph (Embedded Children)
+      // We prioritize Implicit if the node definition supports `getChildren`.
 
+      if (nodeType && nodeType.definition.getChildren) {
+        // IMPLICIT PARENT NODE (e.g. core.ifthen)
 
-      if (subgraphTag) {
+        const childrenIds = nodeType.definition.getChildren(node, graph.inner.nodes);
+
+        if (childrenIds.length > 0) {
+          // 2. Construct Transient Graph for children
+          const transientGraph: GraphState = {
+            inner: {
+              nodes: {},
+              connections: {}
+            },
+            auxiliary: { outgoingConnections: new Map(), incomingConnections: new Map() }
+          } as any;
+
+          const childSet = new Set(childrenIds);
+
+          // Copy nodes to transient graph
+          childrenIds.forEach(cid => {
+            transientGraph.inner.nodes[cid] = graph.inner.nodes[cid];
+          });
+
+          // Copy/Filter connections
+          Object.values(graph.inner.connections).forEach(conn => {
+            if (childSet.has(conn.fromNodeId) && childSet.has(conn.toNodeId)) {
+              transientGraph.inner.connections[conn.id] = conn;
+            }
+          });
+
+          // 3. Define Context
+          const implicitTag = (nodeType?.definition as any)?.subgraphExpansionTag;
+
+          let nextExecutionTag = executionTag;
+          let nextOwnerId = executionOwnerId;
+
+          if (implicitTag && implicitTag !== 'inline') {
+            nextExecutionTag = implicitTag;
+            nextOwnerId = nodeId;
+          }
+
+          // 4. Recurse
+          processGraph(transientGraph, nodeId + '.', node.config.values || {}, node.id, recursionPath, nextExecutionTag, nextOwnerId);
+        }
+
+        // 5. Add Parent Node itself
+        const instanceConfig = nodeType?.compileConfig
+          ? nodeType.compileConfig(node.config)
+          : (node.config as unknown as Structor);
+
+        flatNodes[nodeId] = {
+          definitionId: node.config.typeId,
+          defaultConfig: instanceConfig,
+          executionTag: executionTag,
+          executionOwnerId: executionOwnerId
+        };
+      } else if (nodeType?.definition.subgraphExpansionTag) {
+        // EXPLICIT SUBGRAPH (Inline or Conditional)
+        // Only enter this if it wasn't handled as implicit parent.
+        const subgraphTag = nodeType.definition.subgraphExpansionTag;
         // It's a subgraph expander (inline or conditional)
         const subgraphId = node.config.subgraphId;
 
@@ -70,8 +153,6 @@ export function compileGraph(
         }
 
         // Determine execution context for children
-        // If tag is 'inline', we inherit current context (e.g. we might be deep in a conditional already)
-        // If tag is custom (e.g. 'onTrigger'), we start a new context owned by THIS node.
         let nextExecutionTag = executionTag;
         let nextOwnerId = executionOwnerId;
 
@@ -84,10 +165,9 @@ export function compileGraph(
         const newPath = new Set(recursionPath);
         newPath.add(subgraphId);
 
-        // Pass node.id as parentSubgraphId (key for mapping)
-        processGraph(subgraph, nodeId + '.', false, node.config.values || {}, node.id, newPath, nextExecutionTag, nextOwnerId);
+        processGraph(subgraph, nodeId + '.', node.config.values || {}, node.id, newPath, nextExecutionTag, nextOwnerId);
 
-        // Also add the subgraph container node itself to flatNodes so it can be typed/executed (as a wrapper)
+        // Also add the subgraph container node itself to flatNodes
         const instanceConfig = nodeType?.compileConfig
           ? nodeType.compileConfig(node.config)
           : (node.config as unknown as Structor);
@@ -95,7 +175,6 @@ export function compileGraph(
         flatNodes[nodeId] = {
           definitionId: node.config.typeId,
           defaultConfig: instanceConfig,
-          // The container node ITSELF exists in the current scope (e.g. Main or parent Conditional)
           executionTag: executionTag,
           executionOwnerId: executionOwnerId
         };
@@ -117,8 +196,7 @@ export function compileGraph(
 
         flatNodes[nodeId] = instance;
 
-
-        if (isRoot) {
+        if (idPrefix === '') { // Top level
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
             const name = node.config.name || node.id;
             flatInputs[name] = { nodeId: nodeId, port: 'value' };
@@ -129,7 +207,7 @@ export function compileGraph(
         }
 
         // --- Virtual Input Propagation ---
-        if (!isRoot && (node.config.typeId === 'io.input' || node.config.typeId === 'input')) {
+        if (idPrefix !== '' && (node.config.typeId === 'io.input' || node.config.typeId === 'input')) {
           const inputNodes = Object.values(graph.inner.nodes)
             .filter(n => n.config.typeId === 'io.input' || n.config.typeId === 'input')
             .sort((a, b) => a.y - b.y);
@@ -172,7 +250,7 @@ export function compileGraph(
           }
         }
 
-        if (!isRoot && (node.config.typeId === 'io.output' || node.config.typeId === 'output')) {
+        if (idPrefix !== '' && (node.config.typeId === 'io.output' || node.config.typeId === 'output')) {
           // New: Output Remapping for Debug Values
           if (parentSubgraphId) {
             const outputNodes = Object.values(graph.inner.nodes)
@@ -193,7 +271,6 @@ export function compileGraph(
         }
 
         // Process Virtual Inputs (Standard)
-        // ... (rest of function)
         // We need to consider both explicitly configured values AND default values for unconnected ports.
 
         // 1. Determine all potential input ports
@@ -250,7 +327,11 @@ export function compileGraph(
     // 2. Process Connections
     for (const conn of Object.values(graph.inner.connections)) {
       // Resolve Source
-      let fromNodeId = idPrefix + conn.fromNodeId;
+      let baseFromNodeId = idPrefix + conn.fromNodeId;
+      if (childToParent.has(conn.fromNodeId)) {
+        baseFromNodeId = idPrefix + childToParent.get(conn.fromNodeId)! + '.' + conn.fromNodeId;
+      }
+      let fromNodeId = baseFromNodeId;
       let fromPort = conn.fromPort;
 
       const fromNode = graph.inner.nodes[conn.fromNodeId];
@@ -275,14 +356,18 @@ export function compileGraph(
 
           if (outputNode) {
             // Rewire: Source is the 'output' node inside the subgraph
-            fromNodeId = idPrefix + fromNode.id + '.' + outputNode.id;
+            fromNodeId = baseFromNodeId + '.' + outputNode.id;
             fromPort = 'value'; // Output nodes output on 'value' (identity)
           }
         }
       }
 
       // Resolve Destination
-      let toNodeId = idPrefix + conn.toNodeId;
+      let baseToNodeId = idPrefix + conn.toNodeId;
+      if (childToParent.has(conn.toNodeId)) {
+        baseToNodeId = idPrefix + childToParent.get(conn.toNodeId)! + '.' + conn.toNodeId;
+      }
+      let toNodeId = baseToNodeId;
       let toPort = conn.toPort;
 
       const toNode = graph.inner.nodes[conn.toNodeId];
@@ -307,11 +392,8 @@ export function compileGraph(
 
           if (inputNode) {
             // Rewire: Destination is the 'input' node inside the subgraph
-            toNodeId = idPrefix + toNode.id + '.' + inputNode.id;
+            toNodeId = baseToNodeId + '.' + inputNode.id;
             // Use the named port (resolved) to match Virtual Input injection keys.
-            // This ensures that REAL connections override Virtual Inputs in Executor.
-            // (If we used 'value', Executor would see 'value' (conn) and 'in' (virtual) separately,
-            // and io.input would pick 'in', ignoring the connection.)
             toPort = toPort;
           }
         }
@@ -319,31 +401,15 @@ export function compileGraph(
 
       let validSource = true;
       if (fromNode && fromIsSubgraph) {
-        // If fromNodeId was not updated, it means rewiring failed (port not found)
-        // CHECK: If the port belongs to the Wrapper (non-rewired), it's valid.
-        // We can verify if the Wrapper has this port defined.
-        // But for now, we assume if it didn't match Inner, it targets Wrapper.
-        // The original logic marked it invalid if name matched wrapper? No.
-        // Original logic: if (fromNodeId === idPrefix + conn.fromNodeId) validSource = false;
-        // This assumed ALL ports on subgraph node MUST map to inner nodes.
-        // But core.thensubgraph has 'midi_in' on the wrapper.
-        // SO we must allow wrapper ports.
-        // We should check if the port exists on the Wrapper Definition?
-        // Or just assume validity if it is not rewired.
-
-        // However, standard `core.subgraph` (inline) has NO wrapper ports.
-        // `core.thensubgraph` (tagged) HAS wrapper ports.
-        // We can distinguish by tag?
         // If tag == 'inline', strict rewiring?
-        // If tag != 'inline', allow wrapper?
-        if (fromIsSubgraph === 'inline' && fromNodeId === idPrefix + conn.fromNodeId) {
+        if (fromIsSubgraph === 'inline' && fromNodeId === baseFromNodeId) {
           validSource = false;
         }
       }
 
       let validDest = true;
       if (toNode && toIsSubgraph) {
-        if (toIsSubgraph === 'inline' && toNodeId === idPrefix + conn.toNodeId) {
+        if (toIsSubgraph === 'inline' && toNodeId === baseToNodeId) {
           validDest = false;
         }
       }
@@ -357,11 +423,23 @@ export function compileGraph(
         });
 
         // Implicit Dependency Injection for Non-Inline Subgraphs
-        // Ensures that the Wrapper Node (Host) is sorted correctly relative to peers.
+
+        // Case 0: Implicit Child -> Destination (Parent -> Destination)
+        if (childToParent.has(conn.fromNodeId)) {
+          const parentId = idPrefix + childToParent.get(conn.fromNodeId)!;
+          if (parentId !== toNodeId) {
+            flatConnections.push({
+              fromNode: parentId,
+              fromPort: '___control___',
+              toNode: toNodeId,
+              toPort: '___control___'
+            });
+          }
+        }
+
         // Case 1: Subgraph Output (Wrapper -> Peer via Inner)
-        // Order: Wrapper -> Peer. (Wrapper must run to produce output)
         if (fromIsSubgraph && fromIsSubgraph !== 'inline') {
-          const wrapperId = idPrefix + conn.fromNodeId;
+          const wrapperId = baseFromNodeId;
           // If rewired (targeting inner node), add dependency Wrapper -> Destination
           if (fromNodeId !== wrapperId) {
             flatConnections.push({
@@ -374,9 +452,8 @@ export function compileGraph(
         }
 
         // Case 2: Subgraph Input (Peer -> Wrapper via Inner)
-        // Order: Peer -> Wrapper. (Wrapper must run to consume input)
         if (toIsSubgraph && toIsSubgraph !== 'inline') {
-          const wrapperId = idPrefix + conn.toNodeId;
+          const wrapperId = baseToNodeId;
           // If rewired (targeting inner node), add dependency Source -> Wrapper
           if (toNodeId !== wrapperId) {
             flatConnections.push({
@@ -389,10 +466,11 @@ export function compileGraph(
         }
       }
     }
+
+
   }
 
-
-  processGraph(appState.graph, '', true);
+  processGraph(appState.graph, '');
 
   // 3. Cycle Detection and Breaking (and Topological Sort)
   const adjacency = new Map<string, Array<{ toNode: string; connIndex: number }>>();

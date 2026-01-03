@@ -33,7 +33,10 @@ export const primitive_literal: PrimitiveNodeDefinition = {
     };
   },
   execute: (input: StructorRecord, config: Structor, context: ExecutionContext) => {
-    return { fields: { value: config } };
+    // GridNode config is wrapped { typeId, value }. We want the value.
+    // If config is primitive, use it. If object with value, use value.
+    const val = (config && typeof config === 'object' && 'value' in config) ? (config as any).value : config;
+    return { fields: { value: val } };
   },
 };
 registerNode({

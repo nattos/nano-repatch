@@ -16,6 +16,7 @@ import {
 } from './structor';
 import { defaultNodeRepository, PortHint, NodeType } from './repository';
 import { UIConfigStructorType } from './std-types';
+import type { GridNode } from '../builder/state';
 
 // --- Enhanced Node Definition ---
 
@@ -146,6 +147,8 @@ export interface EnhancedNodeOptions<
     context: ExecutionContext,
     state: TState
   ) => InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }> | { outputs: InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }>; ui?: any };
+
+  getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -162,6 +165,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   inspectInputs?: boolean;
   shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
   // onMessage is inherited from PrimitiveNodeDefinition
+  getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
 }
 
 export function defineNode<
@@ -247,7 +251,8 @@ export function defineNode<
     extendedOutputs: options.outputs,
 
     inspectInputs: options.inspectInputs,
-    shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange
+    shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange,
+    getChildren: options.getChildren
   };
 }
 
@@ -300,6 +305,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
 
     inspectInputs: def.inspectInputs,
     shouldRecompileOnConfigChange: def.shouldRecompileOnConfigChange,
+    getChildren: def.getChildren,
   };
 
   // If UI is provided, we need to hook it up.

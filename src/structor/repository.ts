@@ -92,6 +92,11 @@ export interface NodeType {
    * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
    */
   shouldRecompileOnConfigChange?: ((config: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
+
+  /**
+   * Optional method to identify child nodes owned by this node (e.g. for spatial groups).
+   */
+  getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
 }
 
 export class NodeRepository {
