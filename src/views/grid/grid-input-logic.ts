@@ -4,6 +4,7 @@ import { defaultNodeRepository } from '../../structor/repository';
 import { GridPopupManager } from './popup-manager';
 import { SelectionInteraction } from './selection-interaction';
 import { RuntimeManager } from '../../runtime/manager';
+import { PointerDragOp } from '../../utils/pointer-drag-op';
 
 export interface GridInputHost {
   element: HTMLElement;
@@ -37,6 +38,134 @@ export class GridInputLogic {
     const isWire = path.some(el => (el as Element).classList?.contains('wire-segment'));
 
     if (isNode || isConnection || isWire) return;
+
+    // Region Interaction
+    const regionBox = path.find(el => (el as Element).classList?.contains('region-box')) as HTMLElement;
+    const borderRail = path.find(el => (el as Element).classList?.contains('border-rail')) as HTMLElement;
+    const resizeHandle = path.find(el => (el as Element).classList?.contains('resize-handle')) as HTMLElement;
+
+    // Helper to select region
+    const selectRegion = (nodeId: string, ev: PointerEvent) => {
+      const regionId = `region-${nodeId}`;
+      if (!this.localController.observableState.selection.has(regionId)) {
+        if (!ev.shiftKey && !ev.metaKey && !ev.ctrlKey) {
+          this.localController.queueSelectPaths([regionId], false); // Exclusive
+        } else {
+          this.localController.queueSelectPaths([regionId], true); // Additive
+        }
+      }
+    };
+
+    // Shared Resize Logic
+    if (resizeHandle || borderRail) {
+      const target = (resizeHandle || borderRail);
+      const nodeId = target.dataset.nodeId!;
+      // Handle Type: 'n', 's', 'e', 'w' for rails; 'e', 's', 'se' for handles
+      // We can normalize checks.
+      const type = target.dataset.handle || target.dataset.rail!;
+
+      const node = this.appController.observableState.graph.inner.nodes[nodeId];
+      if (!node) return;
+
+      selectRegion(nodeId, e);
+
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      const region = def?.getRegion ? def.getRegion(node.config) : { width: 1, height: 1, x: 0, y: 0 };
+
+      const startW = region.width;
+      const startH = region.height;
+      const startRegionX = region.x || 0;
+      const startRegionY = region.y || 0;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      new PointerDragOp(e, this.host.element, {
+        move: (ev) => {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+
+          const gridDeltaX = Math.round(dx / 96);
+          const gridDeltaY = Math.round(dy / 48);
+
+          let newW = startW;
+          let newH = startH;
+          let newX = startRegionX;
+          let newY = startRegionY;
+
+          // Width Resizing
+          if (type === 'e' || type === 'se') {
+            newW = Math.max(1, startW + gridDeltaX);
+          }
+          if (type === 'w') {
+            const potentialW = startW - gridDeltaX;
+            if (potentialW >= 1) {
+              newW = potentialW;
+              newX = startRegionX + gridDeltaX;
+            }
+          }
+
+          // Height Resizing
+          if (type === 's' || type === 'se') {
+            newH = Math.max(1, startH + gridDeltaY);
+          }
+          if (type === 'n') {
+            const potentialH = startH - gridDeltaY;
+            if (potentialH >= 1) {
+              newH = potentialH;
+              newY = startRegionY + gridDeltaY;
+            }
+          }
+
+          const changes: any = {};
+          if (newW !== node.config.width) changes.width = newW;
+          if (newH !== node.config.height) changes.height = newH;
+          if (newX !== node.config.regionX) changes.regionX = newX;
+          if (newY !== node.config.regionY) changes.regionY = newY;
+
+          if (Object.keys(changes).length > 0) {
+            this.appController.setNodeConfig(nodeId, changes);
+          }
+        }
+      });
+      return;
+    }
+
+    if (regionBox) {
+      // If we are here, pointer-events was auto, meaning it IS selected.
+      const nodeId = regionBox.dataset.regionNodeId!;
+
+      // Move Logic (Offset)
+      const node = this.appController.observableState.graph.inner.nodes[nodeId];
+      if (!node) return;
+
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      const region = def?.getRegion ? def.getRegion(node.config) : { x: 0, y: 0 };
+
+      const startRegionX = region.x || 0;
+      const startRegionY = region.y || 0;
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      new PointerDragOp(e, this.host.element, {
+        move: (ev) => {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+
+          const gridDeltaX = Math.round(dx / 96);
+          const gridDeltaY = Math.round(dy / 48);
+
+          const newRegionX = startRegionX + gridDeltaX;
+          const newRegionY = startRegionY + gridDeltaY;
+
+          if (newRegionX !== node.config.regionX || newRegionY !== node.config.regionY) {
+            this.appController.setNodeConfig(nodeId, { regionX: newRegionX, regionY: newRegionY });
+          }
+        }
+      });
+
+      return;
+    }
 
     this.selectionManager.start(e);
   }

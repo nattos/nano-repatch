@@ -11,6 +11,8 @@ import type { GridNode } from '../../builder/state';
 interface IfThenConfig {
   width: number;
   height: number;
+  regionX?: number;
+  regionY?: number;
 }
 
 export const primitive_ifthen = definePrimitiveNode({
@@ -23,7 +25,9 @@ export const primitive_ifthen = definePrimitiveNode({
   },
   config: {
     width: { kind: 'atomic', type: 'number', defaultValue: 3 },
-    height: { kind: 'atomic', type: 'number', defaultValue: 3 }
+    height: { kind: 'atomic', type: 'number', defaultValue: 3 },
+    regionX: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
+    regionY: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true }
   },
   // Inputs: MIDI Stream (Trigger)
   inputs: {
@@ -40,29 +44,28 @@ export const primitive_ifthen = definePrimitiveNode({
   },
   getDisplayLabel: () => 'IfThen',
 
-  getRegion: (config: any) => {
-    return {
-      x: 0,
-      y: 0,
-      width: config.width || 3,
-      height: config.height || 3
-    };
-  },
+  getRegion: (config) => ({
+    x: config.regionX ?? 0,
+    y: config.regionY ?? 0,
+    width: config.width ?? 1,
+    height: config.height ?? 1
+  }),
 
   getChildren: (node: GridNode, allNodes: Record<string, GridNode>) => {
     const children: string[] = [];
     const config = node.config as unknown as IfThenConfig;
 
-    // Use getRegion if available (which it is here locally, but good practice)
-    // Or just use the logic directly.
-    const w = config.width || 3;
-    const h = config.height || 3;
+    // Use regionX/Y logic
+    const rx = config.regionX ?? 0;
+    const ry = config.regionY ?? 0;
+    const w = config.width ?? 1;
+    const h = config.height ?? 1;
 
     // Bounding Box (in Grid Coords)
-    const x1 = node.x;
-    const y1 = node.y;
-    const x2 = node.x + w;
-    const y2 = node.y + h;
+    const x1 = node.x + rx;
+    const y1 = node.y + ry;
+    const x2 = x1 + w;
+    const y2 = y1 + h;
 
     for (const other of Object.values(allNodes)) {
       if (other.id === node.id) continue;
@@ -75,7 +78,7 @@ export const primitive_ifthen = definePrimitiveNode({
     return children;
   },
 
-  execute: (inputs: any, config: any, context: ExecutionContext) => {
+  execute: (inputs, config, context) => {
     const stream = inputs.midi_in || [];
     let shouldTrigger = false;
 
@@ -96,4 +99,4 @@ export const primitive_ifthen = definePrimitiveNode({
   }
 });
 
-registerNode(primitive_ifthen as any);
+registerNode(primitive_ifthen);

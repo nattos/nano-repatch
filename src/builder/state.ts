@@ -350,6 +350,15 @@ export class AppController {
             // If typeId changed, we MUST recompile because the node definition changed
             needsRecompile = true;
           } else {
+            // Check for region properties (Spatial Recompile)
+            if (
+              'regionX' in mutation.to ||
+              'regionY' in mutation.to ||
+              'width' in mutation.to ||
+              'height' in mutation.to
+            ) {
+              needsRecompile = true;
+            }
             configUpdateNodeIds.add(mutation.nodeId);
           }
           break;

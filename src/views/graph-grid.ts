@@ -474,153 +474,7 @@ export class GraphGrid extends MobxLitElement {
     this.inputLogic.handleDblClick(e);
   }
 
-  private _legacy_handleDblClick(e: MouseEvent) {
-    return; /*
-    const path = e.composedPath();
-    const target = path[0] as HTMLElement;
 
-    // Check if we clicked on a cell
-    if (target.classList.contains('cell')) {
-      const x = parseInt(target.dataset.x || '0');
-      const y = parseInt(target.dataset.y || '0');
-
-      // If it's a gap cell, we might want to insert space or ignore.
-      // If it's a node cell (but empty), create node immediately and show popup.
-      if (target.classList.contains('node-cell')) {
-        const rawX = target.dataset.x;
-        let initialValue = 'util.hub'; // Default changed from literal to hub
-        let gridX = 0;
-
-        if (rawX === 'output') {
-          initialValue = 'io.output'; // Default for output column
-          gridX = 20; // Arbitrary high number for output column
-        } else if (rawX === 'input') {
-          initialValue = 'io.input';
-          gridX = 0;
-        } else {
-          gridX = parseInt(rawX || '0');
-        }
-
-        // Create node transactionally via LongEdit
-        // Calculate popup position (above the cell)
-        const rect = target.getBoundingClientRect();
-        const parentRect = this.getBoundingClientRect();
-
-        const popupX = rect.left - parentRect.left + this.scrollLeft;
-        const popupY = rect.top - parentRect.top + this.scrollTop - 40;
-
-        this.popupManager.startCreation(popupX, popupY, gridX, y, initialValue);
-        return;
-      }
-      return;
-      }
-      return;
-    }
-
-    // Check if we clicked on a node
-    const targetNode = target as HTMLElement;
-
-    // Check if we clicked on a port or input inside the node
-    const isPortOrInput = path.some(el => {
-      const tag = (el as Element).tagName;
-      return tag === 'GRAPH-PORT' || tag === 'INPUT' || (el as Element).classList?.contains('virtual-input-field');
-    });
-
-    if (isPortOrInput) {
-      // If we double clicked a port, we might want to cancel connection mode if active?
-      // For now, just don't delete the node.
-      return;
-    }
-
-    if (targetNode.tagName === 'GRAPH-NODE' && targetNode.dataset.id) {
-      appController.deleteNode(targetNode.dataset.id);
-      return;
-    }
-
-    const nodeElement = path.find(el =>
-      (el as Element).nodeName === 'GRAPH-NODE'
-    ) as HTMLElement;
-
-    if (nodeElement) {
-      const id = nodeElement.getAttribute('data-id') || nodeElement.dataset?.id;
-      if (id) {
-        // Check for group deletion
-        const lastGroup = localController.observableState.lastGroupSelection;
-        if (lastGroup && lastGroup.has(id)) {
-          // Delete entire group
-          const nodesToDelete = Array.from(lastGroup).filter(itemId => itemId.startsWith('node-'));
-          // We should use a bulk delete operation if available, or just loop.
-          // appController.deleteNode handles one.
-          // Let's create a bulk delete mutation logic in controller?
-          // Or just loop here. The controller dispatches mutations, but ideally they are transactional.
-          // AppController doesn't have deleteNodes(plural).
-          // But we can wrap in transaction?
-          // appController.transaction... is private? No, public.
-          // But we can just issue multiple delete calls, each triggers recompile.
-          // Better to add deleteNodes to controller or just loop.
-          // Given recompile cost, better to batch.
-          // appController.deleteNodes? It doesn't exist.
-          // Let's loop for now, optimizing later if needed.
-          // Actually, `appController.deleteNode` triggers recompile.
-          // We can add `deleteNodes` to AppController or just use the loop.
-          // Let's assume loop is OK for QoL prototype.
-          // But wait, if I delete the first node, and it triggers recompile/layout... the other nodes might shift or state update?
-          // Safer to do it in one go.
-
-          // Let's just delete the specific node if no group logic.
-          // Wait, I should implement `deleteNodes` in AppController for atomic op?
-          // Or just use `transaction`.
-          appController.transaction(() => {
-            nodesToDelete.forEach(nid => appController.deleteNode(nid));
-          });
-          localController.setLastGroupSelection(null);
-          return;
-        }
-
-        // Splice Deletion Check
-        // If node has exactly 1 input conn and 1 output conn (on default ports),
-        // splice them together.
-        const node = appController.observableState.graph.inner.nodes[id];
-        if (node) {
-          const connections = Object.values(appController.observableState.graph.inner.connections);
-
-          // Get node type to find default ports
-          // Default ports are usually inputs[0] and outputs[0]
-          const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
-
-          // Define 'default ports'
-          // If node has no inputs or outputs defined, we can't splice.
-          // But many primitives use 'in'/'out' or 'value'.
-          // We'll trust the catalog definition.
-          const firstInputName = nodeType?.inputs?.[0]?.name;
-          const firstOutputName = nodeType?.outputs?.[0]?.name;
-
-          if (firstInputName && firstOutputName) {
-            const inputConns = connections.filter(c => c.toNodeId === id && c.toPort === firstInputName);
-            const outputConns = connections.filter(c => c.fromNodeId === id && c.fromPort === firstOutputName);
-
-            if (inputConns.length === 1 && outputConns.length === 1) {
-              // Eligible for splice!
-              const inConn = inputConns[0];
-              const outConn = outputConns[0];
-
-              appController.transaction((c) => {
-                c.deleteNode(id);
-                c.createConnection(inConn.fromNodeId, inConn.fromPort, outConn.toNodeId, outConn.toPort);
-              });
-              return;
-            }
-          }
-        }
-
-        appController.deleteNode(id);
-        return;
-      }
-    }
-
-    // Fallback for clicks on grid background (if any)
-    // With full grid coverage, this might not be reached often.
-  */ }
 
   private handleConnectionDelete(e: CustomEvent<{ connectionId: string }>) {
     appController.deleteConnection(e.detail.connectionId);
@@ -632,6 +486,7 @@ export class GraphGrid extends MobxLitElement {
   clientWidth = 0;
 
   private resizeObserver: ResizeObserver;
+  private regionSelectables = new Map<string, Selectable>();
 
   constructor() {
     super();
@@ -641,17 +496,22 @@ export class GraphGrid extends MobxLitElement {
         this.updateViewport();
       }
     });
+
+    // Make sure we observe selection changes so we re-render regions state
+    reaction(
+      () => localController.observableState.selection.keys(),
+      () => this.requestUpdate()
+    );
   }
 
   private handleScroll(e: Event) {
     const target = e.target as HTMLElement;
     this.scrollLeft = target.scrollLeft;
+    this.scrollTop = target.scrollTop;
     this.updateViewport();
   }
 
   private updateViewport() {
-    // Debounce or raw? Raw for now, Reactivity handles debounce in listeners if needed.
-    // Or we can debounce here if performance is an issue.
     localController.setViewport(
       this.scrollLeft || 0,
       this.scrollTop || 0,
@@ -660,11 +520,38 @@ export class GraphGrid extends MobxLitElement {
     );
   }
 
+  updated(changedProperties: Map<string, any>) {
+    super.updated(changedProperties);
+    this.registerRegionSelectables();
+  }
+
+  private registerRegionSelectables() {
+    const nodes = appController.observableState.graph.inner.nodes;
+    for (const node of Object.values(nodes)) {
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      if (def?.getRegion) {
+        const regionId = `region-${node.id}`;
+
+        let selectable = this.regionSelectables.get(regionId);
+        if (!selectable) {
+          selectable = { path: regionId };
+          this.regionSelectables.set(regionId, selectable);
+        }
+
+        // Register/Promote if queued
+        if (localController.observableState.queuedSelection.has(regionId)) {
+          localController.defineSelectable(selectable);
+        }
+      }
+    }
+  }
+
+
+
   @property({ type: String })
   activeTool: 'select' | 'pan' = 'select';
 
   private ghostTarget: { x: number, y: number } | null = null;
-
 
   private _pointerMoveHandler: ((e: PointerEvent) => void) | null = null;
   private _pointerUpHandler: ((e: PointerEvent) => void) | null = null;
@@ -1538,21 +1425,40 @@ export class GraphGrid extends MobxLitElement {
           // H=2 -> span 3 (Row + Gap + Row)
           const rowSpan = Math.max(1, 2 * absH - 1);
 
+          const regionSelectionId = `region-${node.id}`;
+          const isSelected = localController.observableState.selection.has(regionSelectionId);
           const color = cssColorFromHash(node.config.name || node.config.typeId); // Hash title or type
 
           regionElements.push(html`
-            <div class="region-box" style="
+            <div class="region-box ${isSelected ? 'selected' : ''}"
+                 data-region-node-id="${node.id}"
+                 style="
               grid-column: ${colStart} / span ${colSpan};
               grid-row: ${rowStart} / span ${rowSpan};
               position: relative;
-              border: 2px dashed ${color};
-              background-color: ${color}11; /* Very faint background 0x11 = ~6% opacity */
+              /* border: removal - using rails */
+              background-color: ${isSelected ? color + '22' : color + '11'};
               border-radius: 8px;
-              pointer-events: none;
+              pointer-events: ${isSelected ? 'auto' : 'none'}; /* Only block clicks if selected (for moving) */
               z-index: 5;
               opacity: 0.8;
-              margin: -4px; /* Slight expansion to encompass nodes comfortably */
-            "></div>
+              margin: -4px;
+              cursor: move;
+            ">
+              <!-- Interactive Border Rails (Resize) - Always Active -->
+              <div class="border-rail n" data-rail="n" data-node-id="${node.id}" style="position: absolute; top: 0; left: 0; right: 0; height: 6px; border-top: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: row-resize; pointer-events: auto;"></div>
+              <div class="border-rail s" data-rail="s" data-node-id="${node.id}" style="position: absolute; bottom: 0; left: 0; right: 0; height: 6px; border-bottom: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: row-resize; pointer-events: auto;"></div>
+              <div class="border-rail w" data-rail="w" data-node-id="${node.id}" style="position: absolute; top: 0; bottom: 0; left: 0; width: 6px; border-left: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: col-resize; pointer-events: auto;"></div>
+              <div class="border-rail e" data-rail="e" data-node-id="${node.id}" style="position: absolute; top: 0; bottom: 0; right: 0; width: 6px; border-right: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: col-resize; pointer-events: auto;"></div>
+
+              <!-- Extra Resize Handles (Corners) -->
+              <div class="resize-handle e" data-handle="e" data-node-id="${node.id}" style="
+                position: absolute; top: 50%; right: -8px; transform: translateY(-50%); width: 16px; height: 32px; cursor: col-resize; pointer-events: auto; z-index: 10;"></div>
+              <div class="resize-handle s" data-handle="s" data-node-id="${node.id}" style="
+                position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); height: 16px; width: 32px; cursor: row-resize; pointer-events: auto; z-index: 10;"></div>
+              <div class="resize-handle se" data-handle="se" data-node-id="${node.id}" style="
+                position: absolute; right: -8px; bottom: -8px; width: 24px; height: 24px; cursor: nwse-resize; pointer-events: auto; z-index: 11;"></div>
+            </div>
           `);
         }
       }
