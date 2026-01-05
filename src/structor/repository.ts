@@ -97,6 +97,11 @@ export interface NodeType {
    * Optional method to identify child nodes owned by this node (e.g. for spatial groups).
    */
   getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
+
+  /**
+   * Optional method to define the spatial region associated with this node.
+   */
+  getRegion?: (config: any) => { x: number; y: number; width: number; height: number };
 }
 
 export class NodeRepository {

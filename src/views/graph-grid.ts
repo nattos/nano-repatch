@@ -1421,6 +1421,8 @@ export class GraphGrid extends MobxLitElement {
 
 
 
+
+    ${this.renderRegions()}
     ${repeat(Object.values(nodes), node => node.id, node => this.renderGraphNode(node, outputCol))}
     ${this.renderGhosts(outputCol)}
     ${this.renderDragPreview(outputCol)}
@@ -1493,6 +1495,69 @@ export class GraphGrid extends MobxLitElement {
         ></graph-node>
       `;
     });
+  }
+
+  private renderRegions() {
+    const { nodes } = appController.observableState.graph.inner;
+    const regionElements: unknown[] = [];
+
+    for (const node of Object.values(nodes)) {
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      if (def && typeof def.getRegion === 'function') {
+        const region = def.getRegion(node.config);
+        if (region) {
+          // Region bounds relative to node (usually x=0, y=0)
+          const absX = node.x + region.x;
+          const absY = node.y + region.y;
+          const absW = region.width;
+          const absH = region.height;
+
+          // Convert to Grid Tracks
+          // Nodes start at Col 3, Row 2.
+          // Col = 2*x + 3
+          // Row = 2*y + 2
+
+          const colStart = 2 * absX + 3;
+          const rowStart = 2 * absY + 2;
+
+          // Width in columns = 2 * W (nodes + gaps) - 1 (last gap is included in span? No).
+          // Span logic:
+          // 1 Node wide = span 1.
+          // 2 Nodes wide = span 3 (Node + Gap + Node).
+          // W Nodes wide = 2*W - 1.
+          // Wait, gaps are columns too.
+          // If W=1, we span 1 col.
+          // If W=2, we span Col(Node), Col(Gap), Col(Node) -> Span 3.
+          // Formula: span (2 * W - 1).
+          // BUT, we want the BOX to cover gaps too?
+
+          const colSpan = Math.max(1, 2 * absW - 1);
+
+          // Row Span logic: same
+          // H=1 -> span 1
+          // H=2 -> span 3 (Row + Gap + Row)
+          const rowSpan = Math.max(1, 2 * absH - 1);
+
+          const color = cssColorFromHash(node.config.name || node.config.typeId); // Hash title or type
+
+          regionElements.push(html`
+            <div class="region-box" style="
+              grid-column: ${colStart} / span ${colSpan};
+              grid-row: ${rowStart} / span ${rowSpan};
+              position: relative;
+              border: 2px dashed ${color};
+              background-color: ${color}11; /* Very faint background 0x11 = ~6% opacity */
+              border-radius: 8px;
+              pointer-events: none;
+              z-index: 5;
+              opacity: 0.8;
+              margin: -4px; /* Slight expansion to encompass nodes comfortably */
+            "></div>
+          `);
+        }
+      }
+    }
+    return regionElements;
   }
 
   private renderGraphNode(node: GridNode, outputCol: number) {

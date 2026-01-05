@@ -309,6 +309,7 @@ export function registerNode(def: EnhancedNodeDefinition) {
     inspectInputs: def.inspectInputs,
     shouldRecompileOnConfigChange: def.shouldRecompileOnConfigChange,
     getChildren: def.getChildren,
+    getRegion: def.getRegion,
   };
 
   // If UI is provided, we need to hook it up.
