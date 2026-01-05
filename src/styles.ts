@@ -57,6 +57,7 @@ export const globalStyles = [
     /* Grid Layout Variables */
     --grid-unit: 80px;
     --grid-gap: 16px;
+    --grid-line-color: rgba(255, 255, 255, 0.15);
     --row-height: 24px;
     --header-height: 24px;
     --node-padding-x: 16px;

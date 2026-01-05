@@ -1,6 +1,7 @@
 import { registerNode } from '../node-helpers';
 import { definePrimitiveNode } from '../type-helpers';
 import { NodeCategory, ExecutionContext, PrimitiveNodeDefinition } from '../structor';
+import { RegionVisibility } from '../repository';
 import { midiStreamType } from '../std-types';
 import type { GridNode } from '../../builder/state';
 
@@ -57,7 +58,8 @@ export const primitive_ifthen = definePrimitiveNode({
     x: config.regionX ?? 0,
     y: config.regionY ?? 0,
     width: config.width ?? 1,
-    height: config.height ?? 1
+    height: config.height ?? 1,
+    visibility: (config.visibility as RegionVisibility) || RegionVisibility.Show
   }),
 
   getChildren: (node: GridNode, allNodes: Record<string, GridNode>) => {

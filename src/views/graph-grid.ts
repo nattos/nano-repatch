@@ -1,19 +1,17 @@
 import './graph-node';
 import './graph-connection';
 import { WireRenderer, WireRendererContext } from './wire-renderer';
-import { SmartInput } from '../components/smart-input';
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
-import { customElement, property, state, query } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { GridPopupManager } from './grid/popup-manager';
 import { SelectionInteraction } from './grid/selection-interaction';
 import { GridInputLogic } from './grid/grid-input-logic';
 import { repeat } from 'lit/directives/repeat.js';
 import { appController, localController, runtimeManager, workspaceController } from '../builder/controllers';
 import { reaction } from 'mobx';
-import { LongEdit, generateId, GridNode } from '../builder/state';
+import { GridNode } from '../builder/state';
 import { Selectable } from '../builder/local-state';
-import { PointerDragOp } from '../utils/pointer-drag-op';
 import { cssColorFromHash } from '../utils/layout-utils';
 import { NodeCatalog } from '../structor/node-catalog';
 import { defaultNodeRepository } from '../structor/repository';
@@ -95,6 +93,52 @@ export class GraphGrid extends MobxLitElement {
       box-sizing: border-box;
     }
 
+    /* Region Visualization */
+    .region-box {
+      border-radius: 8px;
+      z-index: 5;
+      opacity: 0.8;
+      margin: -4px; /* Expand slightly to encompass nodes */
+      position: relative;
+      cursor: move;
+    }
+
+    .region-box.selected {
+      pointer-events: auto; /* Block clicks only if selected (for moving) */
+    }
+
+    .region-box:not(.selected) {
+      pointer-events: none;
+    }
+
+    /* Collapsed Region (Read-Only) */
+    .region-box.collapsed {
+      pointer-events: none !important;
+      cursor: default;
+    }
+
+    /* Resize Rails */
+    .border-rail {
+      position: absolute;
+      pointer-events: auto;
+    }
+
+    .border-rail.n { top: 0; left: 0; right: 0; height: 6px; cursor: row-resize; }
+    .border-rail.s { bottom: 0; left: 0; right: 0; height: 6px; cursor: row-resize; }
+    .border-rail.w { top: 0; bottom: 0; left: 0; width: 6px; cursor: col-resize; }
+    .border-rail.e { top: 0; bottom: 0; right: 0; width: 6px; cursor: col-resize; }
+
+    /* Resize Handles (Corners) */
+    .resize-handle {
+      position: absolute;
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    .resize-handle.e { top: 50%; right: -8px; transform: translateY(-50%); width: 16px; height: 32px; cursor: col-resize; }
+    .resize-handle.s { left: 50%; bottom: -8px; transform: translateX(-50%); height: 16px; width: 32px; cursor: row-resize; }
+    .resize-handle.se { right: -8px; bottom: -8px; width: 24px; height: 24px; cursor: nwse-resize; z-index: 11; }
+
     .cell.node-cell {
       /* background-color: rgba(255, 255, 255, 0.05); */
       /* border: 1px dashed rgba(255, 255, 255, 0.15); */
@@ -121,7 +165,7 @@ export class GraphGrid extends MobxLitElement {
       top: 50%;
       left: 0;
       right: 0;
-      border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+      border-bottom: 1px dashed var(--grid-line-color);
     }
 
     .cell.gap-v::after {
@@ -130,7 +174,7 @@ export class GraphGrid extends MobxLitElement {
       left: 50%;
       top: 0;
       bottom: 0;
-      border-left: 1px dashed rgba(255, 255, 255, 0.15);
+      border-left: 1px dashed var(--grid-line-color);
     }
 
     .wire-segment {
@@ -440,11 +484,6 @@ export class GraphGrid extends MobxLitElement {
         // The visualizer usually shows (Selection U QueuedSelection).
         localController.setQueuedSelection(ids);
       } else {
-        // If not additive, we clear committed selection and set Queued to new set.
-        // localController.queueSelectPaths(ids, false) does:
-        //  if (!additive) { selection.clear(); queuedSelection.clear(); }
-        //  queuedSelection.add(...);
-        // This is exactly what we want.
         localController.queueSelectPaths(ids, false);
       }
     }
@@ -458,12 +497,6 @@ export class GraphGrid extends MobxLitElement {
   }, appController, localController, runtimeManager, this.selectionInteraction, this.popupManager);
   @state()
   private pendingWireInsert: WireInsert | null = null;
-
-  /*
-   * Popups are now managed by GridPopupManager
-   */
-  // private popup: ... = null;
-  // private popupLongEdit: LongEdit | null = null;
 
   private catalog = new NodeCatalog(defaultNodeRepository, () => workspaceController.files.map(f => f.name));
 
@@ -572,12 +605,6 @@ export class GraphGrid extends MobxLitElement {
       () => localController.observableState.inflightPortConnectionOperation,
       (op) => {
         if (op) {
-          // Calculate start position immediately
-          // We need to wait for render? No, op change triggers render, but we want to set coords now.
-          // The SVG exists (it's always there, just hidden/shown).
-          // We might need to wait a tick for 'display: block' to be applied?
-          // No, attributes work even if hidden.
-
           requestAnimationFrame(() => {
             const nodeEl = this.shadowRoot?.querySelector(`graph-node[data-id="${op.nodeId}"]`) as HTMLElement;
             const lineEl = this.shadowRoot?.querySelector('#ghost-wire-line');
@@ -635,11 +662,6 @@ export class GraphGrid extends MobxLitElement {
           }
         } else {
           // Cleanup
-          // ... cleanup if op is null?
-          // Actually the disposer handles the reaction cleanup, but global listeners
-          // set above (pointermove/up) should be removed if op cancels?
-          // The reaction fires on op change.
-          // If op becomes null, we should remove pointer listeners.
           if (this._pointerMoveHandler) {
             this.removeEventListener('pointermove', this._pointerMoveHandler);
             this._pointerMoveHandler = null;
@@ -649,17 +671,12 @@ export class GraphGrid extends MobxLitElement {
             this._pointerUpHandler = null;
           }
           // Keep keydown listener as it is global for the component, not just for inflight op?
-          // Wait, splicing insert point works independently of inflight connection!
-          // pendingWireInsert is for EXISTING wires.
           // So keydown should be attached PERMANENTLY when component is connected.
           this.ghostTarget = null;
         }
       },
       { fireImmediately: true }
     ));
-
-
-
 
     // Separate permanent keydown listener for wire interaction
     if (!this._keyDownHandler) {
@@ -759,7 +776,6 @@ export class GraphGrid extends MobxLitElement {
     }
   }
 
-
   private handleKeyDown(e: KeyboardEvent) {
     if (!this.pendingWireInsert || this.popupManager.popup) return;
 
@@ -796,20 +812,6 @@ export class GraphGrid extends MobxLitElement {
   }
 
   private renderPendingWirePip() {
-    const op = this.pendingWireInsert;
-    // If no specific op, check selection
-    if (!op) {
-      // Auto-calculate logic here?
-      // No, verify logic creates op on click.
-      // If "select right near the wire" doesn't show it, it means click handler failed to find cell.
-
-      // User Request: "Basically always show up when selected"
-      // If we have selected wire(s), show pip at the last known or "closest" point?
-      // Selection can change via Undo/Redo or marquee.
-      // If single wire selected, we could show it at center?
-      // But we lack (x,y) context unless derived from mouse.
-      // Wait, verify if `pendingWireInsert` persists?
-    }
     if (!this.pendingWireInsert) return null;
 
     const { x, y, wireId } = this.pendingWireInsert;
@@ -911,97 +913,6 @@ export class GraphGrid extends MobxLitElement {
     this.requestUpdate();
   }
 
-
-  private getNodeHeight(nodeId: string): number {
-    const node = appController.observableState.graph.inner.nodes[nodeId];
-    if (!node) return 0;
-
-    const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
-    let inputs = nodeType?.inputs || [];
-    let outputs = nodeType?.outputs || [];
-
-    // Use Effective Ports (Inferred > Repo)
-    const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
-
-    if (effectiveType) {
-      inputs = effectiveType.inputs;
-      outputs = effectiveType.outputs;
-    }
-
-    // Calculate ports height
-    // Reuse logic from GraphNode roughly
-    // We assume standard row height 24
-    // We don't easily know custom input editor heights here without instantiating them or duplicating logic.
-    // For now, assume standard 24px per port.
-
-    let totalInputHeight = 0;
-    inputs.forEach(input => {
-      // Check if input editor would be shown?
-      // GraphNode logic: if (alwaysShow || !connected && !suppress)
-      // We need connections to know if connected.
-      const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
-      const isConnected = incoming.some(cid => {
-        const c = appController.observableState.graph.inner.connections[cid];
-        return c && c.toPort === input.name;
-      });
-
-      let h = 24; // ROW_HEIGHT
-
-      // Check for custom input editor height
-      // We need to know if the editor is actually shown.
-      // Logic: if (alwaysShow || !connected && !suppress)
-
-      const showEditor = (input.alwaysShowInputEditor || (!isConnected && !input.suppressInputEditor));
-
-      if (showEditor) {
-        // Try to get custom height
-        if (nodeType?.getInputEditorHeight) {
-          h = nodeType.getInputEditorHeight(node, input.name);
-        } else if (nodeType?.ui?.getInputEditorHeight) {
-          // This is async/lazy, we can't await here easily.
-          // But typically if it's loaded, we might have access?
-          // For now, let's hardcode a check for known large inputs if needed,
-          // or rely on the fact that we should have the height if it's registered.
-          // Actually, `getInputEditorHeight` in `ui` returns a Promise of a function.
-          // We can't use it synchronously.
-
-          // HACK: For debug.scope, we know it's 96px.
-          // We can check if the input has a specific tag or type?
-          // Or just check if it's `debug.scope` and `value` port?
-          if (node.config.typeId === 'debug.scope' && input.name === 'value') {
-            h = 96;
-          }
-        }
-      }
-
-      totalInputHeight += h;
-    });
-
-    const totalOutputHeight = outputs.length * 24;
-    const portsHeight = Math.max(totalInputHeight, totalOutputHeight, 24);
-
-    const bodyHeight = nodeType?.getBodyHeight?.(node) || 0;
-
-    // Check for custom body in UI definition
-    // If it has a custom body but no getBodyHeight, we should assume a standard large height?
-    // debug.scope is ~96px body.
-    // curve.ease is ~96px body.
-    // If we don't know, we might under-calculate.
-    // Let's assume if it has a custom body, it's at least 96px?
-    let estimatedBodyHeight = bodyHeight;
-    if (estimatedBodyHeight === 0 && (nodeType?.renderBody || nodeType?.ui?.body)) {
-      estimatedBodyHeight = 96;
-    }
-
-    // Check minimal state
-    // If <=1 ports and no body/sliders...
-    // We reused getNodeWidth logic for this check.
-    const width = this.getNodeWidth(nodeId);
-    if (width === 80) return 80; // Minimal
-
-    return 24 + portsHeight + 8 + estimatedBodyHeight; // Header + Ports + Padding + Body
-  }
-
   private getRowHeight(gridY: number): number {
     // console.log('DEBUG: gridMetrics', localController.observableState?.gridMetrics);
     if (!localController.observableState?.gridMetrics) return 80;
@@ -1013,50 +924,6 @@ export class GraphGrid extends MobxLitElement {
     if (!localController.observableState?.gridMetrics) return 80;
     const w = localController.observableState.gridMetrics.columnWidths.get(gridX);
     return w ?? 80;
-  }
-
-  private getNodeWidth(nodeId: string): number {
-    const node = appController.observableState.graph.inner.nodes[nodeId];
-    if (!node) return 272; // Default to normal
-
-    const nodeType = defaultNodeRepository.getNodeType(node.config.typeId);
-    let inputs = nodeType?.inputs || [];
-    let outputs = nodeType?.outputs || [];
-
-    // Dynamic ports check
-    // Dynamic ports check
-    // Use Effective Ports (Inferred > Repo)
-    const effectiveType = localController.observableState.effectiveNodeTypes.get(nodeId);
-
-    if (effectiveType) {
-      inputs = effectiveType.inputs;
-      outputs = effectiveType.outputs;
-    }
-
-    const hasCustomBody = !!(nodeType?.renderBody || nodeType?.ui?.body);
-
-    // Check for visible sliders
-    // Logic must match GraphNode.render:
-    // hasVisibleSliders = inputs.some(i => shouldShowInputEditor(i, isConnected))
-
-    const incoming = appController.observableState.graph.auxiliary.incomingConnections.get(nodeId) || [];
-    const connectedPorts = new Set(incoming.map(cid => {
-      const c = appController.observableState.graph.inner.connections[cid];
-      return c ? c.toPort : null;
-    }));
-
-    const hasVisibleSliders = inputs.some(input => {
-      if (input.alwaysShowInputEditor) return true;
-      if (connectedPorts.has(input.name)) return false;
-      if (input.suppressInputEditor) return false;
-      return true;
-    });
-
-    if (hasCustomBody || hasVisibleSliders) return 272;
-
-    if (inputs.length <= 1 && outputs.length <= 1) return 80;
-    if (inputs.length <= 3 && outputs.length <= 3) return 176;
-    return 272;
   }
 
   private getNodePortY(nodeId: string, portName: string, isInput: boolean): number {
@@ -1138,18 +1005,10 @@ export class GraphGrid extends MobxLitElement {
     const cells = [];
 
     // Calculate dynamic grid size
-    let maxNodeX = 0;
-    let maxNodeY = 0;
-
-    for (const node of Object.values(nodes)) {
-      if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') {
-        // Track Y for output nodes so we have enough rows, but ignore X
-        if (node.y > maxNodeY) maxNodeY = node.y;
-        continue;
-      }
-      if (node.x > maxNodeX) maxNodeX = node.x;
-      if (node.y > maxNodeY) maxNodeY = node.y;
-    }
+    // Use Pre-Calculated Grid Metrics
+    const { boundingBox } = localController.observableState.gridMetrics;
+    const maxNodeX = boundingBox.width;
+    const maxNodeY = boundingBox.height;
 
     const rows = Math.max(maxNodeY + 3, 12);
     const cols = Math.max(maxNodeX + 3, 8);
@@ -1264,7 +1123,18 @@ export class GraphGrid extends MobxLitElement {
     let maxNodeX = 0;
     for (const node of Object.values(nodes)) {
       if (node.config.typeId === 'io.output' || node.config.typeId === 'resolume.output') continue;
-      if (node.x > maxNodeX) maxNodeX = node.x;
+
+      let extentX = node.x;
+      // Check for regions
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      if (def?.getRegion) {
+        const region = def.getRegion(node.config);
+        if (region) {
+          extentX = node.x + region.width - 1;
+        }
+      }
+
+      if (extentX > maxNodeX) maxNodeX = extentX;
     }
     const cols = Math.max(maxNodeX + GRID_OUTPUT_COL_PADDING, GRID_MIN_COLS);
     const outputCol = 2 * cols + 3;
@@ -1302,7 +1172,17 @@ export class GraphGrid extends MobxLitElement {
     // We can infer max rows from maxNodeY.
     let maxNodeY = 0;
     for (const node of Object.values(nodes)) {
-      if (node.y > maxNodeY) maxNodeY = node.y;
+      let extentY = node.y;
+
+      const def = defaultNodeRepository.getNodeType(node.config.typeId);
+      if (def?.getRegion) {
+        const region = def.getRegion(node.config);
+        if (region) {
+          extentY = node.y + region.height - 1;
+        }
+      }
+
+      if (extentY > maxNodeY) maxNodeY = extentY;
     }
     // GraphGrid uses 12 loops traditionally, but we should cover all content.
     // Let's go up to Max(12, maxNodeY + 1).
@@ -1460,79 +1340,110 @@ export class GraphGrid extends MobxLitElement {
     const { nodes } = appController.observableState.graph.inner;
     const regionElements: unknown[] = [];
 
+    const cachedRegions = localController.observableState.gridMetrics.regions;
+
     for (const node of Object.values(nodes)) {
-      const def = defaultNodeRepository.getNodeType(node.config.typeId);
-      if (def && typeof def.getRegion === 'function') {
-        const region = def.getRegion(node.config);
-        if (region) {
-          // Region bounds relative to node (usually x=0, y=0)
-          const absX = node.x + region.x;
-          const absY = node.y + region.y;
-          const absW = region.width;
-          const absH = region.height;
+      const region = cachedRegions.get(node.id);
+      if (region) {
+        // Region bounds are already absolute and offset-corrected in cached metrics
+        const absX = region.x;
+        const absY = region.y;
+        const absW = region.width;
+        const absH = region.height;
 
-          // Convert to Grid Tracks
-          // Nodes start at Col 3, Row 2.
-          // Col = 2*x + 3
-          // Row = 2*y + 2
+        // Convert to Grid Tracks
+        // Nodes start at Col 3, Row 2.
+        // Col = 2*x + 3
+        // Row = 2*y + 2
 
-          const colStart = 2 * absX + 3;
-          const rowStart = 2 * absY + 2;
+        const colStart = 2 * absX + 3;
+        const rowStart = 2 * absY + 2;
 
-          // Width in columns = 2 * W (nodes + gaps) - 1 (last gap is included in span? No).
-          // Span logic:
-          // 1 Node wide = span 1.
-          // 2 Nodes wide = span 3 (Node + Gap + Node).
-          // W Nodes wide = 2*W - 1.
-          // Wait, gaps are columns too.
-          // If W=1, we span 1 col.
-          // If W=2, we span Col(Node), Col(Gap), Col(Node) -> Span 3.
-          // Formula: span (2 * W - 1).
-          // BUT, we want the BOX to cover gaps too?
+        // Width in columns = 2 * W (nodes + gaps) - 1 (last gap is included in span? No).
+        // Span logic:
+        // 1 Node wide = span 1.
+        // 2 Nodes wide = span 3 (Node + Gap + Node).
+        // W Nodes wide = 2*W - 1.
+        // Wait, gaps are columns too.
+        // If W=1, we span 1 col.
+        // If W=2, we span Col(Node), Col(Gap), Col(Node) -> Span 3.
+        // Formula: span (2 * W - 1).
+        // BUT, we want the BOX to cover gaps too?
 
-          const colSpan = Math.max(1, 2 * absW - 1);
+        const colSpan = Math.max(1, 2 * absW - 1);
 
-          // Row Span logic: same
-          // H=1 -> span 1
-          // H=2 -> span 3 (Row + Gap + Row)
-          const rowSpan = Math.max(1, 2 * absH - 1);
+        // Row Span logic: same
+        // H=1 -> span 1
+        // H=2 -> span 3 (Row + Gap + Row)
+        const rowSpan = Math.max(1, 2 * absH - 1);
 
-          const regionSelectionId = `region-${node.id}`;
-          const isSelected = localController.observableState.selection.has(regionSelectionId);
-          const color = cssColorFromHash(node.config.name || node.config.typeId); // Hash title or type
+        const regionSelectionId = `region-${node.id}`;
+        const isSelected = localController.observableState.selection.has(regionSelectionId);
 
-          regionElements.push(html`
-            <div class="region-box ${isSelected ? 'selected' : ''}"
+        // Determine if region is effectively collapsed (visually)
+        // It is collapsed if all NON-PARENT rows/cols have 0 size.
+        let hasVisibleArea = false;
+
+        // Check Columns (excluding parent node column if inside region)
+        if (absW > 1) {
+          for (let c = absX; c < absX + absW; c++) {
+            if (c === node.x) continue; // Skip parent col
+            if (this.getColWidth(c) > 0) {
+              hasVisibleArea = true;
+              break;
+            }
+          }
+        }
+
+        // Check Rows (excluding parent node row if inside region)
+        if (!hasVisibleArea && absH > 1) {
+          for (let r = absY; r < absY + absH; r++) {
+            if (r === node.y) continue; // Skip parent row
+            if (this.getRowHeight(r) > 0) {
+              hasVisibleArea = true;
+              break;
+            }
+          }
+        }
+
+        if (!hasVisibleArea) continue;
+
+        let color = cssColorFromHash(node.config.name || node.config.typeId); // Hash title or type
+
+        // Use cached collapse state from controller (populated via updateGridMetrics)
+        const isCollapsed = region.isCollapsed;
+
+        // User Request: If visible but collapsed ("hide"), show in grid-line gray.
+        // We know hasVisibleArea is true here.
+        if (isCollapsed) {
+          color = 'var(--grid-line-color)'; // Standardized Grid Line Color
+        }
+
+        regionElements.push(html`
+            <div class="region-box ${isSelected ? 'selected' : ''} ${isCollapsed ? 'collapsed' : ''}"
                  data-region-node-id="${node.id}"
                  style="
               grid-column: ${colStart} / span ${colSpan};
               grid-row: ${rowStart} / span ${rowSpan};
-              position: relative;
-              /* border: removal - using rails */
               background-color: ${isSelected ? color + '22' : color + '11'};
-              border-radius: 8px;
-              pointer-events: ${isSelected ? 'auto' : 'none'}; /* Only block clicks if selected (for moving) */
-              z-index: 5;
-              opacity: 0.8;
-              margin: -4px;
-              cursor: move;
+              --region-color: ${color};
             ">
-              <!-- Interactive Border Rails (Resize) - Always Active -->
-              <div class="border-rail n" data-rail="n" data-node-id="${node.id}" style="position: absolute; top: 0; left: 0; right: 0; height: 6px; border-top: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: row-resize; pointer-events: auto;"></div>
-              <div class="border-rail s" data-rail="s" data-node-id="${node.id}" style="position: absolute; bottom: 0; left: 0; right: 0; height: 6px; border-bottom: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: row-resize; pointer-events: auto;"></div>
-              <div class="border-rail w" data-rail="w" data-node-id="${node.id}" style="position: absolute; top: 0; bottom: 0; left: 0; width: 6px; border-left: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: col-resize; pointer-events: auto;"></div>
-              <div class="border-rail e" data-rail="e" data-node-id="${node.id}" style="position: absolute; top: 0; bottom: 0; right: 0; width: 6px; border-right: ${isSelected ? '4px' : '2px'} dashed ${color}; cursor: col-resize; pointer-events: auto;"></div>
+              <!-- Render Rails and Handles ONLY if not collapsed -->
+              ${!isCollapsed ? html`
+                <div class="border-rail n" data-rail="n" data-node-id="${node.id}" style="border-top: ${isSelected ? '4px' : '2px'} dashed ${color};"></div>
+                <div class="border-rail s" data-rail="s" data-node-id="${node.id}" style="border-bottom: ${isSelected ? '4px' : '2px'} dashed ${color};"></div>
+                <div class="border-rail w" data-rail="w" data-node-id="${node.id}" style="border-left: ${isSelected ? '4px' : '2px'} dashed ${color};"></div>
+                <div class="border-rail e" data-rail="e" data-node-id="${node.id}" style="border-right: ${isSelected ? '4px' : '2px'} dashed ${color};"></div>
 
-              <!-- Extra Resize Handles (Corners) -->
-              <div class="resize-handle e" data-handle="e" data-node-id="${node.id}" style="
-                position: absolute; top: 50%; right: -8px; transform: translateY(-50%); width: 16px; height: 32px; cursor: col-resize; pointer-events: auto; z-index: 10;"></div>
-              <div class="resize-handle s" data-handle="s" data-node-id="${node.id}" style="
-                position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); height: 16px; width: 32px; cursor: row-resize; pointer-events: auto; z-index: 10;"></div>
-              <div class="resize-handle se" data-handle="se" data-node-id="${node.id}" style="
-                position: absolute; right: -8px; bottom: -8px; width: 24px; height: 24px; cursor: nwse-resize; pointer-events: auto; z-index: 11;"></div>
+                <div class="resize-handle e" data-handle="e" data-node-id="${node.id}"></div>
+                <div class="resize-handle s" data-handle="s" data-node-id="${node.id}"></div>
+                <div class="resize-handle se" data-handle="se" data-node-id="${node.id}"></div>
+              ` : html`
+                 <!-- Collapsed Region Border (Static) -->
+                 <div style="position: absolute; inset: 0; pointer-events: none; border: 2px dashed ${color}; border-radius: 8px;"></div>
+              `}
             </div>
           `);
-        }
       }
     }
     return regionElements;

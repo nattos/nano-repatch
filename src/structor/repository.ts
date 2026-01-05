@@ -21,6 +21,13 @@ export interface GraphNodeRenderHandlers {
   handleVirtualInputChange: (e: Event, portName: string) => void;
 }
 
+// Enum for Region Visibility
+export enum RegionVisibility {
+  Auto = 'auto',
+  Show = 'show',
+  Hide = 'hide',
+}
+
 export interface NodeType {
   id: string;
   version: string;
@@ -101,7 +108,13 @@ export interface NodeType {
   /**
    * Optional method to define the spatial region associated with this node.
    */
-  getRegion?: (uiConfig: any) => { x: number; y: number; width: number; height: number };
+  getRegion?: (uiConfig: any) => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visibility: RegionVisibility;
+  };
 }
 
 export class NodeRepository {

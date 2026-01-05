@@ -4,7 +4,11 @@ import { LayoutResult } from '../layout/wire-layout';
 import { GraphState, GridNode, Connection, AppController } from './state';
 import { settingsManager } from './settings-manager';
 import { StructorType } from '../structor/structor';
-import { defaultNodeRepository, PortHint } from '../structor/repository';
+import {
+  defaultNodeRepository,
+  PortHint,
+  RegionVisibility
+} from '../structor/repository';
 import {
   NODE_WIDTH_NORMAL, NODE_WIDTH_MINIMAL, NODE_WIDTH_COMPRESSED,
   GRID_MIN_COLS, GRID_OUTPUT_COL_PADDING
@@ -70,6 +74,8 @@ export interface GridMetrics {
   rows: Map<number, number>; // Row Index -> Max Height in px
   rowOffsets: Map<number, number>; // Row Index -> Accum. Pixels from Top (for Node Top)
   colOffsets: Map<number, number>; // Col Index -> Accum. Pixels from Left (for Node Left)
+  boundingBox: { width: number; height: number }; // Global grid dimensions in cells
+  regions: Map<string, { x: number; y: number; width: number; height: number; isCollapsed: boolean }>; // Cached region bounds
 }
 
 export class LocalController {
@@ -101,7 +107,9 @@ export class LocalController {
         columnWidths: new Map(),
         rows: new Map(),
         rowOffsets: new Map(),
-        colOffsets: new Map()
+        colOffsets: new Map(),
+        boundingBox: { width: 0, height: 0 },
+        regions: new Map()
       },
       localSettings: {
         showDebugValues: false,
@@ -272,13 +280,8 @@ export class LocalController {
     // For Output (Col Last), we need seg.x relative to max.
 
     // Find grid bounds
-    let maxNodeX = 0;
-    Object.values(nodes).forEach(n => {
-      // TODO: Remove hardcoded node types.
-      if (n.config.typeId !== 'io.output' && n.config.typeId !== 'resolume.output' && n.config.typeId !== 'io.input' && n.config.typeId !== 'resolume.input') {
-        if (n.x > maxNodeX) maxNodeX = n.x;
-      }
-    });
+    // Optimized: Use cached bounding box from updateGridMetrics (called above)
+    const maxNodeX = this.observableState.gridMetrics.boundingBox.width;
 
     const getVirtualX = (n: GridNode) => {
       if (n.config.typeId === 'io.input' || n.config.typeId === 'resolume.input') return -1;
@@ -405,7 +408,9 @@ export class LocalController {
       columnWidths: new Map(),
       rows: new Map(),
       rowOffsets: new Map(),
-      colOffsets: new Map()
+      colOffsets: new Map(),
+      boundingBox: { width: 0, height: 0 },
+      regions: new Map()
     };
 
     // --- Region Collapse Pre-Calculation ---
@@ -422,18 +427,41 @@ export class LocalController {
       return colStats.get(x)!;
     }
 
+    const cachedRegions = new Map<string, { x: number, y: number, width: number, height: number, isCollapsed: boolean }>();
+    let maxGridX = 0;
+    let maxGridY = 0;
+
     Object.values(nodes).forEach(node => {
+      // Update max extents for regular nodes
+      if (node.config.typeId !== 'io.output' && node.config.typeId !== 'resolume.output') {
+        if (node.x > maxGridX) maxGridX = node.x;
+        if (node.y > maxGridY) maxGridY = node.y;
+      }
+
       const type = defaultNodeRepository.getNodeType(node.config.typeId);
       if (type?.getRegion) {
         const region = type.getRegion(node.config);
         if (region) {
-          const x = node.x + region.x;
-          const y = node.y + region.y;
+          // Region bounds relative to node
+          const x = node.x + (region.x ?? 0);
+          const y = node.y + (region.y ?? 0);
           const { width, height } = region;
 
           // Check Visibility
-          const visibility = (node.config as any).visibility || 'show';
-          const isHidden = visibility === 'hide';
+          // Safe access via getRegion contract
+          const isCollapsed = region.visibility === RegionVisibility.Hide;
+
+          cachedRegions.set(node.id, { x, y, width, height, isCollapsed });
+
+          // Update global bounds
+          // Region extends from x to x + width (exclusive in loop, inclusive in grid size?)
+          // Grid uses 0-based indices. If a region occupies column 5, x=5, w=1.
+          // It ends at x+w-1 = 5. Max index is 5.
+          const extentX = x + width - 1;
+          const extentY = y + height - 1;
+
+          if (extentX > maxGridX) maxGridX = extentX;
+          if (extentY > maxGridY) maxGridY = extentY;
 
           for (let rx = x; rx < x + width; rx++) {
             const cStats = getColStats(rx);
@@ -445,7 +473,7 @@ export class LocalController {
               rStats.regionCount++;
               cStats.regionCount++;
 
-              if (isHidden) {
+              if (isCollapsed) {
                 rStats.collapsedCount++;
                 cStats.collapsedCount++;
 
@@ -459,6 +487,9 @@ export class LocalController {
         }
       }
     });
+
+    metrics.boundingBox = { width: maxGridX, height: maxGridY };
+    metrics.regions = cachedRegions;
 
     // 2. Iterate Nodes to populate Content Count
     Object.values(nodes).forEach(node => {
