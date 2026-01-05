@@ -216,6 +216,7 @@ export interface TypedNodeOptions<
 
   subgraphExpansionTag?: string;
   getChildren?: (node: any, allNodes: any) => string[];
+  getRegion?: (config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>) => { x: number; y: number; width: number; height: number };
 }
 
 export function definePrimitiveNode<
@@ -248,6 +249,7 @@ export function definePrimitiveNode<
     getDisplayLabel: options.getDisplayLabel as any, // Cast to generic Structor type
     subgraphExpansionTag: options.subgraphExpansionTag,
     getChildren: options.getChildren,
+    getRegion: options.getRegion as any,
     computeBackwardPorts: options.computeBackwardPorts,
     computeForwardPorts: (i, c, ctx, meta) => {
       if (options.computeForwardPorts) {

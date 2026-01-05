@@ -149,6 +149,7 @@ export interface EnhancedNodeOptions<
   ) => InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }> | { outputs: InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }>; ui?: any };
 
   getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
+  getRegion?: (config: TUIConfig) => { x: number; y: number; width: number; height: number };
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -166,6 +167,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
   // onMessage is inherited from PrimitiveNodeDefinition
   getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
+  getRegion?: (config: any) => { x: number; y: number; width: number; height: number };
 }
 
 export function defineNode<
@@ -252,7 +254,8 @@ export function defineNode<
 
     inspectInputs: options.inspectInputs,
     shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange,
-    getChildren: options.getChildren
+    getChildren: options.getChildren,
+    getRegion: options.getRegion
   };
 }
 

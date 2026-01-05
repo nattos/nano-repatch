@@ -1,6 +1,7 @@
 import { observable, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
 import { StructorType } from '../structor/structor';
+import { defaultNodeRepository as nodeRepository } from '../structor/repository';
 
 // Enable Immer support for Map and Set
 enableMapSet();
@@ -350,6 +351,74 @@ export class AppController {
             needsRecompile = true;
           } else {
             configUpdateNodeIds.add(mutation.nodeId);
+          }
+          break;
+        case 'node.move':
+          // Smart Spatial Recompilation
+          if (!needsRecompile) {
+            const state = this.currentState.graph.inner;
+            const regionNodes = Object.values(state.nodes).filter(n => {
+              const def = nodeRepository.get(n.config.typeId);
+              return def && (def as any).getRegion;
+            });
+
+            if (regionNodes.length > 0) {
+              for (const move of mutation.moves) {
+                // 1. Check if the moved node changed Parents
+                const getParent = (x: number, y: number): string | null => {
+                  for (const region of regionNodes) {
+                    if (region.id === move.nodeId) continue; // Provide sanity check
+                    const def = nodeRepository.get(region.config.typeId) as any;
+                    const r = def.getRegion(region.config);
+                    // Absolute region bounds
+                    const rx1 = region.x + r.x;
+                    const ry1 = region.y + r.y;
+                    const rx2 = rx1 + r.width;
+                    const ry2 = ry1 + r.height;
+
+                    if (x >= rx1 && x < rx2 && y >= ry1 && y < ry2) {
+                      return region.id;
+                    }
+                  }
+                  return null;
+                };
+
+                const oldParent = getParent(move.from.x, move.from.y);
+                const newParent = getParent(move.to.x, move.to.y);
+
+                if (oldParent !== newParent) {
+                  needsRecompile = true;
+                  break;
+                }
+
+                // 2. Check if the moved node IS a region and swept over children
+                const nodeDef = nodeRepository.get(state.nodes[move.nodeId]?.config.typeId) as any;
+                if (nodeDef && nodeDef.getRegion) {
+                  // This is expensive (O(N)), but necessary for Region moves.
+                  // Check if the set of children changed.
+                  const r = nodeDef.getRegion(state.nodes[move.nodeId].config);
+
+                  // Helper to check if a node is in a rect
+                  const isIn = (nx: number, ny: number, rx: number, ry: number) => {
+                    return nx >= rx && nx < rx + r.width && ny >= ry && ny < ry + r.height;
+                  };
+
+                  for (const other of Object.values(state.nodes)) {
+                    if (other.id === move.nodeId) continue;
+
+                    const wasIn = isIn(other.x, other.y, move.from.x + r.x, move.from.y + r.y);
+                    const isInNow = isIn(other.x, other.y, move.to.x + r.x, move.to.y + r.y);
+
+                    if (wasIn !== isInNow) {
+                      needsRecompile = true;
+                      break;
+                    }
+                  }
+                }
+
+                if (needsRecompile) break;
+              }
+            }
           }
           break;
       }
@@ -982,6 +1051,3 @@ export class AppController {
     return inverse.reverse();
   }
 }
-
-
-

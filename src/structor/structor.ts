@@ -227,6 +227,13 @@ export interface PrimitiveNodeDefinition {
    * Used for spatial grouping (e.g. core.ifthen).
    */
   getChildren?: (node: any, allNodes: any) => string[];
+
+  /**
+   * Optional function to determine the spatial region of a node.
+   * Returns a bounding box relative to the node's origin.
+   * Used for smart recompilation when nodes move in/out of regions.
+   */
+  getRegion?: (config: Structor) => { x: number; y: number; width: number; height: number; };
 }
 
 /**

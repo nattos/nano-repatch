@@ -40,17 +40,25 @@ export const primitive_ifthen = definePrimitiveNode({
   },
   getDisplayLabel: () => 'IfThen',
 
+  getRegion: (config: any) => {
+    return {
+      x: 0,
+      y: 0,
+      width: config.width || 3,
+      height: config.height || 3
+    };
+  },
+
   getChildren: (node: GridNode, allNodes: Record<string, GridNode>) => {
     const children: string[] = [];
     const config = node.config as unknown as IfThenConfig;
+
+    // Use getRegion if available (which it is here locally, but good practice)
+    // Or just use the logic directly.
     const w = config.width || 3;
     const h = config.height || 3;
 
     // Bounding Box (in Grid Coords)
-    // Note: GridNode x,y are top-left? Yes.
-    // We assume strict containment? Or partial?
-    // Let's go with Center Point Containment for robustness.
-
     const x1 = node.x;
     const y1 = node.y;
     const x2 = node.x + w;
@@ -59,11 +67,7 @@ export const primitive_ifthen = definePrimitiveNode({
     for (const other of Object.values(allNodes)) {
       if (other.id === node.id) continue;
 
-      // Determine other node's center or position.
-      // Ideally we check center. But we don't know other node's size easily here without lookup.
-      // Let's assume Top-Left for now, or check if (x,y) is inside.
-      // Better: Check if (other.x, other.y) is inside.
-
+      // Check if (other.x, other.y) is inside.
       if (other.x >= x1 && other.x < x2 && other.y >= y1 && other.y < y2) {
         children.push(other.id);
       }
