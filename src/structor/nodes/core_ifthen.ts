@@ -13,6 +13,7 @@ interface IfThenConfig {
   height: number;
   regionX?: number;
   regionY?: number;
+  visibility?: 'auto' | 'show' | 'hide';
 }
 
 export const primitive_ifthen = definePrimitiveNode({
@@ -27,7 +28,8 @@ export const primitive_ifthen = definePrimitiveNode({
     width: { kind: 'atomic', type: 'number', defaultValue: 3 },
     height: { kind: 'atomic', type: 'number', defaultValue: 3 },
     regionX: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
-    regionY: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true }
+    regionY: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
+    visibility: { kind: 'atomic', type: 'string', defaultValue: 'show', optional: true }
   },
   // Inputs: MIDI Stream (Trigger)
   inputs: {
@@ -38,7 +40,14 @@ export const primitive_ifthen = definePrimitiveNode({
     inspector: {
       fields: [
         { type: 'number', label: 'Width', path: 'width', min: 1, step: 1 },
-        { type: 'number', label: 'Height', path: 'height', min: 1, step: 1 }
+        { type: 'number', label: 'Height', path: 'height', min: 1, step: 1 },
+        {
+          type: 'tab-bar', label: 'Visibility', path: 'visibility', options: [
+            { label: 'Auto', value: 'auto' },
+            { label: 'Show', value: 'show' },
+            { label: 'Hide', value: 'hide' }
+          ], default: 'show'
+        }
       ]
     }
   },

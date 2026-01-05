@@ -91,7 +91,7 @@ export class GraphNode extends MobxLitElement {
       flex-direction: column;
       background-color: var(--node-bg);
       border-radius: 10px;
-      width: 120px; /* Adjusted width */
+      /* width: 120px; Removed fixed width to allow state-based sizing */
       min-height: 80px;
       color: var(--text-color);
       cursor: grab;
@@ -99,9 +99,7 @@ export class GraphNode extends MobxLitElement {
       border: 2px solid transparent;
       transition: border-color 0.2s;
       box-sizing: border-box;
-      box-sizing: border-box;
       /* place-self: start; Removed to allow grid alignment */
-      /* padding: 10px; Removed padding to allow full control of node size */
       /* padding: 10px; Removed padding to allow full control of node size */
       transition: width 0.2s, height 0.2s, border-radius 0.2s;
       justify-self: center;

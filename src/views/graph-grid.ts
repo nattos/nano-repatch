@@ -60,12 +60,12 @@ export class GraphGrid extends MobxLitElement {
       grid-template-columns:
         [input] minmax(80px, auto)
         [gap-start] var(--grid-gap, 16px)
-        repeat(12, [node] auto [gap] var(--grid-gap, 16px))
+        repeat(12, [node] auto [gap] minmax(0, auto))
         [output] minmax(80px, auto);
 
       grid-template-rows:
         [gap-top] var(--grid-gap, 16px)
-        repeat(12, [node] minmax(1px, auto) [gap] var(--grid-gap, 16px));
+        repeat(12, [node] minmax(0, auto) [gap] var(--grid-gap, 16px));
 
       /* Revert: Don't force 24px auto-rows */
       /* grid-auto-rows: 24px; */
@@ -92,12 +92,13 @@ export class GraphGrid extends MobxLitElement {
       /* background-color: rgba(255, 255, 255, 0.05); */
       border-radius: 4px;
       pointer-events: auto;
+      box-sizing: border-box;
     }
 
     .cell.node-cell {
       /* background-color: rgba(255, 255, 255, 0.05); */
       /* border: 1px dashed rgba(255, 255, 255, 0.15); */
-      min-width: 80px;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1004,7 +1005,14 @@ export class GraphGrid extends MobxLitElement {
   private getRowHeight(gridY: number): number {
     // console.log('DEBUG: gridMetrics', localController.observableState?.gridMetrics);
     if (!localController.observableState?.gridMetrics) return 80;
-    return localController.observableState.gridMetrics.rows.get(gridY) || 80;
+    const h = localController.observableState.gridMetrics.rows.get(gridY);
+    return h ?? 80;
+  }
+
+  private getColWidth(gridX: number): number {
+    if (!localController.observableState?.gridMetrics) return 80;
+    const w = localController.observableState.gridMetrics.columnWidths.get(gridX);
+    return w ?? 80;
   }
 
   private getNodeWidth(nodeId: string): number {
@@ -1161,21 +1169,32 @@ export class GraphGrid extends MobxLitElement {
       for (let y = 0; y < rows; y++) {
         const rowIdx = 2 * y + 2;
         const rowHeight = this.getRowHeight(y);
+        const colWidth = this.getColWidth(x);
 
         // Node Cell
         const isOutput = x === cols;
         const cellDataX = isOutput ? 'output' : x.toString();
-        cells.push(html`<div class="cell node-cell" data-x="${cellDataX}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
+        cells.push(html`<div class="cell node-cell" data-x="${cellDataX}" data-y="${y}" style="grid-column: ${colIdx}; grid-row: ${rowIdx}; height: ${rowHeight}px; width: ${colWidth}px;"></div>`);
 
         // Gap below Node (Row 2*y+3) -> Horizontal Line. Tag it if Output.
         const gapDataX = isOutput ? 'output' : undefined;
-        cells.push(html`<div class="cell gap-cell gap-h" data-x="${gapDataX}" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1};"></div>`);
+        const gapHeight = rowHeight > 0 ? 16 : 0;
+        const hStyle = gapHeight > 0 ? '' : 'display: none;';
+        cells.push(html`<div class="cell gap-cell gap-h" data-x="${gapDataX}" style="grid-column: ${colIdx}; grid-row: ${rowIdx + 1}; width: ${colWidth}px; height: ${gapHeight}px; overflow: hidden; ${hStyle}"></div>`);
 
         // Gap to the left (Col 2*x) -> Vertical Line
-        cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx}; height: ${rowHeight}px;"></div>`);
+        let gapWidth = 16;
+        if (x > 0) {
+          const prevColWidth = this.getColWidth(x - 1);
+          gapWidth = prevColWidth > 0 ? 16 : 0;
+        }
+        const vStyle = gapWidth > 0 ? '' : 'display: none;';
+        cells.push(html`<div class="cell gap-cell gap-v" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx}; height: ${rowHeight}px; width: ${gapWidth}px; overflow: hidden; ${vStyle}"></div>`);
 
         // Corner (Gap left + Gap below) -> Cross
-        cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx + 1};"></div>`);
+        // Hide corner if EITHER dimension is 0
+        const cStyle = (gapWidth > 0 && gapHeight > 0) ? '' : 'display: none;';
+        cells.push(html`<div class="cell gap-cell gap-c" style="grid-column: ${colIdx - 1}; grid-row: ${rowIdx + 1}; width: ${gapWidth}px; height: ${gapHeight}px; overflow: hidden; ${cStyle}"></div>`);
       }
     }
 
@@ -1250,6 +1269,54 @@ export class GraphGrid extends MobxLitElement {
     const cols = Math.max(maxNodeX + GRID_OUTPUT_COL_PADDING, GRID_MIN_COLS);
     const outputCol = 2 * cols + 3;
 
+    // Dynamic Grid Template Columns
+    const inputCol = 'minmax(80px, auto)';
+    const gapStart = 'var(--grid-gap, 16px)';
+
+    // Grid Width heuristic to avoid infinite loops or empty maps
+    // We already calculated maxNodeX for placement, let's use it.
+    // The static CSS uses repeat(12, ...). We should match or exceed that.
+    // We can iterate up to cols.
+
+    const trackDefinitions: string[] = [];
+    trackDefinitions.push(`[input] ${inputCol}`);
+    trackDefinitions.push(`[gap-start] ${gapStart}`);
+
+    for (let c = 0; c < cols; c++) {
+      const colWidth = this.getColWidth(c);
+      const gapWidth = colWidth > 0 ? 16 : 0;
+
+      trackDefinitions.push(`[node] ${colWidth}px`);
+      trackDefinitions.push(`[gap] ${gapWidth}px`);
+    }
+
+    trackDefinitions.push(`[output] minmax(80px, auto)`);
+    const gridTemplateColumns = trackDefinitions.join(' ');
+
+    // Dynamic Grid Template Rows
+    // Logic: If a row is hidden (height 0), its following gap should also be hidden (height 0).
+    const rowTrackDefinitions: string[] = [];
+    rowTrackDefinitions.push(`[gap-top] var(--grid-gap, 16px)`);
+
+    // We assume rows go up to... how many?
+    // We can infer max rows from maxNodeY.
+    let maxNodeY = 0;
+    for (const node of Object.values(nodes)) {
+      if (node.y > maxNodeY) maxNodeY = node.y;
+    }
+    // GraphGrid uses 12 loops traditionally, but we should cover all content.
+    // Let's go up to Max(12, maxNodeY + 1).
+    const numRows = Math.max(12, maxNodeY + 1);
+
+    for (let r = 0; r < numRows; r++) {
+      const rowHeight = this.getRowHeight(r);
+      const gapHeight = rowHeight > 0 ? 16 : 0;
+
+      rowTrackDefinitions.push(`[node] minmax(${rowHeight}px, auto)`);
+      rowTrackDefinitions.push(`[gap] ${gapHeight}px`);
+    }
+    const gridTemplateRows = rowTrackDefinitions.join(' ');
+
     return html`
       ${this.renderGhostWire()}
       ${this.renderPendingWirePip()}
@@ -1273,7 +1340,7 @@ export class GraphGrid extends MobxLitElement {
         </div>
       ` : ''}
 
-      <div class="grid-container" tabindex="-1">
+      <div class="grid-container" tabindex="-1" style="grid-template-columns: ${gridTemplateColumns}; grid-template-rows: ${gridTemplateRows};">
         ${this.renderGridCells()}
 
 
@@ -1337,7 +1404,12 @@ export class GraphGrid extends MobxLitElement {
     const selectedNodes: GridNode[] = [];
     for (const [id] of selection) {
       const node = appController.observableState.graph.inner.nodes[id];
-      if (node) selectedNodes.push(node);
+      if (node) {
+        const metric = localController.observableState.gridMetrics.cells.get(`${node.x},${node.y}`);
+        if (!metric?.isHidden) {
+          selectedNodes.push(node);
+        }
+      }
     }
 
     return repeat(selectedNodes, n => n.id + '-ghost', node => {
@@ -1487,6 +1559,8 @@ export class GraphGrid extends MobxLitElement {
     const row = 2 * node.y + 2;
     const span = 1;
     const isSelected = localController.observableState.selection.has(node.id);
+    const metric = localController.observableState.gridMetrics.cells.get(`${node.x},${node.y}`);
+    const isHidden = metric?.isHidden;
 
     return html`
             <graph-node
@@ -1500,6 +1574,7 @@ export class GraphGrid extends MobxLitElement {
               .parentZIndex=${isSelected ? 110 : 100}
               data-io-type=${ioType || ''}
               data-id=${node.id}
+              ?hidden=${isHidden}
             ></graph-node>
           `;
   }

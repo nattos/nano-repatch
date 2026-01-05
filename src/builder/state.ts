@@ -355,7 +355,8 @@ export class AppController {
               'regionX' in mutation.to ||
               'regionY' in mutation.to ||
               'width' in mutation.to ||
-              'height' in mutation.to
+              'height' in mutation.to ||
+              'visibility' in mutation.to
             ) {
               needsRecompile = true;
             }

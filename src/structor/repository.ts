@@ -81,7 +81,7 @@ export interface NodeType {
   /**
    * Optional callback to determine the dynamic display label of a node.
    */
-  getDisplayLabel?: (config: any) => string | undefined;
+  getDisplayLabel?: (uiConfig: any) => string | undefined;
 
   /**
    * Whether to capture inputs for this node type in the executor.
@@ -91,7 +91,7 @@ export interface NodeType {
   /**
    * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
    */
-  shouldRecompileOnConfigChange?: ((config: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
+  shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
 
   /**
    * Optional method to identify child nodes owned by this node (e.g. for spatial groups).
@@ -101,7 +101,7 @@ export interface NodeType {
   /**
    * Optional method to define the spatial region associated with this node.
    */
-  getRegion?: (config: any) => { x: number; y: number; width: number; height: number };
+  getRegion?: (uiConfig: any) => { x: number; y: number; width: number; height: number };
 }
 
 export class NodeRepository {

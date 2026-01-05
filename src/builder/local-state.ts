@@ -58,7 +58,9 @@ export interface CellMetric {
   height: number;
   visualState: NodeVisualState;
   portInputCount: number;
+  portInputCount: number;
   portOutputCount: number;
+  isHidden?: boolean;
 }
 
 export interface GridMetrics {
@@ -272,6 +274,7 @@ export class LocalController {
     // Find grid bounds
     let maxNodeX = 0;
     Object.values(nodes).forEach(n => {
+      // TODO: Remove hardcoded node types.
       if (n.config.typeId !== 'io.output' && n.config.typeId !== 'resolume.output' && n.config.typeId !== 'io.input' && n.config.typeId !== 'resolume.input') {
         if (n.x > maxNodeX) maxNodeX = n.x;
       }
@@ -405,6 +408,68 @@ export class LocalController {
       colOffsets: new Map()
     };
 
+    // --- Region Collapse Pre-Calculation ---
+    const rowStats = new Map<number, { regionCount: number, collapsedCount: number, contentCount: number }>();
+    const colStats = new Map<number, { regionCount: number, collapsedCount: number, contentCount: number }>();
+    const hiddenCellsY = new Map<number, Set<number>>(); // Map<y, Set<x>>
+
+    const getRowStats = (y: number) => {
+      if (!rowStats.has(y)) rowStats.set(y, { regionCount: 0, collapsedCount: 0, contentCount: 0 });
+      return rowStats.get(y)!;
+    }
+    const getColStats = (x: number) => {
+      if (!colStats.has(x)) colStats.set(x, { regionCount: 0, collapsedCount: 0, contentCount: 0 });
+      return colStats.get(x)!;
+    }
+
+    Object.values(nodes).forEach(node => {
+      const type = defaultNodeRepository.getNodeType(node.config.typeId);
+      if (type?.getRegion) {
+        const region = type.getRegion(node.config);
+        if (region) {
+          const x = node.x + region.x;
+          const y = node.y + region.y;
+          const { width, height } = region;
+
+          // Check Visibility
+          const visibility = (node.config as any).visibility || 'show';
+          const isHidden = visibility === 'hide';
+
+          for (let rx = x; rx < x + width; rx++) {
+            const cStats = getColStats(rx);
+            for (let ry = y; ry < y + height; ry++) {
+              // Exclude parent node cell (which is usually at x,y)
+              if (rx === node.x && ry === node.y) continue;
+
+              const rStats = getRowStats(ry);
+              rStats.regionCount++;
+              cStats.regionCount++;
+
+              if (isHidden) {
+                rStats.collapsedCount++;
+                cStats.collapsedCount++;
+
+                if (!hiddenCellsY.has(ry)) {
+                  hiddenCellsY.set(ry, new Set());
+                }
+                hiddenCellsY.get(ry)!.add(rx);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 2. Iterate Nodes to populate Content Count
+    Object.values(nodes).forEach(node => {
+      const isHidden = hiddenCellsY.get(node.y)?.has(node.x);
+      // If node is NOT in hiddenCells, it is visible content.
+      if (!isHidden) {
+        getRowStats(node.y).contentCount++;
+        getColStats(node.x).contentCount++;
+      }
+    });
+
     // Pre-calculate incoming connections for all nodes to perform heuristic
     const incomingConnections = new Map<string, Set<string>>();
     Object.values(connections).forEach(c => {
@@ -434,14 +499,20 @@ export class LocalController {
       const state = getNodeVisualState(inputs, outputs, connectedPorts, hasCustomBody, node.config);
 
       let width = NODE_WIDTH_NORMAL;
-      if (node.config.width) {
+      // If node defines a region, 'width' property refers to Region Grid Width (e.g. 2 columns),
+      // NOT pixel width. So we should ignore it for visual sizing.
+      const isRegionNode = !!nodeType?.getRegion;
+
+      if (node.config.width && !isRegionNode) {
         width = node.config.width;
       } else {
         if (state === 'minimal') width = NODE_WIDTH_MINIMAL;
         else if (state === 'compressed') width = NODE_WIDTH_COMPRESSED;
-        else if (state === 'pill') width = 120; // 120px for Pill? Or 80? Input Col is 80.
+        else if (state === 'pill') width = NODE_WIDTH_COMPRESSED; // 176px - Pill usually wider than minimal?
         else width = NODE_WIDTH_NORMAL;
       }
+
+      const isHidden = hiddenCellsY.get(node.y)?.has(node.x);
 
       // Calculate Height using shared utility
       const estimatedHeight = calculateNodeHeight(
@@ -457,7 +528,8 @@ export class LocalController {
         height: estimatedHeight,
         visualState: state,
         portInputCount: inputs.length,
-        portOutputCount: outputs.length
+        portOutputCount: outputs.length,
+        isHidden
       });
 
       // Column Metrics
@@ -476,23 +548,56 @@ export class LocalController {
     });
 
     try {
+      // Post-Process: Apply Hiding Logic for Rows
+      const maxRow = Math.max(...Array.from(metrics.rows.keys()), ...Array.from(rowStats.keys()), -1);
+      for (let r = 0; r <= maxRow; r++) {
+        const stats = rowStats.get(r);
+        let isHidden = false;
+        if (stats) {
+          if (stats.contentCount === 0 && stats.regionCount > 0 && stats.regionCount === stats.collapsedCount) {
+            isHidden = true;
+          }
+        }
+        if (isHidden) {
+          metrics.rows.set(r, 0);
+        }
+      }
+
+      // Post-Process: Apply Hiding Logic for Columns
+      const maxCol = Math.max(...Array.from(metrics.columnWidths.keys()), ...Array.from(colStats.keys()), -1);
+      for (let c = 0; c <= maxCol; c++) {
+        const stats = colStats.get(c);
+        let isHidden = false;
+        if (stats) {
+          if (stats.contentCount === 0 && stats.regionCount > 0 && stats.regionCount === stats.collapsedCount) {
+            isHidden = true;
+          }
+        }
+        if (isHidden) {
+          metrics.columnWidths.set(c, 0);
+        }
+      }
+
       // Post-Process: Calculate Row Offsets
       let currentY = 16;
-      const maxRow = Math.max(...Array.from(metrics.rows.keys()), -1);
       for (let r = 0; r <= maxRow; r++) {
         metrics.rowOffsets.set(r, currentY);
-        // Default to 80px for empty/collapsed rows so the Grid Layout remains stable
-        const h = metrics.rows.get(r) || 80;
-        currentY += h + 16;
+        let h = metrics.rows.get(r);
+        if (h === undefined) h = 80;
+
+        const gap = h > 0 ? 16 : 0;
+        currentY += h + gap;
       }
       // Post-Process: Calculate Col Offsets
       // Approximation: Input Col 80px + Gap 16px
       let currentX = 96;
-      const maxCol = Math.max(...Array.from(metrics.columnWidths.keys()), -1);
       for (let c = 0; c <= maxCol; c++) {
         metrics.colOffsets.set(c, currentX);
-        const w = metrics.columnWidths.get(c) || 80;
-        currentX += w + 16; // Width + Gap
+        let w = metrics.columnWidths.get(c);
+        if (w === undefined) w = 80; // Default width for empty column
+
+        const gap = w > 0 ? 16 : 0;
+        currentX += w + gap;
       }
     } catch (e) {
       console.error("Error calculating rowOffsets", e);
@@ -727,16 +832,17 @@ export class LocalController {
     let gridY = 0;
     const maxRow = Math.max(...Array.from(rows.keys()), -1);
     for (let r = 0; r <= maxRow; r++) {
-      const top = rowOffsets.get(r) || 0;
-      const h = rows.get(r) || 80;
-      if (y >= top && y < top + h + 16) {
+      const top = rowOffsets.get(r) ?? 0;
+      const h = rows.get(r) ?? 80;
+      const gap = h > 0 ? 16 : 0;
+      if (y >= top && y < top + h + gap) {
         gridY = r;
         break;
       }
-      if (r === maxRow && y >= top + h + 16) {
+      if (r === maxRow && y >= top + h + gap) {
         // Below last row
         // Extrapolate?
-        const diff = y - (top + h + 16);
+        const diff = y - (top + h + gap);
         const stride = 80 + 16;
         gridY = maxRow + 1 + Math.floor(diff / stride);
       }
@@ -753,9 +859,10 @@ export class LocalController {
     } else {
       let found = false;
       for (let c = 0; c <= maxCol; c++) {
-        const left = colOffsets.get(c) || 0;
-        const w = columnWidths.get(c) || 80;
-        if (x >= left && x < left + w + 16) {
+        const left = colOffsets.get(c) ?? 0;
+        const w = columnWidths.get(c) ?? 80;
+        const gap = w > 0 ? 16 : 0;
+        if (x >= left && x < left + w + gap) {
           gridX = c;
           found = true;
           break;
@@ -763,8 +870,8 @@ export class LocalController {
       }
       if (!found) {
         // To the right of last column
-        const lastLeft = colOffsets.get(maxCol) || 96;
-        const lastW = columnWidths.get(maxCol) || 80;
+        const lastLeft = colOffsets.get(maxCol) ?? 96;
+        const lastW = columnWidths.get(maxCol) ?? 80;
         const rightEdge = lastLeft + lastW + 16;
         if (x >= rightEdge) {
           // Extrapolate

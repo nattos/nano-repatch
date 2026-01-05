@@ -135,6 +135,10 @@ export const globalStyles = [
     padding-right: 1px;
     z-index: 1;
   }
+
+  :host([hidden]) {
+    display: none !important;
+  }
 `];
 
 export const widgetStyles = css`
