@@ -11,6 +11,15 @@ import { reaction, toJS } from 'mobx';
 // These are the singleton instances of the controllers that will be used throughout the application.
 export const appController = new AppController();
 export const localController = new LocalController(appController);
+
+// Inject dependency for AppController to check region state without circular import
+appController.setMetricsProvider({
+  isRegionCollapsed: (nodeId) => {
+    const region = localController.observableState.gridMetrics.regions.get(nodeId);
+    return region?.isCollapsed ?? false;
+  }
+});
+
 export const runtimeManager = new RuntimeManager(appController, localController);
 export const workspaceController = new WorkspaceController(appController, localController);
 

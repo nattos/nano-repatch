@@ -139,7 +139,17 @@ export function buildGraphStateAuxiliary(graphState: GraphInnerState): GraphStat
 }
 
 // Part 3: The Controller
+export interface MetricsProvider {
+  isRegionCollapsed(nodeId: string): boolean;
+}
+
 export class AppController {
+  private metricsProvider?: MetricsProvider;
+
+  public setMetricsProvider(provider: MetricsProvider) {
+    this.metricsProvider = provider;
+  }
+
   private currentState: AppState;
   public observableState: AppState;
 
@@ -779,7 +789,15 @@ export class AppController {
         const otherDef = nodeRepository.getNodeType(otherNode.config.typeId);
         if (otherDef?.getRegion) {
           const region = otherDef.getRegion(otherNode.config);
-          if (region && region.visibility === RegionVisibility.Hide) {
+
+          // Use injected provider to determine true collapsed state (respecting global toggle)
+          // If no provider (e.g. tests), fallback to strict Hide check, or Auto check?
+          // For safety, fallback to 'Hide' check to match old behavior in tests if provider missing.
+          const isCollapsed = this.metricsProvider
+            ? this.metricsProvider.isRegionCollapsed(otherNode.id)
+            : region.visibility === RegionVisibility.Hide;
+
+          if (region && isCollapsed) {
             // It's a collapsed region (solid block)
             const rX = otherNode.x + (region.x || 0);
             const rY = otherNode.y + (region.y || 0);
