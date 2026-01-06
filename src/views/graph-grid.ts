@@ -1370,12 +1370,25 @@ export class GraphGrid extends MobxLitElement {
         // Formula: span (2 * W - 1).
         // BUT, we want the BOX to cover gaps too?
 
-        const colSpan = Math.max(1, 2 * absW - 1);
+        // Calculate Effective Span (Trim trailing collapsed/hidden tracks)
+        // If the last N columns are hidden (0px), we shouldn't span the gap before them.
+        let effectiveW = 1;
+        for (let i = absW - 1; i >= 0; i--) {
+          if (this.getColWidth(absX + i) > 0) {
+            effectiveW = i + 1;
+            break;
+          }
+        }
+        const colSpan = Math.max(1, 2 * effectiveW - 1);
 
-        // Row Span logic: same
-        // H=1 -> span 1
-        // H=2 -> span 3 (Row + Gap + Row)
-        const rowSpan = Math.max(1, 2 * absH - 1);
+        let effectiveH = 1;
+        for (let i = absH - 1; i >= 0; i--) {
+          if (this.getRowHeight(absY + i) > 0) {
+            effectiveH = i + 1;
+            break;
+          }
+        }
+        const rowSpan = Math.max(1, 2 * effectiveH - 1);
 
         const regionSelectionId = `region-${node.id}`;
         const isSelected = localController.observableState.selection.has(regionSelectionId);
