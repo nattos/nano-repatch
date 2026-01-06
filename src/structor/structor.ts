@@ -173,7 +173,7 @@ export interface PrimitiveNodeDefinition {
     config: Structor,
     context: AnalysisContext,
     backwardMetadata?: any,
-  ) => { inputs: RecordType; outputs: RecordType };
+  ) => { inputs: RecordType; outputs: RecordType; forwardMetadata?: any };
 
   shouldRecompileOnConfigChange?: (
     newConfig: StructorRecord,

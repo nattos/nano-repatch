@@ -42,7 +42,7 @@ export interface NodeType {
    * into the `Structor`-formatted `defaultConfig` for a `NodeInstance`.
    * If not provided, the config is assumed to be undefined.
    */
-  compileConfig?: (uiConfig: any) => Structor;
+  compileConfig?: (uiConfig: any, metadata?: any) => Structor;
 
   /**
    * A custom Lit-element renderer for the node's body.

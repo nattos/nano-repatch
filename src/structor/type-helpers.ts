@@ -276,11 +276,12 @@ export function definePrimitiveNode<
       }
       return false;
     },
+    compileConfig: options.compileConfig as any, // Pass through compileConfig
     ui: options.ui,
     createState: options.createState as any,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
-      const processedConfig = fromStructor(rawConfig, configType);
+      const processedConfig = fromStructor(rawConfig, configType) as TCompiledConfig;
 
       // Handle State
       let state: TState = undefined as any;
@@ -302,6 +303,18 @@ export function definePrimitiveNode<
         };
 
         const overrides = typeof options.autoBroadcast === 'object' ? options.autoBroadcast : {};
+
+        // Dynamic AutoBroadcast Override from Config
+        // Check if config has an 'autoBroadcast' field that overrides static options
+        if (processedConfig && typeof processedConfig === 'object' && 'autoBroadcast' in processedConfig) {
+          const dynamicOverride = (processedConfig as any).autoBroadcast;
+          if (dynamicOverride && typeof dynamicOverride === 'object') {
+            Object.assign(overrides, dynamicOverride);
+            // If explicit override exists, we should probably ensure keys are covered?
+            // But the loop below iterates over options.inputs.
+            // If dynamicOverride adds keys not in inputs, they will be ignored by loop below, which is correct.
+          }
+        }
 
         for (const [key, type] of Object.entries(options.inputs)) {
           const isArray = type.kind === 'array';

@@ -42,6 +42,7 @@ export type InitGraphMessage = {
   inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>; // Added
   isRecompilation?: boolean;
   dirtyNodeIds?: string[]; // Added: Explicitly mark these nodes as dirty
+  nodeMetadata?: Record<string, any>; // Added: Metadata from compiler
 };
 
 export type UpdateConfigMessage = {

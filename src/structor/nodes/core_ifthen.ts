@@ -30,7 +30,8 @@ export const primitive_ifthen = definePrimitiveNode({
     height: { kind: 'atomic', type: 'number', defaultValue: 3 },
     regionX: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
     regionY: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
-    visibility: { kind: 'atomic', type: 'string', defaultValue: 'auto', optional: true }
+    visibility: { kind: 'atomic', type: 'string', defaultValue: 'auto', optional: true },
+    mode: { kind: 'atomic', type: 'string', defaultValue: 'midi', optional: true }
   },
   // Inputs: MIDI Stream (Trigger)
   inputs: {
@@ -92,14 +93,35 @@ export const primitive_ifthen = definePrimitiveNode({
   },
 
   execute: (inputs, config, context) => {
-    const stream = inputs.midi_in || [];
+    const mode = (config as any).mode || 'midi';
+    const input = inputs.midi_in;
     let shouldTrigger = false;
 
-    if (Array.isArray(stream)) {
-      for (const event of stream) {
-        if (event.type === 'note_on' && (event.velocity ?? 0) > 0) {
+    if (mode === 'primitive') {
+      // Primitive Mode: Check for Truthy
+      if (Array.isArray(input)) {
+        // If array (from stream or spread), trigger if ANY is truthy
+        for (const val of input) {
+          if (val) {
+            shouldTrigger = true;
+            break;
+          }
+        }
+      } else {
+        // Scalar
+        if (input) {
           shouldTrigger = true;
-          break;
+        }
+      }
+    } else {
+      // MIDI Mode (Default)
+      const stream = input || [];
+      if (Array.isArray(stream)) {
+        for (const event of stream) {
+          if (event && event.type === 'note_on' && (event.velocity ?? 0) > 0) {
+            shouldTrigger = true;
+            break;
+          }
         }
       }
     }
@@ -109,6 +131,42 @@ export const primitive_ifthen = definePrimitiveNode({
     }
 
     return { fields: {} };
+  },
+
+  computeForwardPorts: (inputTypes, config, context) => {
+    const inputType = inputTypes.fields.midi_in;
+
+    let mode = 'midi';
+    let finalInputType = midiStreamType;
+
+
+    if (inputType) {
+      // Check if it looks like a MIDI stream
+      // MIDI Stream = Array of Records
+      // We assume anything else is a primitive signal
+      const isMidi = (inputType.kind === 'array' && (inputType as any).elementType?.kind === 'record'); // simple check
+      // A more robust check might look for specific fields, but this separates "Signal" from "Event Stream" roughly.
+
+      // Also, if it IS an array of primitives, it's primitive mode.
+
+      if (!isMidi) {
+        mode = 'primitive';
+        finalInputType = inputType; // Adopt the input type (Dynamic Typing)
+      }
+    }
+
+    return {
+      inputs: { midi_in: finalInputType },
+      outputs: {},
+      forwardMetadata: { mode }
+    };
+  },
+
+  compileConfig: (uiConfig, metadata) => {
+    return {
+      ...uiConfig,
+      mode: metadata?.mode || 'midi'
+    };
   }
 });
 

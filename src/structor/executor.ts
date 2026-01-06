@@ -19,6 +19,7 @@ export class GraphExecutor {
   private inspectedInputs: Map<string, StructorRecord> = new Map();
   private inferredNodeTypes: Record<string, { inputs: StructorType, outputs: StructorType }> | undefined;
   private downstreamMap: Map<string, string[]> = new Map();
+  private nodeMetadata: Map<string, any> = new Map();
 
   get graphNodeCount() {
     return this.executionOrder.length;
@@ -29,9 +30,16 @@ export class GraphExecutor {
     private repository: NodeRepository,
     initialStates?: Map<string, NodeState>,
     inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>,
-    dirtyNodeIds?: string[]
+    dirtyNodeIds?: string[],
+    nodeMetadata?: Record<string, any>
   ) {
     this.inferredNodeTypes = inferredNodeTypes;
+
+    if (nodeMetadata) {
+      for (const [key, val] of Object.entries(nodeMetadata)) {
+        this.nodeMetadata.set(key, val);
+      }
+    }
 
     // Build downstream map for dirty propagation
     for (const conn of graph.connections) {
@@ -145,6 +153,56 @@ export class GraphExecutor {
       const configType = (nodeDef as PrimitiveNodeDefinition)?.configType;
 
       let normalizedConfig = config;
+
+      // Re-compile if metadata exists (and check if nodeDef supports compilesConfig)
+      // Note: we are doing this BEFORE normalization to Record structure if possible?
+      // No, compileConfig expects the UI Config (which IS 'config' here).
+      // But wait, setNodeConfig receives UI Config from Inspector.
+      const metadata = this.nodeMetadata.get(nodeId);
+      if (nodeDef && nodeDef.compileConfig && metadata) {
+        try {
+          // We can update the config using the metadata.
+          // However, 'config' passed here might be PARTIAL (from Inspector).
+          // compileConfig usually expects FULL UI config.
+
+          // This is a known limitation/challenge.
+          // Ideally we should merge with current UI config, then compile.
+          // But we don't store "Current UI Config" in executor, only "Current Compiled Config".
+          // We store 'userNodeStates' maybe? No.
+
+          // Check handbook "Configuration Separation".
+          // "TUIConfig": The source of truth (Inspector state).
+
+          // If we receive a partial update, we are kind of stuck unless we reconstruct the full UI config.
+          // OR, we assume 'config' is sufficient?
+
+          // For now, let's assume 'config' passed to setNodeConfig is the value being updated.
+
+          // Actually, the Inspector usually sends the changed field.
+          // If we run `compileConfig` on a partial object, it might fail or return partials.
+
+          // Strategy:
+          // If we have metadata, we try to run compileConfig.
+          // If it fails, we fall back?
+          // Or, we assume the node handles partials?
+
+          // Most robust way: We need the full UI state.
+          // The system currently doesn't persist full UI state in Executor, only Compiled State.
+          // But wait, `GraphState` in Main Thread has full UI state.
+          // When Main Thread calls `UPDATE_CONFIG`, it passes `node.config`.
+          // `node.config` in Main Thread IS the full UI config.
+
+          // So `config` here IS the full UI config (snapshot).
+          // Therefore we can safeley run `compileConfig`.
+
+          const compiled = nodeDef.compileConfig(config, metadata);
+          if (compiled) {
+            normalizedConfig = compiled;
+          }
+        } catch (e) {
+          console.warn(`Dynamic config compilation failed for ${nodeId}`, e);
+        }
+      }
 
       if (configType && configType.kind === 'record' && config && typeof config === 'object' && !Array.isArray(config)) {
         // If input is a flat object but target is a Record, try to map known fields
@@ -436,6 +494,7 @@ export class GraphExecutor {
       }
 
       const result = definition.execute(inputRecord, state.config as any, executionContext);
+
 
       // Handle result (ExecuteResult)
       if ('outputs' in result && 'ui' in result) {

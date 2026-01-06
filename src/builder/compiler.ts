@@ -16,9 +16,12 @@ export function compileGraph(
   graph: GraphDefinition,
   inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }>,
   virtualInputMappings: Record<string, Record<string, string>>,
-  outputRemappings: Record<string, Record<string, string>>
+  outputRemappings: Record<string, Record<string, string>>,
+  nodeMetadata: Record<string, any>
 } {
   const flatNodes: Record<string, NodeInstance> = {};
+  const nodeUiConfigs: Record<string, any> = {}; // Store raw UI configs for re-compilation
+  const nodeMetadata: Record<string, any> = {}; // Store metadata from forward pass
   const flatConnections: {
     fromNode: string;
     fromPort: string | number;
@@ -129,9 +132,9 @@ export function compileGraph(
         flatNodes[nodeId] = {
           definitionId: node.config.typeId,
           defaultConfig: instanceConfig,
-          executionTag: executionTag,
           executionOwnerId: executionOwnerId
         };
+        nodeUiConfigs[nodeId] = node.config;
       } else if ((nodeType?.definition as any)?.subgraphExpansionTag) {
         // EXPLICIT SUBGRAPH (Inline or Conditional)
         // Only enter this if it wasn't handled as implicit parent.
@@ -176,9 +179,9 @@ export function compileGraph(
         flatNodes[nodeId] = {
           definitionId: node.config.typeId,
           defaultConfig: instanceConfig,
-          executionTag: executionTag,
           executionOwnerId: executionOwnerId
         };
+        nodeUiConfigs[nodeId] = node.config;
       } else {
         // Regular node
         const { typeId } = node.config;
@@ -196,6 +199,7 @@ export function compileGraph(
         };
 
         flatNodes[nodeId] = instance;
+        nodeUiConfigs[nodeId] = node.config;
 
         if (idPrefix === '') { // Top level
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
@@ -591,86 +595,147 @@ export function compileGraph(
     }
   }
 
-  // --- FORWARD PASS ---
+  // 5. Forward Pass (DataFlow Analysis)
+  for (const nodeId of executionOrder) {
+    const instance = flatNodes[nodeId];
+
+    const nodeDef = nodeRepository.get(instance.definitionId);
+    if (!nodeDef) continue; // Should have been caught earlier
+
+
+
+    // Resolve input types from connections
+
+    // Resolve input types from connections
+    const collectedInputs: RecordType = { kind: 'record', fields: {} };
+    const resolvedInputs: Record<string, StructorType> = {};
+
+
+    // Inefficient O(C) lookup for each node. (Better: Pre-group incoming connections)
+    // Actually we have flatConnections. We can build a map.
+    // Optimisation: Do it once.
+    // ... skipping optimization for now ...
+
+    // Find incoming connections
+    const incoming = validConnections.filter(c => c.toNode === nodeId);
+    const inputsByPort = new Map<string, StructorType[]>();
+
+    for (const conn of incoming) {
+      if (!nodeTypes.has(conn.fromNode)) {
+        // console.warn(`[ForwardPass] Missing inferred types for upstream ${conn.fromNode}`);
+        continue;
+      }
+      const fromType = nodeTypes.get(conn.fromNode)?.outputs;
+
+
+
+      if (fromType && fromType.kind === 'record') {
+        const portName = conn.fromPort.toString();
+        if (fromType.fields[portName]) {
+          if (!inputsByPort.has(conn.toPort.toString())) {
+            inputsByPort.set(conn.toPort.toString(), []);
+          }
+          inputsByPort.get(conn.toPort.toString())!.push(fromType.fields[portName]);
+        }
+      }
+    }
+
+    const expectedInputs = nodeDef.inputs || {};
+
+    for (const [port, types] of inputsByPort) {
+      const expected = expectedInputs[port];
+      if (expected && expected.kind === 'array') {
+        if (types.length > 0) {
+          resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
+        }
+      } else {
+        if (types.length > 0) {
+          resolvedInputs[port] = types[types.length - 1];
+        }
+      }
+    }
+
+    const inputRecordType: RecordType = {
+      kind: 'record',
+      fields: resolvedInputs
+    };
+
+    const config = instance.defaultConfig || { fields: {} };
+    let outputRecordType: RecordType;
+    let finalInputType: RecordType = inputRecordType;
+
+    try {
+      if (nodeDef.computeForwardPorts) {
+        const result = nodeDef.computeForwardPorts(
+          inputRecordType,
+          config,
+          context,
+          backwardMetadata.get(nodeId)
+        );
+        finalInputType = result.inputs;
+        outputRecordType = result.outputs;
+
+        // Capture Metadata
+        if (result.forwardMetadata) {
+          nodeMetadata[nodeId] = result.forwardMetadata;
+        }
+      } else {
+        outputRecordType = (nodeDef.outputs && (nodeDef.outputs as any).kind === 'record'
+          ? nodeDef.outputs
+          : { kind: 'record', fields: {} }) as RecordType;
+      }
+    } catch (e) {
+      console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
+      outputRecordType = { kind: 'record', fields: {} };
+    }
+
+    nodeTypes.set(nodeId, {
+      inputs: finalInputType,
+      outputs: outputRecordType
+    });
+  }
+
+
+  // --- Metadata & Re-Compilation Pass ---
+  // Now that we have all metadata, let's re-run compileConfig for nodes that produced metadata.
   for (const nodeId of executionOrder) {
     const instance = flatNodes[nodeId];
     const nodeDef = nodeRepository.get(instance.definitionId);
 
-    if (nodeDef && nodeDef.kind === 'primitive') {
-      const resolvedInputs: Record<string, StructorType> = {};
+    // Check if we have metadata for this node
+    const metadata = nodeMetadata[nodeId];
 
-      if (nodeDef.inputs && (nodeDef.inputs as any).kind === 'record') {
-        Object.assign(resolvedInputs, nodeDef.inputs.fields);
-      }
+    if (metadata && nodeDef && nodeDef.compileConfig) {
+      const uiConfig = nodeUiConfigs[nodeId];
+      if (uiConfig) {
+        try {
+          const newCompiledConfig = nodeDef.compileConfig(uiConfig, metadata);
 
-      const inputConns = validConnections.filter(c => c.toNode === nodeId);
-      const inputsByPort = new Map<string, StructorType[]>();
+          // Re-inject the values from the original compiled config (virtual inputs)
+          // Because compileConfig might return a fresh object without them if it doesn't handle them explicitly.
+          // Although typical compileConfig implementation should handle it, let's be safe and merge 'values'.
+          // Wait, 'compileConfig' is responsible for returning TCompiledConfig.
+          // Virtual inputs are injected into 'defaultConfig.values' in processGraph.
+          // If we overwrite instance.defaultConfig, we lose them!
 
-      for (const conn of inputConns) {
-        const fromType = nodeTypes.get(conn.fromNode)?.outputs;
-        if (fromType && fromType.kind === 'record') {
-          const portName = conn.fromPort.toString();
-          if (fromType.fields[portName]) {
-            if (!inputsByPort.has(conn.toPort.toString())) {
-              inputsByPort.set(conn.toPort.toString(), []);
+          const oldValues = (instance.defaultConfig as any)?.values;
+
+          instance.defaultConfig = newCompiledConfig;
+
+          if (oldValues) {
+            if (!(instance.defaultConfig as any).values) {
+              (instance.defaultConfig as any).values = {};
             }
-            inputsByPort.get(conn.toPort.toString())!.push(fromType.fields[portName]);
+            Object.assign((instance.defaultConfig as any).values, oldValues);
           }
+
+        } catch (e) {
+          console.warn(`Re-compilation failed for ${nodeId} (${nodeDef.id}):`, e);
         }
       }
-
-      const expectedInputs = nodeDef.inputs || {};
-
-      for (const [port, types] of inputsByPort) {
-        const expected = expectedInputs[port];
-        if (expected && expected.kind === 'array') {
-          if (types.length > 0) {
-            resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
-          }
-        } else {
-          if (types.length > 0) {
-            resolvedInputs[port] = types[types.length - 1];
-          }
-        }
-      }
-
-      const inputRecordType: RecordType = {
-        kind: 'record',
-        fields: resolvedInputs
-      };
-
-      const config = instance.defaultConfig || { fields: {} };
-      let outputRecordType: RecordType;
-      let finalInputType: RecordType = inputRecordType;
-
-      try {
-        if (nodeDef.computeForwardPorts) {
-          const result = nodeDef.computeForwardPorts(
-            inputRecordType,
-            config,
-            context,
-            backwardMetadata.get(nodeId)
-          );
-          finalInputType = result.inputs;
-          outputRecordType = result.outputs;
-        } else {
-          outputRecordType = (nodeDef.outputs && (nodeDef.outputs as any).kind === 'record'
-            ? nodeDef.outputs
-            : { kind: 'record', fields: {} }) as RecordType;
-        }
-      } catch (e) {
-        console.warn(`Failed to compute output types for node ${nodeId} (${nodeDef.id}):`, e);
-        outputRecordType = { kind: 'record', fields: {} };
-      }
-
-      nodeTypes.set(nodeId, {
-        inputs: finalInputType,
-        outputs: outputRecordType
-      });
     }
   }
 
-  // Convert nodeTypes to plain object for worker transfer
   const inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }> = {};
   for (const [id, types] of nodeTypes) {
     inferredTypes[id] = types;
@@ -694,6 +759,7 @@ export function compileGraph(
     graph,
     inferredTypes,
     virtualInputMappings,
-    outputRemappings
+    outputRemappings,
+    nodeMetadata
   };
 }
