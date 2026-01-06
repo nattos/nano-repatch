@@ -573,11 +573,26 @@ export class AppController {
     // Remove id from config to avoid storing it twice if passed
     const { id: _, ...restConfig } = initialConfig || {};
 
+    // Apply defaults from node definition
+    const def = nodeRepository.getNodeType(typeId);
+    const configDefaults: any = {};
+    if (def?.definition.kind === 'primitive') {
+      const configType = def.definition.configType;
+      if (configType && configType.kind === 'record') {
+        const fields = (configType as any).fields || {};
+        for (const [key, type] of Object.entries(fields)) {
+          if (type && typeof type === 'object' && 'defaultValue' in type) {
+            configDefaults[key] = (type as any).defaultValue;
+          }
+        }
+      }
+    }
+
     const newNode: GridNode = {
       id,
       x,
       y,
-      config: { typeId, name: '#', values: {}, ...restConfig },
+      config: { typeId, name: '#', values: {}, ...configDefaults, ...restConfig }, // Defaults first, then overrides
     };
     this.dispatch([{ type: 'node.create', node: newNode }, { type: 'graph.recompile' }]);
     return newNode;

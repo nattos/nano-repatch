@@ -42,12 +42,14 @@ export const primitive_ifthen = definePrimitiveNode({
       fields: [
         { type: 'number', label: 'Width', path: 'width', min: 1, step: 1 },
         { type: 'number', label: 'Height', path: 'height', min: 1, step: 1 },
+        { type: 'number', label: 'Region X (Offset)', path: 'regionX', step: 1 },
+        { type: 'number', label: 'Region Y (Offset)', path: 'regionY', step: 1 },
         {
           type: 'tab-bar', label: 'Visibility', path: 'visibility', options: [
             { label: 'Auto', value: 'auto' },
             { label: 'Show', value: 'show' },
             { label: 'Hide', value: 'hide' }
-          ], default: 'show'
+          ], default: 'auto'
         }
       ]
     }
