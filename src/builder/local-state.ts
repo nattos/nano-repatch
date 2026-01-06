@@ -46,6 +46,7 @@ export interface LocalSettings {
   showDebugValues: boolean;
   activeTab: string | null;
   enableResolumeIO: boolean;
+  areRegionsExpanded: boolean;
 }
 
 export interface Selectable {
@@ -112,8 +113,9 @@ export class LocalController {
       },
       localSettings: {
         showDebugValues: false,
-        activeTab: 'library',
-        enableResolumeIO: false
+        activeTab: null,
+        enableResolumeIO: false,
+        areRegionsExpanded: true, // Default to expanded
       },
       // Interaction State
       isDraggingSelection: false,
@@ -448,7 +450,12 @@ export class LocalController {
 
           // Check Visibility
           // Safe access via getRegion contract
-          const isCollapsed = region.visibility === RegionVisibility.Hide;
+          // Determine collapse state
+          // Hide: Always collapsed
+          // Auto: Collapsed if global toggle is OFF
+          // Show: Never collapsed
+          const isCollapsed = region.visibility === RegionVisibility.Hide ||
+            (region.visibility === RegionVisibility.Auto && !this.observableState.localSettings.areRegionsExpanded);
 
           cachedRegions.set(node.id, { x, y, width, height, isCollapsed });
 
@@ -718,6 +725,12 @@ export class LocalController {
   public setEnableResolumeIO(enabled: boolean): void {
     this.observableState.localSettings.enableResolumeIO = enabled;
     this.saveSettings();
+  }
+
+  @action
+  public toggleRegionExpansion() {
+    this.observableState.localSettings.areRegionsExpanded = !this.observableState.localSettings.areRegionsExpanded;
+    this.updateGridMetrics(this.appController.observableState.graph); // Force re-layout
   }
 
   @action

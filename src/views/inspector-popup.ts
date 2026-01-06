@@ -59,6 +59,12 @@ export class InspectorPopup extends MobxLitElement {
     return html`
       <div class="header">
         <ui-button
+          id="region-toggle-btn"
+          icon=${localController.observableState.localSettings.areRegionsExpanded ? "la-compress" : "la-expand"}
+          @click=${() => localController.toggleRegionExpansion()}
+          title=${localController.observableState.localSettings.areRegionsExpanded ? "Collapse Auto Regions" : "Expand Auto Regions"}
+        ></ui-button>
+        <ui-button
           id="undo-btn"
           icon="la-undo"
           ?disabled=${!appController.canUndo}

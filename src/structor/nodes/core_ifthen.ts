@@ -30,7 +30,7 @@ export const primitive_ifthen = definePrimitiveNode({
     height: { kind: 'atomic', type: 'number', defaultValue: 3 },
     regionX: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
     regionY: { kind: 'atomic', type: 'number', defaultValue: 0, optional: true },
-    visibility: { kind: 'atomic', type: 'string', defaultValue: 'show', optional: true }
+    visibility: { kind: 'atomic', type: 'string', defaultValue: 'auto', optional: true }
   },
   // Inputs: MIDI Stream (Trigger)
   inputs: {
