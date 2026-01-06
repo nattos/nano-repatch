@@ -399,3 +399,24 @@ This entry documents the stabilization of the unit test suite (`npm test`), reso
 ### Verification
 
 *   **All Unit Tests Passing:** `npm run test` now passes all 230+ tests (excluding E2E tests which are skipped by Vitest config).
+
+## Region Visualization & Grid Refinements (As of 2026-01-06)
+
+This entry documents improvements to the GraphGrid layout engine to support dynamic region sizing and visualization, as well as the identification of critical technical debt.
+
+### Features Implemented
+
+1.  **Dynamic Grid Sizing:**
+    *   **Issue:** The grid previously calculated its width based solely on node positions (`maxNodeX`). This caused regions extending beyond the rightmost node to be cut off.
+    *   **Fix:** Updated `GraphGrid` and `LocalState` to calculate grid boundaries by considering both node positions and Region Extents (`node.x + region.width`).
+
+2.  **Collapsed Region Visualization:**
+    *   **Feature:** Implemented logic to completely suppress the rendering of region outlines when the region is collapsed (`visibility: 'hide'`).
+    *   **Benefit:** Prevents visual clutter ("outline outside" glitches) and disables interactions (selection/resizing) for hidden regions.
+
+### Technical Debt Identified
+
+1.  **Direct Config Access (Spaghetti Code Warning):**
+    *   **Issue:** The visibility logic in `GraphGrid.ts` (Lines 1510+) and `LocalState.ts` (Lines 447+) currently accesses `node.config.visibility` via an unsafe cast: `(node.config as any).visibility`.
+    *   **Severity:** **Critical**.
+    *   **Action Required:** **NEVER** reach directly into `config` for node-specific fields. These should always go through accessors on the node definitions themselves (e.g. `nodeType.getRegion(config).visibility`). Added `FIXME` comments to the codebase to flag this violation.

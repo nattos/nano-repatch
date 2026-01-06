@@ -1,7 +1,7 @@
 import { observable, makeObservable, configure, computed, runInAction } from 'mobx';
 import { produce, setAutoFreeze, enableMapSet } from 'immer';
 import { StructorType } from '../structor/structor';
-import { defaultNodeRepository as nodeRepository } from '../structor/repository';
+import { defaultNodeRepository as nodeRepository, RegionVisibility } from '../structor/repository';
 
 // Enable Immer support for Map and Set
 enableMapSet();
@@ -701,17 +701,30 @@ export class AppController {
     const finalMoves = new Map<string, { from: { x: number, y: number }, to: { x: number, y: number } }>();
     const processingQueue: { id: string, dx: number, dy: number }[] = [];
 
+    // Helper to push node and all descendants
+    const pushWithDescendants = (id: string, dx: number, dy: number) => {
+      processingQueue.push({ id, dx, dy });
+      const n = state.graph.inner.nodes[id];
+      if (n) {
+        const def = nodeRepository.getNodeType(n.config.typeId);
+        const children = def?.getChildren ? def.getChildren(n, state.graph.inner.nodes) : [];
+        for (const childId of children) {
+          pushWithDescendants(childId, dx, dy);
+        }
+      }
+    };
+
     // Initial moves
     for (const id of nodeIds) {
       if (state.graph.inner.nodes[id]) {
-        processingQueue.push({ id, dx, dy });
+        pushWithDescendants(id, dx, dy);
       }
     }
 
     // Process queue to propagate moves
     // We limit iterations to avoid infinite loops in pathological cases
     let iterations = 0;
-    while (processingQueue.length > 0 && iterations < 1000) {
+    while (processingQueue.length > 0 && iterations < 5000) { // Bump iterations for large trees
       const current = processingQueue.shift()!;
       iterations++;
 
@@ -747,6 +760,22 @@ export class AppController {
           continue;
         }
 
+        // Check for collapsed region collision
+        const otherDef = nodeRepository.getNodeType(otherNode.config.typeId);
+        if (otherDef?.getRegion) {
+          const region = otherDef.getRegion(otherNode.config);
+          if (region && region.visibility === RegionVisibility.Hide) {
+            // It's a collapsed region (solid block)
+            const rX = otherNode.x + (region.x || 0);
+            const rY = otherNode.y + (region.y || 0);
+            // Basic intersection: Is our target point inside this region?
+            if (to.x >= rX && to.x < rX + region.width &&
+              to.y >= rY && to.y < rY + region.height) {
+              pushWithDescendants(otherNode.id, current.dx, current.dy);
+            }
+          }
+        }
+
         // Is otherNode at the target position?
         // Note: We need to handle multi-cell nodes eventually, but GraphGrid logic suggests
         // nodes have x,y integers.
@@ -762,7 +791,7 @@ export class AppController {
           // What if we swap?
 
           // Let's try pushing by the same amount.
-          processingQueue.push({ id: otherNode.id, dx: current.dx, dy: current.dy });
+          pushWithDescendants(otherNode.id, current.dx, current.dy);
         }
       }
     }
@@ -821,6 +850,20 @@ export class AppController {
       // dispatch takes isUndoRedo as second arg. If skipHistory is true, we treat it as "don't push to stack" which isUndoRedo=true achieves.
       this.dispatch([{ type: 'node.setConfig', nodeId, from: fromConfig, to: toConfig }], options.skipHistory);
     }
+  }
+
+
+  public commitConfigHistory(nodeId: string, fromConfig: any, toConfig: any): void {
+    const inverse: AppMutation = {
+      type: 'node.setConfig',
+      nodeId,
+      from: toConfig,
+      to: fromConfig
+    };
+    runInAction(() => {
+      this.undoStack.push([inverse]);
+      this.redoStack = [];
+    });
   }
 
   public setConnectionPorts(connectionId: string, ports: { fromPort?: string | number, toPort?: string | number }): void {

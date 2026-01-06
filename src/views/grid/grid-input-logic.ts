@@ -98,11 +98,16 @@ export class GridInputLogic {
             newW = Math.max(1, startW + gridDeltaX);
           }
           if (type === 'w') {
-            const potentialW = startW - gridDeltaX;
-            if (potentialW >= 1) {
-              newW = potentialW;
-              newX = startRegionX + gridDeltaX;
-            }
+            // Clamping Logic
+            // 1. Min Size: startW - delta >= 1  => delta <= startW - 1
+            // 2. Boundary: node.x + startRegionX + delta >= 0 => delta >= -(node.x + startRegionX)
+
+            const maxDelta = startW - 1;
+            const minDelta = -(node.x + startRegionX);
+            const clampedDelta = Math.min(Math.max(gridDeltaX, minDelta), maxDelta);
+
+            newW = startW - clampedDelta;
+            newX = startRegionX + clampedDelta;
           }
 
           // Height Resizing
@@ -110,11 +115,16 @@ export class GridInputLogic {
             newH = Math.max(1, startH + gridDeltaY);
           }
           if (type === 'n') {
-            const potentialH = startH - gridDeltaY;
-            if (potentialH >= 1) {
-              newH = potentialH;
-              newY = startRegionY + gridDeltaY;
-            }
+            // Clamping Logic
+            // 1. Min Size: startH - delta >= 1 => delta <= startH - 1
+            // 2. Boundary: node.y + startRegionY + delta >= 0 => delta >= -(node.y + startRegionY)
+
+            const maxDelta = startH - 1;
+            const minDelta = -(node.y + startRegionY);
+            const clampedDelta = Math.min(Math.max(gridDeltaY, minDelta), maxDelta);
+
+            newH = startH - clampedDelta;
+            newY = startRegionY + clampedDelta;
           }
 
           const changes: any = {};
@@ -124,7 +134,31 @@ export class GridInputLogic {
           if (newY !== node.config.regionY) changes.regionY = newY;
 
           if (Object.keys(changes).length > 0) {
-            this.appController.setNodeConfig(nodeId, changes);
+            this.appController.setNodeConfig(nodeId, changes, { skipHistory: true });
+          }
+        },
+        accept: () => {
+          const finalNode = this.appController.observableState.graph.inner.nodes[nodeId];
+          if (finalNode) {
+            const startConfig = {
+              width: startW,
+              height: startH,
+              regionX: startRegionX,
+              regionY: startRegionY
+            };
+            const finalConfig = {
+              width: finalNode.config.width,
+              height: finalNode.config.height,
+              regionX: finalNode.config.regionX || 0,
+              regionY: finalNode.config.regionY || 0
+            };
+
+            if (finalConfig.width !== startConfig.width ||
+              finalConfig.height !== startConfig.height ||
+              finalConfig.regionX !== startConfig.regionX ||
+              finalConfig.regionY !== startConfig.regionY) {
+              this.appController.commitConfigHistory(nodeId, startConfig, finalConfig);
+            }
           }
         }
       });
@@ -147,6 +181,8 @@ export class GridInputLogic {
       const startX = e.clientX;
       const startY = e.clientY;
 
+      const startConfig = { regionX: startRegionX, regionY: startRegionY };
+
       new PointerDragOp(e, this.host.element, {
         move: (ev) => {
           const dx = ev.clientX - startX;
@@ -158,8 +194,26 @@ export class GridInputLogic {
           const newRegionX = startRegionX + gridDeltaX;
           const newRegionY = startRegionY + gridDeltaY;
 
+          // Check BOUNDARY (absolute pos >= 0)
+          if ((node.x + newRegionX) < 0 || (node.y + newRegionY) < 0) {
+            return;
+          }
+
           if (newRegionX !== node.config.regionX || newRegionY !== node.config.regionY) {
-            this.appController.setNodeConfig(nodeId, { regionX: newRegionX, regionY: newRegionY });
+            this.appController.setNodeConfig(nodeId, { regionX: newRegionX, regionY: newRegionY }, { skipHistory: true });
+          }
+        },
+        accept: () => {
+          const finalNode = this.appController.observableState.graph.inner.nodes[nodeId];
+          if (finalNode) {
+            const finalConfig = {
+              regionX: finalNode.config.regionX || 0,
+              regionY: finalNode.config.regionY || 0
+            };
+            if (finalConfig.regionX !== startConfig.regionX ||
+              finalConfig.regionY !== startConfig.regionY) {
+              this.appController.commitConfigHistory(nodeId, startConfig, finalConfig);
+            }
           }
         }
       });
