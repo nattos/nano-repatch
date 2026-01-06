@@ -62,7 +62,6 @@ export interface CellMetric {
   height: number;
   visualState: NodeVisualState;
   portInputCount: number;
-  portInputCount: number;
   portOutputCount: number;
   isHidden?: boolean;
 }

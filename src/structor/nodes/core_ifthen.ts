@@ -95,7 +95,7 @@ export const primitive_ifthen = definePrimitiveNode({
 
     if (Array.isArray(stream)) {
       for (const event of stream) {
-        if (event.type === 'note_on' && event.velocity > 0) {
+        if (event.type === 'note_on' && (event.velocity ?? 0) > 0) {
           shouldTrigger = true;
           break;
         }

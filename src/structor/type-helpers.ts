@@ -11,6 +11,7 @@ import {
   NodeMetadata,
   AnalysisContext
 } from './structor';
+import { RegionVisibility } from './repository';
 
 export const NumberType = { kind: 'atomic' as const, type: 'number' as const, defaultValue: 0 };
 export const StringType = { kind: 'atomic' as const, type: 'string' as const, defaultValue: '' };
@@ -216,7 +217,13 @@ export interface TypedNodeOptions<
 
   subgraphExpansionTag?: string;
   getChildren?: (node: any, allNodes: any) => string[];
-  getRegion?: (config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>) => { x: number; y: number; width: number; height: number };
+  getRegion?: (config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>) => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visibility: RegionVisibility;
+  };
 }
 
 export function definePrimitiveNode<

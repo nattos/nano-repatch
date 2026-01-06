@@ -47,8 +47,8 @@ export function compileGraph(
 
     for (const node of Object.values(graph.inner.nodes)) {
       const nodeType = nodeRepository.getNodeType(node.config.typeId);
-      if (nodeType && nodeType.definition.getChildren) {
-        const children = nodeType.definition.getChildren(node, graph.inner.nodes);
+      if (nodeType && nodeType.getChildren) {
+        const children = nodeType.getChildren(node, graph.inner.nodes);
         for (const childId of children) {
           if (childToParent.has(childId)) {
             console.warn(`Node ${childId} is owned by multiple parents! Keeping ${childToParent.get(childId)}, ignoring ${node.id}.`);
@@ -76,10 +76,10 @@ export function compileGraph(
       // Explicit Subgraph (External File) vs Implicit Subgraph (Embedded Children)
       // We prioritize Implicit if the node definition supports `getChildren`.
 
-      if (nodeType && nodeType.definition.getChildren) {
+      if (nodeType && nodeType.getChildren) {
         // IMPLICIT PARENT NODE (e.g. core.ifthen)
 
-        const childrenIds = nodeType.definition.getChildren(node, graph.inner.nodes);
+        const childrenIds = nodeType.getChildren(node, graph.inner.nodes);
 
         if (childrenIds.length > 0) {
           // 2. Construct Transient Graph for children
@@ -106,6 +106,7 @@ export function compileGraph(
           });
 
           // 3. Define Context
+          // Note: subgraphExpansionTag is on PrimitiveNodeDefinition, but we can check safely
           const implicitTag = (nodeType?.definition as any)?.subgraphExpansionTag;
 
           let nextExecutionTag = executionTag;
@@ -131,10 +132,10 @@ export function compileGraph(
           executionTag: executionTag,
           executionOwnerId: executionOwnerId
         };
-      } else if (nodeType?.definition.subgraphExpansionTag) {
+      } else if ((nodeType?.definition as any)?.subgraphExpansionTag) {
         // EXPLICIT SUBGRAPH (Inline or Conditional)
         // Only enter this if it wasn't handled as implicit parent.
-        const subgraphTag = nodeType.definition.subgraphExpansionTag;
+        const subgraphTag = (nodeType!.definition as any).subgraphExpansionTag;
         // It's a subgraph expander (inline or conditional)
         const subgraphId = node.config.subgraphId;
 

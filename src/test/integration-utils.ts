@@ -24,6 +24,8 @@ export const compileAndRun = (
       version: '1.0.0',
       displayName: def.id,
       definition: def,
+      getChildren: (def as any).getChildren,
+      getRegion: (def as any).getRegion,
       inputs: Object.entries((def as any).inputs || {}).map(([name, type]) => ({
         name,
         type: type as any,

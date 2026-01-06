@@ -14,7 +14,7 @@ import {
   AnalysisContext,
   TypedBroadcastChannel
 } from './structor';
-import { defaultNodeRepository, PortHint, NodeType } from './repository';
+import { defaultNodeRepository, PortHint, NodeType, RegionVisibility } from './repository';
 import { UIConfigStructorType } from './std-types';
 import type { GridNode } from '../builder/state';
 
@@ -104,7 +104,7 @@ export interface EnhancedNodeOptions<
   TOutputs extends ExtendedNodeOutputsDef,
   TState = undefined,
   TAutoBroadcast extends AutoBroadcastDef | undefined = undefined
-> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config' | 'shouldRecompileOnConfigChange' | 'getDisplayLabel' | 'autoBroadcast'> { // Exclude config to redefine it
+> extends Omit<TypedNodeOptions<any, TCompiledConfig, any, TState>, 'inputs' | 'outputs' | 'execute' | 'computeForwardPorts' | 'computeBackwardPorts' | 'config' | 'shouldRecompileOnConfigChange' | 'getDisplayLabel' | 'autoBroadcast' | 'getRegion'> { // Exclude config to redefine it
   inputs?: TInputs;
   autoBroadcast?: TAutoBroadcast; // Explicit override
   outputs: TOutputs; // Explicit override
@@ -115,7 +115,16 @@ export interface EnhancedNodeOptions<
   aliases?: string[];
   compileConfig?: (uiConfig: TUIConfig) => any; // Returns TCompiledConfig (raw values struct) or just any
   getDisplayLabel?: (uiConfig: TUIConfig) => string | undefined;
-  subgraphExpansionTag?: string;
+  subgraphExpansionTag?: string; // This ends up on the definitions
+  getChildren?: (node: any, allNodes: any) => string[]; // Helper to attach to NodeType
+
+  getRegion?: (uiConfig: TUIConfig) => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visibility: RegionVisibility;
+  };
 
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
@@ -148,8 +157,7 @@ export interface EnhancedNodeOptions<
     state: TState
   ) => InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }> | { outputs: InferRecord<{ kind: 'record', fields: SimplifyOutputs<TOutputs> }>; ui?: any };
 
-  getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
-  getRegion?: (config: TUIConfig) => { x: number; y: number; width: number; height: number };
+
 }
 
 export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
@@ -309,7 +317,7 @@ export function registerNode(def: PrimitiveNodeDefinition & Partial<EnhancedNode
     inspectInputs: def.inspectInputs,
     shouldRecompileOnConfigChange: def.shouldRecompileOnConfigChange,
     getChildren: def.getChildren,
-    getRegion: def.getRegion,
+    getRegion: def.getRegion as any,
   };
 
   // If UI is provided, we need to hook it up.

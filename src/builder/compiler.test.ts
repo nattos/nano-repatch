@@ -248,6 +248,7 @@ describe('Graph Compiler', () => {
 
     const mockParentType = {
       definition: { getChildren, kind: 'primitive' },
+      getChildren, // Added to top level to match new compiler logic
       inputs: [],
       outputs: []
     };
