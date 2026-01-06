@@ -1,12 +1,12 @@
-export class Resolvable<T extends any|void> {
-  private resolveFunc = (value: T) => {}
-  private rejectFunc = (reason?: any) => {}
+export class Resolvable<T extends any | void> {
+  private resolveFunc = (value: T) => { }
+  private rejectFunc = (reason?: any) => { }
   private readonly promiseField: Promise<T>;
   private completedField = false;
 
   constructor() {
     this.promiseField = new Promise<T>((resolve, reject) => { this.resolveFunc = resolve; this.rejectFunc = reject; });
-    this.promiseField.finally(() => {this.completedField = true;});
+    this.promiseField.finally(() => { this.completedField = true; });
   }
 
   get completed(): boolean {
@@ -109,7 +109,7 @@ export class BatchedProducerConsumerFlow<T> {
   }
 }
 
-class Terminated {}
+class Terminated { }
 
 export class AsyncProducerConsumerQueue<T> {
   private readonly queued: T[] = [];
@@ -146,7 +146,7 @@ export class AsyncProducerConsumerQueue<T> {
     return result as T;
   }
 
-  async popOrTerminate(): Promise<T|undefined> {
+  async popOrTerminate(): Promise<T | undefined> {
     const result = await this.popOrTerminateInternal();
     if (result === Terminated) {
       return undefined;
@@ -154,7 +154,7 @@ export class AsyncProducerConsumerQueue<T> {
     return result as T;
   }
 
-  private async popOrTerminateInternal(): Promise<T|typeof Terminated> {
+  private async popOrTerminateInternal(): Promise<T | typeof Terminated> {
     while (this.queued.length <= 0) {
       if (this.terminated) {
         return Terminated;
@@ -175,7 +175,7 @@ export class AsyncProducerConsumerQueue<T> {
 export class LruCache<TKey, TValue> {
   private readonly values = new Map<TKey, TValue>();
 
-  constructor(public readonly maxEntries: number, public readonly evictCallback?: (evicted: TValue) => void) {}
+  constructor(public readonly maxEntries: number, public readonly evictCallback?: (evicted: TValue) => void) { }
 
   get size() {
     return this.values.size;
@@ -185,7 +185,7 @@ export class LruCache<TKey, TValue> {
     return this.values.entries();
   }
 
-  get(key: TKey): TValue|undefined {
+  get(key: TKey): TValue | undefined {
     const entry = this.values.get(key);
     if (entry === undefined) {
       return undefined;
@@ -227,7 +227,7 @@ export class LruCache<TKey, TValue> {
 class QueueEntry<T> {
   next?: QueueEntry<T>;
 
-  constructor(public readonly value: T) {}
+  constructor(public readonly value: T) { }
 }
 
 export class Queue<T> {
@@ -251,7 +251,7 @@ export class Queue<T> {
     }
   }
 
-  dequeue(): T|undefined {
+  dequeue(): T | undefined {
     if (!this.head) {
       return undefined;
     }
@@ -309,7 +309,7 @@ export function sleep(delayMillis: number): Promise<void> {
   return new Promise(resolve => { setTimeout(resolve, delayMillis); });
 }
 
-export function parseIntOr(str: string|undefined, defaultValue?: number) {
+export function parseIntOr(str: string | undefined, defaultValue?: number) {
   if (str === undefined) {
     return defaultValue;
   }
@@ -320,7 +320,7 @@ export function parseIntOr(str: string|undefined, defaultValue?: number) {
   return result;
 }
 
-export function parseFloatOr(str: string|undefined, defaultValue?: number) {
+export function parseFloatOr(str: string | undefined, defaultValue?: number) {
   if (str === undefined) {
     return defaultValue;
   }
@@ -331,7 +331,7 @@ export function parseFloatOr(str: string|undefined, defaultValue?: number) {
   return result;
 }
 
-export function formatDuration(durationSeconds: number|undefined): string {
+export function formatDuration(durationSeconds: number | undefined): string {
   if (durationSeconds === undefined) {
     return '';
   }
@@ -358,7 +358,7 @@ export function formatIntPadded(value: number, minDigits: number): string {
   return str;
 }
 
-export function stringEmptyToNull(value: string|null|undefined): string|undefined {
+export function stringEmptyToNull(value: string | null | undefined): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -455,7 +455,7 @@ export function indexOf<TValue>(values: Iterable<TValue>, predicate: (entry: TVa
   return -1;
 }
 
-export function* mapAll<TIn, TOut>(values: Iterable<TIn>, callback: (value: TIn) => Iterable<TOut>|undefined) {
+export function* mapAll<TIn, TOut>(values: Iterable<TIn>, callback: (value: TIn) => Iterable<TOut> | undefined) {
   for (const value of values) {
     const valueResult = callback(value);
     if (valueResult === undefined) {
@@ -468,7 +468,7 @@ export function* mapAll<TIn, TOut>(values: Iterable<TIn>, callback: (value: TIn)
 }
 
 export function* filterUnique<TValue, TKey>(values: Iterable<TValue>, keyFn?: ((value: TValue) => TKey)): Iterable<TValue> {
-  const addedSet = new Set<TKey|TValue>();
+  const addedSet = new Set<TKey | TValue>();
   for (const value of values) {
     const key = keyFn ? keyFn(value) : value;
     if (addedSet.has(key)) {
@@ -479,7 +479,7 @@ export function* filterUnique<TValue, TKey>(values: Iterable<TValue>, keyFn?: ((
   }
 }
 
-export function* filterNulllike<TValue, TKey>(values: Iterable<TValue|undefined|null>): Iterable<TValue> {
+export function* filterNulllike<TValue, TKey>(values: Iterable<TValue | undefined | null>): Iterable<TValue> {
   for (const value of values) {
     if (value === undefined || value === null) {
       continue;
@@ -535,8 +535,8 @@ export async function arrayFromAsync<T>(asyncIterator: AsyncIterable<T>) {
   return result;
 }
 
-export function lazyOr<T>(getter: () => Promise<T>): () => Promise<T|undefined> {
-  let promise: Promise<T|undefined>|undefined = undefined;
+export function lazyOr<T>(getter: () => Promise<T>): () => Promise<T | undefined> {
+  let promise: Promise<T | undefined> | undefined = undefined;
   return () => {
     if (!promise) {
       promise = getter().catch((e) => {
@@ -548,8 +548,8 @@ export function lazyOr<T>(getter: () => Promise<T>): () => Promise<T|undefined> 
   };
 }
 
-export function lazy<T, TResult extends Promise<T>|T>(getter: () => TResult): () => TResult {
-  let promise: TResult|undefined = undefined;
+export function lazy<T, TResult extends Promise<T> | T>(getter: () => TResult): () => TResult {
+  let promise: TResult | undefined = undefined;
   return () => {
     if (!promise) {
       promise = getter();
@@ -562,15 +562,15 @@ export function upcast<T>(value: T) {
   return value;
 }
 
-export function nonvoid<T>(value: T|undefined|void): T|undefined {
+export function nonvoid<T>(value: T | undefined | void): T | undefined {
   if (value === undefined) {
     return undefined;
   }
   return value as T;
 }
 
-export function findEnumName<T>(enumClass: { [s: string]: T }, value: T): string|undefined {
-  return Object.entries(enumClass).find(([k, v]) => v === value)?.at(0) as string|undefined;
+export function findEnumName<T>(enumClass: { [s: string]: T }, value: T): string | undefined {
+  return Object.entries(enumClass).find(([k, v]) => v === value)?.at(0) as string | undefined;
 }
 
 export function getEnumValues<T>(enumClass: { [s: string]: string }) {
@@ -601,7 +601,7 @@ export function visitRec<T>(roots: T[], getEdges: (node: T) => T[], visit: (node
 
 export function merge<T1 extends object, T2 extends object>(onto: T1, from: T2): T1 & T2 {
   if (typeof from !== "object" || from instanceof Array) {
-      throw new Error("merge: 'from' must be an ordinary object");
+    throw new Error("merge: 'from' must be an ordinary object");
   }
   Object.keys(from).forEach(key => (onto as any)[key] = (from as any)[key]);
   return onto as T1 & T2;
@@ -658,4 +658,14 @@ function isObject(object: any) {
 export function isMobile() {
   const match = window.matchMedia;
   return match?.("(hover: none)").matches ?? false;
+}
+
+export function isEditingText(e: Event): boolean {
+  const target = (e.composedPath()[0] || e.target) as HTMLElement;
+  if (!target) return false;
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable
+  );
 }

@@ -13,6 +13,7 @@ import { reaction } from 'mobx';
 import { GridNode } from '../builder/state';
 import { Selectable } from '../builder/local-state';
 import { cssColorFromHash } from '../utils/layout-utils';
+import { isEditingText } from '../utils/utils';
 import { NodeCatalog } from '../structor/node-catalog';
 import { defaultNodeRepository } from '../structor/repository';
 import { globalStyles } from '../styles';
@@ -76,6 +77,7 @@ export class GraphGrid extends MobxLitElement {
       position: relative;
       align-content: start;
       justify-content: start; /* CRITICAL: Prevent auto tracks from expanding to fill width */
+      outline: none;
     }
 
     .selection-box {
@@ -501,6 +503,7 @@ export class GraphGrid extends MobxLitElement {
   private catalog = new NodeCatalog(defaultNodeRepository, () => workspaceController.files.map(f => f.name));
 
   private handlePointerDown(e: PointerEvent) {
+    this.pendingWireInsert = null;
     this.inputLogic.handlePointerDown(e);
   }
 
@@ -534,7 +537,14 @@ export class GraphGrid extends MobxLitElement {
     // Make sure we observe selection changes so we re-render regions state
     reaction(
       () => localController.observableState.selection.keys(),
-      () => this.requestUpdate()
+      () => {
+        // Clear pending wire insert if the specific wire is no longer selected
+        // This handles cases where selection changes via mechanisms that stop propagation (like clicking a node)
+        if (this.pendingWireInsert && !localController.observableState.selection.has(this.pendingWireInsert.wireId)) {
+          this.pendingWireInsert = null;
+        }
+        this.requestUpdate();
+      }
     );
   }
 
@@ -685,16 +695,12 @@ export class GraphGrid extends MobxLitElement {
     }
     this.addEventListener('pointerdown', this.handlePointerDown);
     this.addEventListener('dblclick', this.handleDblClick);
-    this.addEventListener('keydown', this.handleKeyDown.bind(this));
-    this.addEventListener('keydown', this.handleKeyDown.bind(this)); // This is for component-specific keydowns, not global.
     this.addEventListener('connection-delete', this.handleConnectionDelete as EventListener);
     this.addEventListener('scroll', this.handleScroll);
     this.resizeObserver.observe(this);
     this.clientWidth = this.offsetWidth;
     this.addEventListener('dragover', this.handleDragOver);
-    // Keyboard shortcuts (Copy/Paste)
-    // We attach to window to catch them globally when grid is focused/active
-    window.addEventListener('keydown', this.handleKeyDown);
+
 
     // Initial positioning of viewport? handled by state?
     this.addEventListener('drop', this.handleDrop);
@@ -777,7 +783,21 @@ export class GraphGrid extends MobxLitElement {
   }
 
   private handleKeyDown(e: KeyboardEvent) {
-    if (!this.pendingWireInsert || this.popupManager.popup) return;
+    if (this.popupManager.popup) return;
+
+    // Check for Input/Textarea focus to avoid swallowing typing
+    if (isEditingText(e)) {
+      return;
+    }
+
+    // Toggle Region Expansion (Ableton Style 'A' key)
+    if (e.key === 'a' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      localController.toggleRegionExpansion();
+      e.preventDefault();
+      return;
+    }
+
+    if (!this.pendingWireInsert) return;
 
     // Check if key is alphanumeric
     if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
