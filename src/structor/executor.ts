@@ -48,6 +48,22 @@ export class GraphExecutor {
       }
       this.downstreamMap.get(conn.fromNode)!.push(conn.toNode);
     }
+
+    // Add Implicit Dependencies (Containment)
+    // If a node is contained within another (executionOwnerId), marking the child dirty
+    // should also mark the parent dirty so the subgraph can be re-executed.
+    // We treat this as an implicit "downstream" connection.
+    if (graph.nodes) {
+      for (const [nodeId, node] of Object.entries(graph.nodes)) {
+        if (node.executionOwnerId) {
+          if (!this.downstreamMap.has(nodeId)) {
+            this.downstreamMap.set(nodeId, []);
+          }
+          this.downstreamMap.get(nodeId)!.push(node.executionOwnerId);
+        }
+      }
+    }
+
     if (this.graph.connections) {
       // console.log(`DEBUG: Executor graph.connections length: ${this.graph.connections.length}`);
     }
