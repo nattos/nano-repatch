@@ -1,0 +1,167 @@
+{
+  "nodes": {
+    "node-6f9fffa1-7501-4156-856f-cc6fd063ef65": {
+      "id": "node-6f9fffa1-7501-4156-856f-cc6fd063ef65",
+      "x": 4,
+      "y": 11,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 198
+        }
+      }
+    },
+    "node-0eb9d10b-ef2c-4eff-80c3-0bc8512a1ab7": {
+      "id": "node-0eb9d10b-ef2c-4eff-80c3-0bc8512a1ab7",
+      "x": 5,
+      "y": 11,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-54109ade-0118-4154-a602-0266e03d4887": {
+      "id": "node-54109ade-0118-4154-a602-0266e03d4887",
+      "x": 3,
+      "y": 11,
+      "config": {
+        "typeId": "gen.sawtooth",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-f594ffca-1d3a-4288-b84c-a0c32968f86f": {
+      "id": "node-f594ffca-1d3a-4288-b84c-a0c32968f86f",
+      "x": 6,
+      "y": 7,
+      "config": {
+        "typeId": "math.add",
+        "name": "#",
+        "values": {
+          "b": 0.44,
+          "a": 0
+        }
+      }
+    },
+    "node-0b2e9b99-49ad-415d-9bdf-c9f886b6fc74": {
+      "id": "node-0b2e9b99-49ad-415d-9bdf-c9f886b6fc74",
+      "x": 5,
+      "y": 9,
+      "config": {
+        "typeId": "util.hub",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-2fbb8ecc-a221-4da8-82b8-2b884f06a78f": {
+      "id": "node-2fbb8ecc-a221-4da8-82b8-2b884f06a78f",
+      "x": 6,
+      "y": 9,
+      "config": {
+        "typeId": "util.hub",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-7bd4e53c-133d-41b0-a903-a45baeabed00": {
+      "id": "node-7bd4e53c-133d-41b0-a903-a45baeabed00",
+      "x": 9,
+      "y": 2,
+      "config": {
+        "typeId": "core.ifthen",
+        "name": "#",
+        "values": {},
+        "width": 6,
+        "height": 3,
+        "regionX": -2,
+        "regionY": 0,
+        "visibility": "auto"
+      }
+    },
+    "node-236f3cde-dbfa-45ce-a4fc-b050a4168e53": {
+      "id": "node-236f3cde-dbfa-45ce-a4fc-b050a4168e53",
+      "x": 10,
+      "y": 4,
+      "config": {
+        "typeId": "util.hub",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-dbd250a8-87ad-48b2-853e-ca4e58de2ca1": {
+      "id": "node-dbd250a8-87ad-48b2-853e-ca4e58de2ca1",
+      "x": 5,
+      "y": 4,
+      "config": {
+        "typeId": "core.ifthen",
+        "name": "#",
+        "values": {},
+        "width": 2,
+        "height": 5,
+        "regionX": 0,
+        "regionY": -1,
+        "visibility": "auto"
+      }
+    },
+    "node-c7c18b99-1ed9-4324-ac28-bb165d0c8ebd": {
+      "id": "node-c7c18b99-1ed9-4324-ac28-bb165d0c8ebd",
+      "x": 9,
+      "y": 6,
+      "config": {
+        "typeId": "core.ifthen",
+        "name": "#",
+        "values": {},
+        "width": 3,
+        "height": 3,
+        "regionX": 0,
+        "regionY": 0,
+        "visibility": "auto"
+      }
+    },
+    "node-1a4c25b6-6086-4e11-b6f4-cbe3b95a4735": {
+      "id": "node-1a4c25b6-6086-4e11-b6f4-cbe3b95a4735",
+      "x": 4,
+      "y": 5,
+      "config": {
+        "typeId": "data.float",
+        "name": "#",
+        "values": {
+          "value": 0
+        }
+      }
+    }
+  },
+  "connections": {
+    "conn-ee5c1797-fe43-4e69-98eb-f878234fa290": {
+      "id": "conn-ee5c1797-fe43-4e69-98eb-f878234fa290",
+      "fromNodeId": "node-54109ade-0118-4154-a602-0266e03d4887",
+      "fromPort": "out",
+      "toNodeId": "node-f594ffca-1d3a-4288-b84c-a0c32968f86f",
+      "toPort": "a"
+    },
+    "conn-f5c2d1a1-6777-4807-b698-6f98550187dd": {
+      "id": "conn-f5c2d1a1-6777-4807-b698-6f98550187dd",
+      "fromNodeId": "node-f594ffca-1d3a-4288-b84c-a0c32968f86f",
+      "fromPort": "result",
+      "toNodeId": "node-0eb9d10b-ef2c-4eff-80c3-0bc8512a1ab7",
+      "toPort": "value"
+    },
+    "conn-42d883a3-4f07-4f49-bb45-6b58e355e814": {
+      "id": "conn-42d883a3-4f07-4f49-bb45-6b58e355e814",
+      "fromNodeId": "node-6f9fffa1-7501-4156-856f-cc6fd063ef65",
+      "fromPort": "stream",
+      "toNodeId": "node-7bd4e53c-133d-41b0-a903-a45baeabed00",
+      "toPort": "midi_in"
+    },
+    "conn-889d61b3-2c80-47a5-b803-9a70ff1635c0": {
+      "id": "conn-889d61b3-2c80-47a5-b803-9a70ff1635c0",
+      "fromNodeId": "node-1a4c25b6-6086-4e11-b6f4-cbe3b95a4735",
+      "fromPort": "value",
+      "toNodeId": "node-dbd250a8-87ad-48b2-853e-ca4e58de2ca1",
+      "toPort": "midi_in"
+    }
+  },
+  "inferredNodeTypes": {}
+}

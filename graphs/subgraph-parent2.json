@@ -1,0 +1,76 @@
+{
+  "nodes": {
+    "node-15f06602-5493-4c40-a062-177d453de61c": {
+      "id": "node-15f06602-5493-4c40-a062-177d453de61c",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 49
+        }
+      }
+    },
+    "node-ef05ba72-f8f3-408a-a900-ece00ea16058": {
+      "id": "node-ef05ba72-f8f3-408a-a900-ece00ea16058",
+      "x": 3,
+      "y": 3,
+      "config": {
+        "typeId": "core.thensubgraph",
+        "name": "#",
+        "values": {
+          "x": 0.37,
+          "y": 0.79
+        },
+        "subgraphId": "sub.graph"
+      }
+    },
+    "node-4df0b3a6-2cb7-47ef-8489-8d53e801a20c": {
+      "id": "node-4df0b3a6-2cb7-47ef-8489-8d53e801a20c",
+      "x": 1,
+      "y": 6,
+      "config": {
+        "typeId": "nicepattern.rhythmic_generator",
+        "name": "#",
+        "values": {
+          "density": 0.3
+        }
+      }
+    },
+    "node-4715be90-ac7a-4b3c-a09b-9f1cd548411e": {
+      "id": "node-4715be90-ac7a-4b3c-a09b-9f1cd548411e",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "seq.tomidi",
+        "name": "#",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-2b7f8ab8-6d89-4c98-8dd9-28ef75c13297": {
+      "id": "conn-2b7f8ab8-6d89-4c98-8dd9-28ef75c13297",
+      "fromNodeId": "node-15f06602-5493-4c40-a062-177d453de61c",
+      "fromPort": "stream",
+      "toNodeId": "node-ef05ba72-f8f3-408a-a900-ece00ea16058",
+      "toPort": "midi_in"
+    },
+    "conn-2aacf756-398c-4adb-b179-7da831a159bd": {
+      "id": "conn-2aacf756-398c-4adb-b179-7da831a159bd",
+      "fromNodeId": "node-4df0b3a6-2cb7-47ef-8489-8d53e801a20c",
+      "fromPort": "seq_out",
+      "toNodeId": "node-4715be90-ac7a-4b3c-a09b-9f1cd548411e",
+      "toPort": "seq_in"
+    },
+    "conn-cd91f974-d119-4040-9d93-3974308c6a1a": {
+      "id": "conn-cd91f974-d119-4040-9d93-3974308c6a1a",
+      "fromNodeId": "node-4715be90-ac7a-4b3c-a09b-9f1cd548411e",
+      "fromPort": "midi_out",
+      "toNodeId": "node-ef05ba72-f8f3-408a-a900-ece00ea16058",
+      "toPort": "midi_in"
+    }
+  },
+  "inferredNodeTypes": {}
+}

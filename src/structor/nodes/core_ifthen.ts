@@ -1,6 +1,6 @@
 import { registerNode } from '../node-helpers';
 import { definePrimitiveNode } from '../type-helpers';
-import { NodeCategory, ExecutionContext, PrimitiveNodeDefinition } from '../structor';
+import { NodeCategory, ExecutionContext, PrimitiveNodeDefinition, StructorType } from '../structor';
 import { RegionVisibility } from '../repository';
 import { midiStreamType } from '../std-types';
 import type { GridNode } from '../../builder/state';
@@ -137,7 +137,7 @@ export const primitive_ifthen = definePrimitiveNode({
     const inputType = inputTypes.fields.midi_in;
 
     let mode = 'midi';
-    let finalInputType = midiStreamType;
+    let finalInputType: StructorType = midiStreamType;
 
 
     if (inputType) {
@@ -156,16 +156,18 @@ export const primitive_ifthen = definePrimitiveNode({
     }
 
     return {
-      inputs: { midi_in: finalInputType },
-      outputs: {},
+      inputs: { kind: 'record', fields: { midi_in: finalInputType } },
+      outputs: { kind: 'record', fields: {} },
       forwardMetadata: { mode }
     };
   },
 
-  compileConfig: (uiConfig, metadata) => {
+  compileConfig: (uiConfig: any, metadata: any) => {
     return {
-      ...uiConfig,
-      mode: metadata?.mode || 'midi'
+      fields: {
+        ...uiConfig,
+        mode: metadata?.mode || 'midi'
+      }
     };
   }
 });

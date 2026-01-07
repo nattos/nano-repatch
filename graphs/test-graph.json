@@ -144,23 +144,21 @@
         "typeId": "core.pack",
         "name": "#",
         "values": {
-          "w": 0.31,
-          "x": 0.14,
-          "z": 0.48
+          "w": 0,
+          "x": 0,
+          "z": 0
         },
         "targetType": "float4"
       }
     },
-    "node-b912598b-f65a-4833-8646-aece65ffbcf9": {
-      "id": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
+    "node-3467eb8d-d91d-4ee3-b263-5c41188c585f": {
+      "id": "node-3467eb8d-d91d-4ee3-b263-5c41188c585f",
       "x": 7,
       "y": 3,
       "config": {
-        "typeId": "math.add",
+        "typeId": "math.all.add",
         "name": "#",
-        "values": {
-          "b": 0
-        }
+        "values": {}
       }
     }
   },
@@ -228,26 +226,26 @@
       "toNodeId": "node-97f68c74-48d2-418e-9472-3cb20dfe52e2",
       "toPort": "value"
     },
-    "conn-cb3f5625-0e00-4497-bc64-0c68557c4300": {
-      "id": "conn-cb3f5625-0e00-4497-bc64-0c68557c4300",
-      "fromNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
-      "fromPort": "vec",
-      "toNodeId": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
-      "toPort": "a"
-    },
-    "conn-fca0f63b-57a3-497a-ada1-3b6fe09ec404": {
-      "id": "conn-fca0f63b-57a3-497a-ada1-3b6fe09ec404",
-      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
-      "fromPort": "vec",
-      "toNodeId": "node-b912598b-f65a-4833-8646-aece65ffbcf9",
-      "toPort": "b"
-    },
-    "conn-c215187d-86ee-4c60-82c9-88b4fba0471b": {
-      "id": "conn-c215187d-86ee-4c60-82c9-88b4fba0471b",
-      "fromNodeId": "node-881daf8a-ad5c-431c-a400-388bfd83806a",
+    "conn-fff9df5d-c838-4882-aed5-7c225e67981b": {
+      "id": "conn-fff9df5d-c838-4882-aed5-7c225e67981b",
+      "fromNodeId": "node-3467eb8d-d91d-4ee3-b263-5c41188c585f",
       "fromPort": "result",
       "toNodeId": "node-6b43ca9e-0b1c-4129-b76b-c210d52ed361",
       "toPort": "vec"
+    },
+    "conn-57500ef5-ed43-4e03-9d97-84790fb3a3f1": {
+      "id": "conn-57500ef5-ed43-4e03-9d97-84790fb3a3f1",
+      "fromNodeId": "node-4cf378a5-5744-4a3c-9b68-5e52d5a9411d",
+      "fromPort": "vec",
+      "toNodeId": "node-3467eb8d-d91d-4ee3-b263-5c41188c585f",
+      "toPort": "values"
+    },
+    "conn-27b00051-918b-4560-b4f8-ff5464c5834e": {
+      "id": "conn-27b00051-918b-4560-b4f8-ff5464c5834e",
+      "fromNodeId": "node-49a7c64a-7948-4062-a1b1-82d39f474e2c",
+      "fromPort": "vec",
+      "toNodeId": "node-3467eb8d-d91d-4ee3-b263-5c41188c585f",
+      "toPort": "values"
     }
   },
   "inferredNodeTypes": {

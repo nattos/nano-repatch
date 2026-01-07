@@ -50,8 +50,8 @@ describe('GraphExecutor', () => {
         id: 'testGraph', kind: 'graph',
         type: {
             kind: 'graph',
-            inputs: { kind: 'record', fields: { 'a': numberType },  },
-            outputs: { kind: 'record', fields: { 'c': numberType },  },
+            inputs: { kind: 'record', fields: { 'a': numberType }, },
+            outputs: { kind: 'record', fields: { 'c': numberType }, },
         },
         nodes: {
             'adder': { definitionId: 'math.add' },
@@ -104,8 +104,8 @@ describe('GraphExecutor', () => {
             id: 'fmodGraph', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: {},  },
-                outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType },  },
+                inputs: { kind: 'record', fields: {}, },
+                outputs: { kind: 'record', fields: { 'div': numberType, 'mod': numberType }, },
             },
             nodes: {
                 'dividend': { definitionId: 'data.literal', defaultConfig: 10 },
@@ -136,8 +136,8 @@ describe('GraphExecutor', () => {
             id: 'fmodVirtualGraph', kind: 'graph',
             type: {
                 kind: 'graph',
-                inputs: { kind: 'record', fields: {},  },
-                outputs: { kind: 'record', fields: { 'mod': numberType },  },
+                inputs: { kind: 'record', fields: {}, },
+                outputs: { kind: 'record', fields: { 'mod': numberType }, },
             },
             nodes: {
                 'fmod': { definitionId: 'math.fmod' },
@@ -155,5 +155,91 @@ describe('GraphExecutor', () => {
         fmodExecutor.update({});
 
         expect(fmodExecutor.getGraphOutput('mod')).toBe(1);
+    });
+
+    it('should propagate dirty status from child to parent (executionOwner)', async () => {
+        const repo = new NodeRepository();
+
+        // Define 'mock.parent'
+        repo.register({
+            id: 'mock.parent',
+            version: '1.0.0',
+            displayName: 'Parent',
+            definition: {
+                id: 'mock.parent',
+                kind: 'primitive',
+                inputs: { trigger: { kind: 'atomic', type: 'boolean' } },
+                outputs: {},
+                subgraphExpansionTag: 'onTrigger',
+                execute: (inputs, config, context) => {
+                    if (inputs.fields.trigger && context.executeSubgraph) {
+                        context.executeSubgraph('onTrigger');
+                    }
+                    return { outputs: {}, ui: {} };
+                }
+            } as any
+        });
+
+        const childExecuteSpy = vi.fn().mockReturnValue({ outputs: {}, ui: {} });
+
+        // Define 'mock.child'
+        repo.register({
+            id: 'mock.child',
+            version: '1.0.0',
+            displayName: 'Child',
+            definition: {
+                id: 'mock.child',
+                kind: 'primitive',
+                inputs: {},
+                outputs: {},
+                execute: childExecuteSpy
+            } as any
+        });
+
+        const graph: GraphDefinition = {
+            id: 'dirtyPropGraph',
+            kind: 'graph',
+            type: { kind: 'graph', inputs: { kind: 'record', fields: {} }, outputs: { kind: 'record', fields: {} } },
+            nodes: {
+                'n1': {
+                    definitionId: 'mock.parent',
+                    defaultConfig: {},
+                    // n1 is top level
+                },
+                'n2': {
+                    definitionId: 'mock.child',
+                    defaultConfig: {},
+                    executionOwnerId: 'n1',
+                    executionTag: 'onTrigger'
+                }
+            },
+            connections: [],
+            inputs: { 'trigger': { nodeId: 'n1', port: 'trigger' } },
+            outputs: {},
+            executionOrder: ['n1', 'n2']
+        };
+
+        const executor = new GraphExecutor(graph, repo);
+
+        // Mock input injection
+        (executor as any).graphInputs.set('trigger', true);
+
+        // Run 1: Trigger = true. Should run.
+        executor.update({});
+        expect(childExecuteSpy).toHaveBeenCalledTimes(1);
+
+        // Run 2: Trigger = true. Should NOT run (cached).
+        childExecuteSpy.mockClear();
+        executor.update({});
+        expect(childExecuteSpy).toHaveBeenCalledTimes(0);
+
+        // Run 3: Mark CHILD 'n2' dirty.
+        // Logic: Containment implies 'n1' -> 'n2' dependency for updates (n1 must run to trigger n2).
+        // With optimization: n2 is dirty -> n1 marked dirty implicitly/explicitly -> n1 runs -> n2 runs.
+        executor.markDirty('n2');
+
+        executor.update({});
+
+        expect(childExecuteSpy).toHaveBeenCalledTimes(1);
     });
 });

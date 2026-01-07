@@ -142,6 +142,11 @@ export interface PrimitiveNodeDefinition {
   kind: 'primitive';
   metadata?: NodeMetadata;
   configType?: StructorType;
+  /**
+    * Compiles the UI configuration (from inspector) into the runtime configuration.
+    * Can use inferred metadata (e.g. input types) to adjust the configuration.
+    */
+  compileConfig?: (uiConfig: any, metadata?: any) => Structor;
   inputs?: Record<string, StructorType & { redirect?: string }>; // Exposed for reflection (e.g. tests)
   outputs?: Record<string, StructorType>; // Exposed for reflection (e.g. registration)
 

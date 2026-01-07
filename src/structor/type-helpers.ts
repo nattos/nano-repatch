@@ -197,7 +197,9 @@ export interface TypedNodeOptions<
     config: Structor,
     context: AnalysisContext,
     backwardMetadata?: any,
-  ) => { inputs: RecordType; outputs: RecordType };
+  ) => { inputs: RecordType; outputs: RecordType; forwardMetadata?: any };
+
+  compileConfig?: (uiConfig: any, metadata?: any) => Structor;
 
   shouldRecompileOnConfigChange?: (
     newConfig: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
@@ -281,14 +283,14 @@ export function definePrimitiveNode<
     createState: options.createState as any,
     execute: (rawInput, rawConfig, context) => {
       // Unwrap config
-      const processedConfig = fromStructor(rawConfig, configType) as TCompiledConfig;
+      const processedConfig = fromStructor(rawConfig, configType) as InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>;
 
       // Handle State
       let state: TState = undefined as any;
       if (options.createState) {
         const key = context.nodeId || `${options.id}-${JSON.stringify(rawConfig)}`;
         if (!context.nodeState.has(key)) {
-          context.nodeState.set(key, options.createState(processedConfig, context));
+          context.nodeState.set(key, options.createState(processedConfig as any, context));
         }
         state = context.nodeState.get(key);
       }
@@ -386,7 +388,7 @@ export function definePrimitiveNode<
           // Execute
 
 
-          const execResult = options.execute(inputs, processedConfig, context, state);
+          const execResult = options.execute(inputs, processedConfig as any, context, state);
           // console.error('Execute Result:', JSON.stringify(execResult));
           return execResult;
         });
@@ -464,7 +466,7 @@ export function definePrimitiveNode<
 
       const result = options.execute(
         processedInput,
-        processedConfig,
+        processedConfig as any,
         context,
         state
       );

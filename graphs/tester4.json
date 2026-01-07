@@ -24,7 +24,10 @@
       "y": 1,
       "config": {
         "typeId": "core.pack",
-        "values": {},
+        "values": {
+          "x": 0,
+          "z": 0
+        },
         "targetType": "float4"
       }
     }

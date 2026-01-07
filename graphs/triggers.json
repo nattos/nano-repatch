@@ -106,7 +106,7 @@
         "typeId": "midi.trigger",
         "name": "#",
         "values": {
-          "trigger": 1020
+          "trigger": 1053
         },
         "pitch": 61
       }

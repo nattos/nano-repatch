@@ -653,4 +653,49 @@ describe('Primitives Integration', () => {
     // Execution should be safe
     executor.update({ clock: { beat: 0, dt: 0 } });
   });
+
+  it('should support hybrid input for core.ifthen (Primitive Mode)', () => {
+    // 1. Define Graph
+    // Trigger(Literal) -> IfThen(Primitive Mode) -> Output
+
+    // We expect `core.ifthen` to detect that the input is a scalar (Primitive)
+    // and switch to 'primitive' mode.
+
+    // 'in1' is inside 'if'. 'out1' sums 'in1' + 5.
+
+    const { executor, getOutput, updateConfig } = compileAndRun(
+      {
+        'trigger': { typeId: 'data.literal', x: -2, y: 0, config: { value: 0 } },
+        'if': { typeId: 'core.ifthen', x: 0, y: 0, config: { width: 10, height: 10 } },
+        'in1': { typeId: 'data.literal', x: 1, y: 1, config: { value: 10 } },
+        'c5': { typeId: 'data.literal', x: 20, y: 10, config: { value: 5 } },
+        'out1': { typeId: 'math.add', x: 20, y: 0 }
+      },
+      [
+        { from: 'trigger', port: 'value', to: 'if', portIn: 'midi_in' }, // Connect Scalar to 'midi_in'
+        { from: 'in1', port: 'value', to: 'out1', portIn: 'a' },
+        { from: 'c5', port: 'value', to: 'out1', portIn: 'b' }
+      ],
+      'out1', 'result'
+    );
+
+    // Verify Config Mode
+    const ifNodeState = executor.getNodeState('if');
+    expect((ifNodeState?.config as any)?.fields?.mode).toBe('primitive');
+
+    // 1. Run with Falsy Trigger (0)
+    // 'if' should NOT run. 'in1' not triggered.
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(5); // 0 (default) + 5
+
+    // 2. Run with Truthy Trigger (1)
+    updateConfig('trigger', { value: 1 });
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(15); // 10 + 5
+
+    // 3. Run with Truthy Trigger (999)
+    updateConfig('trigger', { value: 999 });
+    executor.update({ clock: { beat: 0, dt: 0 } });
+    expect(getOutput()).toBe(15);
+  });
 });

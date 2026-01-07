@@ -20,7 +20,7 @@
         "typeId": "nicepattern.rhythmic_generator",
         "name": "#",
         "values": {
-          "density": 0.59
+          "density": 0.39
         }
       }
     },
@@ -62,7 +62,7 @@
         "typeId": "seq.crop",
         "name": "#",
         "values": {
-          "start": 0.28,
+          "start": 0.25,
           "length": 0.47
         },
         "mode": "start-length"
@@ -267,19 +267,6 @@
         }
       }
     },
-    "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8": {
-      "id": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
-      "x": 0,
-      "y": 8,
-      "config": {
-        "typeId": "midi.trigger",
-        "name": "#",
-        "values": {
-          "trigger": 269
-        },
-        "trigger": 0
-      }
-    },
     "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1": {
       "id": "node-01f84917-7f09-4e9b-a4a0-cdabb357bde1",
       "x": 2,
@@ -311,6 +298,19 @@
           "start": 0.88
         },
         "mode": "start-length"
+      }
+    },
+    "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8": {
+      "id": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
+      "x": 0,
+      "y": 8,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 317
+        },
+        "trigger": 0
       }
     }
   },
@@ -357,13 +357,6 @@
       "toNodeId": "node-26d8632b-a756-4cf8-8e32-448cecf12b1d",
       "toPort": "seq_in"
     },
-    "conn-dd138623-5747-436f-9934-f184e35b91d6": {
-      "id": "conn-dd138623-5747-436f-9934-f184e35b91d6",
-      "fromNodeId": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
-      "fromPort": "stream",
-      "toNodeId": "node-35e527e3-7207-45c4-980c-fba44c593db6",
-      "toPort": "trigger"
-    },
     "conn-fbf43719-223e-481b-a892-346440fb69fc": {
       "id": "conn-fbf43719-223e-481b-a892-346440fb69fc",
       "fromNodeId": "node-a424e639-5d72-40db-b5db-94daf505177f",
@@ -398,6 +391,13 @@
       "fromPort": "seq_out",
       "toNodeId": "node-44e2b9c9-b35e-48c7-9ffd-2ccb49837085",
       "toPort": "inputs"
+    },
+    "conn-dd138623-5747-436f-9934-f184e35b91d6": {
+      "id": "conn-dd138623-5747-436f-9934-f184e35b91d6",
+      "fromNodeId": "node-a40105bc-8b04-4dc9-a9e8-b9fe3854e4e8",
+      "fromPort": "stream",
+      "toNodeId": "node-35e527e3-7207-45c4-980c-fba44c593db6",
+      "toPort": "trigger"
     }
   },
   "inferredNodeTypes": {}

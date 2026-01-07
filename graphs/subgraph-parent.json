@@ -10,8 +10,8 @@
         "values": {
           "a": 0.25,
           "#": 0,
-          "x": 0.26,
-          "y": 0.85
+          "x": 0.21,
+          "y": 0.68
         },
         "subgraphId": "subgraph-child"
       }
@@ -36,6 +36,18 @@
         "name": "#",
         "values": {}
       }
+    },
+    "node-f1f9ee33-ea6a-4933-83ba-a7fca5e91e33": {
+      "id": "node-f1f9ee33-ea6a-4933-83ba-a7fca5e91e33",
+      "x": 0,
+      "y": 3,
+      "config": {
+        "typeId": "data.float",
+        "name": "#",
+        "values": {
+          "value": 1
+        }
+      }
     }
   },
   "connections": {
@@ -45,6 +57,13 @@
       "fromPort": "out",
       "toNodeId": "node-8068e146-e958-4c7b-b311-6b7ad6b424d0",
       "toPort": "record"
+    },
+    "conn-d5432122-5db7-4121-ad55-032e1ebf433f": {
+      "id": "conn-d5432122-5db7-4121-ad55-032e1ebf433f",
+      "fromNodeId": "node-f1f9ee33-ea6a-4933-83ba-a7fca5e91e33",
+      "fromPort": "value",
+      "toNodeId": "node-b21f93f7-3eeb-4c85-957c-23f4da11b9bf",
+      "toPort": "x"
     }
   },
   "inferredNodeTypes": {}

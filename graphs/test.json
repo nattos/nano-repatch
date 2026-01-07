@@ -1,31 +1,5 @@
 {
   "nodes": {
-    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
-      "id": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
-      "x": 1,
-      "y": 4,
-      "config": {
-        "typeId": "math.subtract",
-        "values": {
-          "value": 0,
-          "a": 0.58,
-          "b": 0.47
-        },
-        "name": "Subtract"
-      }
-    },
-    "node-7861a54a-9b96-4684-a7b8-56d689bb970e": {
-      "id": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
-      "x": 1,
-      "y": 3,
-      "config": {
-        "typeId": "math.add",
-        "values": {
-          "a": 0.73,
-          "b": 0
-        }
-      }
-    },
     "node-c50d13c3-0999-4b63-8144-5611546ca79a": {
       "id": "node-c50d13c3-0999-4b63-8144-5611546ca79a",
       "x": 6,
@@ -81,18 +55,6 @@
         }
       }
     },
-    "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215": {
-      "id": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
-      "x": 1,
-      "y": 5,
-      "config": {
-        "typeId": "math.subtract",
-        "values": {
-          "b": 0.39,
-          "a": 0.91
-        }
-      }
-    },
     "node-7545cfe0-b2a4-4ff5-9e11-e4b0c952abf8": {
       "id": "node-7545cfe0-b2a4-4ff5-9e11-e4b0c952abf8",
       "x": 2,
@@ -100,7 +62,7 @@
       "config": {
         "typeId": "curve.ease4",
         "values": {
-          "value": 0.25,
+          "value": 0.08,
           "easing": {
             "domain": [
               0,
@@ -158,16 +120,59 @@
           "value": 0.62
         }
       }
+    },
+    "node-7861a54a-9b96-4684-a7b8-56d689bb970e": {
+      "id": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
+      "x": 1,
+      "y": 3,
+      "config": {
+        "typeId": "math.add",
+        "values": {
+          "a": 0.73,
+          "b": 0
+        }
+      }
+    },
+    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
+      "id": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
+      "x": 1,
+      "y": 4,
+      "config": {
+        "typeId": "math.subtract",
+        "values": {
+          "value": 0,
+          "a": 0.58,
+          "b": 0.47
+        },
+        "name": "Subtract"
+      }
+    },
+    "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215": {
+      "id": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
+      "x": 1,
+      "y": 5,
+      "config": {
+        "typeId": "math.subtract",
+        "values": {
+          "b": 0.39,
+          "a": 0.91
+        }
+      }
+    },
+    "node-19533390-0407-449f-ac36-399930e2129b": {
+      "id": "node-19533390-0407-449f-ac36-399930e2129b",
+      "x": 6,
+      "y": 6,
+      "config": {
+        "typeId": "math.subtract",
+        "values": {
+          "b": 1,
+          "a": 0.33
+        }
+      }
     }
   },
   "connections": {
-    "conn-98ce3acf-fe5d-412b-a3e5-9dbdf5ee9448": {
-      "id": "conn-98ce3acf-fe5d-412b-a3e5-9dbdf5ee9448",
-      "fromNodeId": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
-      "fromPort": "result",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": "min"
-    },
     "conn-4b82e732-9e19-4446-8c07-afe575c000ab": {
       "id": "conn-4b82e732-9e19-4446-8c07-afe575c000ab",
       "fromNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
@@ -182,27 +187,6 @@
       "toNodeId": "node-08ac1d7d-d39a-499b-9ca4-e8e5b66a8a83",
       "toPort": "a"
     },
-    "conn-5f124932-6a94-452c-916e-7f54ed6e55e5": {
-      "id": "conn-5f124932-6a94-452c-916e-7f54ed6e55e5",
-      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
-      "fromPort": "result",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": "min"
-    },
-    "conn-ef3d18be-bbc4-4b8b-acfa-37fce42bc758": {
-      "id": "conn-ef3d18be-bbc4-4b8b-acfa-37fce42bc758",
-      "fromNodeId": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
-      "fromPort": "result",
-      "toNodeId": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
-      "toPort": "value"
-    },
-    "conn-ea812a61-7644-4048-aac8-b15cefe1daed": {
-      "id": "conn-ea812a61-7644-4048-aac8-b15cefe1daed",
-      "fromNodeId": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
-      "fromPort": "value",
-      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
-      "toPort": "max"
-    },
     "conn-d6231a49-8f7b-4583-b811-dca00d3a6137": {
       "id": "conn-d6231a49-8f7b-4583-b811-dca00d3a6137",
       "fromNodeId": "node-8f79ede3-612f-4c98-9f64-b36205ffe5ec",
@@ -216,63 +200,44 @@
       "fromPort": "result",
       "toNodeId": "node-8f79ede3-612f-4c98-9f64-b36205ffe5ec",
       "toPort": "value"
+    },
+    "conn-98ce3acf-fe5d-412b-a3e5-9dbdf5ee9448": {
+      "id": "conn-98ce3acf-fe5d-412b-a3e5-9dbdf5ee9448",
+      "fromNodeId": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
+      "fromPort": "result",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": "min"
+    },
+    "conn-5f124932-6a94-452c-916e-7f54ed6e55e5": {
+      "id": "conn-5f124932-6a94-452c-916e-7f54ed6e55e5",
+      "fromNodeId": "node-61882503-03e6-402f-ace4-5c652d88bc7c",
+      "fromPort": "result",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": "min"
+    },
+    "conn-ea812a61-7644-4048-aac8-b15cefe1daed": {
+      "id": "conn-ea812a61-7644-4048-aac8-b15cefe1daed",
+      "fromNodeId": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
+      "fromPort": "value",
+      "toNodeId": "node-6a4256ab-cd70-4409-be3b-fb340380f7da",
+      "toPort": "max"
+    },
+    "conn-ef3d18be-bbc4-4b8b-acfa-37fce42bc758": {
+      "id": "conn-ef3d18be-bbc4-4b8b-acfa-37fce42bc758",
+      "fromNodeId": "node-7861a54a-9b96-4684-a7b8-56d689bb970e",
+      "fromPort": "result",
+      "toNodeId": "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215",
+      "toPort": "value"
+    },
+    "conn-7007c653-facd-41bc-8201-54351012c648": {
+      "id": "conn-7007c653-facd-41bc-8201-54351012c648",
+      "fromNodeId": "node-08ac1d7d-d39a-499b-9ca4-e8e5b66a8a83",
+      "fromPort": "result",
+      "toNodeId": "node-19533390-0407-449f-ac36-399930e2129b",
+      "toPort": "a"
     }
   },
   "inferredNodeTypes": {
-    "node-61882503-03e6-402f-ace4-5c652d88bc7c": {
-      "inputs": {
-        "kind": "record",
-        "fields": {
-          "a": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          },
-          "b": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      },
-      "outputs": {
-        "kind": "record",
-        "fields": {
-          "result": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      }
-    },
-    "node-7861a54a-9b96-4684-a7b8-56d689bb970e": {
-      "inputs": {
-        "kind": "record",
-        "fields": {
-          "a": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          },
-          "b": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      },
-      "outputs": {
-        "kind": "record",
-        "fields": {
-          "result": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      }
-    },
     "node-7545cfe0-b2a4-4ff5-9e11-e4b0c952abf8": {
       "inputs": {
         "kind": "record",
@@ -359,38 +324,6 @@
             },
             "hint": "curve",
             "optional": true
-          }
-        }
-      },
-      "outputs": {
-        "kind": "record",
-        "fields": {
-          "result": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          }
-        }
-      }
-    },
-    "node-d98ac5db-fca2-49ff-9a48-91f5f3f18215": {
-      "inputs": {
-        "kind": "record",
-        "fields": {
-          "a": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          },
-          "b": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
-          },
-          "value": {
-            "kind": "atomic",
-            "type": "number",
-            "defaultValue": 0
           }
         }
       },

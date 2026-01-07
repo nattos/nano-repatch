@@ -644,7 +644,7 @@ export function compileGraph(
 
     for (const [port, types] of inputsByPort) {
       const expected = expectedInputs[port];
-      if (expected && expected.kind === 'array') {
+      if (expected && 'kind' in expected && expected.kind === 'array') {
         if (types.length > 0) {
           resolvedInputs[port] = { kind: 'array', element: types[0], size: types.length };
         }
@@ -665,7 +665,7 @@ export function compileGraph(
     let finalInputType: RecordType = inputRecordType;
 
     try {
-      if (nodeDef.computeForwardPorts) {
+      if (nodeDef.kind === 'primitive' && nodeDef.computeForwardPorts) {
         const result = nodeDef.computeForwardPorts(
           inputRecordType,
           config,
@@ -705,7 +705,7 @@ export function compileGraph(
     // Check if we have metadata for this node
     const metadata = nodeMetadata[nodeId];
 
-    if (metadata && nodeDef && nodeDef.compileConfig) {
+    if (metadata && nodeDef && nodeDef.kind === 'primitive' && nodeDef.compileConfig) {
       const uiConfig = nodeUiConfigs[nodeId];
       if (uiConfig) {
         try {

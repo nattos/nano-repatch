@@ -64,9 +64,7 @@ export class GraphExecutor {
       }
     }
 
-    if (this.graph.connections) {
-      // console.log(`DEBUG: Executor graph.connections length: ${this.graph.connections.length}`);
-    }
+
 
     // Split execution order
     this.splitExecutionOrder(graph.executionOrder || []);
@@ -175,7 +173,7 @@ export class GraphExecutor {
       // No, compileConfig expects the UI Config (which IS 'config' here).
       // But wait, setNodeConfig receives UI Config from Inspector.
       const metadata = this.nodeMetadata.get(nodeId);
-      if (nodeDef && nodeDef.compileConfig && metadata) {
+      if (nodeDef && nodeDef.kind === 'primitive' && nodeDef.compileConfig && metadata) {
         try {
           // We can update the config using the metadata.
           // However, 'config' passed here might be PARTIAL (from Inspector).
