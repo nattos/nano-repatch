@@ -97,7 +97,7 @@ export const logic_select = definePrimitiveNode({
   },
 
   shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
-    return newConfig.count !== oldConfig.count || newConfig.mode !== oldConfig.mode;
+    return newConfig.count !== oldConfig?.count || newConfig.mode !== oldConfig?.mode;
   },
 
   execute: (rawInputs, config, context) => {
@@ -190,7 +190,7 @@ registerNode({
       fields: [
         { type: 'number', label: 'Count', path: 'count', min: 1, max: 32, step: 1, default: 2 },
         {
-          type: 'select', label: 'Mode', path: 'mode', default: 'value',
+          type: 'tab-bar', label: 'Mode', path: 'mode', default: 'value',
           options: [
             { label: 'Value Match', value: 'value' },
             { label: 'Linear Range', value: 'range' },

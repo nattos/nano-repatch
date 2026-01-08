@@ -118,4 +118,9 @@ describe('logic.select', () => {
       // Unless implicit catch-all? No, logic is fallback to 0.
     });
   });
+
+  it('shouldRecompileOnConfigChange handles undefined oldConfig', () => {
+    const newConfig = { mode: 'value', count: 2 };
+    expect(logic_select.shouldRecompileOnConfigChange!(newConfig, undefined)).toBe(true);
+  });
 });
