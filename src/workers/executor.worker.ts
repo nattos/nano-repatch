@@ -204,17 +204,35 @@ function runTick() {
   const endTime = self.performance.now();
 
   // Prepare outputs
+  const executedNodes = executor.getExecutedNodes();
   const rawOutputs = executor.getOutputs();
   const sanitizedOutputs = new Map<string, StructorRecord>();
 
-  for (const [nodeId, output] of rawOutputs.entries()) {
-    sanitizedOutputs.set(nodeId, sanitizeStructorRecord(output));
+  for (const nodeId of executedNodes) {
+    const output = rawOutputs.get(nodeId);
+    if (output) {
+      sanitizedOutputs.set(nodeId, sanitizeStructorRecord(output));
+    }
   }
 
   const rawInputs = executor.getInspectedInputs();
   const sanitizedInputs = new Map<string, StructorRecord>();
-  for (const [nodeId, input] of rawInputs.entries()) {
-    sanitizedInputs.set(nodeId, sanitizeStructorRecord(input));
+  // Inputs are only captured if inspected, but we should also filter by execution
+  // or at least only send if changed. executedNodes is a good proxy.
+  for (const nodeId of executedNodes) {
+    const input = rawInputs.get(nodeId);
+    if (input) {
+      sanitizedInputs.set(nodeId, sanitizeStructorRecord(input));
+    }
+  }
+
+  const rawUiOutputs = executor.getUiOutputs();
+  const filteredUiOutputs = new Map<string, any>();
+  for (const nodeId of executedNodes) {
+    const ui = rawUiOutputs.get(nodeId);
+    if (ui !== undefined) {
+      filteredUiOutputs.set(nodeId, ui);
+    }
   }
 
   const audioCommands = virtualAudioContext.flushCommands();
@@ -223,7 +241,7 @@ function runTick() {
     type: 'EXECUTION_UPDATE',
     outputs: sanitizedOutputs,
     inputs: sanitizedInputs,
-    uiOutputs: executor.getUiOutputs(), // Will contain raw data (codes, etc.)
+    uiOutputs: filteredUiOutputs,
     stats: {
       nodeCount: executor.graphNodeCount,
       executionTime: endTime - startTime

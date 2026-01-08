@@ -239,6 +239,13 @@ export class RuntimeManager {
     this.virtualInputMappings = msg.virtualInputMappings || {};
     this.outputRemappings = msg.outputRemappings || {};
 
+    // Clear stale state for new graph
+    runInAction(() => {
+      this.outputs.clear();
+      this.inputs.clear();
+      this.uiStates.clear();
+    });
+
     const initMsg: ExecutorWorkerMessage = {
       type: 'INIT_GRAPH',
       graph: msg.graph,
@@ -304,7 +311,6 @@ export class RuntimeManager {
 
   private handleExecutionUpdate(msg: ExecutionUpdateMessage) {
     runInAction(() => {
-      this.outputs.clear();
       // msg.outputs is a Map if transferred, or object if JSON?
       // postMessage with structured clone preserves Map.
       if (msg.outputs instanceof Map) {
@@ -317,7 +323,6 @@ export class RuntimeManager {
           this.outputs.set(key, value);
         }
       }
-      this.inputs.clear();
       if (msg.inputs) {
         if (msg.inputs instanceof Map) {
           for (const [key, value] of msg.inputs.entries()) {
@@ -329,7 +334,6 @@ export class RuntimeManager {
           }
         }
       }
-      this.uiStates.clear();
       if (msg.uiOutputs) {
         if (msg.uiOutputs instanceof Map) {
           for (const [key, value] of msg.uiOutputs.entries()) {

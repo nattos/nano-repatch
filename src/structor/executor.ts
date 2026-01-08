@@ -21,6 +21,9 @@ export class GraphExecutor {
   private downstreamMap: Map<string, string[]> = new Map();
   private nodeMetadata: Map<string, any> = new Map();
 
+  // Optimization: Track nodes executed in the current tick
+  private executedNodesThisTick: Set<string> = new Set();
+
   get graphNodeCount() {
     return this.executionOrder.length;
   }
@@ -314,6 +317,7 @@ export class GraphExecutor {
   }
 
   public update(context: Partial<ExecutionContext>): void {
+    this.executedNodesThisTick.clear();
     const nodesToDirtyNextFrame = new Set<string>();
 
     // Mark realtime nodes as dirty
@@ -338,6 +342,7 @@ export class GraphExecutor {
     if (!state.isDirty) return;
 
     const instance = this.graph.nodes[nodeId];
+    this.executedNodesThisTick.add(nodeId);
 
     const definition = this.repository.get(instance.definitionId);
 
@@ -601,5 +606,9 @@ export class GraphExecutor {
 
   public getInspectedInputs(): Map<string, StructorRecord> {
     return this.inspectedInputs;
+  }
+
+  public getExecutedNodes(): Set<string> {
+    return this.executedNodesThisTick;
   }
 }
