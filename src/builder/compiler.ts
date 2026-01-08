@@ -18,10 +18,12 @@ export function compileGraph(
   virtualInputMappings: Record<string, Record<string, string>>,
   outputRemappings: Record<string, Record<string, string>>,
   nodeMetadata: Record<string, any>
+  idMap: Record<string, string>
 } {
   const flatNodes: Record<string, NodeInstance> = {};
   const nodeUiConfigs: Record<string, any> = {}; // Store raw UI configs for re-compilation
   const nodeMetadata: Record<string, any> = {}; // Store metadata from forward pass
+  const idMap: Record<string, string> = {}; // Map Source ID -> Compiled ID
   const flatConnections: {
     fromNode: string;
     fromPort: string | number;
@@ -198,8 +200,14 @@ export function compileGraph(
           executionOwnerId
         };
 
-        flatNodes[nodeId] = instance;
-        nodeUiConfigs[nodeId] = node.config;
+        const compiledId = nodeId; // which is idPrefix + node.id
+        flatNodes[compiledId] = instance;
+        nodeUiConfigs[compiledId] = node.config;
+
+        // Map Source ID -> Compiled ID
+        // Note: This assumes source node IDs are unique in the context of the user interaction
+        // For implicit subgraphs (spatially nested), they are unique in the graph.
+        idMap[node.id] = compiledId;
 
         if (idPrefix === '') { // Top level
           if (node.config.typeId === 'io.input' || node.config.typeId === 'input') {
@@ -760,6 +768,7 @@ export function compileGraph(
     inferredTypes,
     virtualInputMappings,
     outputRemappings,
-    nodeMetadata
+    nodeMetadata,
+    idMap
   };
 }

@@ -11,6 +11,7 @@ let intervalId: any = null;
 let frameRate = 60;
 let isRunning = false;
 let virtualAudioContext = new VirtualAudioContext();
+let compiledToSourceMap = new Map<string, string>();
 
 // Clock state
 let clock = { beat: 0 };
@@ -37,7 +38,14 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
         oldInputs = executor.getInputs();
       }
 
-      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates, msg.inferredNodeTypes, msg.dirtyNodeIds, msg.nodeMetadata);
+      executor = new GraphExecutor(msg.graph, defaultNodeRepository, initialStates, msg.inferredNodeTypes, msg.dirtyNodeIds, msg.nodeMetadata, msg.idMap);
+
+      if (msg.idMap) {
+        compiledToSourceMap.clear();
+        for (const [sourceId, compiledId] of Object.entries(msg.idMap)) {
+          compiledToSourceMap.set(compiledId, sourceId);
+        }
+      }
 
       if (userNodeStates) {
         executor.setUserNodeStates(userNodeStates);
@@ -211,7 +219,9 @@ function runTick() {
   for (const nodeId of executedNodes) {
     const output = rawOutputs.get(nodeId);
     if (output) {
-      sanitizedOutputs.set(nodeId, sanitizeStructorRecord(output));
+      // Remap Compiled ID -> Source ID for UI
+      const sourceId = compiledToSourceMap.get(nodeId) || nodeId;
+      sanitizedOutputs.set(sourceId, sanitizeStructorRecord(output));
     }
   }
 
@@ -222,7 +232,8 @@ function runTick() {
   for (const nodeId of executedNodes) {
     const input = rawInputs.get(nodeId);
     if (input) {
-      sanitizedInputs.set(nodeId, sanitizeStructorRecord(input));
+      const sourceId = compiledToSourceMap.get(nodeId) || nodeId;
+      sanitizedInputs.set(sourceId, sanitizeStructorRecord(input));
     }
   }
 
@@ -231,7 +242,8 @@ function runTick() {
   for (const nodeId of executedNodes) {
     const ui = rawUiOutputs.get(nodeId);
     if (ui !== undefined) {
-      filteredUiOutputs.set(nodeId, ui);
+      const sourceId = compiledToSourceMap.get(nodeId) || nodeId;
+      filteredUiOutputs.set(sourceId, ui);
     }
   }
 

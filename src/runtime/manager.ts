@@ -251,7 +251,9 @@ export class RuntimeManager {
       graph: msg.graph,
       inferredNodeTypes: msg.inferredTypes,
       isRecompilation: this.hasLoadedGraph,
-      dirtyNodeIds: Array.from(this.pendingDirtyNodeIds)
+      dirtyNodeIds: Array.from(this.pendingDirtyNodeIds),
+      nodeMetadata: msg.nodeMetadata,
+      idMap: msg.idMap
     };
     this.pendingDirtyNodeIds.clear(); // Clear after sending
     this.hasLoadedGraph = true;

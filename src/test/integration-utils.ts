@@ -145,9 +145,9 @@ export const compileAndRun = (
     }
   };
 
-  const { graph: graphDef, inferredTypes } = compileGraph(appState, loadedSubgraphs, repository);
+  const { graph: graphDef, inferredTypes, idMap } = compileGraph(appState, loadedSubgraphs, repository);
   // console.log('Compiled Connections:', graphDef.connections);
-  const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes);
+  const executor = new GraphExecutor(graphDef, repository, undefined, inferredTypes, undefined, undefined, idMap);
   // console.log('Execution Order:', (executor as any).executionOrder);
 
   return {

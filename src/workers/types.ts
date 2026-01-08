@@ -19,6 +19,8 @@ export type GraphCompiledMessage = {
   inferredTypes: Record<string, { inputs: StructorType; outputs: StructorType }>;
   virtualInputMappings?: Record<string, Record<string, string>>;
   outputRemappings?: Record<string, Record<string, string>>;
+  nodeMetadata?: Record<string, any>;
+  idMap?: Record<string, string>;
 };
 
 export type CompileConfigsMessage = {
@@ -43,6 +45,7 @@ export type InitGraphMessage = {
   isRecompilation?: boolean;
   dirtyNodeIds?: string[]; // Added: Explicitly mark these nodes as dirty
   nodeMetadata?: Record<string, any>; // Added: Metadata from compiler
+  idMap?: Record<string, string>; // Added: Map Source ID -> Compiled ID
 };
 
 export type UpdateConfigMessage = {

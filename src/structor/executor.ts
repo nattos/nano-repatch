@@ -20,6 +20,7 @@ export class GraphExecutor {
   private inferredNodeTypes: Record<string, { inputs: StructorType, outputs: StructorType }> | undefined;
   private downstreamMap: Map<string, string[]> = new Map();
   private nodeMetadata: Map<string, any> = new Map();
+  private resolvedIdCache: Map<string, string> = new Map();
 
   // Optimization: Track nodes executed in the current tick
   private executedNodesThisTick: Set<string> = new Set();
@@ -34,9 +35,16 @@ export class GraphExecutor {
     initialStates?: Map<string, NodeState>,
     inferredNodeTypes?: Record<string, { inputs: StructorType, outputs: StructorType }>,
     dirtyNodeIds?: string[],
-    nodeMetadata?: Record<string, any>
+    nodeMetadata?: Record<string, any>,
+    idMap?: Record<string, string>
   ) {
     this.inferredNodeTypes = inferredNodeTypes;
+
+    if (idMap) {
+      for (const [key, val] of Object.entries(idMap)) {
+        this.resolvedIdCache.set(key, val);
+      }
+    }
 
     if (nodeMetadata) {
       for (const [key, val] of Object.entries(nodeMetadata)) {
@@ -162,8 +170,24 @@ export class GraphExecutor {
     }
   }
 
+  /**
+   * Resolves a node ID from the UI (which might be a short ID like "inner") to the
+   * actual compiled node ID in the graph (which might be "if.inner").
+   * This is necessary for Implicit Subgraphs (like core.ifthen) where the UI remains unaware of the compilation hierarchy.
+   */
+  private resolveNodeId(id: string): string {
+    if (this.nodeStates.has(id)) return id;
+    if (this.resolvedIdCache.has(id)) return this.resolvedIdCache.get(id)!;
+    return id;
+  }
+
   public setNodeConfig(nodeId: string, config: Structor): void {
-    const state = this.nodeStates.get(nodeId);
+    const resolvedId = this.resolveNodeId(nodeId);
+
+    // Warn if not found, but allow fallthrough if it's strictly a graph input?
+    // No, setNodeConfig is for nodes.
+    const state = this.nodeStates.get(resolvedId);
+
     if (state) {
       // 1. Normalize Config: If definition specifies a Record config, move top-level props to 'fields'
       const nodeDef = this.repository.get(state.definitionId);
@@ -299,7 +323,8 @@ export class GraphExecutor {
   }
 
   public getNodeConfig(nodeId: string): Structor | null | undefined {
-    return this.nodeStates.get(nodeId)?.config;
+    const resolvedId = this.resolveNodeId(nodeId);
+    return this.nodeStates.get(resolvedId)?.config;
   }
 
   public hasNode(nodeId: string): boolean {
@@ -307,11 +332,12 @@ export class GraphExecutor {
   }
 
   public markDirty(nodeId: string): void {
-    const state = this.nodeStates.get(nodeId);
+    const resolvedId = this.resolveNodeId(nodeId);
+    const state = this.nodeStates.get(resolvedId);
     if (!state || state.isDirty) return;
 
     state.isDirty = true;
-    for (const downstreamNodeId of this.downstreamMap.get(nodeId) || []) {
+    for (const downstreamNodeId of this.downstreamMap.get(resolvedId) || []) {
       this.markDirty(downstreamNodeId);
     }
   }
@@ -589,18 +615,19 @@ export class GraphExecutor {
   }
 
   public handleNodeMessage(nodeId: string, message: any): void {
-    const instance = this.graph.nodes[nodeId];
+    const resolvedId = this.resolveNodeId(nodeId);
+    const instance = this.graph.nodes[resolvedId];
     if (!instance) return;
 
     const definition = this.repository.get(instance.definitionId);
     if (!definition || definition.kind !== 'primitive' || !definition.onMessage) return;
 
-    const userState = this.userNodeStates.get(nodeId);
+    const userState = this.userNodeStates.get(resolvedId);
     // If state doesn't exist, we might need to wait or init?
     // Usually it exists if init happened.
     if (userState) {
       definition.onMessage(userState, message);
-      this.markDirty(nodeId);
+      this.markDirty(resolvedId);
     }
   }
 
