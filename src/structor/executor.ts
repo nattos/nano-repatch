@@ -202,39 +202,9 @@ export class GraphExecutor {
       const metadata = this.nodeMetadata.get(nodeId);
       if (nodeDef && nodeDef.kind === 'primitive' && nodeDef.compileConfig && metadata) {
         try {
-          // We can update the config using the metadata.
-          // However, 'config' passed here might be PARTIAL (from Inspector).
-          // compileConfig usually expects FULL UI config.
-
-          // This is a known limitation/challenge.
-          // Ideally we should merge with current UI config, then compile.
-          // But we don't store "Current UI Config" in executor, only "Current Compiled Config".
-          // We store 'userNodeStates' maybe? No.
-
-          // Check handbook "Configuration Separation".
-          // "TUIConfig": The source of truth (Inspector state).
-
-          // If we receive a partial update, we are kind of stuck unless we reconstruct the full UI config.
-          // OR, we assume 'config' is sufficient?
-
-          // For now, let's assume 'config' passed to setNodeConfig is the value being updated.
-
-          // Actually, the Inspector usually sends the changed field.
-          // If we run `compileConfig` on a partial object, it might fail or return partials.
-
-          // Strategy:
-          // If we have metadata, we try to run compileConfig.
-          // If it fails, we fall back?
-          // Or, we assume the node handles partials?
-
-          // Most robust way: We need the full UI state.
-          // The system currently doesn't persist full UI state in Executor, only Compiled State.
-          // But wait, `GraphState` in Main Thread has full UI state.
-          // When Main Thread calls `UPDATE_CONFIG`, it passes `node.config`.
-          // `node.config` in Main Thread IS the full UI config.
-
-          // So `config` here IS the full UI config (snapshot).
-          // Therefore we can safeley run `compileConfig`.
+          // NOTE: We should avoid calling compileConfig here if possible.
+          // Ideally, all config compilation happens in the Compiler Worker to ensure strict separation.
+          // However, for immediate valid updates here, we assume 'config' is the full UI state.
 
           const compiled = nodeDef.compileConfig(config, metadata);
           if (compiled) {
