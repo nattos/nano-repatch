@@ -730,6 +730,7 @@ export class LocalController {
   @action
   public toggleRegionExpansion() {
     this.observableState.localSettings.areRegionsExpanded = !this.observableState.localSettings.areRegionsExpanded;
+    this.saveSettings();
     this.updateGridMetrics(this.appController.observableState.graph); // Force re-layout
   }
 

@@ -282,7 +282,8 @@ export class ScalarSlider extends LitElement {
     }
   }
 
-  private async handleDoubleClick() {
+  private async handleDoubleClick(e?: Event) {
+    e?.stopPropagation();
     this.isEditing = true;
     this.tempValue = this.value.toString();
 
