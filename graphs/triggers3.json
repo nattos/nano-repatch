@@ -31,7 +31,7 @@
         "typeId": "nicepattern.chaos_generator",
         "name": "#",
         "values": {
-          "density": 0.42
+          "density": 0.3
         },
         "minNote": 0,
         "maxNote": 0,
@@ -52,6 +52,28 @@
       "id": "node-e90bb389-6ade-48af-b3db-b7888339c755",
       "x": 3,
       "y": 3,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-5a83d281-86e7-452e-bd9d-de34fd44af1b": {
+      "id": "node-5a83d281-86e7-452e-bd9d-de34fd44af1b",
+      "x": 2,
+      "y": 4,
+      "config": {
+        "typeId": "midi.to_mono",
+        "name": "#",
+        "values": {},
+        "channel": 0,
+        "rootNote": 0
+      }
+    },
+    "node-6e2a4e9d-6bb8-4593-a16d-9900e64553e3": {
+      "id": "node-6e2a4e9d-6bb8-4593-a16d-9900e64553e3",
+      "x": 3,
+      "y": 4,
       "config": {
         "typeId": "debug.scope",
         "name": "#",
@@ -86,6 +108,20 @@
       "fromNodeId": "node-abf0be9e-0fe9-4fc3-9f76-265e1df5ff4a",
       "fromPort": "result",
       "toNodeId": "node-e90bb389-6ade-48af-b3db-b7888339c755",
+      "toPort": "value"
+    },
+    "conn-8c819648-c71b-4e2f-a933-7803d3bf30b8": {
+      "id": "conn-8c819648-c71b-4e2f-a933-7803d3bf30b8",
+      "fromNodeId": "node-db4944a3-1ced-4a41-8509-e05a3b914b12",
+      "fromPort": "midi_out",
+      "toNodeId": "node-5a83d281-86e7-452e-bd9d-de34fd44af1b",
+      "toPort": "stream"
+    },
+    "conn-4a15f394-7665-4975-ae33-4f0063130ccf": {
+      "id": "conn-4a15f394-7665-4975-ae33-4f0063130ccf",
+      "fromNodeId": "node-5a83d281-86e7-452e-bd9d-de34fd44af1b",
+      "fromPort": "velocity",
+      "toNodeId": "node-6e2a4e9d-6bb8-4593-a16d-9900e64553e3",
       "toPort": "value"
     }
   },

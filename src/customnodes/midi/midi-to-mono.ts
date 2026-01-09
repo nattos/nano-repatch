@@ -59,6 +59,10 @@ export const midiToMonoNode = defineNode({
     const rootNote = config.rootNote ?? 60;
     const stream = (inputs.stream || []) as MidiEvent[];
 
+    if (!state.activeNotes) {
+      state.activeNotes = [];
+    }
+
     if (stream && Array.isArray(stream)) {
       for (const event of stream) {
         if (event.channel === channel) {
