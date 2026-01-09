@@ -9,6 +9,14 @@ export default defineConfig({
   server: {
   },
   plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          src: '../node_modules/onnxruntime-web/dist/*',
+          dest: '.'
+        },
+      ]
+    }),
   ],
   build: {
     outDir: '../dist',
