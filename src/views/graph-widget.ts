@@ -171,17 +171,25 @@ export class GraphWidget extends MobxLitElement {
         targetRange *= 2;
       }
     } else {
-      const span = Math.max(maxV - minV, 0.001);
-      let qRange = Math.pow(2, Math.ceil(Math.log2(span * padding)));
-      let qAnchor = Math.floor(minV / qRange) * qRange;
+      // Special case: Unit Interval (0-1) with epsilon
+      // If values are within [0, 1+epsilon], lock to [0, 1] instead of expanding to 2 (due to padding)
+      const epsilon = 0.0001;
+      if (minV >= -epsilon && maxV <= 1.0 + epsilon) {
+        targetRange = 1.0;
+        targetAnchor = 0.0;
+      } else {
+        const span = Math.max(maxV - minV, 0.001);
+        let qRange = Math.pow(2, Math.ceil(Math.log2(span * padding)));
+        let qAnchor = Math.floor(minV / qRange) * qRange;
 
-      if (qAnchor + qRange < maxV) {
-        qRange *= 2;
-        qAnchor = Math.floor(minV / qRange) * qRange;
+        if (qAnchor + qRange < maxV) {
+          qRange *= 2;
+          qAnchor = Math.floor(minV / qRange) * qRange;
+        }
+
+        targetRange = qRange;
+        targetAnchor = qAnchor;
       }
-
-      targetRange = qRange;
-      targetAnchor = qAnchor;
     }
 
     // Range Smoothing
