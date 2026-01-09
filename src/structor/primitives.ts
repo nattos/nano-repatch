@@ -17,6 +17,8 @@ import * as DataLiteral from './nodes/data_literal';
 import * as DataHub from './nodes/data_hub';
 import * as Functional from './nodes/functional';
 import * as LogicSelect from './nodes/logic_select';
+import * as LogicLatch from './nodes/logic_latch';
+import * as LogicDelay from './nodes/logic_delay';
 
 // Re-export all primitives for backward compatibility
 export * from './nodes/binary';
@@ -35,12 +37,14 @@ export * from './nodes/data_literal';
 export * from './nodes/data_hub';
 export * from './nodes/functional';
 export * from './nodes/logic_select';
+export * from './nodes/logic_latch';
+export * from './nodes/logic_delay';
 
 // Aggregate ALL_PRIMITIVES for tests and legacy registration tools
 const modules = [
   Binary, Unary, List, Constants, Utils, IOInput, IOOutput,
   CoreSubgraph, CoreThenSubgraph, CorePack, CoreUnpack, CoreIfThen, DataLiteral, DataHub, Functional,
-  LogicSelect
+  LogicSelect, LogicLatch, LogicDelay
 ];
 
 export const ALL_PRIMITIVES: PrimitiveNodeDefinition[] = modules.flatMap(mod =>

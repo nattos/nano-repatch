@@ -1,32 +1,9 @@
-import { definePrimitiveNode, NumberType, AnyType, typedBroadcast, TypedBroadcastSchema } from '../type-helpers';
+import { definePrimitiveNode, NumberType, AnyType, typedBroadcast, TypedBroadcastSchema, unifyTypes } from '../type-helpers';
 import { NodeCategory, StructorType } from '../structor';
 import { numberType } from '../std-types';
 import { registerNode } from '../node-helpers';
 
-// Helper to find LCD (Lowest Common Denominator) type
-function unifyTypes(types: StructorType[]): StructorType {
-  if (types.length === 0) return AnyType;
 
-  const first = types[0];
-  if (types.every(t => t.kind === first.kind && t.type === first.type)) {
-    return first;
-  }
-
-  // If mixed float/int/bool (all atomic), prefer number?
-  // User says: "If all cases receive bools, then output should be bool. If one case is float and another is bool, then output should be float."
-  // Our types are 'number', 'string', 'boolean', 'any'.
-  // If we have mix of boolean and number -> number (1 or 0)
-
-  const hasString = types.some(t => t.kind === 'atomic' && t.type === 'string');
-  if (hasString) return AnyType; // String + Number = Any? Or String?
-
-  const hasNumber = types.some(t => t.kind === 'atomic' && t.type === 'number');
-  const hasBoolean = types.some(t => t.kind === 'atomic' && t.type === 'boolean');
-
-  if (hasNumber || hasBoolean) return NumberType; // Boolean promotes to Number
-
-  return AnyType;
-}
 
 export const logic_select = definePrimitiveNode({
   id: 'logic.select',

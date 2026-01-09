@@ -3,6 +3,7 @@ import { definePrimitiveNode } from '../type-helpers';
 import { NodeCategory, ExecutionContext, PrimitiveNodeDefinition, StructorType } from '../structor';
 import { RegionVisibility } from '../repository';
 import { midiStreamType } from '../std-types';
+import { detectTriggerMode, shouldTrigger, TriggerMode } from '../trigger-helpers';
 import type { GridNode } from '../../builder/state';
 
 // core.ifthen
@@ -95,38 +96,9 @@ export const primitive_ifthen = definePrimitiveNode({
   execute: (inputs, config, context) => {
     const mode = (config as any).mode || 'midi';
     const input = inputs.midi_in;
-    let shouldTrigger = false;
+    const shouldTriggerVal = shouldTrigger(input, mode as TriggerMode);
 
-    if (mode === 'primitive') {
-      // Primitive Mode: Check for Truthy
-      if (Array.isArray(input)) {
-        // If array (from stream or spread), trigger if ANY is truthy
-        for (const val of input) {
-          if (val) {
-            shouldTrigger = true;
-            break;
-          }
-        }
-      } else {
-        // Scalar
-        if (input) {
-          shouldTrigger = true;
-        }
-      }
-    } else {
-      // MIDI Mode (Default)
-      const stream = input || [];
-      if (Array.isArray(stream)) {
-        for (const event of stream) {
-          if (event && event.type === 'note_on' && (event.velocity ?? 0) > 0) {
-            shouldTrigger = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (shouldTrigger && context.executeSubgraph) {
+    if (shouldTriggerVal && context.executeSubgraph) {
       context.executeSubgraph('onTrigger');
     }
 
@@ -141,16 +113,8 @@ export const primitive_ifthen = definePrimitiveNode({
 
 
     if (inputType) {
-      // Check if it looks like a MIDI stream
-      // MIDI Stream = Array of Records
-      // We assume anything else is a primitive signal
-      const isMidi = (inputType.kind === 'array' && (inputType as any).elementType?.kind === 'record'); // simple check
-      // A more robust check might look for specific fields, but this separates "Signal" from "Event Stream" roughly.
-
-      // Also, if it IS an array of primitives, it's primitive mode.
-
-      if (!isMidi) {
-        mode = 'primitive';
+      mode = detectTriggerMode(inputType);
+      if (mode === 'primitive') {
         finalInputType = inputType; // Adopt the input type (Dynamic Typing)
       }
     }

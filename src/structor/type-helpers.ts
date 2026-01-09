@@ -644,3 +644,24 @@ export function defineMathNode(
     }
   });
 }
+
+// --- Type Unification Helpers ---
+
+export function unifyTypes(types: StructorType[]): StructorType {
+  if (types.length === 0) return AnyType;
+
+  const first = types[0];
+  if (types.every(t => t.kind === first.kind && t.type === first.type)) {
+    return first;
+  }
+
+  const hasString = types.some(t => t.kind === 'atomic' && t.type === 'string');
+  if (hasString) return AnyType;
+
+  const hasNumber = types.some(t => t.kind === 'atomic' && t.type === 'number');
+  const hasBoolean = types.some(t => t.kind === 'atomic' && t.type === 'boolean');
+
+  if (hasNumber || hasBoolean) return NumberType;
+
+  return AnyType;
+}
