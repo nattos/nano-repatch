@@ -80,3 +80,13 @@ This document records critical engineering decisions, architectural patterns, an
 ### "Virtual Inputs" Preservation
 *   **The Pitfall:** When updating a node's config (e.g., changing a dropdown), you might overwrite the `values` object (which holds the values for unconnected input ports).
 *   **The Solution:** `GraphExecutor.setNodeConfig` must perform a **Shallow Merge** of top-level keys. Never replace the entire config object with a partial update from the UI.
+*   **Testing Rule:** When simulating UI updates in tests, use `executor.setNodeConfig(id, { values: { trigger: ... } })` instead of a flat object, as `GraphExecutor` expects the `values` sub-key for virtual inputs.
+
+## 5. Stateful Node Logic
+
+### Initial State Synchronization
+*   **The Pitfall:** Nodes that trigger on input changes (like `midi.trigger` or `logic.latch`) often initialize their previous state to `0` or `null`. If the persisted configuration contains a non-zero value (e.g., `lastTrigger` was saved as a high timestamp), the node will detect a "change" (from 0 to saved value) on the very first frame and fire unintentionally.
+*   **The Solution:** Use an `initialized` flag in the state.
+    *   `createState: () => ({ lastTrigger: 0, initialized: false })`
+    *   In `execute`: If `!state.initialized`, sync the state from inputs (`state.lastTrigger = input`) and return *without* firing. Set `state.initialized = true`.
+    *   This "swallows" the first frame difference caused by hydration.

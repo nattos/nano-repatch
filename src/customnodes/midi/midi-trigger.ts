@@ -29,7 +29,7 @@ export const midiTriggerNode = defineNode({
   outputs: {
     stream: midiStreamType
   },
-  createState: (): { lastTrigger: number } => ({ lastTrigger: 0 }),
+  createState: (): { lastTrigger: number, initialized: boolean } => ({ lastTrigger: 0, initialized: false }),
   execute: (inputs, config, context, state) => {
     // Inputs are strictly typed
     const pitch = config.pitch || 60;
@@ -38,6 +38,12 @@ export const midiTriggerNode = defineNode({
     const dt = context.clock.dt;
 
     const stream: MidiEvent[] = [];
+
+    if (!state.initialized) {
+      state.lastTrigger = trigger;
+      state.initialized = true;
+      return { stream };
+    }
 
     if (trigger > state.lastTrigger) {
       // Rising Edge: Synchronous Trigger (Note On then Note Off)

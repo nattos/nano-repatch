@@ -402,11 +402,41 @@ When manually constructing config updates (e.g., in unit tests):
 2.  **Respect Structure:** If you are updating a primitive value (e.g., changing a number constant), the executor handles the replacement. If updating a record, it merges fields.
 3.  **Virtual Inputs:** If you need to simulate a user setting a virtual input value (without a wire connection), set it in `config.values`:
     ```typescript
+    // Correct: targets the virtual input value for 'frequency'
     executor.setNodeConfig('myNode', { values: { frequency: 440 } });
+
+    // Incorrect: might be ignored or overwrite the root config structure
+    executor.setNodeConfig('myNode', { frequency: 440 });
     ```
 
+## 14. Patterns for Stateful Nodes (Triggers)
 
-## 14. Dynamic Ports & Configuration Pitfalls
+Nodes that detect changes or edges (like `midi.trigger` or `logic.latch`) must carefully handle initialization to avoid "ghost triggers" when the graph loads.
+
+### The Problem
+If a node's state tracks `lastValue` to detect a change, initializing `lastValue = 0` is dangerous. If the persisted input value is `100`, the node will see a change `0 -> 100` on the very first frame and fire.
+
+### The Solution: Initialization Flag
+Use an `initialized` flag to "swallow" the first frame.
+
+```typescript
+createState: () => ({ lastValue: 0, initialized: false }),
+
+execute: (inputs, config, context, state) => {
+  if (!state.initialized) {
+    state.lastValue = inputs.trigger;
+    state.initialized = true;
+    return { result: 0 }; // Return quiet value
+  }
+
+  // Normal logic
+  if (inputs.trigger > state.lastValue) {
+    // ... fire ...
+  }
+}
+```
+
+## 15. Dynamic Ports & Configuration Pitfalls
 
 Some nodes (like `curve.crop`) need to change their Input/Output topology based on their configuration (e.g. changing a `mode` from "Start/End" to "Start/Length"). This introduces significant complexity in the graph runtime.
 

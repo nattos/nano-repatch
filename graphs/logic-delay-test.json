@@ -1,0 +1,118 @@
+{
+  "nodes": {
+    "node-c4ee73c3-8ffe-43ce-a8a8-2b909649c6de": {
+      "id": "node-c4ee73c3-8ffe-43ce-a8a8-2b909649c6de",
+      "x": 6,
+      "y": 3,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-65c1eaa4-19f4-415e-aabd-a1d9c4652e5a": {
+      "id": "node-65c1eaa4-19f4-415e-aabd-a1d9c4652e5a",
+      "x": 6,
+      "y": 4,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-6fc5f28d-3e99-4b68-91d8-424c905a5675": {
+      "id": "node-6fc5f28d-3e99-4b68-91d8-424c905a5675",
+      "x": 2,
+      "y": 5,
+      "config": {
+        "typeId": "data.float",
+        "name": "#",
+        "values": {
+          "value": 0.5
+        }
+      }
+    },
+    "node-3db32251-ede6-449d-965d-238e6fb26822": {
+      "id": "node-3db32251-ede6-449d-965d-238e6fb26822",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "data.float",
+        "name": "#",
+        "values": {
+          "value": 0.54
+        }
+      }
+    },
+    "node-84f5cf25-538f-4f55-9423-9c8e78114531": {
+      "id": "node-84f5cf25-538f-4f55-9423-9c8e78114531",
+      "x": 4,
+      "y": 4,
+      "config": {
+        "typeId": "logic.latch",
+        "name": "#",
+        "values": {},
+        "initMode": "manual",
+        "mode": "midi"
+      }
+    },
+    "node-9d8f0cbd-627f-47f4-915e-f8b53b63418a": {
+      "id": "node-9d8f0cbd-627f-47f4-915e-f8b53b63418a",
+      "x": 2,
+      "y": 4,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 86
+        },
+        "pitch": 60,
+        "velocity": 1,
+        "trigger": 0
+      }
+    },
+    "node-4376ef37-c988-4673-8143-ce0b440f5d8b": {
+      "id": "node-4376ef37-c988-4673-8143-ce0b440f5d8b",
+      "x": 4,
+      "y": 3,
+      "config": {
+        "typeId": "logic.latch",
+        "name": "#",
+        "values": {},
+        "initMode": "manual",
+        "mode": "midi"
+      }
+    }
+  },
+  "connections": {
+    "conn-7bcf62c2-abb0-4e8b-8a7f-2ee08df81bb5": {
+      "id": "conn-7bcf62c2-abb0-4e8b-8a7f-2ee08df81bb5",
+      "fromNodeId": "node-6fc5f28d-3e99-4b68-91d8-424c905a5675",
+      "fromPort": "value",
+      "toNodeId": "node-84f5cf25-538f-4f55-9423-9c8e78114531",
+      "toPort": "init"
+    },
+    "conn-329827ce-0afd-4525-a5ea-269acfa34db7": {
+      "id": "conn-329827ce-0afd-4525-a5ea-269acfa34db7",
+      "fromNodeId": "node-84f5cf25-538f-4f55-9423-9c8e78114531",
+      "fromPort": "result",
+      "toNodeId": "node-65c1eaa4-19f4-415e-aabd-a1d9c4652e5a",
+      "toPort": "value"
+    },
+    "conn-2f436928-d1d5-4030-a7aa-565dfefb47fa": {
+      "id": "conn-2f436928-d1d5-4030-a7aa-565dfefb47fa",
+      "fromNodeId": "node-3db32251-ede6-449d-965d-238e6fb26822",
+      "fromPort": "value",
+      "toNodeId": "node-84f5cf25-538f-4f55-9423-9c8e78114531",
+      "toPort": "value"
+    },
+    "conn-b8fc1539-603c-466a-8bd6-8209bb307bb5": {
+      "id": "conn-b8fc1539-603c-466a-8bd6-8209bb307bb5",
+      "fromNodeId": "node-9d8f0cbd-627f-47f4-915e-f8b53b63418a",
+      "fromPort": "stream",
+      "toNodeId": "node-84f5cf25-538f-4f55-9423-9c8e78114531",
+      "toPort": "condition"
+    }
+  },
+  "inferredNodeTypes": {}
+}
