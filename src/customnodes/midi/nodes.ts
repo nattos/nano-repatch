@@ -9,3 +9,5 @@ export * from './midi-merge';
 export * from './midi-select';
 export * from './midi-on-change';
 export * from './midi-on-range';
+export * from './midi-delay';
+export * from './midi-istrigger';

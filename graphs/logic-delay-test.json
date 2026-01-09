@@ -82,6 +82,16 @@
         "initMode": "manual",
         "mode": "midi"
       }
+    },
+    "node-78cf247e-5322-4418-a63b-2166257ad407": {
+      "id": "node-78cf247e-5322-4418-a63b-2166257ad407",
+      "x": 4,
+      "y": 6,
+      "config": {
+        "typeId": "midi.to_mono",
+        "name": "#",
+        "values": {}
+      }
     }
   },
   "connections": {

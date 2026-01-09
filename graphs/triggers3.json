@@ -1,0 +1,93 @@
+{
+  "nodes": {
+    "node-c5cf8fd4-7bd1-4936-86e3-cd334cf0e4e2": {
+      "id": "node-c5cf8fd4-7bd1-4936-86e3-cd334cf0e4e2",
+      "x": 2,
+      "y": 2,
+      "config": {
+        "typeId": "midi.delay",
+        "name": "#",
+        "values": {
+          "duration": 0.31
+        },
+        "mode": "time"
+      }
+    },
+    "node-db4944a3-1ced-4a41-8509-e05a3b914b12": {
+      "id": "node-db4944a3-1ced-4a41-8509-e05a3b914b12",
+      "x": 0,
+      "y": 2,
+      "config": {
+        "typeId": "seq.tomidi",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-2c87d237-525d-4437-a000-04d9815be523": {
+      "id": "node-2c87d237-525d-4437-a000-04d9815be523",
+      "x": 0,
+      "y": 1,
+      "config": {
+        "typeId": "nicepattern.chaos_generator",
+        "name": "#",
+        "values": {
+          "density": 0.42
+        },
+        "minNote": 0,
+        "maxNote": 0,
+        "seed": 0
+      }
+    },
+    "node-abf0be9e-0fe9-4fc3-9f76-265e1df5ff4a": {
+      "id": "node-abf0be9e-0fe9-4fc3-9f76-265e1df5ff4a",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "midi.istrigger",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-e90bb389-6ade-48af-b3db-b7888339c755": {
+      "id": "node-e90bb389-6ade-48af-b3db-b7888339c755",
+      "x": 3,
+      "y": 3,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
+      }
+    }
+  },
+  "connections": {
+    "conn-c6e9c315-2479-4a18-98ac-3e2f2e199296": {
+      "id": "conn-c6e9c315-2479-4a18-98ac-3e2f2e199296",
+      "fromNodeId": "node-2c87d237-525d-4437-a000-04d9815be523",
+      "fromPort": "seq_out",
+      "toNodeId": "node-db4944a3-1ced-4a41-8509-e05a3b914b12",
+      "toPort": "seq_in"
+    },
+    "conn-02279c92-aece-4dc7-8e7d-54bf90348395": {
+      "id": "conn-02279c92-aece-4dc7-8e7d-54bf90348395",
+      "fromNodeId": "node-db4944a3-1ced-4a41-8509-e05a3b914b12",
+      "fromPort": "midi_out",
+      "toNodeId": "node-c5cf8fd4-7bd1-4936-86e3-cd334cf0e4e2",
+      "toPort": "stream"
+    },
+    "conn-4db9f912-ba5f-421b-9710-94a91c29085f": {
+      "id": "conn-4db9f912-ba5f-421b-9710-94a91c29085f",
+      "fromNodeId": "node-db4944a3-1ced-4a41-8509-e05a3b914b12",
+      "fromPort": "midi_out",
+      "toNodeId": "node-abf0be9e-0fe9-4fc3-9f76-265e1df5ff4a",
+      "toPort": "stream"
+    },
+    "conn-9401a9d1-8812-478e-8625-947885b69a37": {
+      "id": "conn-9401a9d1-8812-478e-8625-947885b69a37",
+      "fromNodeId": "node-abf0be9e-0fe9-4fc3-9f76-265e1df5ff4a",
+      "fromPort": "result",
+      "toNodeId": "node-e90bb389-6ade-48af-b3db-b7888339c755",
+      "toPort": "value"
+    }
+  },
+  "inferredNodeTypes": {}
+}

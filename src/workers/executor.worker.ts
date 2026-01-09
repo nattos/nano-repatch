@@ -193,6 +193,7 @@ function runTick() {
     executor.update({
       clock: { beat: clock.beat, dt },
       audio: { context: virtualAudioContext },
+      time: virtualAudioContext.currentTime,
       midi: { values: workerMidiValues, events: workerMidiEvents },
       resolume: resolumeManager
     });

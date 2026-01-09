@@ -5,6 +5,13 @@ export const stringType = defineType({ kind: "atomic", type: "string" } as const
 export const booleanType = defineType({ kind: "atomic", type: "boolean" } as const);
 export const anyType = defineType({ kind: "atomic", type: "any" } as const);
 
+export const timeBaseEnum = defineType({
+  kind: "atomic",
+  type: "string",
+  options: ["time", "beats"],
+  defaultValue: "time"
+} as const);
+
 export const midiEventType = defineType({
   kind: "record",
   fields: {
