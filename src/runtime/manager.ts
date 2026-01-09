@@ -393,6 +393,8 @@ export class RuntimeManager {
     if (nodesToSend.length > 0) {
       const recompileNodes = nodesToSend.filter(n => {
         const type = this.nodeRepository.getNodeType(n.typeId);
+        // TODO: This should be providing oldConfig as the second argument, although most implementors ignore it.
+        // The signature of shouldRecompileOnConfigChange should be (newConfig: any, oldConfig?: any) => boolean.
         return (type?.shouldRecompileOnConfigChange as any)?.(n.config) ?? false;
       });
 

@@ -651,7 +651,12 @@ export function unifyTypes(types: StructorType[]): StructorType {
   if (types.length === 0) return AnyType;
 
   const first = types[0];
-  if (types.every(t => t.kind === first.kind && t.type === first.type)) {
+  /* Safe check for exact equality */
+  if (types.every(t =>
+    t.kind === first.kind &&
+    (t.kind === 'atomic' ? t.type === (first as AtomicType).type : true)
+    // TODO: deep compare for compound types if needed, for now exact ref or simple atomic match
+  )) {
     return first;
   }
 

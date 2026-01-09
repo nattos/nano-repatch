@@ -1,5 +1,5 @@
 import { definePrimitiveNode, NumberType, AnyType, typedBroadcast, TypedBroadcastSchema, unifyTypes } from '../type-helpers';
-import { NodeCategory, StructorType } from '../structor';
+import { NodeCategory, StructorType, Structor, StructorRecord } from '../structor';
 import { numberType } from '../std-types';
 import { registerNode } from '../node-helpers';
 
@@ -29,9 +29,10 @@ export const logic_select = definePrimitiveNode({
   autoBroadcast: false,
   // User says: "The default type for these input ports should be 'float / number'"
 
-  computeForwardPorts: (inputTypes, config, context) => {
-    const count = (config.count as number) || 2;
-    const mode = (config.mode as string) || 'value';
+  computeForwardPorts: (inputTypes, config: Structor, context) => {
+    const configObj = (config as StructorRecord).fields;
+    const count = (configObj.count as number) || 2;
+    const mode = (configObj.mode as string) || 'value';
 
     // Base inputs
     const inputs: any = {
@@ -44,15 +45,15 @@ export const logic_select = definePrimitiveNode({
       if (mode === 'range') {
         const portName = `val_${i}`;
         inputs[portName] = { ...numberType, description: `Case ${i + 1} Value` };
-        if (inputTypes.fields[portName]) valueTypes.push(inputTypes.fields[portName]);
+        if (inputTypes.fields && inputTypes.fields[portName]) valueTypes.push(inputTypes.fields[portName]);
       } else if (mode === 'value') {
         inputs[`match_${i}`] = { ...numberType, description: `Case ${i + 1} Match` };
         inputs[`val_${i}`] = { ...numberType, description: `Case ${i + 1} Value` };
-        if (inputTypes.fields[`val_${i}`]) valueTypes.push(inputTypes.fields[`val_${i}`]);
+        if (inputTypes.fields && inputTypes.fields[`val_${i}`]) valueTypes.push(inputTypes.fields[`val_${i}`]);
       } else if (mode === 'zone') {
         inputs[`threshold_${i}`] = { ...numberType, description: `Case ${i + 1} Threshold` };
         inputs[`val_${i}`] = { ...numberType, description: `Case ${i + 1} Value` };
-        if (inputTypes.fields[`val_${i}`]) valueTypes.push(inputTypes.fields[`val_${i}`]);
+        if (inputTypes.fields && inputTypes.fields[`val_${i}`]) valueTypes.push(inputTypes.fields[`val_${i}`]);
       }
     }
 
@@ -66,19 +67,24 @@ export const logic_select = definePrimitiveNode({
 
   compileConfig: (uiConfig) => {
     return {
-      count: uiConfig.count ?? 2,
-      mode: uiConfig.mode ?? 'value',
-      base: uiConfig.base ?? 0,
-      step: uiConfig.step ?? 1,
+      fields: {
+        count: uiConfig.count || 2,
+        mode: uiConfig.mode || 'value',
+        base: uiConfig.base || 0,
+        step: uiConfig.step || 1
+      }
     };
   },
 
   shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
-    return newConfig.count !== oldConfig?.count || newConfig.mode !== oldConfig?.mode;
+    const n = newConfig as any;
+    const o = oldConfig as any;
+    return n.count !== o?.count || n.mode !== o?.mode;
   },
 
   execute: (rawInputs, config, context) => {
     // Manually reconstruct schema for dynamic inputs
+    // config here is the Unwrapped Structor (InferRecord -> { count: number, ... })
     const count = config.count ?? 2;
     const mode = config.mode ?? 'value';
     const base = config.base ?? 0;
@@ -165,23 +171,23 @@ registerNode({
   ui: {
     inspector: {
       fields: [
-        { type: 'number', label: 'Count', path: 'count', min: 1, max: 32, step: 1, default: 2 },
+        { type: 'number' as const, label: 'Count', path: 'count', min: 2, max: 32, step: 1, default: 2 },
         {
-          type: 'tab-bar', label: 'Mode', path: 'mode', default: 'value',
+          type: 'tab-bar' as const, label: 'Mode', path: 'mode', default: 'value',
           options: [
-            { label: 'Value Match', value: 'value' },
-            { label: 'Linear Range', value: 'range' },
-            { label: 'Zone / Threshold', value: 'zone' }
+            { label: 'Value (Match)', value: 'value' },
+            { label: 'Range (Index)', value: 'range' },
+            { label: 'Zone (Threshold)', value: 'zone' }
           ]
         },
         {
-          type: 'number', label: 'Range Base', path: 'base', default: 0,
+          type: 'number' as const, label: 'Base Index', path: 'base', step: 1, default: 0,
           visible: (cfg: any) => cfg.mode === 'range'
-        },
+        }, // For range mode
         {
-          type: 'number', label: 'Range Step', path: 'step', default: 1,
+          type: 'number' as const, label: 'Step Size', path: 'step', step: 1, default: 1,
           visible: (cfg: any) => cfg.mode === 'range'
-        }
+        }   // For range mode
       ]
     }
   }

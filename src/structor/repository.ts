@@ -97,6 +97,7 @@ export interface NodeType {
 
   /**
    * Whether structural changes in the node's config (affecting ports) require a full graph compilation.
+   * TODO: The signature should be ((newConfig: any, oldConfig?: any) => boolean).
    */
   shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
 

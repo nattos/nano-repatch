@@ -1,5 +1,5 @@
 import { definePrimitiveNode, AnyType, unifyTypes } from '../type-helpers';
-import { NodeCategory, StructorType } from '../structor';
+import { NodeCategory, StructorType, Structor, StructorRecord } from '../structor';
 import { midiStreamType } from '../std-types';
 import { registerNode } from '../node-helpers';
 import { detectTriggerMode, shouldTrigger, TriggerMode } from '../trigger-helpers';
@@ -37,17 +37,18 @@ export const logic_latch = definePrimitiveNode({
 
   createState: () => ({ currentValue: undefined, initialized: false }),
 
-  computeForwardPorts: (inputTypes, config, context) => {
-    const rawConfig = config as any;
+  computeForwardPorts: (inputTypes, config: Structor, context) => {
+    // Lifecycle methods receive the raw stored Structor (Wrapped)
+    const rawConfig = (config as StructorRecord).fields;
     const initMode = rawConfig.initMode || 'auto';
 
     // Detect Trigger Mode
-    const conditionType = inputTypes.fields.condition;
+    const conditionType = (inputTypes.fields || inputTypes).condition;
     const triggerMode = detectTriggerMode(conditionType);
 
     // Value Type
-    const valueType = inputTypes.fields.value || AnyType;
-    let initType = inputTypes.fields.init || AnyType;
+    const valueType = (inputTypes.fields || inputTypes).value || AnyType;
+    let initType = (inputTypes.fields || inputTypes).init || AnyType;
 
     // If auto init, init type is not relevant (hidden), but effectively same as value
     if (initMode === 'auto') {
@@ -75,37 +76,31 @@ export const logic_latch = definePrimitiveNode({
 
   compileConfig: (uiConfig: any, metadata: any) => {
     return {
-      initMode: uiConfig.initMode || 'auto',
-      mode: metadata?.mode || 'midi'
+      fields: {
+        initMode: uiConfig.initMode || 'auto',
+        mode: metadata?.mode || 'midi'
+      }
     };
   },
 
   shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
-    return newConfig.initMode !== oldConfig?.initMode;
+    // Lifecycle methods receive the UI Config (Unwrapped)
+    const n = newConfig as any;
+    const o = oldConfig as any;
+    return n.initMode !== o?.initMode;
   },
 
   execute: (inputs: any, config: any, context, state: LatchState) => {
-    // Note: inputs here are RAW StructorRecords because autoBroadcast=false (default if not set, or set to false in logic.select)
-    // Wait, definePrimitiveNode default autoBroadcast is? Undefined.
-    // If I want raw inputs I should assume autoBroadcast is not active.
-
-    // Unwrap inputs manually? Or set inputs: {} in definePrimitiveNode to avoid auto-unwrap?
-    // See logic.select lesson. To act on raw inputs (streams), better to have dynamic inputs or empty static inputs if we want raw.
-    // Here we declared static inputs.
-    // However, if we want "shouldTrigger" to work on the stream, we NEED the stream.
-    // If autoBroadcast is true, we get scalars (broken for streams).
-    // So we must ensure autoBroadcast is false.
-    // And ideally use 'fields' wrapping like logic.select if we want typedBroadcast.
-    // But here we just want to read values.
+    // execute receives the Unwrapped/Marshalled config (fromStructor)
 
     // Inputs: fields.condition, fields.value, fields.init
-
     const condition = inputs.condition;
     const value = inputs.value;
     const init = inputs.init;
 
-    const mode = (config as any).mode || 'midi';
-    const initMode = (config as any).initMode || 'auto';
+    // Config is already unwrapped
+    const mode = config.mode || 'midi';
+    const initMode = config.initMode || 'auto';
 
     if (shouldTrigger(condition, mode as TriggerMode)) {
       state.currentValue = value;
@@ -172,7 +167,7 @@ registerNode({
     inspector: {
       fields: [
         {
-          type: 'tab-bar', label: 'Init Mode', path: 'initMode', default: 'auto',
+          type: 'tab-bar' as const, label: 'Init Mode', path: 'initMode', default: 'auto',
           options: [
             { label: 'Auto (Use Value)', value: 'auto' },
             { label: 'Manual', value: 'manual' }

@@ -21,15 +21,14 @@ import type { GridNode } from '../builder/state';
 // --- Enhanced Node Definition ---
 
 export type InspectorFieldDef =
-  | { type: 'string'; label: string; path: string; placeholder?: string; default?: string }
-  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number; default?: number }
-  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number; default?: number }
-  | { type: 'boolean'; label: string; path: string; default?: boolean }
-  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
-  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
-  | { type: 'structor-type'; label: string; path: string; default?: UIConfigStructorType }
-  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any }
-  | { type: 'button'; label: string; path: string; text?: string };
+  | { type: 'string'; label: string; path: string; placeholder?: string; default?: string; visible?: (config: any) => boolean }
+  | { type: 'number'; label: string; path: string; min?: number; max?: number; step?: number; default?: number; visible?: (config: any) => boolean }
+  | { type: 'slider'; label: string; path: string; min: number; max: number; step?: number; default?: number; visible?: (config: any) => boolean }
+  | { type: 'boolean'; label: string; path: string; default?: boolean; visible?: (config: any) => boolean }
+  | { type: 'select'; label: string; path: string; options: { label: string; value: any }[]; default?: any; visible?: (config: any) => boolean }
+  | { type: 'structor-type'; label: string; path: string; default?: UIConfigStructorType; visible?: (config: any) => boolean }
+  | { type: 'tab-bar'; label: string; path: string; options: { label: string; value: any }[]; default?: any; visible?: (config: any) => boolean }
+  | { type: 'button'; label: string; path: string; text?: string; visible?: (config: any) => boolean };
 
 export interface GenericInspector {
   fields: InspectorFieldDef[];

@@ -1,5 +1,5 @@
 import { definePrimitiveNode, AnyType, unifyTypes } from '../type-helpers';
-import { NodeCategory, StructorType } from '../structor';
+import { NodeCategory, StructorType, Structor, StructorRecord } from '../structor';
 import { registerNode } from '../node-helpers';
 
 interface DelayState {
@@ -28,13 +28,13 @@ export const logic_delay = definePrimitiveNode({
 
   createState: () => ({ storedValue: undefined, initialized: false }),
 
-  computeForwardPorts: (inputTypes, config, context) => {
-    const rawConfig = config as any;
+  computeForwardPorts: (inputTypes, config: Structor, context) => {
+    const rawConfig = (config as StructorRecord).fields;
     const initMode = rawConfig.initMode || 'auto';
 
     // Value Type
-    const valueType = inputTypes.fields.value || AnyType;
-    let initType = inputTypes.fields.init || AnyType;
+    const valueType = (inputTypes.fields || inputTypes).value || AnyType;
+    let initType = (inputTypes.fields || inputTypes).init || AnyType;
 
     // If auto init, init type is not relevant (hidden), but effectively same as value
     if (initMode === 'auto') {
@@ -63,18 +63,22 @@ export const logic_delay = definePrimitiveNode({
 
   compileConfig: (uiConfig: any, metadata: any) => {
     return {
-      initMode: uiConfig.initMode || 'auto'
+      fields: {
+        initMode: uiConfig.initMode || 'auto'
+      }
     };
   },
 
   shouldRecompileOnConfigChange: (newConfig, oldConfig) => {
-    return newConfig.initMode !== oldConfig?.initMode;
+    const n = newConfig as any;
+    const o = oldConfig as any;
+    return n.initMode !== o?.initMode;
   },
 
-  execute: (inputs: any, config: any, context, state: DelayState) => {
+  execute: (inputs, config, context, state: DelayState) => {
     const value = inputs.value;
     const init = inputs.init;
-    const initMode = (config as any).initMode || 'auto';
+    const initMode = config.initMode || 'auto';
 
     let result;
 
@@ -109,7 +113,7 @@ registerNode({
     inspector: {
       fields: [
         {
-          type: 'tab-bar', label: 'Init Mode', path: 'initMode', default: 'auto',
+          type: 'tab-bar' as const, label: 'Init Mode', path: 'initMode', default: 'auto',
           options: [
             { label: 'Auto (Use Value)', value: 'auto' },
             { label: 'Manual', value: 'manual' }
