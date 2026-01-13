@@ -1,6 +1,6 @@
 import createAudioToClockWasm, { WasmInstance } from './wasm/audio_to_clock_wasm';
 import { IAudioToClock, AudioToClockConfig, IAudioToClockConstructor, DebugUpdates } from './schema';
-import { OperationQueue } from './utils';
+import { OperationQueue } from '../utils/utils';
 
 class AudioToClockWasm implements IAudioToClock {
   private readonly config: AudioToClockConfig;
