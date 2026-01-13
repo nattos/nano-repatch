@@ -21,6 +21,7 @@ import {
 } from '../workers/types';
 import { AudioRenderer } from '../audio/audio-renderer';
 import { midiManager } from '../io/midi/manager';
+import { BeatSyncManager } from './beat-sync-manager';
 
 const FRAME_RATE = 60;
 
@@ -47,11 +48,13 @@ export class RuntimeManager {
   private compilerWorker: Worker;
   private executorWorker: Worker;
   private audioRenderer = new AudioRenderer();
+  public beatSyncManager: BeatSyncManager;
 
   constructor(
     private appController: AppController,
     private localController: LocalController
   ) {
+    this.beatSyncManager = new BeatSyncManager(localController);
     makeObservable(this);
 
     // Initialize Workers

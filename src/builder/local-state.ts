@@ -47,6 +47,7 @@ export interface LocalSettings {
   activeTab: string | null;
   enableResolumeIO: boolean;
   areRegionsExpanded: boolean;
+  beatSyncAudioDeviceId: string | null;
 }
 
 export interface Selectable {
@@ -116,6 +117,7 @@ export class LocalController {
         activeTab: null,
         enableResolumeIO: false,
         areRegionsExpanded: true, // Default to expanded
+        beatSyncAudioDeviceId: null,
       },
       // Interaction State
       isDraggingSelection: false,
@@ -262,7 +264,7 @@ export class LocalController {
 
   }
 
-  private saveSettings() {
+  public saveSettings() {
     settingsManager.saveSettings(toJS(this.observableState.localSettings));
   }
 

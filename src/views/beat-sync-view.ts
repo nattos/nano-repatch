@@ -1,10 +1,10 @@
 
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
-import { customElement, state, query } from 'lit/decorators.js';
+import { customElement, query } from 'lit/decorators.js';
 import { BeatSyncVisualizer } from './beat-sync/visualizer';
-import { AudioToClockRunner } from '../beatsync/audio_to_clock_runner';
 import { globalStyles } from '../styles';
+import { runtimeManager } from '../builder/controllers';
 
 @customElement('beat-sync-view')
 export class BeatSyncView extends MobxLitElement {
@@ -21,6 +21,7 @@ export class BeatSyncView extends MobxLitElement {
         overflow-y: auto;
         overflow-x: hidden;
       }
+
 
       .header {
         padding: 20px;
@@ -182,26 +183,7 @@ export class BeatSyncView extends MobxLitElement {
   @query('#bpmGraph') private bpmGraphCanvas!: HTMLCanvasElement;
   @query('#phaseGraph') private phaseGraphCanvas!: HTMLCanvasElement;
 
-  @state() private loadingMessage = 'Initializing...';
-  @state() private predictedBpm: number = 0;
-  @state() private bestBpm: number = 0;
-  @state() private bestBarPhase: number = 0;
-  @state() private externalBpm: number = 0;
-  @state() private audioDevices: MediaDeviceInfo[] = [];
-  @state() private isMicActive = false;
-  @state() private selectedDeviceId: string | null = null;
-  @state() private overallConfidence: number = 0;
-  @state() private bestTrajectoryWeight: number = 0;
-  @state() private bpmVariance: number = 0;
-
-  private audioContext?: AudioContext;
-  private mainAudioBuffer?: AudioBuffer;
-  private audioCaptureNode: ScriptProcessorNode | null = null;
-  private micSource: MediaStreamAudioSourceNode | null = null;
-  private micStream: MediaStream | null = null;
-  private rollingWaveformBuffer: Float32Array | null = null;
   private animationFrameId: number | null = null;
-  private audioToClock?: AudioToClockRunner;
   private visualizer!: BeatSyncVisualizer;
 
   async firstUpdated() {
@@ -216,231 +198,93 @@ export class BeatSyncView extends MobxLitElement {
       phaseGraphCanvas: this.phaseGraphCanvas,
     });
 
-    this.loadingMessage = 'Loading models...';
-    // Use proper paths for models relative to public assets
-    this.audioToClock = new AudioToClockRunner({
-      featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
-      bpmPhaseModelUrl: 'models/mel25/main_model_fp32.onnx',
-
-      exportAllDebugData: true,
-
-      onStatusUpdated: (status) => {
-        this.loadingMessage = status.message;
-      },
-      onExternalClockAdjusted: (changes) => {
-        if (changes.bpm) {
-          this.externalBpm = changes.bpm;
-        }
-      },
-      onDebugDataExported: (updates) => {
-        if (updates.inference) {
-          this.predictedBpm = updates.inference.bpm;
-          this.visualizer.updateInference(updates.inference);
-        }
-        if (updates.stabilizer) {
-          this.visualizer.updateStabilizer(updates.stabilizer);
-          const bestTraj = updates.stabilizer.bestTrajectory;
-          if (bestTraj) {
-            this.bestBpm = bestTraj.bpm;
-            this.bestBarPhase = bestTraj.barPhase;
-          }
-          this.overallConfidence = updates.stabilizer.overallConfidence;
-          this.bpmVariance = updates.stabilizer.bpmVariance;
-          this.bestTrajectoryWeight = bestTraj ? bestTraj.weight : 0;
-        }
-        if (updates.externalClock) {
-          this.visualizer.updateExternalClock(updates.externalClock);
-        }
-        if (updates.externalClockEvent) {
-          this.visualizer.addExternalClockHistory(updates.externalClockEvent);
-        }
-      },
-    });
-
-    this.audioContext = new AudioContext();
-    this.visualizer.setAudioContext(this.audioContext);
-
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      this.audioDevices = devices.filter(d => d.kind === 'audioinput' && d.deviceId);
-      if (this.audioDevices.length > 0) {
-        // Don't auto-select, let user choose to start
-      }
-    } catch (e) {
-      console.error("Error enumerating devices", e);
-    }
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.handleStopMic();
-    this.audioContext?.close();
-  }
-
-  private setupAudioGraph(sourceElement: MediaStream) {
-    if (!this.audioContext) return;
-
-    if (this.audioCaptureNode) {
-      this.audioCaptureNode.disconnect();
-    }
-    if (this.micSource) {
-      this.micSource.disconnect();
-    }
-
-    this.micSource = this.audioContext.createMediaStreamSource(sourceElement);
-    const source = this.micSource;
-
-    this.audioCaptureNode = this.audioContext.createScriptProcessor(1024, 1, 1);
-
-    this.audioCaptureNode.onaudioprocess = (audioProcessingEvent) => {
-      if (!this.isMicActive) {
-        return;
-      }
-      const inputBuffer = audioProcessingEvent.inputBuffer;
-      const channelData = [];
-      for (let i = 0; i < inputBuffer.numberOfChannels; i++) {
-        channelData.push(inputBuffer.getChannelData(i));
-      }
-      this.audioToClock?.addAudio(channelData, this.audioContext?.currentTime ?? 0.0, this.audioContext?.sampleRate ?? 0);
-
-      const inputData = inputBuffer.getChannelData(0);
-      if (!this.rollingWaveformBuffer) {
-        this.rollingWaveformBuffer = new Float32Array(this.audioContext?.sampleRate ?? 44100); // 1 second buffer
-      }
-      const bufferLength = this.rollingWaveformBuffer.length;
-      const newLength = inputData.length;
-      this.rollingWaveformBuffer.copyWithin(0, newLength);
-      this.rollingWaveformBuffer.set(inputData, bufferLength - newLength);
-      this.visualizer.updateRollingWaveform(this.rollingWaveformBuffer);
-    };
-
-    source.connect(this.audioCaptureNode);
-    this.audioCaptureNode.connect(this.audioContext.destination);
-  }
-
-  private animationLoop() {
-    if (!this.isMicActive) {
-      return;
-    }
-    this.visualizer.updateVisualizations(this.bestBpm, this.overallConfidence, this.bestTrajectoryWeight);
-    this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
-  }
-
-  private async selectDevice(deviceId: string) {
-    if (this.selectedDeviceId === deviceId && this.isMicActive) {
-      await this.handleStopMic();
-      this.selectedDeviceId = null;
-      return;
-    }
-
-    // Stop current if any
-    if (this.isMicActive) {
-      await this.handleStopMic();
-    }
-
-    this.selectedDeviceId = deviceId;
-    await this.handleStartMic(deviceId);
-  }
-
-  private async requestPermissions() {
-    try {
-      // Requesting generic audio access to trigger permission prompt
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Once granted, stop the stream immediately
-      stream.getTracks().forEach(t => t.stop());
-
-      // Re-enumerate devices
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      this.audioDevices = devices.filter(d => d.kind === 'audioinput' && d.deviceId);
-    } catch (err) {
-      console.error('Permission denied or error:', err);
-      this.loadingMessage = 'Permission denied. Please allow microphone access.';
-    }
-  }
-
-  private async handleStartMic(deviceId: string) {
-    if (this.audioContext?.state === 'suspended') {
-      await this.audioContext.resume();
-    }
-
-    try {
-      // Try exact constraint first
-      const constraints = { audio: { deviceId: { exact: deviceId } } };
-      this.micStream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (err) {
-      console.warn('Exact deviceId constraint failed, trying ideal...', err);
-      try {
-        // Fallback to ideal constraint
-        const constraints = { audio: { deviceId: deviceId } };
-        this.micStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (retryErr) {
-        console.error('Error accessing microphone:', retryErr);
-        this.loadingMessage = 'Error accessing microphone.';
-        return;
-      }
-    }
-
-    this.isMicActive = true;
-    this.setupAudioGraph(this.micStream);
     if (this.animationFrameId === null) {
       this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
     }
   }
 
-  private async handleStopMic() {
-    this.micStream?.getTracks().forEach(track => track.stop());
-    this.isMicActive = false;
-    this.micSource?.disconnect();
-    this.micStream = null;
-    this.micSource = null;
-    this.rollingWaveformBuffer = null;
+  connectedCallback() {
+    super.connectedCallback();
+    runtimeManager.beatSyncManager.setDebugDataEnabled(true);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    runtimeManager.beatSyncManager.setDebugDataEnabled(false);
 
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    // Clear the waveform
-    const ctx = this.mainWaveformCanvas?.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, this.mainWaveformCanvas.width, this.mainWaveformCanvas.height);
+  }
+
+  private animationLoop() {
+    const manager = runtimeManager.beatSyncManager;
+
+    if (!this.visualizer.hasAudioContext && manager.audioContextInstance) {
+      this.visualizer.setAudioContext(manager.audioContextInstance);
     }
+
+    // Sync visualizer with Manager
+    if (manager.lastInferenceUpdate) {
+      this.visualizer.updateInference(manager.lastInferenceUpdate);
+    }
+    if (manager.lastStabilizerUpdate) {
+      this.visualizer.updateStabilizer(manager.lastStabilizerUpdate);
+    }
+    if (manager.lastExternalClockUpdate) {
+      this.visualizer.updateExternalClock(manager.lastExternalClockUpdate);
+    }
+    if (manager.lastExternalClockEvent) {
+      this.visualizer.addExternalClockHistory(manager.lastExternalClockEvent);
+    }
+    if (manager.rollingWaveformBuffer) {
+      this.visualizer.updateRollingWaveform(manager.rollingWaveformBuffer);
+    }
+
+    this.visualizer.updateVisualizations(manager.bestBpm, manager.overallConfidence, manager.bestTrajectoryWeight);
+    this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
   }
 
   render() {
+    const manager = runtimeManager.beatSyncManager;
+    const { audioDevices, selectedDeviceId, isMicActive, loadingMessage,
+      externalBpm, bestBpm, bestBarPhase, predictedBpm, overallConfidence, bpmVariance, bestTrajectoryWeight } = manager;
+
     return html`
       <div class="header">
         <div class="title">Beat Synchronization</div>
         <div>Select Input Device</div>
         <div class="device-selector">
-          ${this.audioDevices.map(device => html`
+          ${audioDevices.map(device => html`
             <div
-              class="chip ${this.selectedDeviceId === device.deviceId && this.isMicActive ? 'selected' : ''}"
-              @click=${() => this.selectDevice(device.deviceId)}
+              class="chip ${selectedDeviceId === device.deviceId && isMicActive ? 'selected' : ''}"
+              @click=${() => manager.startMic(device.deviceId)}
             >
-              <i class="la ${this.selectedDeviceId === device.deviceId && this.isMicActive ? 'la-microphone' : 'la-microphone-slash'}"></i>
+              <i class="la ${selectedDeviceId === device.deviceId && isMicActive ? 'la-microphone' : 'la-microphone-slash'}"></i>
               ${device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
             </div>
           `)}
-          ${this.audioDevices.length === 0 ? html`
-            <div class="chip" @click=${this.requestPermissions}>
+          ${audioDevices.length === 0 ? html`
+            <div class="chip" @click=${() => manager.requestPermissions()}>
               <i class="la la-unlock"></i> Request Microphone Access
             </div>
             <div>No Audio Inputs Found</div>
           ` : ''}
         </div>
-        <div class="status-message">${this.loadingMessage}</div>
+        <div class="status-message">${loadingMessage}</div>
       </div>
 
       <div class="content">
         <div class="viz-container">
             <div class="viz-text-summaries">
-                <div><b>SEND BPM:</b> ${this.externalBpm.toFixed(1)}</div>
-                <div><b>Best BPM:</b> ${this.bestBpm.toFixed(1)}</div>
-                <div><b>Bar Phase:</b> ${this.bestBarPhase.toFixed(1)}</div>
-                <div><b>Raw BPM:</b> ${this.predictedBpm.toFixed(1)}</div>
-                <div><b>Confidence:</b> ${this.overallConfidence.toFixed(2)}</div>
-                <div><b>BPM Variance:</b> ${this.bpmVariance.toFixed(2)}</div>
-                <div><b>Traj. Weight:</b> ${this.bestTrajectoryWeight.toFixed(2)}</div>
+                <div><b>SEND BPM:</b> ${externalBpm.toFixed(1)}</div>
+                <div><b>Best BPM:</b> ${bestBpm.toFixed(1)}</div>
+                <div><b>Bar Phase:</b> ${bestBarPhase.toFixed(1)}</div>
+                <div><b>Raw BPM:</b> ${predictedBpm.toFixed(1)}</div>
+                <div><b>Confidence:</b> ${overallConfidence.toFixed(2)}</div>
+                <div><b>BPM Variance:</b> ${bpmVariance.toFixed(2)}</div>
+                <div><b>Traj. Weight:</b> ${bestTrajectoryWeight.toFixed(2)}</div>
             </div>
 
             <div class="viz-column">
@@ -459,7 +303,7 @@ export class BeatSyncView extends MobxLitElement {
 
         <div class="graph-container">
             <label class="graph-label top right">${(this.visualizer?.bpmGraphCenterBpm + 3.0).toFixed(1)}</label>
-            <label class="graph-label middle right">${this.externalBpm.toFixed(1)}</label>
+            <label class="graph-label middle right">${externalBpm.toFixed(1)}</label>
             <label class="graph-label bottom right">${(this.visualizer?.bpmGraphCenterBpm - 3.0).toFixed(1)}</label>
             <canvas id="bpmGraph" class="large-graph" width="800" height="100"></canvas>
             <label>BPM Predictions</label>

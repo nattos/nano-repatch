@@ -57,6 +57,10 @@ export class BeatSyncVisualizer {
     return this.bpmGraphPrevBpmCenter;
   }
 
+  get hasAudioContext() {
+    return !!this.audioContext;
+  }
+
   constructor(canvases: VisualizerCanvases, audioContext?: AudioContext) {
     this.canvases = canvases;
     this.audioContext = audioContext;
