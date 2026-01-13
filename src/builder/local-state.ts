@@ -49,6 +49,7 @@ export interface LocalSettings {
   beatSyncResolumeControlEnabled: boolean;
   areRegionsExpanded: boolean;
   beatSyncAudioDeviceId: string | null;
+  beatSyncHardSyncEnabled: boolean;
 }
 
 export interface Selectable {
@@ -120,6 +121,7 @@ export class LocalController {
         beatSyncResolumeControlEnabled: false,
         areRegionsExpanded: true, // Default to expanded
         beatSyncAudioDeviceId: null,
+        beatSyncHardSyncEnabled: false,
       },
       // Interaction State
       isDraggingSelection: false,

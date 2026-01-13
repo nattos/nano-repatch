@@ -19,7 +19,6 @@ export class BeatSyncManager {
   @observable debugDataEnabled = false;
 
   @observable displayQuantizedBeat: number = 0;
-  @observable isHardSync: boolean = false;
 
   @observable.ref lastInferenceUpdate: InferenceManagerDebugData | null = null;
   @observable.ref lastStabilizerUpdate: StabilizerDebugData | null = null;
@@ -113,9 +112,14 @@ export class BeatSyncManager {
     this.audioToClock?.setForceExportAllDebugData(enabled);
   }
 
+  public get isHardSync(): boolean {
+    return this.localController.observableState.localSettings.beatSyncHardSyncEnabled;
+  }
+
   @action
   public setHardSync(hard: boolean) {
-    this.isHardSync = hard;
+    this.localController.observableState.localSettings.beatSyncHardSyncEnabled = hard;
+    this.localController.saveSettings();
   }
 
   public resync() {
