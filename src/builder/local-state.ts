@@ -46,6 +46,7 @@ export interface LocalSettings {
   showDebugValues: boolean;
   activeTab: string | null;
   enableResolumeIO: boolean;
+  beatSyncResolumeControlEnabled: boolean;
   areRegionsExpanded: boolean;
   beatSyncAudioDeviceId: string | null;
 }
@@ -116,6 +117,7 @@ export class LocalController {
         showDebugValues: false,
         activeTab: null,
         enableResolumeIO: false,
+        beatSyncResolumeControlEnabled: false,
         areRegionsExpanded: true, // Default to expanded
         beatSyncAudioDeviceId: null,
       },

@@ -78,6 +78,12 @@ export type ResolumeControlMessage = {
   action: 'connect' | 'disconnect';
 };
 
+export type ResolumeSetValueMessage = {
+  type: 'RESOLUME_SET_VALUE';
+  path: string;
+  value: any;
+};
+
 export type MidiUpdateMessage = {
   type: 'MIDI_UPDATE';
   values: Map<string, number>;
@@ -98,6 +104,7 @@ export type ExecutorWorkerMessage =
   | MidiUpdateMessage
   | UpdateAudioStateMessage
   | ResolumeControlMessage
+  | ResolumeSetValueMessage
   | NodeMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';

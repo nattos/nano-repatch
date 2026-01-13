@@ -54,7 +54,10 @@ export class RuntimeManager {
     private appController: AppController,
     private localController: LocalController
   ) {
-    this.beatSyncManager = new BeatSyncManager(localController);
+    this.beatSyncManager = new BeatSyncManager(
+      localController,
+      (path, value) => this.sendResolumeParameter(path, value)
+    );
     makeObservable(this);
 
     // Initialize Workers
@@ -185,6 +188,15 @@ export class RuntimeManager {
     const msg: ExecutorWorkerMessage = {
       type: 'RESOLUME_CONTROL',
       action
+    };
+    this.executorWorker.postMessage(msg);
+  }
+
+  public sendResolumeParameter(path: string, value: any) {
+    const msg: ExecutorWorkerMessage = {
+      type: 'RESOLUME_SET_VALUE',
+      path,
+      value
     };
     this.executorWorker.postMessage(msg);
   }

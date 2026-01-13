@@ -281,7 +281,16 @@ export class BeatSyncView extends MobxLitElement {
           ` : ''}
         </div>
         <div class="status-message">${loadingMessage}</div>
-        <button @click=${() => this.stallMainThread()}>Stall Main Thread (2s)</button>
+        <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+           <label style="display: inline-flex; width: auto; align-items: center; gap: 5px; cursor: pointer;">
+             <input type="checkbox"
+               .checked=${manager.localControllerInstance.observableState.localSettings.beatSyncResolumeControlEnabled}
+               @change=${(e: any) => manager.setResolumeControlEnabled(e.target.checked)}
+             >
+             Control Resolume BPM/Phase
+           </label>
+           <button @click=${() => this.stallMainThread()}>Stall Main Thread (2s)</button>
+        </div>
       </div>
 
       <div class="content">

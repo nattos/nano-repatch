@@ -43,7 +43,7 @@ class AudioToClock implements IAudioToClock {
       ...config.externalClockControllerConfig,
     });
     this.externalClockController.onClockAdjusted((changes) => {
-      config.onExternalClockAdjusted?.({ bpm: changes.bpm, phase: changes.phase, timestamp: changes.timestamp });
+      config.onExternalClockAdjusted?.({ bpm: changes.bpm, phase: changes.phase, timestamp: changes.timestamp, type: changes.type });
       config.onDebugDataExported?.({ externalClock: changes.debugData, externalClockEvent: changes });
     });
     this.externalClockController.start();

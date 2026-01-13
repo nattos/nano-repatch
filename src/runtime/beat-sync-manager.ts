@@ -28,6 +28,7 @@ export class BeatSyncManager {
   @observable rollingWaveformBuffer: Float32Array | null = null;
 
   public get audioContextInstance() { return this.audioContext; }
+  public get localControllerInstance() { return this.localController; }
 
   private audioContext?: AudioContext;
   private audioCaptureNode: AudioNode | null = null;
@@ -35,7 +36,14 @@ export class BeatSyncManager {
   private micStream: MediaStream | null = null;
   private audioToClock?: AudioToClockRunner;
 
-  constructor(private localController: LocalController) {
+  // Resolume Integration
+  private pendingResolumeResync = false;
+  private lastBarPhase = 0;
+
+  constructor(
+    private localController: LocalController,
+    private onResolumeParameter?: (path: string, value: any) => void
+  ) {
     makeObservable(this);
 
     // Auto-start after delay
@@ -60,6 +68,16 @@ export class BeatSyncManager {
         runInAction(() => {
           if (changes.bpm) {
             this.externalBpm = changes.bpm;
+
+            // Send BPM to Resolume if enabled
+            if (this.localController.observableState.localSettings.beatSyncResolumeControlEnabled && this.onResolumeParameter) {
+              this.onResolumeParameter('/composition/tempocontroller/tempo', changes.bpm);
+            }
+          }
+
+          if (changes.phase !== undefined || changes.type === 'sync' || changes.type === 'nudge') {
+            // Signal a pending resync
+            this.pendingResolumeResync = true;
           }
         });
       },
@@ -90,6 +108,12 @@ export class BeatSyncManager {
   }
 
   @action
+  public setResolumeControlEnabled(enabled: boolean) {
+    this.localController.observableState.localSettings.beatSyncResolumeControlEnabled = enabled;
+    this.localController.saveSettings();
+  }
+
+  @action
   private handleDebugData(updates: DebugUpdates) {
     if (updates.inference) {
       this.predictedBpm = updates.inference.bpm;
@@ -110,6 +134,34 @@ export class BeatSyncManager {
       const now = this.audioContext?.currentTime || 0;
       const barPhase = predictBarPhase(updates.externalClock, now);
       this.displayQuantizedBeat = Math.floor(barPhase) % 4;
+
+      // Resolume Control Logic
+      if (this.localController.observableState.localSettings.beatSyncResolumeControlEnabled && this.onResolumeParameter) {
+
+        // 1. BPM Updates
+        // Only update if significantly different to avoid excessive traffic?
+        // Or just update every frame? "When we receive a BPM change in onExternalClockAdjusted" implies event-based.
+        // But here we are in debug loop.
+        // Let's rely on onExternalClockAdjusted callback below for BPM.
+
+        // 2. Resync Logic (End of Bar)
+        if (this.pendingResolumeResync) {
+          // Detect bar crossing
+          // barPhase increases. A new bar starts when floor(barPhase / 4) increments.
+          const currentBarIndex = Math.floor(barPhase / 4);
+          const lastBarIndex = Math.floor(this.lastBarPhase / 4);
+
+          if (currentBarIndex > lastBarIndex) {
+            // Trigger Resync
+            console.log(`[BeatSync] Triggering Resolume Resync at bar boundary`);
+            // Assuming '/composition/tempocontroller/resync' is the correct path for resync as well.
+            // Often Resync is a button, so sending 1 triggers it.
+            this.onResolumeParameter('/composition/tempocontroller/resync', 1);
+            this.pendingResolumeResync = false;
+          }
+        }
+        this.lastBarPhase = barPhase;
+      }
     }
     if (updates.externalClockEvent) {
       this.lastExternalClockEvent = updates.externalClockEvent;

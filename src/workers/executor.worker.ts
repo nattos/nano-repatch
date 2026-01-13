@@ -121,6 +121,10 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
       }
       break;
 
+    case 'RESOLUME_SET_VALUE':
+      resolumeManager.setValue(msg.path, msg.value);
+      break;
+
     case 'MIDI_UPDATE':
       // Update worker MIDI state
       // msg.values is a Map

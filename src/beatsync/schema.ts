@@ -26,6 +26,7 @@ export interface AudioToClockConfig {
     bpm?: number;
     phase?: number;
     timestamp: number;
+    type: string;
   }) => void;
 
   /**

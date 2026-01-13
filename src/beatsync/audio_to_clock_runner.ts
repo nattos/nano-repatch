@@ -13,6 +13,7 @@ export class AudioToClockRunner {
     bpm?: number;
     phase?: number;
     timestamp: number;
+    type: string;
   }) => void;
   private readonly onDebugDataExported?: (updates: {
     inference?: InferenceManagerDebugData;
@@ -39,6 +40,7 @@ export class AudioToClockRunner {
       bpm?: number;
       phase?: number;
       timestamp: number;
+      type: string;
     }) => void;
 
     onDebugDataExported?: (updates: {
