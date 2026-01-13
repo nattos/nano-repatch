@@ -246,6 +246,14 @@ export class BeatSyncView extends MobxLitElement {
     this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
   }
 
+  private stallMainThread() {
+    const start = performance.now();
+    while (performance.now() < start + 2000) {
+      // Blocking loop
+    }
+    console.log("Main thread stalled for 2 seconds");
+  }
+
   render() {
     const manager = runtimeManager.beatSyncManager;
     const { audioDevices, selectedDeviceId, isMicActive, loadingMessage,
@@ -273,6 +281,7 @@ export class BeatSyncView extends MobxLitElement {
           ` : ''}
         </div>
         <div class="status-message">${loadingMessage}</div>
+        <button @click=${() => this.stallMainThread()}>Stall Main Thread (2s)</button>
       </div>
 
       <div class="content">

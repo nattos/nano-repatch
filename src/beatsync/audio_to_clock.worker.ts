@@ -109,5 +109,13 @@ self.onmessage = async (e: MessageEvent) => {
     audioToClock?.resetHardSync();
   } else if (type === 'setForceExportAllDebugData') {
     audioToClock?.setForceExportAllDebugData(payload);
+  } else if (type === 'connectAudioPort') {
+    const port = payload as MessagePort;
+    port.onmessage = (e) => {
+      const { type, payload } = e.data;
+      if (type === 'audio') {
+        audioToClock?.addAudio(payload.buffer, payload.currentTime, payload.sampleRate);
+      }
+    };
   }
 };

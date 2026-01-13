@@ -20,7 +20,7 @@ class AudioToClock implements IAudioToClock {
       },
       runFeatureExtractor: config.runFeatureExtractor,
       runBpmPhasePredictor: config.runBpmPhasePredictor,
-    };
+    } as InferenceManagerConfigInternal;
     this.inferenceManager = new InferenceManager(inferenceConfig);
 
     this.stabilizer = new Stabilizer({

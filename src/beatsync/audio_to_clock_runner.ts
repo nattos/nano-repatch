@@ -112,4 +112,11 @@ export class AudioToClockRunner {
       payload: force
     });
   }
+
+  connectAudioPort(port: MessagePort) {
+    this.worker.postMessage({
+      type: 'connectAudioPort',
+      payload: port
+    }, [port]);
+  }
 }
