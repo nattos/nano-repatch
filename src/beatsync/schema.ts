@@ -1,9 +1,9 @@
 export interface AudioToClockConfig {
   // General config.
   exportAllDebugData?: boolean,
-  inferenceConfig: InferenceManagerConfig;
-  stabilizerConfig: StabilizerConfig;
-  externalClockControllerConfig: ExternalClockControllerConfig;
+  inferenceConfig: Partial<InferenceManagerConfig>;
+  stabilizerConfig: Partial<StabilizerConfig>;
+  externalClockControllerConfig: Partial<ExternalClockControllerConfig>;
 
   // Hooks to call model.
   runFeatureExtractor: RunFeatureExtractor;

@@ -1,5 +1,6 @@
 import { action, makeObservable, observable, runInAction } from 'mobx';
 import { AudioToClockRunner } from '../beatsync/audio_to_clock_runner';
+import { predictBarPhase } from '../beatsync/extrapolation';
 import { DebugUpdates, InferenceManagerDebugData, StabilizerDebugData, ExternalClockDebugData, ExternalClockAdjustEvent } from '../beatsync/schema';
 import { LocalController } from '../builder/local-state';
 
@@ -16,6 +17,8 @@ export class BeatSyncManager {
   @observable bestTrajectoryWeight: number = 0;
   @observable bpmVariance: number = 0;
   @observable debugDataEnabled = false;
+
+  @observable displayQuantizedBeat: number = 0;
 
   @observable.ref lastInferenceUpdate: InferenceManagerDebugData | null = null;
   @observable.ref lastStabilizerUpdate: StabilizerDebugData | null = null;
@@ -47,6 +50,10 @@ export class BeatSyncManager {
     this.audioToClock = new AudioToClockRunner({
       featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
       bpmPhaseModelUrl: 'models/mel25/main_model_fp32.onnx',
+      externalClockControllerConfig: {
+        // For global bar phase.
+        exportDebugData: true,
+      },
       exportAllDebugData: this.debugDataEnabled,
       onStatusUpdated: (status) => {
         runInAction(() => {
@@ -92,12 +99,14 @@ export class BeatSyncManager {
         this.bestBpm = bestTraj.bpm;
         this.bestBarPhase = bestTraj.barPhase;
       }
-      this.overallConfidence = updates.stabilizer.overallConfidence;
       this.bpmVariance = updates.stabilizer.bpmVariance;
       this.bestTrajectoryWeight = bestTraj ? bestTraj.weight : 0;
     }
     if (updates.externalClock) {
       this.lastExternalClockUpdate = updates.externalClock;
+      const now = this.audioContext?.currentTime || 0;
+      const barPhase = predictBarPhase(updates.externalClock, now);
+      this.displayQuantizedBeat = Math.floor(barPhase) % 4;
     }
     if (updates.externalClockEvent) {
       this.lastExternalClockEvent = updates.externalClockEvent;

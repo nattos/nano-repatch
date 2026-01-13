@@ -1,7 +1,8 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { appController } from '../builder/controllers';
+import { customElement, property, query } from 'lit/decorators.js';
+import { appController, runtimeManager } from '../builder/controllers';
+import { reaction, IReactionDisposer } from 'mobx';
 import { globalStyles } from '../styles';
 
 @customElement('app-sidebar')
@@ -87,6 +88,31 @@ export class AppSidebar extends MobxLitElement {
   @property({ type: String })
   activeTab: string | null = null;
 
+  @query('#beatsync-icon i')
+  private beatSyncIcon!: HTMLElement;
+
+  private beatSyncDisposer: IReactionDisposer | null = null;
+
+  firstUpdated() {
+    this.beatSyncDisposer = reaction(
+      () => runtimeManager.beatSyncManager.displayQuantizedBeat,
+      (beat) => {
+        if (this.beatSyncIcon) {
+          this.beatSyncIcon.style.transform = `rotate(${beat * 90}deg)`;
+        }
+      },
+      { fireImmediately: true }
+    );
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.beatSyncDisposer) {
+      this.beatSyncDisposer();
+      this.beatSyncDisposer = null;
+    }
+  }
+
   render() {
     return html`
       <div
@@ -114,6 +140,7 @@ export class AppSidebar extends MobxLitElement {
       </div>
 
       <div
+        id="beatsync-icon"
         class="icon ${this.activeTab === 'beatsync' ? 'active' : ''}"
         @click=${() => this.switchTab('beatsync')}
         title="Beat Synchronization"

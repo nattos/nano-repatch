@@ -26,9 +26,9 @@ export class AudioToClockRunner {
     bpmPhaseModelUrl: string;
 
     exportAllDebugData?: boolean,
-    inferenceConfig?: InferenceManagerConfig;
-    stabilizerConfig?: StabilizerConfig;
-    externalClockControllerConfig?: ExternalClockControllerConfig;
+    inferenceConfig?: Partial<InferenceManagerConfig>;
+    stabilizerConfig?: Partial<StabilizerConfig>;
+    externalClockControllerConfig?: Partial<ExternalClockControllerConfig>;
 
     onStatusUpdated?: (status: {
       message: string;
