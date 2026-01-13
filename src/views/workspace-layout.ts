@@ -41,10 +41,6 @@ export class WorkspaceLayout extends MobxLitElement {
       flex-direction: column;
     }
 
-    .sidebar-panel.wide {
-      width: 500px;
-    }
-
     .editor-container {
       flex: 1;
       position: relative;
@@ -75,7 +71,7 @@ export class WorkspaceLayout extends MobxLitElement {
 
       <div class="panels">
         ${localController.observableState.localSettings.activeTab ? html`
-          <div class="sidebar-panel ${localController.observableState.localSettings.activeTab === 'beatsync' ? 'wide' : ''}">
+          <div class="sidebar-panel">
             ${this.renderActivePanel()}
           </div>
         ` : ''}

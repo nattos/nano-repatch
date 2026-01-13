@@ -104,7 +104,7 @@ export class BeatSyncView extends MobxLitElement {
       }
 
       .viz-text-summaries {
-        min-width: 200px;
+        min-width: 180px; /* Was 200px */
         background-color: var(--panel-bg);
         padding: 15px;
         border-radius: 8px;
@@ -136,23 +136,23 @@ export class BeatSyncView extends MobxLitElement {
       .graph-container {
         position: relative;
         width: 100%;
-        max-width: 800px;
+        max-width: 100%; /* Was 800px */
       }
 
       .large-graph {
         width: 100%;
-        height: 100px;
+        height: 80px; /* Was 100px */
       }
 
       .clock-graph {
-        width: 150px;
-        height: 150px;
+        width: 120px; /* Was 150px */
+        height: 120px;
       }
 
       .waveform-wrapper {
         position: relative;
         width: 100%;
-        max-width: 800px;
+        max-width: 100%;
       }
 
       .graph-label {
@@ -380,8 +380,7 @@ export class BeatSyncView extends MobxLitElement {
 
     return html`
       <div class="header">
-        <div class="title">Beat Synchronization</div>
-        <div>Select Input Device</div>
+        <div class="title">Audio Beat Sync</div>
         <div class="device-selector">
           ${audioDevices.map(device => html`
             <div
@@ -420,9 +419,6 @@ export class BeatSyncView extends MobxLitElement {
                 <div class="segmented-option ${manager.isHardSync ? 'selected' : ''}"
                      @click=${() => manager.setHardSync(true)}>Hard</div>
             </div>
-            <button class="resync-btn large" @click=${() => manager.resync()}>
-              ${manager.isHardSync ? 'HARD RESYNC' : 'RESYNC'}
-            </button>
             <div class="midi-mapping-controls">
                 <button
                   class="midi-learn-btn ${classMap({ pulsing: manager.isMidiMappingActive })}"
@@ -449,15 +445,15 @@ export class BeatSyncView extends MobxLitElement {
             </div>
 
             <div class="viz-column">
-              <canvas id="barClock" class="clock-graph" width="200" height="200"></canvas>
+              <canvas id="barClock" class="clock-graph" width="240" height="240"></canvas>
               <label>Bar Phase</label>
             </div>
             <div class="viz-column">
-              <canvas id="trajectoryClock" class="clock-graph" width="200" height="200"></canvas>
+              <canvas id="trajectoryClock" class="clock-graph" width="240" height="240"></canvas>
               <label>Trajectories</label>
             </div>
             <div class="viz-column">
-              <canvas id="phaseClock" class="clock-graph" width="200" height="200"></canvas>
+              <canvas id="phaseClock" class="clock-graph" width="240" height="240"></canvas>
               <label>Raw Phase</label>
             </div>
         </div>
@@ -466,23 +462,23 @@ export class BeatSyncView extends MobxLitElement {
             <label class="graph-label top right">${(this.visualizer?.bpmGraphCenterBpm + 3.0).toFixed(1)}</label>
             <label class="graph-label middle right">${externalBpm.toFixed(1)}</label>
             <label class="graph-label bottom right">${(this.visualizer?.bpmGraphCenterBpm - 3.0).toFixed(1)}</label>
-            <canvas id="bpmGraph" class="large-graph" width="800" height="100"></canvas>
+            <canvas id="bpmGraph" class="large-graph" width="600" height="80"></canvas>
             <label>BPM Predictions</label>
         </div>
 
         <div class="graph-container">
-            <canvas id="phaseGraph" class="large-graph" width="800" height="100"></canvas>
+            <canvas id="phaseGraph" class="large-graph" width="600" height="80"></canvas>
             <label>Phase Predictions</label>
         </div>
 
         <div class="graph-container">
-            <canvas id="odfGraph" class="large-graph" width="800" height="100"></canvas>
+            <canvas id="odfGraph" class="large-graph" width="600" height="80"></canvas>
             <label>ODF Features</label>
         </div>
 
         <div class="graph-container">
-             <canvas id="specGraph" class="large-graph" width="800" height="100"></canvas>
-             <canvas id="mainWaveform" class="large-graph" width="800" height="100"></canvas>
+             <canvas id="specGraph" class="large-graph" width="600" height="80"></canvas>
+             <canvas id="mainWaveform" class="large-graph" width="600" height="80"></canvas>
              <label>Input Spectrogram & Waveform</label>
         </div>
       </div>
