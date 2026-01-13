@@ -27,12 +27,22 @@ class ResolumeLogic {
   }
 
   private onMessage(e: MessageEvent) {
-    const msg = e.data as (AuxClockMessage | AuxClockStreamMessage);
+    const msg = e.data as (AuxClockMessage | AuxClockStreamMessage | { type: 'CLOCK_HARD_SYNC' });
     if (msg.type === 'CLOCK_UPDATE') {
       this.handleClockUpdate(msg);
     } else if (msg.type === 'CLOCK_STREAM') {
       this.handleClockStream(msg);
+    } else if (msg.type === 'CLOCK_HARD_SYNC') {
+      this.handleHardSync();
     }
+  }
+
+  private handleHardSync() {
+    if (!this.enabled) return;
+    // User requested simplified logic: only send resync trigger, BPM is already synced via CLOCK_UPDATE
+    resolumeManager.setValue('/composition/tempocontroller/resync', true);
+    resolumeManager.setValue('/composition/tempocontroller/resync', false);
+    this.pendingResync = false;
   }
 
   private handleClockUpdate(msg: AuxClockMessage) {
@@ -58,7 +68,8 @@ class ResolumeLogic {
 
       if (currentBarIndex > lastBarIndex) {
         // console.log('[Executor] Triggering Resolume Resync');
-        resolumeManager.setValue('/composition/tempocontroller/resync', 1);
+        resolumeManager.setValue('/composition/tempocontroller/resync', true);
+        resolumeManager.setValue('/composition/tempocontroller/resync', false);
         this.pendingResync = false;
       }
     }

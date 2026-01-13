@@ -151,6 +151,10 @@ export type ConnectAuxPortMessage = {
   port: MessagePort;
 };
 
+export type AuxHardSyncMessage = {
+  type: 'CLOCK_HARD_SYNC';
+};
+
 export type ResolumeSettingsMessage = {
   type: 'RESOLUME_SETTINGS';
   enabled: boolean;

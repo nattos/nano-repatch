@@ -123,7 +123,13 @@ self.onmessage = async (e: MessageEvent) => {
   } else if (type === 'addAudio') {
     audioToClock?.addAudio(payload.buffer, payload.currentTime, payload.sampleRate);
   } else if (type === 'resync') {
-    audioToClock?.resync(payload);
+    const hard = payload as boolean;
+    audioToClock?.resync(hard);
+    if (hard && currentEventPort) {
+      currentEventPort.postMessage({
+        type: 'CLOCK_HARD_SYNC'
+      });
+    }
   } else if (type === 'resetHardSync') {
     audioToClock?.resetHardSync();
   } else if (type === 'setForceExportAllDebugData') {

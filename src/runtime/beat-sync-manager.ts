@@ -19,6 +19,7 @@ export class BeatSyncManager {
   @observable debugDataEnabled = false;
 
   @observable displayQuantizedBeat: number = 0;
+  @observable isHardSync: boolean = false;
 
   @observable.ref lastInferenceUpdate: InferenceManagerDebugData | null = null;
   @observable.ref lastStabilizerUpdate: StabilizerDebugData | null = null;
@@ -113,17 +114,21 @@ export class BeatSyncManager {
   }
 
   @action
+  public setHardSync(hard: boolean) {
+    this.isHardSync = hard;
+  }
+
+  public resync() {
+    this.audioToClock?.resync(this.isHardSync);
+  }
+
+  @action
   public setResolumeControlEnabled(enabled: boolean) {
     this.localController.observableState.localSettings.beatSyncResolumeControlEnabled = enabled;
     this.localController.saveSettings();
-    // We need to notify ExecutorWorker
-    // Note: connectToExecutor connects the PORT. It doesn't allow arbitrary JSON posting from here easily unless we expose sendResolumeSettings from RuntimeManager?
-    // BeatSyncManager doesn't have reference to RuntimeManager directly...
-    // But we are constructed by it.
-    // Let's rely on RuntimeManager passing a callback 'onSettingsChanged'?
-    // Or just use a callback.
-    this.onResolumeSettingsChanged?.(enabled);
+    this.onResolumeSettingsChanged(enabled);
   }
+
 
   @action
   private handleDebugData(updates: DebugUpdates) {

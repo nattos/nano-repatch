@@ -171,6 +171,47 @@ export class BeatSyncView extends MobxLitElement {
         color: var(--accent-color);
         opacity: 0.8;
       }
+
+      .segmented-control {
+        display: inline-flex;
+        background-color: var(--panel-bg);
+        border-radius: 4px;
+        padding: 2px;
+        border: 1px solid var(--border-color);
+        margin-right: 10px;
+      }
+
+      .segmented-option {
+        padding: 4px 12px;
+        cursor: pointer;
+        border-radius: 3px;
+        font-size: 0.9em;
+        color: var(--text-muted);
+        transition: all 0.2s;
+      }
+
+      .segmented-option:hover {
+        color: var(--text-color);
+      }
+
+      .segmented-option.selected {
+        background-color: var(--selection-color);
+        color: white;
+      }
+
+      .action-button {
+        padding: 6px 12px;
+        background-color: var(--button-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-color);
+        cursor: pointer;
+        font-size: 0.9em;
+      }
+
+      .action-button:hover {
+        background-color: var(--button-hover);
+      }
     `
   ];
 
@@ -289,7 +330,19 @@ export class BeatSyncView extends MobxLitElement {
              >
              Control Resolume BPM/Phase
            </label>
-           <button @click=${() => this.stallMainThread()}>Stall Main Thread (2s)</button>
+        </div>
+
+        <div style="margin-top: 10px; display: flex; align-items: center;">
+            <button class="action-button" @pointerdown=${() => manager.resync()}>
+                <i class="la la-sync"></i> Resync
+            </button>
+            <div class="segmented-control">
+                <div class="segmented-option ${!manager.isHardSync ? 'selected' : ''}"
+                     @click=${() => manager.setHardSync(false)}>Soft</div>
+                <div class="segmented-option ${manager.isHardSync ? 'selected' : ''}"
+                     @click=${() => manager.setHardSync(true)}>Hard</div>
+            </div>
+            <button @click=${() => this.stallMainThread()} style="margin-left: auto;">Stall Main Thread (2s)</button>
         </div>
       </div>
 
