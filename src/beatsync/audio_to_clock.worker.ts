@@ -3,6 +3,8 @@
  */
 
 import * as ort from 'onnxruntime-web';
+const { Tensor, InferenceSession } = ort as any;
+
 import { ModelManager } from './models';
 import { AudioToClockConfig, IAudioToClock } from "./schema";
 import { SAMPLE_RATE, BLOCK_DURATION_S, HI_RES_HOP_LENGTH, LOW_RES_HOP_LENGTH, LOW_RES_N_FFT, ODF_CHANNELS, SPEC_CHANNELS, BPM_MIN, BPM_MAX } from './config_audio';
@@ -47,8 +49,8 @@ self.onmessage = async (e: MessageEvent) => {
         ...audioToClockConfig.externalClockControllerConfig
       },
       runFeatureExtractor: async (audio: Float32Array) => {
-        const audioTensor = new ort.Tensor('float32', audio, [1, audio.length]);
-        const featureFeeds: ort.InferenceSession.FeedsType = { [modelManager.getFeatureExtractor().inputNames[0]]: audioTensor };
+        const audioTensor = new Tensor('float32', audio, [1, audio.length]);
+        const featureFeeds: any = { [modelManager.getFeatureExtractor().inputNames[0]]: audioTensor };
         const featureResults = await modelManager.getFeatureExtractor().run(featureFeeds);
         const odfWide = featureResults[modelManager.getFeatureExtractor().outputNames[0]];
         const specWide = featureResults[modelManager.getFeatureExtractor().outputNames[1]];
@@ -58,9 +60,9 @@ self.onmessage = async (e: MessageEvent) => {
         };
       },
       runBpmPhasePredictor: async (odf: Float32Array, spec: Float32Array, inputTime: number) => {
-        const odfTensor = new ort.Tensor('float32', odf, [1, ODF_CHANNELS, (odf.length / ODF_CHANNELS) | 0]);
-        const specTensor = new ort.Tensor('float32', spec, [1, SPEC_CHANNELS, (spec.length / SPEC_CHANNELS) | 0]);
-        const modelFeeds: ort.InferenceSession.FeedsType = {
+        const odfTensor = new Tensor('float32', odf, [1, ODF_CHANNELS, (odf.length / ODF_CHANNELS) | 0]);
+        const specTensor = new Tensor('float32', spec, [1, SPEC_CHANNELS, (spec.length / SPEC_CHANNELS) | 0]);
+        const modelFeeds: any = {
           'odf_input': odfTensor,
           'spec_input': specTensor,
         };
@@ -101,5 +103,11 @@ self.onmessage = async (e: MessageEvent) => {
     self.postMessage({ type: 'ready' });
   } else if (type === 'addAudio') {
     audioToClock?.addAudio(payload.buffer, payload.currentTime, payload.sampleRate);
+  } else if (type === 'resync') {
+    audioToClock?.resync(payload);
+  } else if (type === 'resetHardSync') {
+    audioToClock?.resetHardSync();
+  } else if (type === 'setForceExportAllDebugData') {
+    audioToClock?.setForceExportAllDebugData(payload);
   }
 };

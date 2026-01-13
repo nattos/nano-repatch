@@ -76,6 +76,24 @@ class AudioToClockWasm implements IAudioToClock {
     });
   }
 
+  resync(hard?: boolean): void {
+    if (this.audioToClock) {
+      this.audioToClock.resync(!!hard);
+    }
+  }
+
+  resetHardSync(): void {
+    if (this.audioToClock) {
+      this.audioToClock.resetHardSync();
+    }
+  }
+
+  setForceExportAllDebugData(force: boolean): void {
+    if (this.audioToClock) {
+      this.audioToClock.setForceExportAllDebugData(force);
+    }
+  }
+
   async resolveFeatureExtractor(result: { odf: Float32Array; spec: Float32Array; }) {
     if (!this.wasmInstance || !this.audioToClock) {
       return;

@@ -43,6 +43,9 @@ export interface DebugUpdates {
 
 export interface IAudioToClock {
   addAudio(audioSamples: Float32Array[], currentTime: number, inputSampleRate: number): void;
+  resync(hard?: boolean): void;
+  resetHardSync(): void;
+  setForceExportAllDebugData(force: boolean): void;
 }
 
 export interface IAudioToClockConstructor {

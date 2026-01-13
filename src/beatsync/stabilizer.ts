@@ -11,6 +11,9 @@ export class Stabilizer {
     trajectories: [],
     bestTrajectory: null,
     overallConfidence: 0.0,
+    hasBestTrajectory: false,
+    bpmVariance: 0,
+    bpmHistory: [],
   };
 
   private trajectories: TrajectoryState[] = [];
@@ -89,9 +92,13 @@ export class Stabilizer {
         trajectories: this.trajectories.map(t => t.toDebugData()),
         bestTrajectory: this.bestTrajectory?.toDebugData() ?? null,
         overallConfidence: this.overallConfidence,
+        hasBestTrajectory: !!this.bestTrajectory,
+        bpmVariance: this.calculateVariance(this.bpmHistory),
+        bpmHistory: [...this.bpmHistory],
       };
       this.config.onDebugDataUpdated?.(this.debugData);
     }
+
     if (this.bestTrajectory) {
       this.config.onTrajectoryUpdated?.(this.bestTrajectory.toDebugData());
     }
@@ -184,9 +191,9 @@ class TrajectoryState {
     const isPhaseDirectionConsistent = this.phaseDeltaHistory.length === 0 || Math.sign(phaseDiff) === Math.sign(avgPhaseDelta);
 
     const shouldOvercorrectPhase = this.weight > config.overcorrectionWeightThreshold &&
-                                   Math.abs(oldBpm - bpm) < config.overcorrectionBpmThreshold &&
-                                   Math.abs(phaseDiff) < config.overcorrectionPhaseThreshold &&
-                                   isPhaseDirectionConsistent;
+      Math.abs(oldBpm - bpm) < config.overcorrectionBpmThreshold &&
+      Math.abs(phaseDiff) < config.overcorrectionPhaseThreshold &&
+      isPhaseDirectionConsistent;
 
     let targetPhase = phase;
     if (shouldOvercorrectPhase) {
@@ -220,8 +227,8 @@ class TrajectoryState {
     const isBpmDirectionConsistent = this.bpmDeltaHistory.length === 0 || Math.sign(bpmDiff) === Math.sign(avgBpmDelta);
 
     const shouldOvercorrectBpm = this.weight > config.overcorrectionWeightThreshold &&
-                                 Math.abs(bpmDiff) < config.overcorrectionBpmThreshold &&
-                                 isBpmDirectionConsistent;
+      Math.abs(bpmDiff) < config.overcorrectionBpmThreshold &&
+      isBpmDirectionConsistent;
 
     let targetBpm = bpm;
     if (shouldOvercorrectBpm) {

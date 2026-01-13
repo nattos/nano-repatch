@@ -113,6 +113,14 @@ export class AppSidebar extends MobxLitElement {
         <i class="la la-bug" style="font-size: 20px;"></i>
       </div>
 
+      <div
+        class="icon ${this.activeTab === 'beatsync' ? 'active' : ''}"
+        @click=${() => this.switchTab('beatsync')}
+        title="Beat Synchronization"
+      >
+        <i class="la la-clock-o" style="font-size: 20px;"></i>
+      </div>
+
       <div class="spacer"></div>
 
       <div class="branding" title="nano-repatch">

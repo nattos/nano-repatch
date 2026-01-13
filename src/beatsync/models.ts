@@ -1,15 +1,18 @@
 
 import * as ort from 'onnxruntime-web';
 
-ort.env.wasm.wasmPaths = "/";
-// ort.env.webgpu.profiling = { mode: 'default' };
+// Hack for bad types
+const { env, InferenceSession } = ort as any;
+
+env.wasm.wasmPaths = "/";
+// env.webgpu.profiling = { mode: 'default' };
 
 /**
  * A class to manage the loading and caching of ONNX models.
  */
 export class ModelManager {
-  private featureExtractorSession: ort.InferenceSession | null = null;
-  private mainModelSession: ort.InferenceSession | null = null;
+  private featureExtractorSession: any | null = null;
+  private mainModelSession: any | null = null;
   private _isReady = false;
 
   /**
@@ -38,13 +41,13 @@ export class ModelManager {
       // Create sessions sequentially to avoid race conditions with execution providers.
       // Create the main model session first to ensure WebGPU is prioritized.
       console.log("Loading main model with WebGPU support...");
-      const mainSession = await ort.InferenceSession.create(mainModelUrl, {
+      const mainSession = await InferenceSession.create(mainModelUrl, {
         executionProviders: ['webgpu', 'wasm'],
         graphOptimizationLevel: 'all',
       });
 
       console.log("Loading feature extractor with CPU (WASM) support...");
-      const featureSession = await ort.InferenceSession.create(featureExtractorUrl, {
+      const featureSession = await InferenceSession.create(featureExtractorUrl, {
         executionProviders: ['wasm'],
         graphOptimizationLevel: 'all',
       });
@@ -63,7 +66,7 @@ export class ModelManager {
    * Gets the cached feature extractor session.
    * Throws an error if the model is not yet loaded.
    */
-  public getFeatureExtractor(): ort.InferenceSession {
+  public getFeatureExtractor(): any {
     if (!this.featureExtractorSession) {
       throw new Error('Feature extractor model is not loaded.');
     }
@@ -74,7 +77,7 @@ export class ModelManager {
    * Gets the cached main model session.
    * Throws an error if the model is not yet loaded.
    */
-  public getMainModel(): ort.InferenceSession {
+  public getMainModel(): any {
     if (!this.mainModelSession) {
       throw new Error('Main model is not loaded.');
     }

@@ -6,6 +6,7 @@ import './workspace-panel';
 import './io-tab';
 import './debug-tab';
 import './graph-editor';
+import './beat-sync-view';
 import { localController } from '../builder/controllers';
 
 @customElement('workspace-layout')
@@ -40,6 +41,10 @@ export class WorkspaceLayout extends MobxLitElement {
       flex-direction: column;
     }
 
+    .sidebar-panel.wide {
+      width: 500px;
+    }
+
     .editor-container {
       flex: 1;
       position: relative;
@@ -70,7 +75,7 @@ export class WorkspaceLayout extends MobxLitElement {
 
       <div class="panels">
         ${localController.observableState.localSettings.activeTab ? html`
-          <div class="sidebar-panel">
+          <div class="sidebar-panel ${localController.observableState.localSettings.activeTab === 'beatsync' ? 'wide' : ''}">
             ${this.renderActivePanel()}
           </div>
         ` : ''}
@@ -90,6 +95,8 @@ export class WorkspaceLayout extends MobxLitElement {
         return html`<io-tab></io-tab>`;
       case 'debug':
         return html`<debug-tab></debug-tab>`;
+      case 'beatsync':
+        return html`<beat-sync-view></beat-sync-view>`;
       default:
         return null;
     }

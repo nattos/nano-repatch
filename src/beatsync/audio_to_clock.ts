@@ -53,6 +53,18 @@ class AudioToClock implements IAudioToClock {
     this.latestTime = currentTime;
     this.inferenceManager?.addAudio(audioSamples, currentTime, inputSampleRate);
   }
+
+  resync(hard?: boolean): void {
+    // No-op for now
+  }
+
+  resetHardSync(): void {
+    // No-op for now
+  }
+
+  setForceExportAllDebugData(force: boolean): void {
+    // No-op for now
+  }
 }
 
 export const AudioToClockConstructor: IAudioToClockConstructor = AudioToClock;

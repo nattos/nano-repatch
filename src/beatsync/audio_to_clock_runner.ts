@@ -92,4 +92,24 @@ export class AudioToClockRunner {
       }
     });
   }
+
+  resync(hard?: boolean) {
+    this.worker.postMessage({
+      type: 'resync',
+      payload: !!hard
+    });
+  }
+
+  resetHardSync() {
+    this.worker.postMessage({
+      type: 'resetHardSync'
+    });
+  }
+
+  setForceExportAllDebugData(force: boolean) {
+    this.worker.postMessage({
+      type: 'setForceExportAllDebugData',
+      payload: force
+    });
+  }
 }
