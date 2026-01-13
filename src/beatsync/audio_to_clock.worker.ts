@@ -13,6 +13,7 @@ import { AudioToClockWasmConstructor } from './audio_to_clock_wasm';
 const AudioToClockConstructor = AudioToClockWasmConstructor;
 
 let audioToClock: IAudioToClock | undefined = undefined;
+let currentAudioPort: MessagePort | null = null;
 
 self.onmessage = async (e: MessageEvent) => {
   const { type, payload } = e.data;
@@ -109,8 +110,24 @@ self.onmessage = async (e: MessageEvent) => {
     audioToClock?.resetHardSync();
   } else if (type === 'setForceExportAllDebugData') {
     audioToClock?.setForceExportAllDebugData(payload);
+  } else if (type === 'setRunning') {
+    audioToClock?.setRunning(payload);
   } else if (type === 'connectAudioPort') {
     const port = payload as MessagePort;
+
+    // Cleanup previous port if exists?
+    // The previous port is owned by the closure of the previous connectAudioPort handler...
+    // We can't access it here easily unless we store it globally.
+    // However, if we just overwrite the listener, the old port might still be open but no one listens?
+    // Actually, we don't store it globally.
+    // To properly close it, we should track it.
+
+    if (currentAudioPort) {
+      currentAudioPort.close();
+      currentAudioPort.onmessage = null;
+    }
+    currentAudioPort = port;
+
     port.onmessage = (e) => {
       const { type, payload } = e.data;
       if (type === 'audio') {

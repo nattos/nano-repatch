@@ -94,6 +94,22 @@ class AudioToClockWasm implements IAudioToClock {
     }
   }
 
+  setRunning(running: boolean): void {
+    // WASM implementation might not support pause yet, or we handle it here by clearing interval?
+    // The main implementation clears interval of InternalClockController.
+    // WASM uses a timerInterval.
+    if (running) {
+      if (!this.timerInterval && this.audioToClock) {
+        this.timerInterval = setInterval(() => this.audioToClock.tick(this.latestTimestamp), (this.config.externalClockControllerConfig?.updateInterval ?? (1.0 / 30.0)) * 1000);
+      }
+    } else {
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval);
+        this.timerInterval = undefined;
+      }
+    }
+  }
+
   async resolveFeatureExtractor(result: { odf: Float32Array; spec: Float32Array; }) {
     if (!this.wasmInstance || !this.audioToClock) {
       return;

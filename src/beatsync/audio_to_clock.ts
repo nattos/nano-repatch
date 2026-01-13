@@ -65,6 +65,14 @@ class AudioToClock implements IAudioToClock {
   setForceExportAllDebugData(force: boolean): void {
     // No-op for now
   }
+
+  setRunning(running: boolean): void {
+    if (running) {
+      this.externalClockController.start();
+    } else {
+      this.externalClockController.stop();
+    }
+  }
 }
 
 export const AudioToClockConstructor: IAudioToClockConstructor = AudioToClock;

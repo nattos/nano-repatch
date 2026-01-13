@@ -119,4 +119,11 @@ export class AudioToClockRunner {
       payload: port
     }, [port]);
   }
+
+  setRunning(running: boolean) {
+    this.worker.postMessage({
+      type: 'setRunning',
+      payload: running
+    });
+  }
 }

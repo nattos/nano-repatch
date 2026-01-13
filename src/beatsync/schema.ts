@@ -46,6 +46,7 @@ export interface IAudioToClock {
   resync(hard?: boolean): void;
   resetHardSync(): void;
   setForceExportAllDebugData(force: boolean): void;
+  setRunning(running: boolean): void;
 }
 
 export interface IAudioToClockConstructor {

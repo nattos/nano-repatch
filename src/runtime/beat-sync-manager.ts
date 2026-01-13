@@ -67,13 +67,20 @@ export class BeatSyncManager {
     });
 
     this.audioContext = new AudioContext();
-    this.enumerateDevices();
 
-    // Auto-connect if allowed and previously selected
-    const savedId = this.localController.observableState.localSettings.beatSyncAudioDeviceId;
-    if (savedId) {
-      this.startMic(savedId);
-    }
+    // Preload worklet module to prevent race conditions during switching
+    const workletUrl = new URL('../beatsync/audio-capture.worklet.ts', import.meta.url).toString();
+    this.audioContext.audioWorklet.addModule(workletUrl).then(() => {
+      this.enumerateDevices();
+
+      // Auto-connect if allowed and previously selected
+      const savedId = this.localController.observableState.localSettings.beatSyncAudioDeviceId;
+      if (savedId) {
+        this.startMic(savedId);
+      }
+    }).catch(err => {
+      console.error("Failed to load audio worklet module", err);
+    });
   }
 
   @action
@@ -184,6 +191,7 @@ export class BeatSyncManager {
     this.micStream?.getTracks().forEach(track => track.stop());
     this.micSource?.disconnect();
     this.audioCaptureNode?.disconnect();
+    this.audioToClock?.setRunning(false);
 
     this.micStream = null;
     this.micSource = null;
@@ -198,18 +206,13 @@ export class BeatSyncManager {
     });
   }
 
-  private async setupAudioGraph(sourceElement: MediaStream) {
+  private setupAudioGraph(sourceElement: MediaStream) {
     if (!this.audioContext) return;
 
     this.micSource = this.audioContext.createMediaStreamSource(sourceElement);
     const source = this.micSource;
 
-    try {
-      await this.audioContext.audioWorklet.addModule(new URL('../beatsync/audio-capture.worklet.ts', import.meta.url).toString());
-    } catch (e) {
-      console.error("Failed to load audio worklet", e);
-      return;
-    }
+    // Module is preloaded in initialize()
 
     const workletNode = new AudioWorkletNode(this.audioContext, 'audio-capture-processor');
     const channel = new MessageChannel();
@@ -251,6 +254,7 @@ export class BeatSyncManager {
     // We can restore waveform viz later if needed, or by tapping the source separately.
     // I will leave `rollingWaveformBuffer` alone (it just wont update) for now, or use an AnalyserNode if I want to keep it.
     // Given "remove all need for main thread's intervention", I will accept that the manual buffer copy stops.
+    this.audioToClock?.setRunning(true);
   }
 
   public dispose() {
