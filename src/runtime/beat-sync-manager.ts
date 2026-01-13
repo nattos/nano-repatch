@@ -37,12 +37,12 @@ export class BeatSyncManager {
   private audioToClock?: AudioToClockRunner;
 
   // Resolume Integration
-  private pendingResolumeResync = false;
-  private lastBarPhase = 0;
+  // Logic moved to ExecutorWorker, but we configure it via LocalSettings
 
   constructor(
     private localController: LocalController,
-    private onResolumeParameter?: (path: string, value: any) => void
+    private connectToExecutor: (port: MessagePort) => void,
+    private onResolumeSettingsChanged: (enabled: boolean) => void
   ) {
     makeObservable(this);
 
@@ -54,6 +54,14 @@ export class BeatSyncManager {
 
   private initialize() {
     this.loadingMessage = 'Loading models...';
+
+    // Create channel for worker-to-worker communication
+    const channel = new MessageChannel();
+    // Pass port1 to Executor (via RuntimeManager callback)
+    if (this.connectToExecutor) {
+      this.connectToExecutor(channel.port1);
+    }
+    // Port2 will be passed to AudioToClockRunner below
 
     this.audioToClock = new AudioToClockRunner({
       featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
@@ -68,21 +76,15 @@ export class BeatSyncManager {
         runInAction(() => {
           if (changes.bpm) {
             this.externalBpm = changes.bpm;
-
-            // Send BPM to Resolume if enabled
-            if (this.localController.observableState.localSettings.beatSyncResolumeControlEnabled && this.onResolumeParameter) {
-              this.onResolumeParameter('/composition/tempocontroller/tempo', changes.bpm);
-            }
-          }
-
-          if (changes.phase !== undefined || changes.type === 'sync' || changes.type === 'nudge') {
-            // Signal a pending resync
-            this.pendingResolumeResync = true;
+            // BPM Forwarding moved to worker
           }
         });
       },
       onDebugDataExported: (updates) => this.handleDebugData(updates),
     });
+
+    // Pass Port2 to Runner
+    this.audioToClock.connectEventPort(channel.port2);
 
     this.audioContext = new AudioContext();
 
@@ -111,6 +113,13 @@ export class BeatSyncManager {
   public setResolumeControlEnabled(enabled: boolean) {
     this.localController.observableState.localSettings.beatSyncResolumeControlEnabled = enabled;
     this.localController.saveSettings();
+    // We need to notify ExecutorWorker
+    // Note: connectToExecutor connects the PORT. It doesn't allow arbitrary JSON posting from here easily unless we expose sendResolumeSettings from RuntimeManager?
+    // BeatSyncManager doesn't have reference to RuntimeManager directly...
+    // But we are constructed by it.
+    // Let's rely on RuntimeManager passing a callback 'onSettingsChanged'?
+    // Or just use a callback.
+    this.onResolumeSettingsChanged?.(enabled);
   }
 
   @action
@@ -135,33 +144,7 @@ export class BeatSyncManager {
       const barPhase = predictBarPhase(updates.externalClock, now);
       this.displayQuantizedBeat = Math.floor(barPhase) % 4;
 
-      // Resolume Control Logic
-      if (this.localController.observableState.localSettings.beatSyncResolumeControlEnabled && this.onResolumeParameter) {
-
-        // 1. BPM Updates
-        // Only update if significantly different to avoid excessive traffic?
-        // Or just update every frame? "When we receive a BPM change in onExternalClockAdjusted" implies event-based.
-        // But here we are in debug loop.
-        // Let's rely on onExternalClockAdjusted callback below for BPM.
-
-        // 2. Resync Logic (End of Bar)
-        if (this.pendingResolumeResync) {
-          // Detect bar crossing
-          // barPhase increases. A new bar starts when floor(barPhase / 4) increments.
-          const currentBarIndex = Math.floor(barPhase / 4);
-          const lastBarIndex = Math.floor(this.lastBarPhase / 4);
-
-          if (currentBarIndex > lastBarIndex) {
-            // Trigger Resync
-            console.log(`[BeatSync] Triggering Resolume Resync at bar boundary`);
-            // Assuming '/composition/tempocontroller/resync' is the correct path for resync as well.
-            // Often Resync is a button, so sending 1 triggers it.
-            this.onResolumeParameter('/composition/tempocontroller/resync', 1);
-            this.pendingResolumeResync = false;
-          }
-        }
-        this.lastBarPhase = barPhase;
-      }
+      // Resolume Control Logic MOVED TO WORKER
     }
     if (updates.externalClockEvent) {
       this.lastExternalClockEvent = updates.externalClockEvent;

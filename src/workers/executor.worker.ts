@@ -1,10 +1,72 @@
 import '../customnodes/registration-worker';
 import { GraphExecutor } from '../structor/executor';
 import { defaultNodeRepository } from '../structor/repository';
-import { ExecutorWorkerMessage, ExecutionUpdateMessage } from './types';
+import { ExecutorWorkerMessage, ExecutionUpdateMessage, AuxClockMessage, AuxClockStreamMessage } from './types';
 import { Structor, StructorRecord } from '../structor/structor';
 import { resolumeManager } from '../io/resolume/manager';
 import { VirtualAudioContext } from '../audio/virtual-audio';
+
+// --- Resolume Logic (Worker Side) ---
+class ResolumeLogic {
+  private enabled = false;
+  private pendingResync = false;
+  private lastBarPhase = 0;
+  private currentAuxPort: MessagePort | null = null;
+
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+  }
+
+  handlePort(port: MessagePort) {
+    if (this.currentAuxPort) {
+      this.currentAuxPort.close();
+      this.currentAuxPort.onmessage = null;
+    }
+    this.currentAuxPort = port;
+    this.currentAuxPort.onmessage = (e) => this.onMessage(e);
+  }
+
+  private onMessage(e: MessageEvent) {
+    const msg = e.data as (AuxClockMessage | AuxClockStreamMessage);
+    if (msg.type === 'CLOCK_UPDATE') {
+      this.handleClockUpdate(msg);
+    } else if (msg.type === 'CLOCK_STREAM') {
+      this.handleClockStream(msg);
+    }
+  }
+
+  private handleClockUpdate(msg: AuxClockMessage) {
+    if (!this.enabled) return;
+
+    if (msg.bpm) {
+      resolumeManager.setValue('/composition/tempocontroller/tempo', msg.bpm);
+    }
+
+    if (msg.phase !== undefined || msg.kind === 'sync' || msg.kind === 'nudge') {
+      this.pendingResync = true;
+    }
+  }
+
+  private handleClockStream(msg: AuxClockStreamMessage) {
+    if (!this.enabled) return;
+
+    // Check bar crossing
+    const barPhase = msg.data.barPhase; // Assumes ExternalClockDebugData shape
+    if (this.pendingResync) {
+      const currentBarIndex = Math.floor(barPhase / 4);
+      const lastBarIndex = Math.floor(this.lastBarPhase / 4);
+
+      if (currentBarIndex > lastBarIndex) {
+        // console.log('[Executor] Triggering Resolume Resync');
+        resolumeManager.setValue('/composition/tempocontroller/resync', 1);
+        this.pendingResync = false;
+      }
+    }
+    this.lastBarPhase = barPhase;
+  }
+}
+
+const resolumeLogic = new ResolumeLogic();
 
 let executor: GraphExecutor | null = null;
 let intervalId: any = null;
@@ -26,6 +88,14 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
   const msg = event.data;
 
   switch (msg.type) {
+    case 'CONNECT_AUX_PORT':
+      resolumeLogic.handlePort(msg.port);
+      break;
+
+    case 'RESOLUME_SETTINGS':
+      resolumeLogic.setEnabled(msg.enabled);
+      break;
+
     case 'INIT_GRAPH':
       // console.log('Executor Worker: Initializing graph...');
       let initialStates;

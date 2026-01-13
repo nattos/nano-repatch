@@ -12,6 +12,7 @@ import { SAMPLE_RATE, BLOCK_DURATION_S, HI_RES_HOP_LENGTH, LOW_RES_HOP_LENGTH, L
 import { AudioToClockWasmConstructor } from './audio_to_clock_wasm';
 const AudioToClockConstructor = AudioToClockWasmConstructor;
 
+let currentEventPort: MessagePort | null = null;
 let audioToClock: IAudioToClock | undefined = undefined;
 let currentAudioPort: MessagePort | null = null;
 
@@ -92,11 +93,28 @@ self.onmessage = async (e: MessageEvent) => {
       },
       onExternalClockAdjusted: (changes) => {
         self.postMessage({ type: 'clock', payload: changes });
+        if (currentEventPort) {
+          currentEventPort.postMessage({
+            type: 'CLOCK_UPDATE',
+            bpm: changes.bpm,
+            phase: changes.phase,
+            timestamp: changes.timestamp,
+            kind: changes.type
+          });
+        }
       },
       onDebugDataExported: (updates) => {
         self.postMessage({ type: 'debug', payload: updates });
+        if (currentEventPort && updates.externalClock) {
+          currentEventPort.postMessage({
+            type: 'CLOCK_STREAM',
+            data: updates.externalClock
+          });
+        }
       },
     };
+
+
 
     const thisAudioToClock = new AudioToClockConstructor(fullConfig);
     audioToClock = thisAudioToClock;
@@ -134,5 +152,11 @@ self.onmessage = async (e: MessageEvent) => {
         audioToClock?.addAudio(payload.buffer, payload.currentTime, payload.sampleRate);
       }
     };
+  } else if (type === 'connectEventPort') {
+    const port = payload as MessagePort;
+    if (currentEventPort) {
+      currentEventPort.close();
+    }
+    currentEventPort = port;
   }
 };

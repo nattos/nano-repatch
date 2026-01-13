@@ -56,7 +56,8 @@ export class RuntimeManager {
   ) {
     this.beatSyncManager = new BeatSyncManager(
       localController,
-      (path, value) => this.sendResolumeParameter(path, value)
+      (port) => this.connectExecutorToBeatSync(port),
+      (enabled) => this.sendResolumeSettings(enabled)
     );
     makeObservable(this);
 
@@ -199,6 +200,22 @@ export class RuntimeManager {
       value
     };
     this.executorWorker.postMessage(msg);
+  }
+
+  public sendResolumeSettings(enabled: boolean) {
+    const msg: ExecutorWorkerMessage = {
+      type: 'RESOLUME_SETTINGS',
+      enabled
+    };
+    this.executorWorker.postMessage(msg);
+  }
+
+  public connectExecutorToBeatSync(port: MessagePort) {
+    const msg: ExecutorWorkerMessage = {
+      type: 'CONNECT_AUX_PORT',
+      port
+    };
+    this.executorWorker.postMessage(msg, [port]);
   }
 
   public sendNodeMessage(nodeId: string, message: any) {

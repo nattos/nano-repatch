@@ -128,4 +128,11 @@ export class AudioToClockRunner {
       payload: running
     });
   }
+
+  connectEventPort(port: MessagePort) {
+    this.worker.postMessage({
+      type: 'connectEventPort',
+      payload: port
+    }, [port]);
+  }
 }

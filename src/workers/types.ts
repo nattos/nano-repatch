@@ -105,6 +105,8 @@ export type ExecutorWorkerMessage =
   | UpdateAudioStateMessage
   | ResolumeControlMessage
   | ResolumeSetValueMessage
+  | ResolumeSettingsMessage
+  | ConnectAuxPortMessage
   | NodeMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';
@@ -144,5 +146,29 @@ export type WireLayoutResult = {
   layout: LayoutResult;
 };
 
+export type ConnectAuxPortMessage = {
+  type: 'CONNECT_AUX_PORT';
+  port: MessagePort;
+};
+
+export type ResolumeSettingsMessage = {
+  type: 'RESOLUME_SETTINGS';
+  enabled: boolean;
+};
+
 export type WiringWorkerMessage = WireLayoutRequest;
 export type WiringMainMessage = WireLayoutResult;
+
+// Aux Port Messages (Worker <-> Worker)
+export type AuxClockMessage = {
+  type: 'CLOCK_UPDATE';
+  bpm?: number;
+  phase?: number;
+  timestamp: number;
+  kind?: string;
+};
+
+export type AuxClockStreamMessage = {
+  type: 'CLOCK_STREAM';
+  data: any; // ExternalClockDebugData
+};
