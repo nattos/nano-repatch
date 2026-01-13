@@ -63,6 +63,9 @@ export class BeatSyncManager {
     }
     // Port2 will be passed to AudioToClockRunner below
 
+    const initialEnabled = this.localController.observableState.localSettings.beatSyncResolumeControlEnabled;
+    this.onResolumeSettingsChanged(initialEnabled);
+
     this.audioToClock = new AudioToClockRunner({
       featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
       bpmPhaseModelUrl: 'models/mel25/main_model_fp32.onnx',
