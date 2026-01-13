@@ -110,26 +110,8 @@ export class RuntimeManager {
         for (const [k, v] of cc) values.set(k, v);
         for (const [k, v] of notes) values.set(k, v);
 
-        // Send all recent events?
-        // Ideally we only send *new* events.
-        // But since we throttle to 16ms, we might miss some if we just take "recent".
-        // However, `recentEvents` is a buffer.
-        // Let's send the whole buffer (max 20) and let the worker filter by time?
-        // Or just send them all. 20 events is small.
-        // The worker will process them.
-        // Wait, if we send duplicates, the worker might re-trigger.
-        // We should filter by time or ID.
-        // But the worker is stateless regarding "last received event" unless we persist it.
-        // Actually, `executor.worker` runs every tick.
-        // If we send events, they are "consumed" or "buffered"?
-        // If we send `MIDI_UPDATE`, it updates the context.
-        // If the context holds `events`, and the node reads them...
-        // If the node reads them every frame, it will re-trigger.
-        // So the worker needs to clear events after processing?
-        // Or the message should only contain *new* events, and the worker appends them to a queue for the *next* frame?
-
-        // Let's assume the worker treats `msg.events` as "events arrived since last update".
-        // So we need to track what we sent.
+        // Filter events to send only new ones since the last update
+        // The worker will process them as a batch.
 
         const events = midiManager.state.recentEvents; // These are sorted newest first?
         // `unshift` puts newest at 0.
@@ -183,6 +165,7 @@ export class RuntimeManager {
     if (this.audioRenderer.state === 'suspended') {
       this.audioRenderer.resume();
     }
+    this.beatSyncManager.resumeAudio();
   }
 
   public sendResolumeControl(action: 'connect' | 'disconnect') {
@@ -303,13 +286,8 @@ export class RuntimeManager {
     runInAction(() => {
       for (const [nodeId, instance] of Object.entries(msg.graph.nodes)) {
         if (instance.defaultConfig) {
-          // Extract original user-facing ID if possible?
-          // The graph compilation prefixes IDs (e.g. root node IDs might be same, but subgraphs have prefixes).
-          // We only care about root nodes for the LocalState cache usually (for the UI).
-          // If the node ID exists in our AppState, we cache it.
-          // Note: compileGraph logic: nodeId = idPrefix + node.id. Root prefix is empty string?
-          // processGraph(appState.graph, '', true); -> IDs are just 'n1', 'n2'.
-          // So they match AppState IDs.
+          // Cache config for root nodes (matching AppState IDs) for UI use.
+          // Subgraph node IDs are prefixed and handled separately by the worker.
           this.localController.observableState.compiledNodeConfigs.set(nodeId, instance.defaultConfig);
         }
       }

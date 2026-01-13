@@ -93,13 +93,20 @@ export class BeatSyncManager {
 
     // Preload worklet module to prevent race conditions during switching
     const workletUrl = new URL('../beatsync/audio-capture.worklet.ts', import.meta.url).toString();
-    this.audioContext.audioWorklet.addModule(workletUrl).then(() => {
-      this.enumerateDevices();
+    this.audioContext.audioWorklet.addModule(workletUrl).then(async () => {
+      await this.enumerateDevices();
 
       // Auto-connect if allowed and previously selected
       const savedId = this.localController.observableState.localSettings.beatSyncAudioDeviceId;
-      if (savedId) {
-        this.startMic(savedId);
+
+      // Validate if the saved device still exists
+      const deviceExists = this.audioDevices.some(d => d.deviceId === savedId);
+
+      if (savedId && deviceExists) {
+        await this.startMic(savedId);
+      } else if (savedId) {
+        console.warn(`[BeatSync] Saved audio device ${savedId} not found. Auto-connect validation failed.`);
+        // Optionally fallback to default? For now, we respect the user's specific choice and do nothing if missing.
       }
     }).catch(err => {
       console.error("Failed to load audio worklet module", err);
@@ -201,7 +208,7 @@ export class BeatSyncManager {
     }
 
     if (this.audioContext?.state === 'suspended') {
-      await this.audioContext.resume();
+      this.audioContext.resume().catch(e => console.warn("[BeatSync] Auto-resume failed (waiting for gesture):", e));
     }
 
     try {
@@ -279,29 +286,23 @@ export class BeatSyncManager {
 
     // Connect source to worklet (worklet processes audio)
     source.connect(workletNode);
-    // Worklet needs to be connected to destination to force processing?
-    // Usually yes, or keep it alive. connecting to destination is safest for robust processing
-    // even if it outputs silence (which it currently duplicates input).
-    // Our processor returns true so it keeps alive, but connecting is good practice.
+    // Connect to destination to ensure the worklet is processed by the audio engine
+    // even if it just duplicates input or processes silently.
     workletNode.connect(this.audioContext.destination);
 
-    // We no longer manually feed data or update rolling buffer here?
-    // Wait, the visualizer relies on `rollingWaveformBuffer`.
-    // The previous implementation updated it.
-    // If we move everything to worker, `BeatSyncManager.rollingWaveformBuffer` will be dead.
-    // The user requirement was "remove all need for the main thread's intervention".
-    // This implies `rollingWaveformBuffer` logic also moves or is removed.
-    // However, `rollingWaveformBuffer` is used for the waveform visualization on the UI.
-    // If we kill it, the waveform graph dies.
-    // The worker sends `debug` data. Is the waveform sent back? No.
-    // `DebugUpdates` schema doesn't seem to include raw audio.
-    // If the visualizer needs waveform, we might need a separate analyzer or tap.
-    // But for "Audio To Clock" logic, the main thread loop is gone.
-    // Let's implement the refactor as requested (move capture).
-    // We can restore waveform viz later if needed, or by tapping the source separately.
-    // I will leave `rollingWaveformBuffer` alone (it just wont update) for now, or use an AnalyserNode if I want to keep it.
-    // Given "remove all need for main thread's intervention", I will accept that the manual buffer copy stops.
+    // Note: rollingWaveformBuffer is no longer updated here as processing moved to worker.
+    // If waveform visualization is needed later, we can add a separate AnalyserNode.
     this.audioToClock?.setRunning(true);
+  }
+
+  public async resumeAudio() {
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.warn("[BeatSync] Resume failed:", e);
+      }
+    }
   }
 
   public dispose() {
