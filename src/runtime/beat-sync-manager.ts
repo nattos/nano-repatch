@@ -162,64 +162,53 @@ export class BeatSyncManager {
     this.isMidiMappingActive = false;
   }
 
+  private midiListenerDisposer: (() => void) | null = null;
+
   private setupMidiListener() {
-    // Listen for new MIDI events from the global manager
-    reaction(
-      () => {
-        // We only care about the latest event.
-        // We reference the length to trigger updates.
-        const len = midiManager.state.recentEvents.length;
-        if (len === 0) return null;
-        return midiManager.state.recentEvents[0];
-      },
-      (event) => {
-        if (!event) return;
+    this.midiListenerDisposer = midiManager.onMidiEvent((event) => {
+      // LEARNING MODE
+      if (this.isMidiMappingActive) {
+        runInAction(() => {
+          // Determine type
+          let mapping: SimpleMidiMapping | null = null;
+          if (event.type === 'note_on') {
+            mapping = { channel: event.channel, type: 'note', index: event.note };
+          } else if (event.type === 'cc') {
+            mapping = { channel: event.channel, type: 'cc', index: event.cc };
+          }
 
-        // LEARNING MODE
-        if (this.isMidiMappingActive) {
-          runInAction(() => {
-            // Determine type
-            let mapping: SimpleMidiMapping | null = null;
-            if (event.type === 'note_on') {
-              mapping = { channel: event.channel, type: 'note', index: event.note };
-            } else if (event.type === 'cc') {
-              mapping = { channel: event.channel, type: 'cc', index: event.cc };
-            }
+          if (mapping) {
+            this.localController.observableState.localSettings.beatSyncResyncMidiMapping = mapping;
+            this.localController.saveSettings();
+            this.isMidiMappingActive = false; // Disarm
+          }
+        });
+        return;
+      }
 
-            if (mapping) {
-              this.localController.observableState.localSettings.beatSyncResyncMidiMapping = mapping;
-              this.localController.saveSettings();
-              this.isMidiMappingActive = false; // Disarm
-            }
-          });
-          return;
+      // TRIGGER MODE
+      const mapping = this.midiMapping;
+      if (!mapping) return;
+
+      let match = false;
+      // Check if event matches mapping
+      if (mapping.type === 'note' && event.type === 'note_on') {
+        if (event.channel === mapping.channel && event.note === mapping.index) {
+          match = true;
         }
-
-        // TRIGGER MODE
-        const mapping = this.midiMapping;
-        if (!mapping) return;
-
-        let match = false;
-        // Check if event matches mapping
-        if (mapping.type === 'note' && event.type === 'note_on') {
-          if (event.channel === mapping.channel && event.note === mapping.index) {
+      } else if (mapping.type === 'cc' && event.type === 'cc') {
+        if (event.channel === mapping.channel && event.cc === mapping.index) {
+          // For CC, trigger on value > 0 (assuming button release is 0)
+          if (event.value > 0) {
             match = true;
           }
-        } else if (mapping.type === 'cc' && event.type === 'cc') {
-          if (event.channel === mapping.channel && event.cc === mapping.index) {
-            // For CC, trigger on value > 0 (assuming button release is 0)
-            // We don't check for "change" because `recentEvents` are new events.
-            if (event.value > 0) {
-              match = true;
-            }
-          }
-        }
-
-        if (match) {
-          this.resync(); // Use existing resync logic (respects hard/soft setting)
         }
       }
-    );
+
+      if (match) {
+        this.resync(); // Use existing resync logic (respects hard/soft setting)
+      }
+    });
   }
 
 

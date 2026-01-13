@@ -19,9 +19,12 @@ interface MIDIMessageEvent extends Event {
   data: Uint8Array;
 }
 
+import { MidiEvent } from './types'; // Import MidiEvent
+
 export class MidiManager {
   state = new MidiState();
   private midiAccess: MIDIAccess | null = null;
+  private listeners: Set<(event: MidiEvent) => void> = new Set();
 
   constructor() {
     this.init();
@@ -45,6 +48,17 @@ export class MidiManager {
     } catch (e) {
       console.error('Failed to access Web MIDI API:', e);
     }
+  }
+
+  public onMidiEvent(callback: (event: MidiEvent) => void): () => void {
+    this.listeners.add(callback);
+    return () => {
+      this.listeners.delete(callback);
+    };
+  }
+
+  private dispatchEvent(event: MidiEvent) {
+    this.listeners.forEach(listener => listener(event));
   }
 
   private updateDevices() {
@@ -89,51 +103,58 @@ export class MidiManager {
     const data1 = data[1];
     const data2 = data.length > 2 ? data[2] : 0;
 
+    let midiEvent: MidiEvent | null = null;
+
     // Note On (0x9)
     if (command === 0x9) {
       const rawVelocity = data2;
       if (rawVelocity > 0) {
-        this.state.addEvent({
+        midiEvent = {
           deviceId,
           channel,
           type: 'note_on',
           note: data1,
           velocity: rawVelocity / 127.0,
           time: Date.now()
-        });
+        };
       } else {
         // Velocity 0 is Note Off
-        this.state.addEvent({
+        midiEvent = {
           deviceId,
           channel,
           type: 'note_off',
           note: data1,
           velocity: 0,
           time: Date.now()
-        });
+        };
       }
     }
     // Note Off (0x8)
     else if (command === 0x8) {
-      this.state.addEvent({
+      midiEvent = {
         deviceId,
         channel,
         type: 'note_off',
         note: data1,
         velocity: 0,
         time: Date.now()
-      });
+      };
     }
     // Control Change (0xB)
     else if (command === 0xB) {
-      this.state.addEvent({
+      midiEvent = {
         deviceId,
         channel,
         type: 'cc',
         cc: data1,
         value: data2,
         time: Date.now()
-      });
+      };
+    }
+
+    if (midiEvent) {
+      this.state.addEvent(midiEvent);
+      this.dispatchEvent(midiEvent);
     }
   }
 }

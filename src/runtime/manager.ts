@@ -84,16 +84,8 @@ export class RuntimeManager {
       this.handleInputUpdates(updates);
     });
 
-    // Listened in controllers.ts now
-    // this.appController.onInferredTypesUpdate((inferredTypes) => {
-    //     runInAction(() => {
-    //         for (const [nodeId, types] of Object.entries(inferredTypes)) {
-    //             this.localController.observableState.inferredNodeTypes.set(nodeId, types);
-    //         }
-    //     });
-    // });
-
-    // Sync MIDI state to worker
+    // Sync MIDI state to worker (State Persistence)
+    // TODO: Fix this reaction
     reaction(
       () => {
         // Track changes in both maps
@@ -101,8 +93,6 @@ export class RuntimeManager {
           ccVersion: midiManager.state.ccValues.size + Array.from(midiManager.state.ccValues.values()).reduce((a, b) => a + b, 0),
           cc: new Map(midiManager.state.ccValues),
           notes: new Map(midiManager.state.activeNotes),
-          // Also track recent events length/content to trigger updates
-          eventsVersion: midiManager.state.recentEvents.length > 0 ? midiManager.state.recentEvents[0] : null
         };
       },
       ({ cc, notes }) => {
@@ -110,28 +100,21 @@ export class RuntimeManager {
         for (const [k, v] of cc) values.set(k, v);
         for (const [k, v] of notes) values.set(k, v);
 
-        // Filter events to send only new ones since the last update
-        // The worker will process them as a batch.
-
-        const events = midiManager.state.recentEvents; // These are sorted newest first?
-        // `unshift` puts newest at 0.
-        // So we want to send events that are newer than `lastSentEventTime`.
-
-        const newEvents = events.filter(e => (e.time ?? 0) > this.lastMidiEventTime).reverse(); // Oldest first
-
-        if (newEvents.length > 0) {
-          this.lastMidiEventTime = newEvents[newEvents.length - 1].time ?? Date.now();
-        }
-
+        // Send STATE update
         const msg: ExecutorWorkerMessage = {
           type: 'MIDI_UPDATE',
           values,
-          events: newEvents
+          events: [] // Events handled by listener
         };
         this.executorWorker.postMessage(msg);
       },
       { delay: 16 } // Throttle to ~60fps
     );
+
+    // Listen for MIDI Events (Transient)
+    midiManager.onMidiEvent((event) => {
+      this.midiEventBuffer.push(event);
+    });
 
     // Resume audio context on selection change (user interaction intent)
     // We observe the selection size.
@@ -250,7 +233,6 @@ export class RuntimeManager {
   public outputRemappings: Record<string, Record<string, string>> = {};
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
-    // console.log('RuntimeManager: Graph compiled, initializing executor worker');
     this.virtualInputMappings = msg.virtualInputMappings || {};
     this.outputRemappings = msg.outputRemappings || {};
 
@@ -527,8 +509,31 @@ export class RuntimeManager {
     }
   }
 
+  private midiEventBuffer: any[] = [];
+
   private performStep() {
     this.lastStepTime = performance.now();
+
+    // Flush buffered MIDI events
+    if (this.midiEventBuffer.length > 0) {
+      const msgs = this.midiEventBuffer;
+      this.midiEventBuffer = []; // Clear buffer
+
+      const msg: ExecutorWorkerMessage = {
+        type: 'MIDI_UPDATE',
+        values: new Map(), // Values updated via state reaction below, no need to send here if disjoint?
+        // Actually, MIDI_UPDATE in worker likely expects both or merges.
+        // We should double check if we can send just events.
+        // Logic below in reaction sends BOTH.
+        // Let's stick to the pattern: Reaction handles STATE (CC values, Active Notes).
+        // This handles EVENTS (Transient).
+        // If we split them, we might have race conditions or worker might need separate handlers.
+        // Let's check worker logic... assuming it handles partial updates or we just send empty map.
+        events: msgs
+      };
+      this.executorWorker.postMessage(msg);
+    }
+
     const stepMsg: ExecutorWorkerMessage = {
       type: 'CONTROL',
       action: 'STEP'

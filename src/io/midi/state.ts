@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeObservable, observable, action } from 'mobx';
 import { MidiEvent } from './types';
 
 export interface MidiDevice {
@@ -10,29 +10,32 @@ export interface MidiDevice {
 }
 
 export class MidiState {
-  devices = new Map<string, MidiDevice>();
-  selectedDeviceIds = new Set<string>();
+  @observable devices = new Map<string, MidiDevice>();
+  @observable selectedDeviceIds = new Set<string>();
 
   // Recent events for UI feedback
-  recentEvents: MidiEvent[] = [];
+  @observable.shallow recentEvents: MidiEvent[] = [];
 
   // Current state for monitoring
-  activeNotes = new Map<string, number>(); // key: "deviceId:channel:note", value: velocity
-  ccValues = new Map<string, number>(); // key: "deviceId:channel:cc", value: value
+  @observable activeNotes = new Map<string, number>(); // key: "deviceId:channel:note", value: velocity
+  @observable ccValues = new Map<string, number>(); // key: "deviceId:channel:cc", value: value
 
   constructor() {
-    makeAutoObservable(this);
+    makeObservable(this);
   }
 
+  @action
   addDevice(device: MidiDevice) {
     this.devices.set(device.id, device);
   }
 
+  @action
   removeDevice(id: string) {
     this.devices.delete(id);
     this.selectedDeviceIds.delete(id);
   }
 
+  @action
   toggleDeviceSelection(id: string) {
     if (this.selectedDeviceIds.has(id)) {
       this.selectedDeviceIds.delete(id);
@@ -41,6 +44,7 @@ export class MidiState {
     }
   }
 
+  @action
   addEvent(event: MidiEvent) {
     // Keep only last 20 events
     this.recentEvents.unshift(event);
