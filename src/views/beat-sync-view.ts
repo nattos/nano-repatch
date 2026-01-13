@@ -2,6 +2,7 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
 import { customElement, query } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
 import { BeatSyncVisualizer } from './beat-sync/visualizer';
 import { globalStyles } from '../styles';
 import { runtimeManager } from '../builder/controllers';
@@ -212,6 +213,61 @@ export class BeatSyncView extends MobxLitElement {
       .action-button:hover {
         background-color: var(--button-hover);
       }
+      .resync-btn.large {
+        height: 60px;
+        font-size: 16px;
+        font-weight: bold;
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        margin-bottom: 8px;
+        width: 100%;
+        display: block;
+      }
+
+      .midi-mapping-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .midi-learn-btn {
+        background: transparent;
+        border: 1px solid var(--text-color);
+        color: var(--text-color);
+        font-size: 10px;
+        padding: 2px 6px;
+        cursor: pointer;
+        border-radius: 4px;
+        opacity: 0.7;
+      }
+
+      .midi-learn-btn:hover {
+        opacity: 1.0;
+        background: rgba(255,255,255,0.1);
+      }
+
+      .midi-learn-btn.pulsing {
+        animation: pulse-red 1s infinite;
+        border-color: #ff4444;
+        color: #ff4444;
+        opacity: 1;
+      }
+
+      .midi-mapping-label {
+        font-size: 10px;
+        background: rgba(255,255,255,0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      @keyframes pulse-red {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+      }
     `
   ];
 
@@ -295,6 +351,28 @@ export class BeatSyncView extends MobxLitElement {
     console.log("Main thread stalled for 2 seconds");
   }
 
+  private renderMidiMapping(manager: any) {
+    const mapping = manager.midiMapping;
+    if (!mapping) return null;
+
+    let label = '';
+    if (mapping.type === 'note') {
+      label = `Note ${mapping.index} (Ch${mapping.channel})`;
+    } else {
+      label = `CC ${mapping.index} (Ch${mapping.channel})`;
+    }
+
+    return html`
+      <span
+        class="midi-mapping-label chip"
+        @dblclick=${() => manager.clearMidiMapping()}
+        title="Double click to clear"
+      >
+        ${label}
+      </span>
+    `;
+  }
+
   render() {
     const manager = runtimeManager.beatSyncManager;
     const { audioDevices, selectedDeviceId, isMicActive, loadingMessage,
@@ -342,11 +420,23 @@ export class BeatSyncView extends MobxLitElement {
                 <div class="segmented-option ${manager.isHardSync ? 'selected' : ''}"
                      @click=${() => manager.setHardSync(true)}>Hard</div>
             </div>
-            <button @click=${() => this.stallMainThread()} style="margin-left: auto;">Stall Main Thread (2s)</button>
+            <button class="resync-btn large" @click=${() => manager.resync()}>
+              ${manager.isHardSync ? 'HARD RESYNC' : 'RESYNC'}
+            </button>
+            <div class="midi-mapping-controls">
+                <button
+                  class="midi-learn-btn ${classMap({ pulsing: manager.isMidiMappingActive })}"
+                  @click=${() => manager.toggleMidiDoLearn()}
+                  title=${manager.isMidiMappingActive ? 'Listening for MIDI...' : 'Click to map MIDI'}
+                >
+                  MIDI
+                </button>
+                ${this.renderMidiMapping(manager)}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="content">
+        <div class="monitor-section">
         <div class="viz-container">
             <div class="viz-text-summaries">
                 <div><b>SEND BPM:</b> ${externalBpm.toFixed(1)}</div>

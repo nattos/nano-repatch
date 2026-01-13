@@ -50,6 +50,13 @@ export interface LocalSettings {
   areRegionsExpanded: boolean;
   beatSyncAudioDeviceId: string | null;
   beatSyncHardSyncEnabled: boolean;
+  beatSyncResyncMidiMapping: SimpleMidiMapping | null;
+}
+
+export interface SimpleMidiMapping {
+  channel: number;
+  type: 'note' | 'cc';
+  index: number; // note number or cc number
 }
 
 export interface Selectable {
@@ -122,6 +129,7 @@ export class LocalController {
         areRegionsExpanded: true, // Default to expanded
         beatSyncAudioDeviceId: null,
         beatSyncHardSyncEnabled: false,
+        beatSyncResyncMidiMapping: null,
       },
       // Interaction State
       isDraggingSelection: false,

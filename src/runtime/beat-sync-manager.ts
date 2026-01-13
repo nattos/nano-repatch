@@ -1,8 +1,9 @@
-import { action, makeObservable, observable, runInAction } from 'mobx';
+import { action, makeObservable, observable, runInAction, reaction } from 'mobx';
 import { AudioToClockRunner } from '../beatsync/audio_to_clock_runner';
 import { predictBarPhase } from '../beatsync/extrapolation';
 import { DebugUpdates, InferenceManagerDebugData, StabilizerDebugData, ExternalClockDebugData, ExternalClockAdjustEvent } from '../beatsync/schema';
-import { LocalController } from '../builder/local-state';
+import { LocalController, SimpleMidiMapping } from '../builder/local-state';
+import { midiManager } from '../io/midi/manager';
 
 export class BeatSyncManager {
   @observable loadingMessage = 'Waiting to initialize...';
@@ -65,6 +66,8 @@ export class BeatSyncManager {
 
     const initialEnabled = this.localController.observableState.localSettings.beatSyncResolumeControlEnabled;
     this.onResolumeSettingsChanged(initialEnabled);
+
+    this.setupMidiListener();
 
     this.audioToClock = new AudioToClockRunner({
       featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
@@ -138,6 +141,85 @@ export class BeatSyncManager {
     this.localController.observableState.localSettings.beatSyncResolumeControlEnabled = enabled;
     this.localController.saveSettings();
     this.onResolumeSettingsChanged(enabled);
+  }
+
+  // MIDI Mapping
+  @observable isMidiMappingActive = false;
+
+  public get midiMapping(): SimpleMidiMapping | null {
+    return this.localController.observableState.localSettings.beatSyncResyncMidiMapping;
+  }
+
+  @action
+  public toggleMidiDoLearn() {
+    this.isMidiMappingActive = !this.isMidiMappingActive;
+  }
+
+  @action
+  public clearMidiMapping() {
+    this.localController.observableState.localSettings.beatSyncResyncMidiMapping = null;
+    this.localController.saveSettings();
+    this.isMidiMappingActive = false;
+  }
+
+  private setupMidiListener() {
+    // Listen for new MIDI events from the global manager
+    reaction(
+      () => {
+        // We only care about the latest event.
+        // We reference the length to trigger updates.
+        const len = midiManager.state.recentEvents.length;
+        if (len === 0) return null;
+        return midiManager.state.recentEvents[0];
+      },
+      (event) => {
+        if (!event) return;
+
+        // LEARNING MODE
+        if (this.isMidiMappingActive) {
+          runInAction(() => {
+            // Determine type
+            let mapping: SimpleMidiMapping | null = null;
+            if (event.type === 'note_on') {
+              mapping = { channel: event.channel, type: 'note', index: event.note };
+            } else if (event.type === 'cc') {
+              mapping = { channel: event.channel, type: 'cc', index: event.cc };
+            }
+
+            if (mapping) {
+              this.localController.observableState.localSettings.beatSyncResyncMidiMapping = mapping;
+              this.localController.saveSettings();
+              this.isMidiMappingActive = false; // Disarm
+            }
+          });
+          return;
+        }
+
+        // TRIGGER MODE
+        const mapping = this.midiMapping;
+        if (!mapping) return;
+
+        let match = false;
+        // Check if event matches mapping
+        if (mapping.type === 'note' && event.type === 'note_on') {
+          if (event.channel === mapping.channel && event.note === mapping.index) {
+            match = true;
+          }
+        } else if (mapping.type === 'cc' && event.type === 'cc') {
+          if (event.channel === mapping.channel && event.cc === mapping.index) {
+            // For CC, trigger on value > 0 (assuming button release is 0)
+            // We don't check for "change" because `recentEvents` are new events.
+            if (event.value > 0) {
+              match = true;
+            }
+          }
+        }
+
+        if (match) {
+          this.resync(); // Use existing resync logic (respects hard/soft setting)
+        }
+      }
+    );
   }
 
 
