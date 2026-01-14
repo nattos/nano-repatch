@@ -12,17 +12,10 @@ interface MidiDelayState {
   queue: PendingEvent[];
 }
 
+import { TimeBaseModeField } from "../shared-inspector-fields";
+
 const MidiDelayFields: InspectorFieldDef[] = [
-  {
-    type: 'tab-bar',
-    label: 'Mode',
-    path: 'mode',
-    options: [
-      { label: 'Time', value: 'time' },
-      { label: 'Beats', value: 'beats' }
-    ],
-    default: 'time'
-  }
+  TimeBaseModeField
 ];
 
 export const midiDelayNode = defineNode({
