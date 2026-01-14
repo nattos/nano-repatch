@@ -45,6 +45,27 @@ export class AppSidebar extends MobxLitElement {
       border-left: 3px solid var(--accent-color);
     }
 
+    .icon.running {
+      color: var(--accent-color);
+    }
+
+    .bpm-display {
+      font-size: 9px;
+      color: var(--accent-color);
+      border: 1px solid var(--accent-color);
+      border-radius: 4px;
+      padding: 2px 0;
+      width: 32px;
+      text-align: center;
+      margin-top: -6px;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
+      cursor: default;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
     svg {
       width: 20px;
       height: 20px;
@@ -141,12 +162,17 @@ export class AppSidebar extends MobxLitElement {
 
       <div
         id="beatsync-icon"
-        class="icon ${this.activeTab === 'beatsync' ? 'active' : ''}"
+        class="icon ${this.activeTab === 'beatsync' ? 'active' : ''} ${runtimeManager.beatSyncManager.isMicActive ? 'running' : ''}"
         @click=${() => this.switchTab('beatsync')}
-        title="Beat Synchronization"
+        title="Audio Beat Sync"
       >
         <i class="la la-clock-o" style="font-size: 20px;"></i>
       </div>
+      ${runtimeManager.beatSyncManager.isMicActive ? html`
+        <div class="bpm-display" title="Detected BPM">
+            ${runtimeManager.beatSyncManager.bestBpm.toFixed(1)}
+        </div>
+      ` : ''}
 
       <div class="spacer"></div>
 

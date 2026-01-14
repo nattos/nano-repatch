@@ -137,12 +137,7 @@ self.onmessage = async (e: MessageEvent) => {
   } else if (type === 'connectAudioPort') {
     const port = payload as MessagePort;
 
-    // Cleanup previous port if exists?
-    // The previous port is owned by the closure of the previous connectAudioPort handler...
-    // We can't access it here easily unless we store it globally.
-    // However, if we just overwrite the listener, the old port might still be open but no one listens?
-    // Actually, we don't store it globally.
-    // To properly close it, we should track it.
+    // Cleanup previous port if it exists
 
     if (currentAudioPort) {
       currentAudioPort.close();

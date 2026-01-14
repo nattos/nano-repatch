@@ -72,8 +72,12 @@ export class BeatSyncManager {
     this.audioToClock = new AudioToClockRunner({
       featureExtractorUrl: 'models/mel25/feature_extractor_fp32.onnx',
       bpmPhaseModelUrl: 'models/mel25/main_model_fp32.onnx',
+      stabilizerConfig: {
+        // For sidebar BPM visualization.
+        exportDebugData: true,
+      },
       externalClockControllerConfig: {
-        // For icon visualization.
+        // For sidebar icon visualization.
         // FIXME: Also used to determine when we get a zero crossing, to hit Resolume "resync".
         exportDebugData: true,
       },
