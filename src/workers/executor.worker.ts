@@ -7,12 +7,18 @@ import { resolumeManager } from '../io/resolume/manager';
 import { VirtualAudioContext } from '../audio/virtual-audio';
 import { ExternalClockDebugData } from '../beatsync/schema';
 
-// --- Resolume Logic (Worker Side) ---
-class ResolumeLogic {
+// --- External Clock Coordinator (Worker Side) ---
+class ExternalClockCoordinator {
   private enabled = false;
   private pendingResync = false;
   private lastBarPhase = 0;
   private currentAuxPort: MessagePort | null = null;
+
+  // Sync State
+  public externalBpm = 120; // Default
+  public externalBarPhase: number | null = null;
+  public hasValidExternalClock = false;
+  public lastExternalUpdate = 0;
 
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
@@ -39,10 +45,15 @@ class ResolumeLogic {
   }
 
   private handleHardSync() {
-    if (!this.enabled) return;
-    // User requested simplified logic: only send resync trigger, BPM is already synced via CLOCK_UPDATE
-    resolumeManager.setValue('/composition/tempocontroller/resync', true);
-    resolumeManager.setValue('/composition/tempocontroller/resync', false);
+    // Hard Sync: Reset Resolume phase
+    if (this.enabled) {
+      resolumeManager.setValue('/composition/tempocontroller/resync', true);
+      resolumeManager.setValue('/composition/tempocontroller/resync', false);
+    }
+
+    // Also hard sync our internal clock if we have valid external data?
+    // Actually, CLOCK_HARD_SYNC usually comes with a resync in audio_to_clock.
+    // Let's reset our local tracking.
     this.pendingResync = false;
   }
 
@@ -53,17 +64,25 @@ class ResolumeLogic {
       resolumeManager.setValue('/composition/tempocontroller/tempo', msg.bpm);
     }
 
-    if (msg.phase !== undefined || msg.kind === 'sync' || msg.kind === 'nudge') {
+    if (msg.phase !== undefined && msg.kind === 'sync') {
       this.pendingResync = true;
     }
   }
 
   private handleClockStream(msg: AuxClockStreamMessage) {
+    // Always track external clock data, even if Resolume control is disabled
+    const debugData: ExternalClockDebugData = msg.data;
+
+    // Update State
+    this.externalBpm = debugData.bpm;
+    this.externalBarPhase = debugData.barPhase;
+    this.hasValidExternalClock = true;
+    this.lastExternalUpdate = self.performance.now();
+
     if (!this.enabled) return;
 
-    // Check bar crossing
-    const debugData: ExternalClockDebugData = msg.data;
-    const barPhase = debugData.barPhase; // Assumes ExternalClockDebugData shape
+    // Check bar crossing for Resolume Resync
+    const barPhase = debugData.barPhase;
     if (this.pendingResync) {
       const currentBarIndex = Math.floor(barPhase / 4);
       const lastBarIndex = Math.floor(this.lastBarPhase / 4);
@@ -79,7 +98,7 @@ class ResolumeLogic {
   }
 }
 
-const resolumeLogic = new ResolumeLogic();
+const clockCoordinator = new ExternalClockCoordinator();
 
 let executor: GraphExecutor | null = null;
 let intervalId: any = null;
@@ -102,11 +121,11 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
 
   switch (msg.type) {
     case 'CONNECT_AUX_PORT':
-      resolumeLogic.handlePort(msg.port);
+      clockCoordinator.handlePort(msg.port);
       break;
 
     case 'RESOLUME_SETTINGS':
-      resolumeLogic.setEnabled(msg.enabled);
+      clockCoordinator.setEnabled(msg.enabled);
       break;
 
     case 'INIT_GRAPH':
@@ -251,14 +270,76 @@ function runTick() {
   const startTime = self.performance.now();
 
   // Update clock
-  // Assuming 120 BPM for now, similar to main thread logic
-  const BPM = 120;
-  const beatsPerSecond = BPM / 60;
   const dt = 1 / frameRate;
+
+  let currentBpm = 120;
+
+  // SYNC LOGIC
+  if (clockCoordinator.hasValidExternalClock && clockCoordinator.externalBpm > 0) {
+    // 1. Use External BPM
+    currentBpm = clockCoordinator.externalBpm;
+
+    // 2. Phase Correction (PLL / Nudge)
+    if (clockCoordinator.externalBarPhase !== null) {
+      // Calculate where we are vs where we should be
+      const internalPhase = clock.beat % 4;
+      const externalPhase = clockCoordinator.externalBarPhase % 4;
+
+      let phaseError = externalPhase - internalPhase;
+
+      // Wrap error to shortest path (-2 to +2)
+      if (phaseError > 2) phaseError -= 4;
+      if (phaseError < -2) phaseError += 4;
+
+      // JUMP AHEAD LOGIC
+      // If error is large negative (we are ahead) -> slow down or wrap?
+      // User request: "jump ahead all at once, keeping a bar (4 beat) alignment"
+      // Interpreting:
+      // If we are significantly BEHIND (positive error > threshold), jump forward.
+      // If we are AHEAD (negative error < -threshold), that effectively means we are "last bar",
+      // or we drifted too fast.
+      // "Jump ahead" implies always increasing time.
+      const JUMP_THRESHOLD = 1.0; // 1 beat error?
+
+      // If simple phase drift, align.
+      // If big jump, add 4 to target?
+
+      if (Math.abs(phaseError) > JUMP_THRESHOLD) {
+        // Big error.
+        // Strategy: Align to `externalPhase` in the NEXT congruous bar index relative to current.
+        // Current absolute beat = clock.beat
+        // Current absolute bar index = floor(clock.beat / 4)
+
+        const currentBaseBar = Math.floor(clock.beat / 4) * 4;
+        let targetBeat = currentBaseBar + externalPhase;
+
+        // If target is in the past, move to next bar
+        if (targetBeat < clock.beat) {
+          targetBeat += 4;
+        }
+
+        // Apply Jump
+        clock.beat = targetBeat;
+        // console.log(`[Executor] Jumped ahead to match phase. Target: ${targetBeat.toFixed(2)}`);
+      } else {
+        // Smooth Nudge
+        // Gain factor: How much of the error to correct per second?
+        // Let's correct 50% of error over 1 sec?
+        const gain = 2.0; // Moderate nudging
+        const correction = phaseError * gain * dt;
+
+        // Apply (clamped to avoid crazy speeds)
+        // Max correction rate = +/- 20% BPM?
+        clock.beat += correction;
+      }
+    }
+  }
+
+  const beatsPerSecond = currentBpm / 60;
   clock.beat += dt * beatsPerSecond;
 
   // Sync virtual audio time
-  virtualAudioContext.currentTime = clock.beat; // Or use a separate time accumulator?
+  // virtualAudioContext.currentTime = clock.beat; // Or use a separate time accumulator?
   // ToneSynthLayer uses ctx.currentTime which is usually seconds.
   // clock.beat is beats.
   // We should probably track seconds.

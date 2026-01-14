@@ -5,6 +5,8 @@ import { appController, runtimeManager } from '../builder/controllers';
 import { reaction, IReactionDisposer } from 'mobx';
 import { globalStyles } from '../styles';
 
+import './bpm-display';
+
 @customElement('app-sidebar')
 export class AppSidebar extends MobxLitElement {
   static styles = [
@@ -47,23 +49,6 @@ export class AppSidebar extends MobxLitElement {
 
     .icon.running {
       color: var(--accent-color);
-    }
-
-    .bpm-display {
-      font-size: 9px;
-      color: var(--accent-color);
-      border: 1px solid var(--accent-color);
-      border-radius: 4px;
-      padding: 2px 0;
-      width: 32px;
-      text-align: center;
-      margin-top: -6px;
-      margin-bottom: 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: clip;
-      cursor: default;
-      font-family: 'JetBrains Mono', monospace;
     }
 
     svg {
@@ -168,11 +153,7 @@ export class AppSidebar extends MobxLitElement {
       >
         <i class="la la-clock-o" style="font-size: 20px;"></i>
       </div>
-      ${runtimeManager.beatSyncManager.isMicActive ? html`
-        <div class="bpm-display" title="Detected BPM">
-            ${runtimeManager.beatSyncManager.bestBpm.toFixed(1)}
-        </div>
-      ` : ''}
+      <bpm-display></bpm-display>
 
       <div class="spacer"></div>
 
