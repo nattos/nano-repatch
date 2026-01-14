@@ -5,6 +5,7 @@ import { ExecutorWorkerMessage, ExecutionUpdateMessage, AuxClockMessage, AuxCloc
 import { Structor, StructorRecord } from '../structor/structor';
 import { resolumeManager } from '../io/resolume/manager';
 import { VirtualAudioContext } from '../audio/virtual-audio';
+import { ExternalClockDebugData } from '../beatsync/schema';
 
 // --- Resolume Logic (Worker Side) ---
 class ResolumeLogic {
@@ -61,7 +62,8 @@ class ResolumeLogic {
     if (!this.enabled) return;
 
     // Check bar crossing
-    const barPhase = msg.data.barPhase; // Assumes ExternalClockDebugData shape
+    const debugData: ExternalClockDebugData = msg.data;
+    const barPhase = debugData.barPhase; // Assumes ExternalClockDebugData shape
     if (this.pendingResync) {
       const currentBarIndex = Math.floor(barPhase / 4);
       const lastBarIndex = Math.floor(this.lastBarPhase / 4);

@@ -114,8 +114,6 @@ self.onmessage = async (e: MessageEvent) => {
       },
     };
 
-
-
     const thisAudioToClock = new AudioToClockConstructor(fullConfig);
     audioToClock = thisAudioToClock;
 
