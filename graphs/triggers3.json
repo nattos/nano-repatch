@@ -31,7 +31,7 @@
         "typeId": "nicepattern.chaos_generator",
         "name": "#",
         "values": {
-          "density": 0.3
+          "density": 0.33
         },
         "minNote": 0,
         "maxNote": 0,

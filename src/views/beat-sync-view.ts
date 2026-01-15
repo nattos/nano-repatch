@@ -6,6 +6,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { BeatSyncVisualizer } from './beat-sync/visualizer';
 import { globalStyles } from '../styles';
 import { runtimeManager } from '../builder/controllers';
+import './ui-option-bar';
 
 @customElement('beat-sync-view')
 export class BeatSyncView extends MobxLitElement {
@@ -54,34 +55,7 @@ export class BeatSyncView extends MobxLitElement {
         margin-top: 10px;
       }
 
-      .chip {
-        padding: 6px 12px;
-        background-color: var(--button-bg);
-        border-radius: 16px;
-        font-size: 0.9em;
-        cursor: pointer;
-        border: 1px solid transparent;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-muted);
-      }
 
-      .chip:hover {
-        background-color: var(--button-hover);
-        border-color: var(--border-color);
-        color: var(--text-color);
-      }
-
-      .chip.selected {
-        background-color: var(--selection-color);
-        border-color: var(--selection-border);
-        color: var(--text-color);
-      }
-
-      .chip i {
-        font-size: 1.2em;
-      }
 
       .container {
         display: flex;
@@ -172,31 +146,7 @@ export class BeatSyncView extends MobxLitElement {
         opacity: 0.8;
       }
 
-      .segmented-control {
-        display: inline-flex;
-        background-color: var(--panel-bg);
-        border-radius: 4px;
-        padding: 2px;
-        border: 1px solid var(--border-color);
-        margin-right: 10px;
-      }
 
-      .segmented-option {
-        padding: 4px 12px;
-        cursor: pointer;
-        border-radius: 3px;
-        font-size: 0.9em;
-        color: var(--text-muted);
-      }
-
-      .segmented-option:hover {
-        color: var(--text-color);
-      }
-
-      .segmented-option.selected {
-        background-color: var(--selection-color);
-        color: white;
-      }
 
       .action-button {
         padding: 6px 12px;
@@ -411,12 +361,12 @@ export class BeatSyncView extends MobxLitElement {
             <button class="action-button" @pointerdown=${() => manager.resync()}>
                 <i class="la la-sync"></i> Resync
             </button>
-            <div class="segmented-control">
-                <div class="segmented-option ${!manager.isHardSync ? 'selected' : ''}"
-                     @click=${() => manager.setHardSync(false)}>Soft</div>
-                <div class="segmented-option ${manager.isHardSync ? 'selected' : ''}"
-                     @click=${() => manager.setHardSync(true)}>Hard</div>
-            </div>
+            <ui-option-bar
+                .value=${manager.isHardSync ? 'Hard' : 'Soft'}
+                .options=${[{ label: 'Soft', value: 'Soft' }, { label: 'Hard', value: 'Hard' }]}
+                @change=${(e: CustomEvent) => manager.setHardSync(e.detail.value === 'Hard')}
+                style="margin-right: 10px;"
+            ></ui-option-bar>
             <div class="midi-mapping-controls">
                 <button
                   class="midi-learn-btn ${classMap({ pulsing: manager.isMidiMappingActive })}"

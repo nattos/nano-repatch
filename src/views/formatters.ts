@@ -31,11 +31,11 @@ export function formatType(type: StructorType | undefined): string {
 
 export function formatValue(value: any, type?: StructorType, options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (value === undefined || value === null) {
-    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>null</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, ...options?.extraClasses })}>null</span>`;
   }
 
   if (type?.kind === 'record' && type.hint === 'midi') {
-    return html`<span class=${classMap({'chip': true, 'midi': true, ...options?.extraClasses})}>${formatMidiEvent(value)}</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, 'midi': true, ...options?.extraClasses })}>${formatMidiEvent(value)}</span>`;
   }
 
   if (type?.kind === 'array' && type.hint === 'midi-stream') {
@@ -47,22 +47,22 @@ export function formatValue(value: any, type?: StructorType, options?: { extraCl
   }
 
   if (typeof value === 'number') {
-    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>${value.toFixed(4)}</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, ...options?.extraClasses })}>${value.toFixed(4)}</span>`;
   }
 
   if (typeof value === 'string') {
-    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>"${value}"</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, ...options?.extraClasses })}>"${value}"</span>`;
   }
 
   if (Array.isArray(value)) {
-    return html`<span class=${classMap({'chip': true, 'vector': true, ...options?.extraClasses})}>vector(${value.length})</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, 'vector': true, ...options?.extraClasses })}>vector(${value.length})</span>`;
   }
 
   if (typeof value === 'object') {
-    return html`<span class=${classMap({'chip': true, 'struct': true, ...options?.extraClasses})}>struct</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, 'struct': true, ...options?.extraClasses })}>struct</span>`;
   }
 
-  return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>${String(value)}</span>`;
+  return html`<span class=${classMap({ 'chip': true, 'code': true, ...options?.extraClasses })}>${String(value)}</span>`;
 }
 
 function unwrap(value: any): any {
@@ -121,17 +121,17 @@ function midiNoteName(note: number): string {
 
 function formatMidiStream(stream: any[], options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (!stream || stream.length === 0) {
-    return html`<span class=${classMap({'chip': true, 'midi-stream': true, 'empty': true, ...options?.extraClasses})}>[]</span>`;
+    return html`<span class=${classMap({ 'chip': true, 'code': true, 'midi-stream': true, 'empty': true, ...options?.extraClasses })}>[]</span>`;
   }
 
   // Show last few events
   const events = stream.slice(-3).map(formatMidiEvent).join(', ');
-  return html`<span class=${classMap({'chip': true, 'midi-stream': true, ...options?.extraClasses})}>[${events}]</span>`;
+  return html`<span class=${classMap({ 'chip': true, 'code': true, 'midi-stream': true, ...options?.extraClasses })}>[${events}]</span>`;
 }
 
 function formatStepSequence(sequence: any[], options?: { extraClasses: Record<string, boolean> }): TemplateResult {
   if (!sequence || !Array.isArray(sequence)) {
-    return html`<span class=${classMap({'chip': true, ...options?.extraClasses})}>invalid seq</span>`;
+    return html`<span class=${classMap({ 'chip': true, ...options?.extraClasses })}>invalid seq</span>`;
   }
 
   const steps = sequence.map((rawStep, index) => {

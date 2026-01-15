@@ -137,6 +137,88 @@ export const globalStyles = [
     z-index: 1;
   }
 
+
+  /* Unified Chip Styles */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background-color: var(--button-bg);
+    border-radius: 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+  }
+
+  /* Interactive States */
+  .chip:hover {
+    background-color: var(--button-hover);
+    color: var(--text-color);
+    border-color: var(--border-color);
+  }
+
+  .chip.selected {
+    background-color: var(--selection-color);
+    border-color: var(--selection-border);
+    color: var(--text-color);
+  }
+
+  .chip.disconnected {
+    opacity: 0.5;
+    text-decoration: line-through;
+  }
+
+  /* Code/Value Variant (Monospace, Compact) */
+  .chip.code {
+    padding: 2px 6px;
+    border-radius: 4px; /* More square for code */
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; /* Smaller font */
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #444;
+    color: #ddd;
+    gap: 4px;
+    height: auto;
+  }
+
+  /* Type Colors for Code Chips */
+  .chip.code.vector {
+    background: rgba(42, 63, 74, 0.6);
+    color: #8dc1e3;
+    border-color: #3a5f7a;
+  }
+
+  .chip.code.struct {
+    background: rgba(58, 42, 74, 0.6);
+    color: #c18de3;
+    border-color: #5f3a7a;
+  }
+
+  .chip.code.midi {
+    background: rgba(74, 58, 42, 0.6);
+    color: #e3c18d;
+    border-color: #7a5f3a;
+  }
+
+  .chip.code.midi-stream {
+    background: rgba(42, 74, 58, 0.6);
+    color: #8de3c1;
+    border-color: #3a7a5f;
+  }
+
+  .chip.code.sequence {
+    background: rgba(50, 50, 50, 0.6);
+    color: #aaa;
+    border-color: #555;
+  }
+
+  .chip.code.cached {
+    border-style: dashed;
+  }
+
   :host([hidden]) {
     display: none !important;
   }

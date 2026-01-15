@@ -171,29 +171,7 @@ export class IOTab extends MobxLitElement {
         padding: 0 15px;
       }
 
-      .chip {
-        padding: 4px 8px;
-        background-color: var(--button-bg);
-        border-radius: 12px;
-        font-size: 0.9em;
-        cursor: pointer;
-        border: 1px solid transparent;
-      }
 
-      .chip:hover {
-        background-color: var(--button-hover);
-      }
-
-      .chip.selected {
-        background-color: var(--selection-color);
-        border-color: var(--selection-border);
-        color: var(--text-color);
-      }
-
-      .chip.disconnected {
-        opacity: 0.5;
-        text-decoration: line-through;
-      }
 
       .midi-events {
         display: flex;

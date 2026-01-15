@@ -375,47 +375,7 @@ export class GraphNode extends MobxLitElement {
 
 
     /* Styles for chips returned by formatValue */
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.7);
-      color: #ddd;
-      padding: 1px 4px;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      border: 1px solid #444;
-    }
 
-    .chip.vector {
-      background: rgba(42, 63, 74, 0.8);
-      color: #8dc1e3;
-      border-color: #3a5f7a;
-    }
-
-    .chip.struct {
-      background: rgba(58, 42, 74, 0.8);
-      color: #c18de3;
-      border-color: #5f3a7a;
-    }
-
-    .chip.midi {
-      background: rgba(74, 58, 42, 0.8);
-      color: #e3c18d;
-      border-color: #7a5f3a;
-    }
-
-    .chip.midi-stream {
-      background: rgba(42, 74, 58, 0.8);
-      color: #8de3c1;
-      border-color: #3a7a5f;
-    }
-
-    .chip.sequence {
-      background: rgba(50, 50, 50, 0.8);
-      color: #aaa;
-      border-color: #555;
-    }
   `];
 
   private renderDebugValue(portName: string) {

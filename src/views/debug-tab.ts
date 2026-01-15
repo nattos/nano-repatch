@@ -89,44 +89,10 @@ export class DebugTab extends MobxLitElement {
         min-width: 40px;
       }
 
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(0, 0, 0, 0.2);
-        color: #ddd;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        border: 1px solid #444;
-      }
-
-      .chip.cached {
-        border-style: dashed;
-      }
-
-      .chip.vector {
-        background: #2a3f4a;
-        color: #8dc1e3;
-        border-color: #3a5f7a;
-      }
-
-      .chip.struct {
-        background: #3a2a4a;
-        color: #c18de3;
-        border-color: #5f3a7a;
-      }
-
-      .chip.midi {
-        background: #4a3a2a;
-        color: #e3c18d;
-        border-color: #7a5f3a;
-      }
-
-      .chip.midi-stream {
-        background: #2a4a3a;
-        color: #8de3c1;
-        border-color: #3a7a5f;
+      .field-name {
+        color: #888;
+        margin-right: 6px;
+        min-width: 40px;
       }
 
       .type-hint {
@@ -213,7 +179,8 @@ export class DebugTab extends MobxLitElement {
   private midiCache = new Map<string, any[]>();
 
   private renderValues(output: any, repoEntry?: any, nodeId?: string) {
-    if (!output) return html`<div class="value-row"><span class="chip">null</span></div>`;
+
+    if (!output) return html`<div class="value-row"><span class="chip code">null</span></div>`;
 
     const elements = [];
 
