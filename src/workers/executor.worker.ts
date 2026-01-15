@@ -10,6 +10,7 @@ import { ExternalClockDebugData } from '../beatsync/schema';
 // --- External Clock Coordinator (Worker Side) ---
 class ExternalClockCoordinator {
   private enabled = false;
+  private isActive = false;
   private pendingResync = false;
   private lastBarPhase = 0;
   private currentAuxPort: MessagePort | null = null;
@@ -22,6 +23,19 @@ class ExternalClockCoordinator {
 
   setEnabled(enabled: boolean) {
     this.enabled = enabled;
+    this.updateValidity();
+  }
+
+  setBeatSyncActive(active: boolean) {
+    this.isActive = active;
+    this.updateValidity();
+  }
+
+  private updateValidity() {
+    if (!this.isActive) {
+      this.hasValidExternalClock = false;
+      this.externalBarPhase = null;
+    }
   }
 
   handlePort(port: MessagePort) {
@@ -70,7 +84,8 @@ class ExternalClockCoordinator {
   }
 
   private handleClockStream(msg: AuxClockStreamMessage) {
-    // Always track external clock data, even if Resolume control is disabled
+    if (!this.isActive) return;
+
     const debugData: ExternalClockDebugData = msg.data;
 
     // Update State
@@ -79,11 +94,9 @@ class ExternalClockCoordinator {
     this.hasValidExternalClock = true;
     this.lastExternalUpdate = self.performance.now();
 
-    if (!this.enabled) return;
-
     // Check bar crossing for Resolume Resync
     const barPhase = debugData.barPhase;
-    if (this.pendingResync) {
+    if (this.pendingResync && this.enabled) {
       const currentBarIndex = Math.floor(barPhase / 4);
       const lastBarIndex = Math.floor(this.lastBarPhase / 4);
 
@@ -126,6 +139,10 @@ self.onmessage = (event: MessageEvent<ExecutorWorkerMessage>) => {
 
     case 'RESOLUME_SETTINGS':
       clockCoordinator.setEnabled(msg.enabled);
+      break;
+
+    case 'BEAT_SYNC_STATE':
+      clockCoordinator.setBeatSyncActive(msg.isActive);
       break;
 
     case 'INIT_GRAPH':
@@ -275,7 +292,11 @@ function runTick() {
   let currentBpm = 120;
 
   // SYNC LOGIC
-  if (clockCoordinator.hasValidExternalClock && clockCoordinator.externalBpm > 0) {
+  const EXTERNAL_CLOCK_TIMEOUT = 2000; // ms
+  const isExternalClockFresh = (self.performance.now() - clockCoordinator.lastExternalUpdate) < EXTERNAL_CLOCK_TIMEOUT;
+
+  // We rely on clockCoordinator to manage hasValidExternalClock based on enabled/isActive state
+  if (clockCoordinator.hasValidExternalClock && clockCoordinator.externalBpm > 0 && isExternalClockFresh) {
     // 1. Use External BPM
     currentBpm = clockCoordinator.externalBpm;
 

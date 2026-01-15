@@ -107,6 +107,7 @@ export type ExecutorWorkerMessage =
   | ResolumeSetValueMessage
   | ResolumeSettingsMessage
   | ConnectAuxPortMessage
+  | BeatSyncStateMessage
   | NodeMessage;
 
 import { AudioCommand } from '../audio/virtual-audio';
@@ -158,6 +159,11 @@ export type AuxHardSyncMessage = {
 export type ResolumeSettingsMessage = {
   type: 'RESOLUME_SETTINGS';
   enabled: boolean;
+};
+
+export type BeatSyncStateMessage = {
+  type: 'BEAT_SYNC_STATE';
+  isActive: boolean;
 };
 
 export type WiringWorkerMessage = WireLayoutRequest;

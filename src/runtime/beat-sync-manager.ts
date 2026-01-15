@@ -43,7 +43,8 @@ export class BeatSyncManager {
   constructor(
     private localController: LocalController,
     private connectToExecutor: (port: MessagePort) => void,
-    private onResolumeSettingsChanged: (enabled: boolean) => void
+    private onResolumeSettingsChanged: (enabled: boolean) => void,
+    private onBeatSyncStateChanged: (isActive: boolean) => void
   ) {
     makeObservable(this);
 
@@ -66,6 +67,7 @@ export class BeatSyncManager {
 
     const initialEnabled = this.localController.observableState.localSettings.beatSyncResolumeControlEnabled;
     this.onResolumeSettingsChanged(initialEnabled);
+    this.onBeatSyncStateChanged(this.isMicActive);
 
     this.setupMidiListener();
 
@@ -315,7 +317,10 @@ export class BeatSyncManager {
       // Save to settings
       this.localController.observableState.localSettings.beatSyncAudioDeviceId = deviceId;
       this.localController.saveSettings();
+      this.localController.saveSettings();
     });
+
+    this.onBeatSyncStateChanged(true);
 
     this.setupAudioGraph(this.micStream);
   }
@@ -337,7 +342,10 @@ export class BeatSyncManager {
       this.rollingWaveformBuffer = null;
       this.localController.observableState.localSettings.beatSyncAudioDeviceId = null;
       this.localController.saveSettings();
+      this.localController.saveSettings();
     });
+
+    this.onBeatSyncStateChanged(false);
   }
 
   private setupAudioGraph(sourceElement: MediaStream) {
