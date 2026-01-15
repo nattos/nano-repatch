@@ -101,10 +101,17 @@ export class AppSidebar extends MobxLitElement {
 
   firstUpdated() {
     this.beatSyncDisposer = reaction(
-      () => runtimeManager.beatSyncManager.displayQuantizedBeat,
-      (beat) => {
+      () => ({
+        beat: runtimeManager.beatSyncManager.displayQuantizedBeat,
+        active: runtimeManager.beatSyncManager.isMicActive
+      }),
+      ({ beat, active }) => {
         if (this.beatSyncIcon) {
-          this.beatSyncIcon.style.transform = `rotate(${beat * 90}deg)`;
+          if (active) {
+            this.beatSyncIcon.style.transform = `rotate(${beat * 90}deg)`;
+          } else {
+            this.beatSyncIcon.style.transform = 'none';
+          }
         }
       },
       { fireImmediately: true }

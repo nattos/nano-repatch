@@ -1,5 +1,6 @@
 
 import { MobxLitElement } from './mobx-lit-element';
+import { reaction, IReactionDisposer } from 'mobx';
 import { css, html } from 'lit';
 import { customElement, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
@@ -230,6 +231,7 @@ export class BeatSyncView extends MobxLitElement {
 
   private animationFrameId: number | null = null;
   private visualizer!: BeatSyncVisualizer;
+  private loopDisposer: IReactionDisposer | null = null;
 
   async firstUpdated() {
     this.visualizer = new BeatSyncVisualizer({
@@ -243,19 +245,34 @@ export class BeatSyncView extends MobxLitElement {
       phaseGraphCanvas: this.phaseGraphCanvas,
     });
 
-    if (this.animationFrameId === null) {
-      this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
+    // Start loop if already active
+    if (runtimeManager.beatSyncManager.isMicActive && this.animationFrameId === null) {
+      this.animationLoop();
     }
   }
 
   connectedCallback() {
     super.connectedCallback();
     runtimeManager.beatSyncManager.setDebugDataEnabled(true);
+
+    this.loopDisposer = reaction(
+      () => runtimeManager.beatSyncManager.isMicActive,
+      (active) => {
+        if (active && this.animationFrameId === null && this.visualizer) {
+          this.animationLoop();
+        }
+      }
+    );
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     runtimeManager.beatSyncManager.setDebugDataEnabled(false);
+
+    if (this.loopDisposer) {
+      this.loopDisposer();
+      this.loopDisposer = null;
+    }
 
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
@@ -265,6 +282,11 @@ export class BeatSyncView extends MobxLitElement {
 
   private animationLoop() {
     const manager = runtimeManager.beatSyncManager;
+
+    if (!manager.isMicActive) {
+      this.animationFrameId = null;
+      return;
+    }
 
     if (!this.visualizer.hasAudioContext && manager.audioContextInstance) {
       this.visualizer.setAudioContext(manager.audioContextInstance);
@@ -289,14 +311,6 @@ export class BeatSyncView extends MobxLitElement {
 
     this.visualizer.updateVisualizations(manager.bestBpm, manager.overallConfidence, manager.bestTrajectoryWeight);
     this.animationFrameId = requestAnimationFrame(() => this.animationLoop());
-  }
-
-  private stallMainThread() {
-    const start = performance.now();
-    while (performance.now() < start + 2000) {
-      // Blocking loop
-    }
-    console.log("Main thread stalled for 2 seconds");
   }
 
   private renderMidiMapping(manager: any) {
