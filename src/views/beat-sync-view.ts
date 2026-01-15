@@ -61,7 +61,6 @@ export class BeatSyncView extends MobxLitElement {
         font-size: 0.9em;
         cursor: pointer;
         border: 1px solid transparent;
-        transition: all 0.2s;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -188,7 +187,6 @@ export class BeatSyncView extends MobxLitElement {
         border-radius: 3px;
         font-size: 0.9em;
         color: var(--text-muted);
-        transition: all 0.2s;
       }
 
       .segmented-option:hover {

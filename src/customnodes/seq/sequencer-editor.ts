@@ -52,7 +52,6 @@ export class SequencerEditor extends LitElement {
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      transition: background-color 0.1s;
       border-right: 1px solid #1e1e1e;
     }
 

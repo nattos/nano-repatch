@@ -109,7 +109,6 @@ export class ResolumeInspector extends MobxLitElement {
         font-size: 8px;
         margin-right: 6px;
         display: inline-block;
-        transition: transform 0.1s;
       }
 
       details[open] summary::before {

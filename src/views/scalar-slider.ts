@@ -72,7 +72,6 @@ export class ScalarSlider extends LitElement {
       pointer-events: none;
       z-index: 0;
       border-right: 1px solid var(--accent-color, #ff4500); /* Vertical line */
-      transition: border-right-width 0.1s ease-out;
     }
 
     :host([dragging]) .bar {

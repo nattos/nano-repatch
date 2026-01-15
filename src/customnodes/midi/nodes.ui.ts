@@ -32,7 +32,6 @@ export class MidiTriggerRenderer extends MobxLitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.1s;
     }
 
     button:hover {

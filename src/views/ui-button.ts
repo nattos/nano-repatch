@@ -27,7 +27,6 @@ export class UiButton extends LitElement {
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      transition: background-color 0.2s;
     }
 
     button:hover:not(:disabled) {

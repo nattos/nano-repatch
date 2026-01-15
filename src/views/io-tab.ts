@@ -178,7 +178,6 @@ export class IOTab extends MobxLitElement {
         font-size: 0.9em;
         cursor: pointer;
         border: 1px solid transparent;
-        transition: all 0.2s;
       }
 
       .chip:hover {

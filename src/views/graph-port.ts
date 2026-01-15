@@ -32,7 +32,6 @@ export class GraphPort extends MobxLitElement {
       background-color: var(--port-color);
       border-radius: 50%;
       cursor: pointer;
-      transition: background-color 0.2s, transform 0.2s;
       z-index: 10;
       position: relative; /* Ensure pseudo-element positioning */
     }
@@ -72,7 +71,7 @@ export class GraphPort extends MobxLitElement {
     // For drag, we always start a new one if none exists.
     const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
     if (!currentInflightOp) {
-       localController.setInflightPortConnectionOperation({
+      localController.setInflightPortConnectionOperation({
         nodeId: this.nodeId,
         port: this.name,
         type: this.type
@@ -88,20 +87,20 @@ export class GraphPort extends MobxLitElement {
     const currentInflightOp = localController.observableState.inflightPortConnectionOperation;
 
     if (currentInflightOp) {
-       // Check if this is a valid completion
-       if (currentInflightOp.nodeId !== this.nodeId && currentInflightOp.type !== this.type) {
-         // Complete connection
-         const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
-         const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
+      // Check if this is a valid completion
+      if (currentInflightOp.nodeId !== this.nodeId && currentInflightOp.type !== this.type) {
+        // Complete connection
+        const from = currentInflightOp.type === 'out' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
+        const to = currentInflightOp.type === 'in' ? currentInflightOp : { nodeId: this.nodeId, port: this.name, type: this.type };
 
-         appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
-         localController.setInflightPortConnectionOperation(null);
-       } else if (currentInflightOp.nodeId === this.nodeId && currentInflightOp.port === this.name) {
-         // Released on self.
-         // If this was a pure click (no drag), we want to KEEP it open for click-click workflow.
-         // If it was a drag loopback, maybe cancel?
-         // For now, let's just keep it open.
-       }
+        appController.createConnection(from.nodeId, from.port, to.nodeId, to.port);
+        localController.setInflightPortConnectionOperation(null);
+      } else if (currentInflightOp.nodeId === this.nodeId && currentInflightOp.port === this.name) {
+        // Released on self.
+        // If this was a pure click (no drag), we want to KEEP it open for click-click workflow.
+        // If it was a drag loopback, maybe cancel?
+        // For now, let's just keep it open.
+      }
     }
   }
 

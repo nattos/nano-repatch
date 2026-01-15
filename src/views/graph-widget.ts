@@ -78,7 +78,6 @@ export class GraphWidget extends MobxLitElement {
       .parameter-bg {
         fill: var(--accent-color, #ff4500);
         opacity: 0.05;
-        transition: opacity 0.2s;
       }
       .parameter-control:hover .parameter-bg {
         opacity: 0.15;
@@ -88,7 +87,6 @@ export class GraphWidget extends MobxLitElement {
         stroke-width: 1;
         vector-effect: non-scaling-stroke;
         opacity: 0.6;
-        transition: all 0.2s;
       }
       .parameter-control:hover .parameter-line {
         opacity: 1;

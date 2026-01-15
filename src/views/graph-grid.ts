@@ -1,5 +1,4 @@
 import './graph-node';
-import './graph-connection';
 import { WireRenderer, WireRendererContext } from './wire-renderer';
 import { MobxLitElement } from './mobx-lit-element';
 import { css, html } from 'lit';
@@ -275,7 +274,6 @@ export class GraphGrid extends MobxLitElement {
     .wire-line {
         position: relative; /* Relative to hitbox */
         background-color: var(--wire-color, #888);
-        transition: background-color 0.2s;
     }
 
     .wire-segment.selected {
@@ -420,9 +418,6 @@ export class GraphGrid extends MobxLitElement {
       bottom: 0;
       border-left: 1px dashed rgba(255, 255, 255, 0.15);
     }
-
-    /* Wire Styles (moved from GraphConnection) */
-
 
     /* Hit area for easier clicking */
     /* Hit area for easier clicking */

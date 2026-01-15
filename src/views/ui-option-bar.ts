@@ -26,7 +26,6 @@ export class UiOptionBar extends LitElement {
       cursor: pointer;
       border-radius: 2px;
       color: var(--text-muted);
-      transition: all 0.1s ease-out;
       border: 1px solid transparent;
       display: flex;
       align-items: center;

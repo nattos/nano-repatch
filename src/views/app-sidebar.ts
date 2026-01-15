@@ -33,7 +33,7 @@ export class AppSidebar extends MobxLitElement {
       justify-content: center;
       border-radius: 4px;
       color: var(--text-muted);
-      transition: all 0.2s;
+      transition: all 0.05s;
     }
 
     .icon:hover {
@@ -74,7 +74,7 @@ export class AppSidebar extends MobxLitElement {
       gap: 12px;
       padding: 20px 0;
       opacity: 0.4;
-      transition: opacity 0.2s;
+      transition: opacity 0.05s;
       cursor: default;
     }
 

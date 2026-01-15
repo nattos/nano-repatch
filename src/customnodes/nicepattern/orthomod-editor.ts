@@ -57,7 +57,6 @@ export class OrthomodEditor extends LitElement {
     .gate-led {
         width: 6px; height: 6px; background: #222; border-radius: 50%;
         margin-right: 4px;
-        transition: background 0.05s, box-shadow 0.05s;
     }
     .gate-led.on { background: #fff; box-shadow: 0 0 6px #fff; }
 
@@ -219,83 +218,83 @@ export class OrthomodEditor extends LitElement {
       const uiState = runtimeManager.uiStates.get(this.node.id);
 
       if (uiState) {
-          // { codes, env, vec, gate }
-          if (uiState.codes && uiState.codes.length > 0) {
-              this.codes = uiState.codes;
-          }
+        // { codes, env, vec, gate }
+        if (uiState.codes && uiState.codes.length > 0) {
+          this.codes = uiState.codes;
+        }
 
-          this.envelope = uiState.env ?? 0;
-          this.channels = uiState.vec ?? [0, 0, 0, 0];
-          this.rawChannels = uiState.rawVec ?? [0, 0, 0, 0];
-          this.gateOpen = (uiState.gate ?? 0) > 0.5;
+        this.envelope = uiState.env ?? 0;
+        this.channels = uiState.vec ?? [0, 0, 0, 0];
+        this.rawChannels = uiState.rawVec ?? [0, 0, 0, 0];
+        this.gateOpen = (uiState.gate ?? 0) > 0.5;
 
-          // Use the activeIndex provided by worker if available, else calc
-          if (typeof uiState.activeCodeIndex === 'number') {
-              if (this.activeIndex !== uiState.activeCodeIndex) {
-                  this.activeIndex = uiState.activeCodeIndex;
-              }
-          } else {
-              // Fallback (legacy worker?)
-              let pos = 1.0 - this.envelope;
-              pos = Math.max(0, Math.min(0.999, pos));
-              const idx = Math.floor(pos * this.codes.length);
-              if (this.activeIndex !== idx) this.activeIndex = idx;
+        // Use the activeIndex provided by worker if available, else calc
+        if (typeof uiState.activeCodeIndex === 'number') {
+          if (this.activeIndex !== uiState.activeCodeIndex) {
+            this.activeIndex = uiState.activeCodeIndex;
           }
-          this.requestUpdate();
+        } else {
+          // Fallback (legacy worker?)
+          let pos = 1.0 - this.envelope;
+          pos = Math.max(0, Math.min(0.999, pos));
+          const idx = Math.floor(pos * this.codes.length);
+          if (this.activeIndex !== idx) this.activeIndex = idx;
+        }
+        this.requestUpdate();
       }
     };
     loop();
   }
 
   private handleShuffle() {
-      // Update seed
-      const newSeed = Math.floor(Math.random() * 100000);
-      appController.setNodeConfig(this.node.id, { seed: newSeed });
+    // Update seed
+    const newSeed = Math.floor(Math.random() * 100000);
+    appController.setNodeConfig(this.node.id, { seed: newSeed });
   }
 
   private handleMatrixDown(e: PointerEvent) {
-      e.preventDefault();
-      e.stopPropagation(); // Prevent drag initiating graph moves
-      (e.target as Element).setPointerCapture(e.pointerId);
-      this.updateScrub(e);
+    e.preventDefault();
+    e.stopPropagation(); // Prevent drag initiating graph moves
+    (e.target as Element).setPointerCapture(e.pointerId);
+    this.updateScrub(e);
   }
 
   private handleMatrixMove(e: PointerEvent) {
-      if ((e.target as Element).hasPointerCapture(e.pointerId)) {
-          this.updateScrub(e);
-      }
+    if ((e.target as Element).hasPointerCapture(e.pointerId)) {
+      this.updateScrub(e);
+    }
   }
 
   private handleMatrixUp(e: PointerEvent) {
-      (e.target as Element).releasePointerCapture(e.pointerId);
-      // Reset manual phase to -1
-      const currentValues = this.node.config.values || {};
-      appController.setNodeConfig(this.node.id, { values: { ...currentValues, manual_phase: -1 } });
+    (e.target as Element).releasePointerCapture(e.pointerId);
+    // Reset manual phase to -1
+    const currentValues = this.node.config.values || {};
+    appController.setNodeConfig(this.node.id, { values: { ...currentValues, manual_phase: -1 } });
   }
 
   private updateScrub(e: PointerEvent) {
-      const matrix = this.shadowRoot?.querySelector('.matrix');
-      if (!matrix) return;
+    const matrix = this.shadowRoot?.querySelector('.matrix');
+    if (!matrix) return;
 
-      const rect = matrix.getBoundingClientRect();
-      const relativeY = e.clientY - rect.top;
-      const normalizedY = Math.max(0, Math.min(1, relativeY / rect.height));
+    const rect = matrix.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    const normalizedY = Math.max(0, Math.min(1, relativeY / rect.height));
 
-      // Map Y (0..1) to Phase (1..0) because Top is Index 0 (High Env)
-      // Wait: Env=1 -> Index 0. Env=0 -> Index Max.
-      // So Top (Y=0) should be Env=1. Bottom (Y=1) should be Env=0.
-      const phase = 1.0 - normalizedY;
+    // Map Y (0..1) to Phase (1..0) because Top is Index 0 (High Env)
+    // Wait: Env=1 -> Index 0. Env=0 -> Index Max.
+    // So Top (Y=0) should be Env=1. Bottom (Y=1) should be Env=0.
+    const phase = 1.0 - normalizedY;
 
-      const currentValues = this.node.config.values || {};
-      appController.setNodeConfig(this.node.id, { values: { ...currentValues, manual_phase: phase } });
+    const currentValues = this.node.config.values || {};
+    appController.setNodeConfig(this.node.id, { values: { ...currentValues, manual_phase: phase } });
   }
 
   render() {
-      const activeCode = this.codes[this.activeIndex] || [];
-      // Use envelope to determine activity, so it stays active during release
-      const isActive = this.envelope > 0.001;
+    const activeCode = this.codes[this.activeIndex] || [];
+    // Use envelope to determine activity, so it stays active during release
+    const isActive = this.envelope > 0.001;
 
-      return html`
+    return html`
         <div class="container" @dblclick="${(e: Event) => e.stopPropagation()}">
         <div class="header">
             <div style="display:flex; align-items:center;">
@@ -311,20 +310,20 @@ export class OrthomodEditor extends LitElement {
             <!-- Channels (Top) -->
             <div class="channels">
                 ${this.channels.map((val, i) => {
-                    const activeCode = this.codes[this.activeIndex] || [];
-                    const b1 = activeCode[i * 2] || 0;
-                    const b2 = activeCode[i * 2 + 1] || 0;
-                    let typeLabel = "OFF";
-                    if (b1 === 0 && b2 === 0) typeLabel = "OFF";
-                    else if (b1 === 1 && b2 === 1) typeLabel = "ON";
-                    else if (b1 === 1 && b2 === 0) typeLabel = "SQR"; // 10
-                    else if (b1 === 0 && b2 === 1) typeLabel = "SIN"; // 01
+      const activeCode = this.codes[this.activeIndex] || [];
+      const b1 = activeCode[i * 2] || 0;
+      const b2 = activeCode[i * 2 + 1] || 0;
+      let typeLabel = "OFF";
+      if (b1 === 0 && b2 === 0) typeLabel = "OFF";
+      else if (b1 === 1 && b2 === 1) typeLabel = "ON";
+      else if (b1 === 1 && b2 === 0) typeLabel = "SQR"; // 10
+      else if (b1 === 0 && b2 === 1) typeLabel = "SIN"; // 01
 
-                    const rawVal = this.rawChannels[i] || 0;
+      const rawVal = this.rawChannels[i] || 0;
 
-                    return html`
+      return html`
                     <div class="channel">
-                        <div class="channel-label">CH ${i+1}</div>
+                        <div class="channel-label">CH ${i + 1}</div>
                         <!-- Ghost Bar (Raw / Unmodulated) -->
                         <div class="channel-ghost" style="height: ${Number.isNaN(rawVal) ? 0 : Math.min(100, Math.max(0, rawVal * 100))}%"></div>
 
@@ -367,5 +366,5 @@ export class OrthomodEditor extends LitElement {
 
 // Export renderer
 export const OrthomodEditorRenderer = (node: GridNode) => {
-    return html`<nicepattern-orthomod-editor .node=${node}></nicepattern-orthomod-editor>`;
+  return html`<nicepattern-orthomod-editor .node=${node}></nicepattern-orthomod-editor>`;
 }
