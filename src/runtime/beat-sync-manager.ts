@@ -4,6 +4,7 @@ import { predictBarPhase } from '../beatsync/extrapolation';
 import { DebugUpdates, InferenceManagerDebugData, StabilizerDebugData, ExternalClockDebugData, ExternalClockAdjustEvent } from '../beatsync/schema';
 import { LocalController, SimpleMidiMapping } from '../builder/local-state';
 import { midiManager } from '../io/midi/manager';
+import { AudioInputManager } from '../audio/audio-input-manager';
 
 export class BeatSyncManager {
   @observable loadingMessage = 'Waiting to initialize...';
@@ -28,14 +29,14 @@ export class BeatSyncManager {
 
   @observable rollingWaveformBuffer: Float32Array | null = null;
 
-  public get audioContextInstance() { return this.audioContext; }
+  public get audioContextInstance() { return this.inputManager.context; }
   public get localControllerInstance() { return this.localController; }
 
-  private audioContext?: AudioContext;
   private audioCaptureNode: AudioNode | null = null;
   private micSource: MediaStreamAudioSourceNode | null = null;
-  private micStream: MediaStream | null = null;
   private audioToClock?: AudioToClockRunner;
+
+  private inputManager = new AudioInputManager();
 
   // Resolume Integration
   // Logic moved to ExecutorWorker, but we configure it via LocalSettings
@@ -103,11 +104,11 @@ export class BeatSyncManager {
     // Pass Port2 to Runner
     this.audioToClock.connectEventPort(channel.port2);
 
-    this.audioContext = new AudioContext();
-
     // Preload worklet module to prevent race conditions during switching
+    // Use the manager's context (lazy init)
+    const ctx = this.inputManager.context;
     const workletUrl = new URL('../beatsync/audio-capture.worklet.ts', import.meta.url).toString();
-    this.audioContext.audioWorklet.addModule(workletUrl).then(async () => {
+    ctx.audioWorklet.addModule(workletUrl).then(async () => {
       await this.enumerateDevices();
 
       // Auto-connect if allowed and previously selected
@@ -241,7 +242,7 @@ export class BeatSyncManager {
     }
     if (updates.externalClock) {
       this.lastExternalClockUpdate = updates.externalClock;
-      const now = this.audioContext?.currentTime || 0;
+      const now = this.inputManager.context.currentTime || 0;
       const barPhase = predictBarPhase(updates.externalClock, now);
       this.displayQuantizedBeat = Math.floor(barPhase) % 4;
 
@@ -254,24 +255,18 @@ export class BeatSyncManager {
 
   @action
   public async enumerateDevices() {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      runInAction(() => {
-        this.audioDevices = devices.filter(d => d.kind === 'audioinput' && d.deviceId);
-      });
-    } catch (e) {
-      console.error("Error enumerating devices", e);
-    }
+    const devices = await this.inputManager.enumerateDevices();
+    runInAction(() => {
+      this.audioDevices = devices;
+    });
   }
 
   @action
   public async requestPermissions() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(t => t.stop());
+    const granted = await this.inputManager.requestPermissions();
+    if (granted) {
       await this.enumerateDevices();
-    } catch (err) {
-      console.error('Permission denied or error:', err);
+    } else {
       runInAction(() => {
         this.loadingMessage = 'Permission denied. Please allow microphone access.';
       });
@@ -289,52 +284,49 @@ export class BeatSyncManager {
       await this.stopMic();
     }
 
-    if (this.audioContext?.state === 'suspended') {
-      this.audioContext.resume().catch(e => console.warn("[BeatSync] Auto-resume failed (waiting for gesture):", e));
+    const ctx = this.inputManager.context;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(e => console.warn("[BeatSync] Auto-resume failed (waiting for gesture):", e));
     }
 
     try {
-      // Try exact constraint first
-      const constraints = { audio: { deviceId: { exact: deviceId } } };
-      this.micStream = await navigator.mediaDevices.getUserMedia(constraints);
+      await this.inputManager.startStream(deviceId);
+      const source = this.inputManager.sourceNode;
+      if (!source) throw new Error("No source node available after startStream");
+
+      runInAction(() => {
+        this.isMicActive = true;
+        this.selectedDeviceId = deviceId;
+        // Save to settings
+        this.localController.observableState.localSettings.beatSyncAudioDeviceId = deviceId;
+        this.localController.saveSettings();
+      });
+
+      this.onBeatSyncStateChanged(true);
+      this.setupAudioGraph(source);
+
     } catch (err) {
-      console.warn('Exact deviceId constraint failed, trying ideal...', err);
-      try {
-        const constraints = { audio: { deviceId: deviceId } };
-        this.micStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (retryErr) {
-        console.error('Error accessing microphone:', retryErr);
-        runInAction(() => {
-          this.loadingMessage = 'Error accessing microphone.';
-        });
-        return;
-      }
+      console.error('Error starting mic stream:', err);
+      runInAction(() => {
+        this.loadingMessage = 'Error accessing microphone.';
+      });
     }
-
-    runInAction(() => {
-      this.isMicActive = true;
-      this.selectedDeviceId = deviceId;
-      // Save to settings
-      this.localController.observableState.localSettings.beatSyncAudioDeviceId = deviceId;
-      this.localController.saveSettings();
-      this.localController.saveSettings();
-    });
-
-    this.onBeatSyncStateChanged(true);
-
-    this.setupAudioGraph(this.micStream);
   }
 
   @action
   public async stopMic() {
-    this.micStream?.getTracks().forEach(track => track.stop());
-    this.micSource?.disconnect();
+    this.micSource?.disconnect(); // Should match sourceNode from manager?
+    // Actually sourceNode is managed by inputManager, we just connect it.
+    // If we disconnect it here, we might break reuse?
+    // But setupAudioGraph connects it. So we should disconnect active connections.
+
     this.audioCaptureNode?.disconnect();
     this.audioToClock?.setRunning(false);
 
-    this.micStream = null;
     this.micSource = null;
     this.audioCaptureNode = null;
+
+    this.inputManager.stopStream();
 
     runInAction(() => {
       this.isMicActive = false;
@@ -342,21 +334,18 @@ export class BeatSyncManager {
       this.rollingWaveformBuffer = null;
       this.localController.observableState.localSettings.beatSyncAudioDeviceId = null;
       this.localController.saveSettings();
-      this.localController.saveSettings();
     });
 
     this.onBeatSyncStateChanged(false);
   }
 
-  private setupAudioGraph(sourceElement: MediaStream) {
-    if (!this.audioContext) return;
-
-    this.micSource = this.audioContext.createMediaStreamSource(sourceElement);
-    const source = this.micSource;
+  private setupAudioGraph(source: MediaStreamAudioSourceNode) {
+    const ctx = this.inputManager.context;
+    this.micSource = source;
 
     // Module is preloaded in initialize()
 
-    const workletNode = new AudioWorkletNode(this.audioContext, 'audio-capture-processor');
+    const workletNode = new AudioWorkletNode(ctx, 'audio-capture-processor');
     const channel = new MessageChannel();
 
     // Send one port to the worklet
@@ -376,7 +365,7 @@ export class BeatSyncManager {
     source.connect(workletNode);
     // Connect to destination to ensure the worklet is processed by the audio engine
     // even if it just duplicates input or processes silently.
-    workletNode.connect(this.audioContext.destination);
+    workletNode.connect(ctx.destination);
 
     // Note: rollingWaveformBuffer is no longer updated here as processing moved to worker.
     // If waveform visualization is needed later, we can add a separate AnalyserNode.
@@ -384,9 +373,10 @@ export class BeatSyncManager {
   }
 
   public async resumeAudio() {
-    if (this.audioContext?.state === 'suspended') {
+    const ctx = this.inputManager.context;
+    if (ctx.state === 'suspended') {
       try {
-        await this.audioContext.resume();
+        await ctx.resume();
       } catch (e) {
         console.warn("[BeatSync] Resume failed:", e);
       }
@@ -395,6 +385,7 @@ export class BeatSyncManager {
 
   public dispose() {
     this.stopMic();
-    this.audioContext?.close();
+    // Do not close context, it is managed by InputManager and might be global?
+    // User requested "one global input AudioContext".
   }
 }
