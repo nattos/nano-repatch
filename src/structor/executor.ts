@@ -327,6 +327,11 @@ export class GraphExecutor {
       this.executeNode(nodeId, context, nodesToDirtyNextFrame);
     }
 
+    // Consolidation Pass: Re-visit nodes that were marked dirty during execution (feedback loops)
+    for (const nodeId of this.mainExecutionOrder) {
+      this.executeNode(nodeId, context, nodesToDirtyNextFrame);
+    }
+
     // Process re-dirty requests for the next frame
     for (const nodeId of nodesToDirtyNextFrame) {
       this.markDirty(nodeId);
@@ -335,10 +340,16 @@ export class GraphExecutor {
 
   private executeNode(nodeId: string, context: Partial<ExecutionContext>, nodesToDirtyNextFrame: Set<string>) {
     const state = this.nodeStates.get(nodeId)!;
-    if (!state.isDirty) return;
+    if (!state.isDirty && !this.executedNodesThisTick.has(nodeId)) return;
 
     const instance = this.graph.nodes[nodeId];
-    this.executedNodesThisTick.add(nodeId);
+
+    // Check for re-execution (Consolidation)
+    // Note: executedNodesThisTick tracks if we ran *execute* (or consolidate) this tick.
+    // If we are here again, it must be because we are manually invoked or we were marked dirty again?
+    // Actually, executeNode checks 'isDirty' above.
+    // If we are marked dirty AGAIN in the same tick, we come here.
+    const isConsolidation = this.executedNodesThisTick.has(nodeId);
 
     const definition = this.repository.get(instance.definitionId);
 
@@ -347,123 +358,42 @@ export class GraphExecutor {
       return;
     }
 
+    if (isConsolidation) {
+      if (definition.consolidate) {
+        // Collect FULL inputs (some might be from loop closing)
+        const inputRecord = this.collectInputs(nodeId, definition, state);
+
+        // We do NOT mark dirty or re-propagate outputs.
+        // This is purely for internal state update.
+
+        const executionContext: ExecutionContext = {
+          ...context,
+          clock: context.clock ?? { beat: 0, dt: 0 },
+          audio: context.audio,
+          broadcast: (config, inputs) => broadcast(config, inputs),
+          repository: this.repository,
+          nodeState: this.userNodeStates,
+          nodeId: nodeId,
+          requestUiOutputs: false, // No UI output for consolidation
+          markSelfDirty: () => { },
+          executeSubgraph: () => { }
+        };
+
+        try {
+          definition.consolidate(inputRecord, state.config as any, executionContext, this.userNodeStates.get(nodeId));
+        } catch (error) {
+          console.error(`Error consolidating node ${nodeId}:`, error);
+        }
+      }
+      return;
+    }
+
+    this.executedNodesThisTick.add(nodeId);
+
     // 2. Collect inputs
-    const inputRecord: StructorRecord = { fields: {} };
-
-    const nodeType = this.repository.getNodeType(instance.definitionId);
-
-    // Helper to aggregate inputs
-    const inputsByPort = new Map<string, Structor[]>();
+    const inputRecord = this.collectInputs(nodeId, definition, state);
 
 
-
-    const addToPort = (port: string, value: Structor) => {
-      if (!inputsByPort.has(port)) {
-        inputsByPort.set(port, []);
-      }
-      inputsByPort.get(port)!.push(value);
-    };
-
-    // Collect inputs from connections
-    if (this.graph.connections) {
-      for (const conn of this.graph.connections) {
-        if (conn.toNode === nodeId) {
-          const sourceNode = conn.fromNode;
-          const sourcePort = conn.fromPort;
-
-          const sourceState = this.nodeStates.get(sourceNode);
-          const sourceOutput = sourceState ? sourceState.output : undefined;
-
-          if (sourceOutput && sourceOutput.fields) {
-            if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
-              const value = sourceOutput.fields[sourcePort];
-              addToPort(conn.toPort.toString(), value);
-            }
-          }
-        }
-      }
-    }
-
-    for (const [graphInputName, conn] of Object.entries(this.graph.inputs)) {
-      if (conn.nodeId === nodeId) {
-        const value = this.graphInputs.get(graphInputName);
-        if (value !== undefined) {
-          addToPort(conn.port.toString(), value);
-        }
-      }
-    }
-
-    // Handle virtual inputs (values from config)
-    if (state.config && typeof state.config === 'object' && 'values' in state.config) {
-      const values = (state.config as any).values;
-      if (values && typeof values === 'object') {
-        for (const [portName, value] of Object.entries(values)) {
-          // Only use virtual input if the port is NOT already connected/set
-          if (!inputsByPort.has(portName)) {
-            addToPort(portName, value as Structor);
-          }
-        }
-      }
-    }
-
-    // Apply default values from Node Definition
-    // AND resolve final input shape (Scalar vs Array)
-
-    const inputSchema = nodeType?.inputs;
-
-    // Process collected inputs into final record
-    // We iterate over everything we collected, plus defaults for missing ones.
-
-    const allPorts = new Set<string>([...inputsByPort.keys()]);
-    const inputSchemaMap = new Map<string, any>();
-
-    if (Array.isArray(inputSchema)) {
-      inputSchema.forEach(p => {
-        allPorts.add(p.name);
-        inputSchemaMap.set(p.name, p);
-      });
-    } else if (inputSchema) {
-      Object.entries(inputSchema).forEach(([k, v]) => {
-        allPorts.add(k);
-        inputSchemaMap.set(k, v);
-      });
-    }
-
-    // Process collected inputs into final record
-    // We iterate over everything we collected, plus defaults for missing ones.
-
-    for (const port of allPorts) {
-      const schema = inputSchemaMap.get(port);
-      const values = inputsByPort.get(port);
-
-      // Determine if it expects an array input
-      // schema matches PortHint interface or StructorType
-      const schemaType = schema ? (schema.type || schema) : undefined;
-      const isArrayType = schemaType && schemaType.kind === 'array';
-
-      if (values && values.length > 0) {
-        const lastValue = values[values.length - 1];
-        // Heuristic: If port expects array, but input IS array, do not double-wrap (treat as last-wins).
-        // Only collect if input is NOT array (merging scalars or elements).
-        // UNLESS explicit allowMultiConnection is set.
-        if (schema && schema.allowMultiConnection) {
-          // console.error(`[Executor] allowMultiConnection detected for ${ port } values = `, JSON.stringify(values));
-          inputRecord.fields[port] = values;
-        } else if (isArrayType && !Array.isArray(lastValue)) {
-          // It expects array, but getting scalars -> collect all
-          inputRecord.fields[port] = values;
-        } else {
-          // It expects scalar OR input is already array -> take last
-          inputRecord.fields[port] = lastValue;
-        }
-      } else {
-        // No values connected. Check default.
-        // Note: Virtual inputs (config.values) were already added to inputsByPort above.
-        if (schema && schema.defaultValue !== undefined) {
-          inputRecord.fields[port] = schema.defaultValue;
-        }
-      }
-    }
 
     const executionContext: ExecutionContext = {
       ...context,
@@ -529,6 +459,106 @@ export class GraphExecutor {
       console.error(`Error executing node ${nodeId} (${definition.id}): `, error);
       throw error; // Re-throw to stop execution or handle gracefully
     }
+  }
+
+  private collectInputs(nodeId: string, definition: PrimitiveNodeDefinition, state: NodeState): StructorRecord {
+    const inputRecord: StructorRecord = { fields: {} };
+    const nodeType = this.repository.getNodeType(definition.id);
+    const inputsByPort = new Map<string, Structor[]>();
+
+    const addToPort = (port: string, value: Structor) => {
+      if (!inputsByPort.has(port)) {
+        inputsByPort.set(port, []);
+      }
+      inputsByPort.get(port)!.push(value);
+    };
+
+    // Collect inputs from connections
+    if (this.graph.connections) {
+      for (const conn of this.graph.connections) {
+        if (conn.toNode === nodeId) {
+          const sourceNode = conn.fromNode;
+          const sourcePort = conn.fromPort;
+
+          // Resolve aliases if needed (handled in compiler mostly)
+
+          const sourceState = this.nodeStates.get(sourceNode);
+          const sourceOutput = sourceState ? sourceState.output : undefined;
+
+          if (sourceOutput && sourceOutput.fields) {
+            if (typeof sourcePort === 'string' && sourcePort in sourceOutput.fields) {
+              const value = sourceOutput.fields[sourcePort];
+              addToPort(conn.toPort.toString(), value);
+            }
+          }
+        }
+      }
+    }
+
+    for (const [graphInputName, conn] of Object.entries(this.graph.inputs)) {
+      if (conn.nodeId === nodeId) {
+        const value = this.graphInputs.get(graphInputName);
+        if (value !== undefined) {
+          addToPort(conn.port.toString(), value);
+        }
+      }
+    }
+
+    // Handle virtual inputs (values from config)
+    if (state.config && typeof state.config === 'object' && 'values' in state.config) {
+      const values = (state.config as any).values;
+      if (values && typeof values === 'object') {
+        for (const [portName, value] of Object.entries(values)) {
+          // Only use virtual input if the port is NOT already connected/set
+          if (!inputsByPort.has(portName)) {
+            addToPort(portName, value as Structor);
+          }
+        }
+      }
+    }
+
+    const inputSchema = nodeType?.inputs;
+
+    // Process collected inputs into final record
+    const allPorts = new Set<string>([...inputsByPort.keys()]);
+    const inputSchemaMap = new Map<string, any>();
+
+    if (Array.isArray(inputSchema)) {
+      inputSchema.forEach(p => {
+        allPorts.add(p.name);
+        inputSchemaMap.set(p.name, p);
+      });
+    } else if (inputSchema) {
+      Object.entries(inputSchema).forEach(([k, v]) => {
+        allPorts.add(k);
+        inputSchemaMap.set(k, v);
+      });
+    }
+
+    for (const port of allPorts) {
+      const schema = inputSchemaMap.get(port);
+      const values = inputsByPort.get(port);
+
+      // Determine if it expects an array input
+      const schemaType = schema ? (schema.type || schema) : undefined;
+      const isArrayType = schemaType && schemaType.kind === 'array';
+
+      if (values && values.length > 0) {
+        const lastValue = values[values.length - 1];
+        if (schema && schema.allowMultiConnection) {
+          inputRecord.fields[port] = values;
+        } else if (isArrayType && !Array.isArray(lastValue)) {
+          inputRecord.fields[port] = values;
+        } else {
+          inputRecord.fields[port] = lastValue;
+        }
+      } else {
+        if (schema && schema.defaultValue !== undefined) {
+          inputRecord.fields[port] = schema.defaultValue;
+        }
+      }
+    }
+    return inputRecord;
   }
 
   public getOutputs(): Map<string, StructorRecord> {

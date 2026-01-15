@@ -30,6 +30,7 @@ export const logic_delay = definePrimitiveNode({
 
   computeForwardPorts: (inputTypes, config: Structor, context) => {
     const rawConfig = (config as StructorRecord).fields;
+
     const initMode = rawConfig.initMode || 'auto';
 
     // Value Type
@@ -75,8 +76,10 @@ export const logic_delay = definePrimitiveNode({
     return n.initMode !== o?.initMode;
   },
 
+  cycleBreakingPorts: ['value'],
+
   execute: (inputs, config, context, state: DelayState) => {
-    const value = inputs.value;
+    // NOTE: In a cycle, 'inputs.value' might be undefined during this phase.
     const init = inputs.init;
     const initMode = config.initMode || 'auto';
 
@@ -86,14 +89,35 @@ export const logic_delay = definePrimitiveNode({
       result = state.storedValue;
     } else {
       // First frame
-      result = (initMode === 'auto') ? value : init;
+      // If we are unitialized AND in a cycle, 'value' might be missing.
+      // If auto/value mode, we default to undefined or 0?
+      // Since 'storedValue' is what we output, and it's undefined initially...
+
+      if (initMode === 'auto') {
+        result = inputs.value;
+      } else {
+        result = init;
+      }
       state.initialized = true;
     }
 
-    // Store current value for next frame
-    state.storedValue = value;
+    // We do NOT update storedValue here if we are in a cycle break (value is missing).
+    // If we are NOT in a cycle, value is present, so update it logic normal.
+    if (inputs.value !== undefined) {
+      state.storedValue = inputs.value;
+    }
 
     return { result };
+  },
+
+  consolidate: (inputs, config, context, state: DelayState) => {
+    // This runs if we were part of a broken cycle.
+    // We now have the "late" arriving value.
+    if (inputs.value !== undefined) {
+      state.storedValue = inputs.value;
+    }
+    // Also mark initialized
+    state.initialized = true;
   }
 });
 

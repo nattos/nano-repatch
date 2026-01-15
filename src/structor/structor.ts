@@ -239,6 +239,32 @@ export interface PrimitiveNodeDefinition {
    * Used for smart recompilation when nodes move in/out of regions.
    */
   getRegion?: (config: Structor) => { x: number; y: number; width: number; height: number; };
+
+  /**
+   * Optional list of input port names that can be "broken" to resolve cycles.
+   * If a cycle is detected involving this node, the compiler will attempt to break it
+   * at these ports.
+   *
+   * WARNING: If a cycle is broken at these ports, the `execute` method will receive
+   * `undefined` (or missing keys) for these inputs during the first execution pass.
+   * The node implementation MUST handle this lack of type safety gracefully.
+   */
+  cycleBreakingPorts?: string[];
+
+  /**
+   * Optional secondary execution phase for cycle-broken nodes.
+   * If a node is executed a second time in the same tick (due to cycle consolidation),
+   * this method will be called instead of `execute`.
+   * Use this to capture the "feedback" values that were missing during the first pass.
+   *
+   * @param inputs The inputs available for consolidation (likely containing the feedback values).
+   */
+  consolidate?: (
+    inputs: StructorRecord,
+    config: Structor,
+    context: ExecutionContext,
+    state: any
+  ) => void;
 }
 
 /**

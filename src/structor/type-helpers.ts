@@ -226,6 +226,15 @@ export interface TypedNodeOptions<
     height: number;
     visibility: RegionVisibility;
   };
+
+  cycleBreakingPorts?: string[];
+
+  consolidate?: (
+    inputs: InferRecord<{ kind: 'record', fields: TInputs, untagged: [] }>,
+    config: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
+    context: ExecutionContext,
+    state: TState
+  ) => void;
 }
 
 export function definePrimitiveNode<
@@ -259,6 +268,31 @@ export function definePrimitiveNode<
     subgraphExpansionTag: options.subgraphExpansionTag,
     getChildren: options.getChildren,
     getRegion: options.getRegion as any,
+    cycleBreakingPorts: options.cycleBreakingPorts,
+    consolidate: options.consolidate ? (rawInput, rawConfig, context, state) => {
+      // Unwrap config (reuse same logic as execute?)
+      // We assume config is already unwrapped/same ref?
+      // Actually execute unwraps it. We should probably unwrap here too.
+      // But for performance, maybe we can refactor unwrapping.
+      // For now, duplicate unwrapping logic roughly.
+
+      const processedConfig = fromStructor(rawConfig, configType) as InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>;
+
+      // Unwrap inputs
+      // Note: Consolidate inputs might only contain the "late" inputs.
+      // We'll use the same input processing logic as execute if possible.
+      // Or simplified: Just unwrap what we have.
+
+      const inputs: any = {};
+      const rawFields = rawInput.fields || {};
+      for (const [key, type] of Object.entries(options.inputs || {})) {
+        if (rawFields[key] !== undefined) {
+          inputs[key] = fromStructor(rawFields[key], type);
+        }
+      }
+
+      options.consolidate!(inputs, processedConfig as any, context, state);
+    } : undefined,
     computeBackwardPorts: options.computeBackwardPorts,
     computeForwardPorts: (i, c, ctx, meta) => {
       if (options.computeForwardPorts) {

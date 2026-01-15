@@ -511,23 +511,81 @@ export function compileGraph(
     if (degree === 0) queue.push(nodeId);
   }
 
-  while (queue.length > 0) {
-    const u = queue.shift()!;
-    executionOrder.push(u);
+  // Loop until all nodes are processed or we can't make progress
+  while (executionOrder.length < Object.keys(flatNodes).length) {
 
-    if (adjacency.has(u)) {
-      for (const { toNode, connIndex } of adjacency.get(u)!) {
-        validConnectionIndices.add(connIndex);
-        inDegree.set(toNode, (inDegree.get(toNode) || 0) - 1);
-        if (inDegree.get(toNode) === 0) {
-          queue.push(toNode);
+    // 1. Cycle Detection & Rescue
+    if (queue.length === 0) {
+      // We are stuck (either at start or mid-stream).
+      const remainingNodes = Object.keys(flatNodes).filter(n => !executionOrder.includes(n));
+
+      let brokenAny = false;
+
+      // Look for cycle breaking ports
+      for (const nodeId of remainingNodes) {
+        const instance = flatNodes[nodeId];
+        const nodeDef = nodeRepository.get(instance.definitionId);
+
+        if (nodeDef && nodeDef.kind === 'primitive' && nodeDef.cycleBreakingPorts && nodeDef.cycleBreakingPorts.length > 0) {
+          const breakingPorts = new Set(nodeDef.cycleBreakingPorts);
+          let brokenCount = 0;
+
+          flatConnections.forEach((conn, index) => {
+            if (conn.toNode === nodeId && remainingNodes.includes(conn.fromNode)) {
+              if (breakingPorts.has(conn.toPort.toString())) {
+                inDegree.set(nodeId, (inDegree.get(nodeId) || 0) - 1);
+                validConnectionIndices.add(index); // Mark valid!
+                brokenCount++;
+              }
+            }
+          });
+
+          if (brokenCount > 0) {
+            brokenAny = true;
+            if ((inDegree.get(nodeId) || 0) <= 0) {
+              queue.push(nodeId);
+            }
+          }
+        }
+      }
+
+      if (!brokenAny && remainingNodes.length > 0) {
+        // Fallback: Pick candidate with lowest in-degree
+        let minDegree = Infinity;
+        let candidate = remainingNodes[0];
+
+        for (const n of remainingNodes) {
+          const deg = inDegree.get(n) || 0;
+          if (deg < minDegree) {
+            minDegree = deg;
+            candidate = n;
+          }
+        }
+        queue.push(candidate);
+      }
+
+      if (queue.length === 0) break; // Failed to recover
+    }
+
+    // 2. Process Queue
+    if (queue.length > 0) {
+      const u = queue.shift()!;
+      executionOrder.push(u);
+
+      if (adjacency.has(u)) {
+        for (const { toNode, connIndex } of adjacency.get(u)!) {
+          validConnectionIndices.add(connIndex);
+          inDegree.set(toNode, (inDegree.get(toNode) || 0) - 1);
+          if (inDegree.get(toNode) === 0) {
+            queue.push(toNode);
+          }
         }
       }
     }
   }
 
   if (executionOrder.length !== Object.keys(flatNodes).length) {
-    console.warn(`Graph contains cycles! Only ${executionOrder.length}/${Object.keys(flatNodes).length} nodes differ in DAG.`);
+    console.warn(`Graph contains cycles! Forced execution order.`);
     for (const nodeId of Object.keys(flatNodes)) {
       if (!executionOrder.includes(nodeId)) executionOrder.push(nodeId);
     }
