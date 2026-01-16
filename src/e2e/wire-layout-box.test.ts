@@ -59,7 +59,7 @@ describe('Wire Layout Tests', () => {
   // Helper to create connection
   async function createConnection(fromId, toId, fromPort = '0', toPort = '0') {
     await page.evaluate((fromId, toId, fromPort, toPort) => {
-        window.testing.appController.createConnection(fromId, fromPort, toId, toPort);
+      window.testing.appController.createConnection(fromId, fromPort, toId, toPort);
     }, fromId, toId, fromPort, toPort);
   }
 
@@ -69,11 +69,11 @@ describe('Wire Layout Tests', () => {
       const segments = Array.from(grid.shadowRoot.querySelectorAll('.wire-segment'));
       return segments.map(el => {
         const rect = el.getBoundingClientRect();
-        const type = Array.from(el.classList).find(c => ['h','v','ctl','ctr','cbl','cbr','start','end'].includes(c)) || 'unknown';
+        const type = Array.from(el.classList).find(c => ['h', 'v', 'ctl', 'ctr', 'cbl', 'cbr', 'start', 'end'].includes(c)) || 'unknown';
         const dataset = (el).dataset;
         const lines = Array.from(el.querySelectorAll('.wire-line')).map(l => {
-             const r = l.getBoundingClientRect();
-             return { x: r.x, y: r.y, width: r.width, height: r.height, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+          const r = l.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
         });
         return { type, rect: { x: rect.x, y: rect.y, left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }, dataset, lines };
       });
@@ -94,8 +94,8 @@ describe('Wire Layout Tests', () => {
       const getPorts = (selector) => Array.from(node.shadowRoot.querySelectorAll(selector)).map(el => {
         const r = el.getBoundingClientRect();
         return {
-           name: el.getAttribute('name') || '0',
-           rect: { x: r.x, y: r.y, top: r.top, left: r.left, bottom: r.bottom, right: r.right, width: r.width, height: r.height }
+          name: el.getAttribute('name') || '0',
+          rect: { x: r.x, y: r.y, top: r.top, left: r.left, bottom: r.bottom, right: r.right, width: r.width, height: r.height }
         };
       });
 
@@ -110,213 +110,234 @@ describe('Wire Layout Tests', () => {
 
   // Robust visual verification of a wire
   async function validateConnection(sourceId, sourcePortName, destId, destPortName) {
-      const sourceInfo = await getNodeInfo(sourceId);
-      const destInfo = await getNodeInfo(destId);
+    const sourceInfo = await getNodeInfo(sourceId);
+    const destInfo = await getNodeInfo(destId);
 
-      // Verify Nodes exist
-      if (!sourceInfo) throw new Error(`Source Node ${sourceId} not found`);
-      if (!destInfo) throw new Error(`Dest Node ${destId} not found`);
+    // Verify Nodes exist
+    if (!sourceInfo) throw new Error(`Source Node ${sourceId} not found`);
+    if (!destInfo) throw new Error(`Dest Node ${destId} not found`);
 
-      // Find Ports
-      const sourcePort = sourceInfo.outputs.find(p => p.name === sourcePortName) || sourceInfo.outputs[0];
-      const destPort = destInfo.inputs.find(p => p.name === destPortName) || destInfo.inputs[0];
+    // Find Ports
+    const sourcePort = sourceInfo.outputs.find(p => p.name === sourcePortName) || sourceInfo.outputs[0];
+    const destPort = destInfo.inputs.find(p => p.name === destPortName) || destInfo.inputs[0];
 
-      if (!sourcePort) throw new Error(`Source Port ${sourcePortName} not found on node ${sourceId}`);
-      if (!destPort) throw new Error(`Dest Port ${destPortName} not found on node ${destId}`);
+    if (!sourcePort) throw new Error(`Source Port ${sourcePortName} not found on node ${sourceId}`);
+    if (!destPort) throw new Error(`Dest Port ${destPortName} not found on node ${destId}`);
 
-      const segments = await getWireSegments(page);
+    const segments = await getWireSegments(page);
 
-      // Verify Chain in Browser Context
-      const result = await page.evaluate((allSegments, sourceNode, destNode, startPort, endPort) => {
-          // Filter visible segments
-          const segments = allSegments.filter(s => s.type !== 'unknown');
-          if (segments.length === 0) return { success: false, error: 'No visible wire segments' };
+    // Verify Chain in Browser Context
+    const result = await page.evaluate((allSegments, sourceNode, destNode, startPort, endPort) => {
+      // Filter visible segments
+      const segments = allSegments.filter(s => s.type !== 'unknown');
+      if (segments.length === 0) return { success: false, error: 'No visible wire segments' };
 
-          // Tolerances (Pixels)
-          const GAP_TOLERANCE = 2.0;
-          const ALIGN_TOLERANCE = 2.0;
+      // Tolerances (Pixels)
+      const GAP_TOLERANCE = 2.0;
+      const ALIGN_TOLERANCE = 2.0;
 
-          // STRICT CHECK: Wire must start mostly outside the node.
-          // The Source Port is on the Right of the Source Node (usually).
-          // The Wire Start (Left) should match the Port Right.
-          // Is it penetrating?
-          // If wire.left < port.right - TOLERANCE, it is penetrating.
+      // STRICT CHECK: Wire must start mostly outside the node.
+      // The Source Port is on the Right of the Source Node (usually).
+      // The Wire Start (Left) should match the Port Right.
+      // Is it penetrating?
+      // If wire.left < port.right - TOLERANCE, it is penetrating.
 
-            function rectIntersects(r1, r2, tol=0) {
-              return !(r2.left > r1.right + tol ||
-                       r2.right < r1.left - tol ||
-                       r2.top > r1.bottom + tol ||
-                       r2.bottom < r1.top - tol);
-          }
-
-          function checkDimensions(segment) {
-               const { type, lines } = segment;
-
-               // Ignore complex cases if needed, but corners should technically be valid too
-               if (lines.length === 0 && type !== 'unknown') return { ok: false, msg: 'No visual lines' };
-
-               for (const line of lines) {
-                   if (line.width <= 0 || line.height <= 0) return { ok: false, msg: 'Invalid zero dimension line' };
-
-                   const isVertLine = line.height > line.width;
-                   if (isVertLine) {
-                       // 2px standard. 6px is NOW INVALID (it looks like a block).
-                       if (Math.abs(line.width - 2) > 1.5) {
-                           return { ok: false, msg: `Bad vertical width: ${line.width.toFixed(2)}px (Expected ~2px)` };
-                       }
-                   } else {
-                       if (Math.abs(line.height - 2) > 1.5) {
-                           return { ok: false, msg: `Bad horizontal height: ${line.height.toFixed(2)}px (Expected ~2px)` };
-                       }
-                   }
-               }
-               return { ok: true };
-          }
-
-          // 0. VISUAL VALIDATION
-          // Start/End segments might be hidden/invisible by user request.
-          // We filter them out for visual checks if they are empty.
-          const visibleSegments = segments.filter(s => {
-               if (s.lines.length === 0 && (s.type === 'start' || s.type === 'end')) return false;
-               return true;
-          });
-
-          for (const s of visibleSegments) {
-               const check = checkDimensions(s);
-               if (!check.ok) {
-                   return { success: false, error: `Segment ${s.type} at (${s.rect.x.toFixed(1)},${s.rect.y.toFixed(1)}) failed visual check: ${check.msg}` };
-               }
-          }
-
-          // 1. Find segments touching Source Port (Output)
-          const startPoint = { x: startPort.rect.right, y: startPort.rect.top + startPort.rect.height/2 };
-
-          let starts = visibleSegments.filter(s => {
-             if (!s.lines || s.lines.length === 0) return false;
-             // Existing logic matches visual lines
-             const validLine = s.lines.find(line => {
-                  const segStartY = line.top + line.height / 2;
-                  const yDiff = Math.abs(segStartY - startPoint.y);
-                  if (yDiff > ALIGN_TOLERANCE + 5) return false;
-                  if (Math.abs(line.left - startPoint.x) < 8) return true;
-                  if (Math.abs(line.right - startPoint.x) < 8) return true;
-                  return false;
-             });
-             return !!validLine;
-          });
-
-          // Fallback: If no visible start segment found visually aligned,
-          // check if there is a 'start' segment rect that covers the area (even if invisible).
-          // This allows BFS to still work if start/end are invisible grid cells.
-          if (starts.length === 0) {
-              const invisibleStarts = segments.filter(s => s.type === 'start' && s.lines.length === 0);
-              const matchingInvisible = invisibleStarts.filter(s => {
-                   // Check logical rect overlap with port right edge?
-                   // Port Right is at X. Segment Rect Left is at X?
-                   // Start segment creates visual gap if invisible.
-                   // But logically it connects Port to Grid.
-                   // We assume BFS can use it.
-                   return Math.abs(s.rect.top + s.rect.height/2 - startPoint.y) < 20;
-              });
-              if (matchingInvisible.length > 0) {
-                   starts = matchingInvisible;
-              }
-          }
-
-          if (starts.length === 0) {
-              // ... existing failure reporting ...
-              const candidates = segments.filter(s => Math.abs((s.rect.top + s.rect.height/2) - startPoint.y) < 20);
-              const details = candidates.map(s => `Seg(${s.type}, L:${s.rect.left.toFixed(0)}) lines:${s.lines.length}`).join('; ');
-              return { success: false, error: `No wire segment STRICTLY aligned to Source Port. Candidates: ${details}` };
-          }
-
-          // 2. Find segments touching Dest Port (Input)
-          const endPoint = { x: endPort.rect.left, y: endPort.rect.top + endPort.rect.height/2 };
-
-          let ends = visibleSegments.filter(s => {
-             if (!s.lines || s.lines.length === 0) return false;
-             const validLine = s.lines.find(line => {
-                  const segEndY = line.top + line.height/2;
-                  const yDiff = Math.abs(segEndY - endPoint.y);
-                  if (yDiff > ALIGN_TOLERANCE + 5) return false;
-                  if (Math.abs(line.right - endPoint.x) < 8) return true;
-                  if (Math.abs(line.left - endPoint.x) < 8) return true;
-                  return false;
-             });
-             return !!validLine;
-          });
-
-          if (ends.length === 0) {
-               const invisibleEnds = segments.filter(s => s.type === 'end' && s.lines.length === 0);
-               const matchingInvisible = invisibleEnds.filter(s => Math.abs(s.rect.top + s.rect.height/2 - endPoint.y) < 20);
-               if (matchingInvisible.length > 0) ends = matchingInvisible;
-          }
-
-          if (ends.length === 0) {
-               // ... existing failure check ...
-               const candidates = segments.filter(s => Math.abs((s.rect.top + s.rect.height/2) - endPoint.y) < 20);
-               const details = candidates.map(s => `Seg(${s.type}, L:${s.rect.left.toFixed(0)}) lines:${s.lines.length}`).join('; ');
-               return { success: false, error: `No wire segment STRICTLY aligned to Dest Port. Candidates: ${details}` };
-          }
-
-          // 3. Chain Connectivity (BFS)
-          // Use ALL segments (visible and invisible) for BFS to ensure logical connectivity
-          const startIndices = starts.map(s => segments.indexOf(s));
-          const endIndices = new Set(ends.map(s => segments.indexOf(s)));
-
-          const adj = new Map();
-          segments.forEach((s, i) => adj.set(i, []));
-
-          for (let i=0; i<segments.length; i++) {
-              for (let j=i+1; j<segments.length; j++) {
-                  if (rectIntersects(segments[i].rect, segments[j].rect, GAP_TOLERANCE)) {
-                       adj.get(i).push(j);
-                       adj.get(j).push(i);
-                  }
-              }
-          }
-
-          const visited = new Set(startIndices);
-          const queue = [...startIndices];
-
-          while(queue.length > 0) {
-              const curr = queue.shift();
-              if (endIndices.has(curr)) {
-                   // FOUND PATH!
-                   // 4. Strict Horizontal Alignment Check
-                   if (Math.abs(startPoint.y - endPoint.y) < 5) {
-                        const hSegments = segments.filter(s => s.type === 'h'); // Only check visible H segments? H always visible.
-                        if (hSegments.length > 0) {
-                            const badH = hSegments.find(h => {
-                                // Must use line geometry if available, else rect
-                                const hCenter = h.lines[0] ? (h.lines[0].top + h.lines[0].height/2) : (h.rect.top + h.rect.height/2);
-                                return Math.abs(hCenter - startPoint.y) > 4.0;
-                            });
-                            if (badH) {
-                                const hY = badH.lines[0] ? (badH.lines[0].top + badH.lines[0].height/2) : (badH.rect.top + badH.rect.height/2);
-                                return { success: false, error: `Horizontal Wire Misalignment! Segment at Y=${hY.toFixed(1)} is not aligned with Ports at Y=${startPoint.y.toFixed(1)}` };
-                            }
-                        }
-                   }
-                   return { success: true };
-              }
-              const neighbors = adj.get(curr) || [];
-              for (const n of neighbors) {
-                  if (!visited.has(n)) {
-                      visited.add(n);
-                      queue.push(n);
-                  }
-              }
-          }
-
-          return { success: false, error: 'Segments valid at ports but not connected continuously.' };
-
-      }, segments, sourceInfo.rect, destInfo.rect, sourcePort, destPort);
-
-      if (!result.success) {
-          throw new Error(result.error);
+      function rectIntersects(r1, r2, tol = 0) {
+        return !(r2.left > r1.right + tol ||
+          r2.right < r1.left - tol ||
+          r2.top > r1.bottom + tol ||
+          r2.bottom < r1.top - tol);
       }
-      expect(result.error).toBeUndefined();
+
+      function checkDimensions(segment) {
+        const { type, lines } = segment;
+
+        // Ignore complex cases if needed, but corners should technically be valid too
+        if (lines.length === 0 && type !== 'unknown') return { ok: false, msg: 'No visual lines' };
+
+        for (const line of lines) {
+          if (line.width <= 0 || line.height <= 0) return { ok: false, msg: 'Invalid zero dimension line' };
+
+          const isVertLine = line.height > line.width;
+          if (isVertLine) {
+            // 2px standard. 6px is NOW INVALID (it looks like a block).
+            if (Math.abs(line.width - 2) > 1.5) {
+              return { ok: false, msg: `Bad vertical width: ${line.width.toFixed(2)}px (Expected ~2px)` };
+            }
+          } else {
+            if (Math.abs(line.height - 2) > 1.5) {
+              return { ok: false, msg: `Bad horizontal height: ${line.height.toFixed(2)}px (Expected ~2px)` };
+            }
+          }
+        }
+        return { ok: true };
+      }
+
+      // 0. VISUAL VALIDATION
+      // Start/End segments might be hidden/invisible by user request.
+      // We filter them out for visual checks if they are empty.
+      const visibleSegments = segments.filter(s => {
+        if (s.lines.length === 0 && (s.type === 'start' || s.type === 'end')) return false;
+        return true;
+      });
+
+      for (const s of visibleSegments) {
+        const check = checkDimensions(s);
+        if (!check.ok) {
+          return { success: false, error: `Segment ${s.type} at (${s.rect.x.toFixed(1)},${s.rect.y.toFixed(1)}) failed visual check: ${check.msg}` };
+        }
+      }
+
+      // 1. Find segments touching Source Port (Output)
+      const startPoint = { x: startPort.rect.right, y: startPort.rect.top + startPort.rect.height / 2 };
+
+      let starts = visibleSegments.filter(s => {
+        if (!s.lines || s.lines.length === 0) return false;
+        // Existing logic matches visual lines
+        const validLine = s.lines.find(line => {
+          const segStartY = line.top + line.height / 2;
+          const yDiff = Math.abs(segStartY - startPoint.y);
+          if (yDiff > ALIGN_TOLERANCE + 5) return false;
+          if (Math.abs(line.left - startPoint.x) < 8) return true;
+          if (Math.abs(line.right - startPoint.x) < 8) return true;
+          return false;
+        });
+        return !!validLine;
+      });
+
+      // Fallback: If no visible start segment found visually aligned,
+      // check if there is a 'start' segment rect that covers the area (even if invisible).
+      // This allows BFS to still work if start/end are invisible grid cells.
+      if (starts.length === 0) {
+        const invisibleStarts = segments.filter(s => s.type === 'start' && s.lines.length === 0);
+        const matchingInvisible = invisibleStarts.filter(s => {
+          // Check logical rect overlap with port right edge?
+          // Port Right is at X. Segment Rect Left is at X?
+          // Start segment creates visual gap if invisible.
+          // But logically it connects Port to Grid.
+          // We assume BFS can use it.
+          return Math.abs(s.rect.top + s.rect.height / 2 - startPoint.y) < 20;
+        });
+        if (matchingInvisible.length > 0) {
+          starts = matchingInvisible;
+        }
+      }
+
+      if (starts.length === 0) {
+        // ... existing failure reporting ...
+        const candidates = segments.filter(s => Math.abs((s.rect.top + s.rect.height / 2) - startPoint.y) < 20);
+        const details = candidates.map(s => `Seg(${s.type}, L:${s.rect.left.toFixed(0)}) lines:${s.lines.length}`).join('; ');
+        return { success: false, error: `No wire segment STRICTLY aligned to Source Port. Candidates: ${details}` };
+      }
+
+      // 2. Find segments touching Dest Port (Input)
+      const endPoint = { x: endPort.rect.left, y: endPort.rect.top + endPort.rect.height / 2 };
+
+      let ends = visibleSegments.filter(s => {
+        if (!s.lines || s.lines.length === 0) return false;
+        const validLine = s.lines.find(line => {
+          const segEndY = line.top + line.height / 2;
+          const yDiff = Math.abs(segEndY - endPoint.y);
+          if (yDiff > ALIGN_TOLERANCE + 5) return false;
+          if (Math.abs(line.right - endPoint.x) < 8) return true;
+          if (Math.abs(line.left - endPoint.x) < 8) return true;
+          return false;
+        });
+        return !!validLine;
+      });
+
+      if (ends.length === 0) {
+        const invisibleEnds = segments.filter(s => s.type === 'end' && s.lines.length === 0);
+        const matchingInvisible = invisibleEnds.filter(s => Math.abs(s.rect.top + s.rect.height / 2 - endPoint.y) < 20);
+        if (matchingInvisible.length > 0) ends = matchingInvisible;
+      }
+
+      if (ends.length === 0) {
+        // ... existing failure check ...
+        const candidates = segments.filter(s => Math.abs((s.rect.top + s.rect.height / 2) - endPoint.y) < 20);
+        const details = candidates.map(s => `Seg(${s.type}, L:${s.rect.left.toFixed(0)}) lines:${s.lines.length}`).join('; ');
+        return { success: false, error: `No wire segment STRICTLY aligned to Dest Port. Candidates: ${details}` };
+      }
+
+      // 3. Chain Connectivity (BFS)
+      // Use ALL segments (visible and invisible) for BFS to ensure logical connectivity
+      const startIndices = starts.map(s => segments.indexOf(s));
+      const endIndices = new Set(ends.map(s => segments.indexOf(s)));
+
+      const adj = new Map();
+      segments.forEach((s, i) => adj.set(i, []));
+
+      for (let i = 0; i < segments.length; i++) {
+        for (let j = i + 1; j < segments.length; j++) {
+          if (rectIntersects(segments[i].rect, segments[j].rect, GAP_TOLERANCE)) {
+            adj.get(i).push(j);
+            adj.get(j).push(i);
+          }
+        }
+      }
+
+      const visited = new Set(startIndices);
+      const queue = [...startIndices];
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        if (endIndices.has(curr)) {
+          // FOUND PATH!
+          // 4. Strict Horizontal Alignment Check
+          if (Math.abs(startPoint.y - endPoint.y) < 5) {
+            const hSegments = segments.filter(s => s.type === 'h'); // Only check visible H segments? H always visible.
+            // Filter to only segments ON THE PATH?
+            // BFS `visited` contains all indices reachable from start.
+            // But we want the path from start to end.
+            // We need to reconstruct path from predecessors or just check 'hSegments' intersection with path?
+            // `hSegments` variable here is ALL H-segments in the graph? NO.
+            // `hSegments` is filtered from `segments` (Line 288).
+            // `segments` is ALL segments passed to evaluate.
+            // BUT `validateConnection` passed `segments` = `await getWireSegments(page)`.
+            // So `hSegments` includes H-segments from OTHER wires too.
+            // AND we check if ANY of them are misaligned?
+            // Wait. `hSegments.find(h => ...)` checks ALL segments.
+
+            // THIS IS THE BUG IN THE TEST ITSELF!
+            // It checks alignment of random segments not even on the path!!!
+
+            // Refined Check: Only check segments that are part of the CONNECTED COMPONENT found by BFS?
+            // `visited` contains indices of connected component.
+
+            const componentSegments = segments.filter((_, i) => visited.has(i));
+            const hComponentSegments = componentSegments.filter(s => s.type === 'h');
+
+            if (hComponentSegments.length > 0) {
+              const badH = hComponentSegments.find(h => {
+                // Must use line geometry if available, else rect
+                const hCenter = h.lines[0] ? (h.lines[0].top + h.lines[0].height / 2) : (h.rect.top + h.rect.height / 2);
+                return Math.abs(hCenter - startPoint.y) > 4.0;
+              });
+              if (badH) {
+                const hY = badH.lines[0] ? (badH.lines[0].top + badH.lines[0].height / 2) : (badH.rect.top + badH.rect.height / 2);
+                return { success: false, error: `Horizontal Wire Misalignment! Segment at Y=${hY.toFixed(1)} is not aligned with Ports at Y=${startPoint.y.toFixed(1)}` };
+              }
+            }
+          }
+          return { success: true };
+        }
+        const neighbors = adj.get(curr) || [];
+        for (const n of neighbors) {
+          if (!visited.has(n)) {
+            visited.add(n);
+            queue.push(n);
+          }
+        }
+      }
+
+      return { success: false, error: 'Segments valid at ports but not connected continuously.' };
+
+    }, segments, sourceInfo.rect, destInfo.rect, sourcePort, destPort);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    expect(result.error).toBeUndefined();
   }
 
   // 1. Horizontal
@@ -331,12 +352,12 @@ describe('Wire Layout Tests', () => {
 
   // 2. Diagonal Step
   it('renders a continuous wire for diagonal step', async () => {
-      const id1 = await createNode('util.hub', 0, 0, 1);
-      const id2 = await createNode('util.hub', 2, 2, 2);
-      await createConnection(id1, id2);
+    const id1 = await createNode('util.hub', 0, 0, 1);
+    const id2 = await createNode('util.hub', 2, 2, 2);
+    await createConnection(id1, id2);
 
-      await new Promise(r => setTimeout(r, 1000));
-      await validateConnection(id1, '0', id2, '0');
+    await new Promise(r => setTimeout(r, 1000));
+    await validateConnection(id1, '0', id2, '0');
   });
 
   // 3. Large Complex Layout
@@ -389,8 +410,8 @@ describe('Wire Layout Tests', () => {
 
     // Validate width of math.add for sanity
     const addWidth = await page.evaluate((id) => {
-         const el = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector(`graph-node[data-id="${id}"]`);
-         return el.getBoundingClientRect().width;
+      const el = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid').shadowRoot.querySelector(`graph-node[data-id="${id}"]`);
+      return el.getBoundingClientRect().width;
     }, addId);
     // Expect ~176 for compressed
     // console.log('Compressed Node Width:', addWidth);
@@ -466,47 +487,47 @@ describe('Wire Layout Tests', () => {
 
     // Let's inspect Col 6 segment
     const overflowCheck = await page.evaluate((destId) => {
-         // Find Dest Node
-         const grid = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid');
-         const destNode = grid.shadowRoot.querySelector(`graph-node[data-id="${destId}"]`);
-         const destRect = destNode.getBoundingClientRect();
+      // Find Dest Node
+      const grid = document.querySelector('nano-repatch').shadowRoot.querySelector('workspace-layout').shadowRoot.querySelector('graph-editor').shadowRoot.querySelector('graph-grid');
+      const destNode = grid.shadowRoot.querySelector(`graph-node[data-id="${destId}"]`);
+      const destRect = destNode.getBoundingClientRect();
 
-         // Find segments in the Gap Column (Col 6).
-         // Since we don't know exact col index in DOM, we check geometric position.
-         // Gap is to the left of Dest Node.
-         // Dist = 16px usually.
+      // Find segments in the Gap Column (Col 6).
+      // Since we don't know exact col index in DOM, we check geometric position.
+      // Gap is to the left of Dest Node.
+      // Dist = 16px usually.
 
-         const segments = Array.from(grid.shadowRoot.querySelectorAll('.wire-segment'));
-         const gapSegments = segments.filter(s => {
-             const r = s.getBoundingClientRect();
-             // Check if it is strictly to the left of dest (within 32px)
-             const isLeft = r.right <= destRect.left + 5; // Valid gap segment ends near left
-             // But the bug is that it extends INTO dest.
+      const segments = Array.from(grid.shadowRoot.querySelectorAll('.wire-segment'));
+      const gapSegments = segments.filter(s => {
+        const r = s.getBoundingClientRect();
+        // Check if it is strictly to the left of dest (within 32px)
+        const isLeft = r.right <= destRect.left + 5; // Valid gap segment ends near left
+        // But the bug is that it extends INTO dest.
 
-             // Check if a Horizontal segment starts to the left of Dest, but Ends INSIDE Dest
-             const isH = s.classList.contains('h');
-             if (!isH) return false;
+        // Check if a Horizontal segment starts to the left of Dest, but Ends INSIDE Dest
+        const isH = s.classList.contains('h');
+        if (!isH) return false;
 
-             // Starts before dest
-             if (r.left >= destRect.left) return false;
+        // Starts before dest
+        if (r.left >= destRect.left) return false;
 
-             // Ends inside dest (more than 5px overlap)
-             if (r.right > destRect.left + 5) {
-                 return true; // This is the offender
-             }
-             return false;
-         });
+        // Ends inside dest (more than 5px overlap)
+        if (r.right > destRect.left + 5) {
+          return true; // This is the offender
+        }
+        return false;
+      });
 
-         if (gapSegments.length > 0) {
-             const s = gapSegments[0];
-             const r = s.getBoundingClientRect();
-             return { failed: true, msg: `Found Overshooting H Segment! R: ${r.right.toFixed(1)} > DestL: ${destRect.left.toFixed(1)}` };
-         }
-         return { failed: false };
+      if (gapSegments.length > 0) {
+        const s = gapSegments[0];
+        const r = s.getBoundingClientRect();
+        return { failed: true, msg: `Found Overshooting H Segment! R: ${r.right.toFixed(1)} > DestL: ${destRect.left.toFixed(1)}` };
+      }
+      return { failed: false };
     }, id2);
 
     if (overflowCheck.failed) {
-        throw new Error(overflowCheck.msg);
+      throw new Error(overflowCheck.msg);
     }
   });
 });

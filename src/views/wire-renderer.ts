@@ -138,6 +138,13 @@ export class WireRenderer {
                 }
             }
 
+            if (seg.lane && seg.totalLanes && seg.totalLanes > 1) {
+                const spread = 4; // 4px spreading
+                // Center the spread
+                const offset = (seg.lane - (seg.totalLanes + 1) / 2) * spread;
+                yOffsetPx += offset;
+            }
+
             const visualOffset = yOffsetPx;
             const verticalJog = 0;
             const portLevel = 0;

@@ -97,7 +97,7 @@
         "typeId": "midi.trigger",
         "name": "#",
         "values": {
-          "trigger": 74
+          "trigger": 82
         },
         "pitch": 60,
         "velocity": 1,

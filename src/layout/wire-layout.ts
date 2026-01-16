@@ -125,6 +125,8 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
     });
 
     const gridUsage = new Map<number, number>();
+    const gridUsageH = new Map<number, number>();
+    const currentUsageH = new Map<number, number>();
 
     // 2. Route Wires
     for (const wire of wires) {
@@ -267,9 +269,23 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
         }
 
         wirePaths[wire.id] = { path };
-        for (const p of path) {
+        for (let i = 0; i < path.length; i++) {
+            const p = path[i];
             const k = pack(p.x, p.y);
             gridUsage.set(k, (gridUsage.get(k) || 0) + 1);
+
+            // Determine if this point is part of a Horizontal Wire
+            const prev = i > 0 ? path[i - 1] : null;
+            const next = i < path.length - 1 ? path[i + 1] : null;
+
+            let isH = false;
+            // It is horizontal if we enter or exit horizontally
+            if (prev && prev.x !== p.x) isH = true;
+            if (next && next.x !== p.x) isH = true;
+
+            if (isH) {
+                gridUsageH.set(k, (gridUsageH.get(k) || 0) + 1);
+            }
         }
     }
 
@@ -314,6 +330,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
             const total = gridUsage.get(k) || 1;
             const index = currentUsage.get(k) || 0;
             currentUsage.set(k, index + 1);
+
 
             // Determine Type
             const prev = i > 0 ? path[i - 1] : null;
@@ -427,14 +444,19 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 }
             }
 
+            if (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) {
+                const idx = currentUsageH.get(k) || 0;
+                currentUsageH.set(k, idx + 1);
+            }
+
             segments.push({
                 id: `${wire.id}-${i}`,
                 wireId: wire.id,
                 x: p.x,
                 y: p.y,
                 type,
-                lane: index + 1,
-                totalLanes: total, // Still useful for visualization/debug
+                lane: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (currentUsageH.get(k) || 1) : (index + 1),
+                totalLanes: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (gridUsageH.get(k) || 0) : 1, // Disable Y-Spread for V segments
                 length: 1,
                 clipTopRem,
                 clipBotRem
