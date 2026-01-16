@@ -56,7 +56,7 @@ export class BeatSyncManager {
     }, 1000);
   }
 
-  private initialize() {
+  private async initialize() {
     this.loadingMessage = 'Loading models...';
 
     // Create channel for worker-to-worker communication
@@ -108,8 +108,12 @@ export class BeatSyncManager {
     // Preload worklet module to prevent race conditions during switching
     // Use the manager's context (lazy init)
     const ctx = this.inputManager.context;
-    const workletUrl = new URL('../beatsync/audio-capture.worklet.ts', import.meta.url).toString();
-    ctx.audioWorklet.addModule(workletUrl).then(async () => {
+
+    try {
+      // @ts-ignore
+      const { default: workletUrl } = await import('../beatsync/audio-capture.worklet.ts?worker&url');
+
+      await ctx.audioWorklet.addModule(workletUrl);
       await this.enumerateDevices();
 
       // Auto-connect if allowed and previously selected
@@ -133,9 +137,10 @@ export class BeatSyncManager {
           await this.startMic(this.audioDevices[0].deviceId);
         }
       }
-    }).catch(err => {
+
+    } catch (err) {
       console.error("Failed to load audio worklet module", err);
-    });
+    };
   }
 
   @action
