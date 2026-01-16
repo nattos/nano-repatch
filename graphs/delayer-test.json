@@ -196,5 +196,6 @@
       "toNodeId": "node-608a9c8e-ed54-48f5-b0ee-4a262575807a",
       "toPort": "a"
     }
-  }
+  },
+  "inferredNodeTypes": {}
 }

@@ -38,8 +38,17 @@ export interface WireSegment {
     x: number;
     y: number;
     type: SegmentType;
-    lane?: number;
-    totalLanes?: number;
+    lane?: number; // Deprecated, use laneH for Y-spread
+    totalLanes?: number; // Deprecated, use totalHLanes
+
+    // Vertical Spreading (X-offset)
+    laneV?: number;
+    totalVLanes?: number;
+
+    // Horizontal Spreading (Y-offset)
+    laneH?: number;
+    totalHLanes?: number;
+
     length?: number;
     clipTopRem?: number; // If set, clip vertical top to this Rem's offset
     clipBotRem?: number; // If set, clip vertical bot to this Rem's offset
@@ -127,6 +136,8 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
     const gridUsage = new Map<number, number>();
     const gridUsageH = new Map<number, number>();
     const currentUsageH = new Map<number, number>();
+    const gridUsageV = new Map<number, number>();
+    const currentUsageV = new Map<number, number>();
 
     // 2. Route Wires
     for (const wire of wires) {
@@ -283,8 +294,16 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
             if (prev && prev.x !== p.x) isH = true;
             if (next && next.x !== p.x) isH = true;
 
+            let isV = false;
+            // It is vertical if we enter or exit vertically
+            if (prev && prev.y !== p.y) isV = true;
+            if (next && next.y !== p.y) isV = true;
+
             if (isH) {
                 gridUsageH.set(k, (gridUsageH.get(k) || 0) + 1);
+            }
+            if (isV) {
+                gridUsageV.set(k, (gridUsageV.get(k) || 0) + 1);
             }
         }
     }
@@ -448,6 +467,10 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 const idx = currentUsageH.get(k) || 0;
                 currentUsageH.set(k, idx + 1);
             }
+            if (type === SegmentType.Vertical || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) {
+                const idx = currentUsageV.get(k) || 0;
+                currentUsageV.set(k, idx + 1);
+            }
 
             segments.push({
                 id: `${wire.id}-${i}`,
@@ -455,8 +478,16 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                 x: p.x,
                 y: p.y,
                 type,
-                lane: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (currentUsageH.get(k) || 1) : (index + 1),
-                totalLanes: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (gridUsageH.get(k) || 0) : 1, // Disable Y-Spread for V segments
+                // Assign BOTH H and V lanes if applicable
+                // For pure H, laneH is valid, laneV is undefined
+                // For pure V, laneV is valid, laneH is undefined
+                // For Corner, BOTH are valid.
+                laneH: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (currentUsageH.get(k) || 1) : undefined,
+                totalHLanes: (type === SegmentType.Horizontal || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (gridUsageH.get(k) || 0) : undefined,
+
+                laneV: (type === SegmentType.Vertical || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (currentUsageV.get(k) || 1) : undefined,
+                totalVLanes: (type === SegmentType.Vertical || type === SegmentType.CornerBL || type === SegmentType.CornerBR || type === SegmentType.CornerTL || type === SegmentType.CornerTR) ? (gridUsageV.get(k) || 0) : undefined,
+
                 length: 1,
                 clipTopRem,
                 clipBotRem

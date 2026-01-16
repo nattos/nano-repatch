@@ -42,5 +42,6 @@
       "toNodeId": "node-67c71aed-5f1c-4faa-84a2-79e598c1c4ba",
       "toPort": "value"
     }
-  }
+  },
+  "inferredNodeTypes": {}
 }

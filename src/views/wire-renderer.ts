@@ -138,11 +138,18 @@ export class WireRenderer {
                 }
             }
 
-            if (seg.lane && seg.totalLanes && seg.totalLanes > 1) {
+            if (seg.laneH && seg.totalHLanes && seg.totalHLanes > 1) {
                 const spread = 4; // 4px spreading
                 // Center the spread
-                const offset = (seg.lane - (seg.totalLanes + 1) / 2) * spread;
+                const offset = (seg.laneH - (seg.totalHLanes + 1) / 2) * spread;
                 yOffsetPx += offset;
+            }
+
+            let xOffsetPx = 0;
+            if (seg.laneV && seg.totalVLanes && seg.totalVLanes > 1) {
+                const spread = 4;
+                const offset = (seg.laneV - (seg.totalVLanes + 1) / 2) * spread;
+                xOffsetPx += offset;
             }
 
             const visualOffset = yOffsetPx;
@@ -224,7 +231,7 @@ export class WireRenderer {
 
             // Inner Line Rendering Helpers
             const renderH = (extraStyle: string = '') => {
-                return html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; ${extraStyle}"></div>`;
+                return html`<div class="wire-line h" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; ${extraStyle}"></div>`;
             };
 
             const renderV = () => {
@@ -241,11 +248,32 @@ export class WireRenderer {
                     height = `${clipBotPx}px`;
                 }
 
-                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${height}; left: calc(50% - 1px); top: ${top}; --wire-color: ${color};"></div>`;
+                // Apply X-Offset
+                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${height}; left: calc(50% - 1px); top: ${top}; transform: translateX(${xOffsetPx}px); --wire-color: ${color};"></div>`;
             };
 
-            const renderCornerH_Left = (trim: number) => html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; left: ${trim}px; width: calc(50% - ${trim}px);"></div>`;
-            const renderCornerH_Right = (trim: number) => html`<div class="wire-line" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; left: 50%; width: calc(50% - ${trim}px);"></div>`;
+            // For corners, we match the horizontal line to the shifted vertical line.
+            // Center is 50%. Shifted is 50% + xOffsetPx.
+
+            // Corner Right (L-Shape towards Right, or from Right?)
+            // renderCornerH_Right: Horizontal line from Center to Right? No, "left: 50%".
+            // It goes from 50% to Right.
+            // If Vertical is shifted to 50% + x, Horizontal should start at 50% + x.
+            const renderCornerH_Right = (trim: number) => {
+                // Start: 50% + xOffsetPx.
+                // Width: (50% - xOffsetPx) - trim.
+                // We use Calc for robustness.
+                // Only if xOffset is positive (right). If negative (left), it extends.
+                return html`<div class="wire-line h" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; left: calc(50% + ${xOffsetPx}px); width: calc(50% - ${xOffsetPx}px - ${trim}px);"></div>`;
+            }
+
+            // Corner Left
+            // Goes from Left (Trim) to Center (50%).
+            // If Vertical is shifted to 50% + x.
+            // Horizontal should go from Trim to 50% + x.
+            const renderCornerH_Left = (trim: number) => {
+                return html`<div class="wire-line h" style="position: absolute; height: 2px; top: 0; transform: translateY(${yOffsetPx}px); --wire-color: ${color}; left: ${trim}px; width: calc(50% + ${xOffsetPx}px - ${trim}px);"></div>`;
+            }
 
             const renderCornerV_Top = () => {
                 let top = '0';
@@ -254,7 +282,7 @@ export class WireRenderer {
                     top = `${clipTopPx}px`;
                     h = yOffsetPx - clipTopPx + 2;
                 }
-                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${h}px; left: calc(50% - 1px); top: ${top}; --wire-color: ${color};"></div>`;
+                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${h}px; left: calc(50% - 1px); top: ${top}; transform: translateX(${xOffsetPx}px); --wire-color: ${color};"></div>`;
             };
 
             const renderCornerV_Bottom = () => {
@@ -262,7 +290,7 @@ export class WireRenderer {
                 if (clipBotPx !== undefined) {
                     h = `${clipBotPx - yOffsetPx + 3}px`;
                 }
-                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${h}; left: calc(50% - 1px); top: ${yOffsetPx}px; --wire-color: ${color};"></div>`;
+                return html`<div class="wire-line vertical" style="position: absolute; width: 2px; height: ${h}; left: calc(50% - 1px); top: ${yOffsetPx}px; transform: translateX(${xOffsetPx}px); --wire-color: ${color};"></div>`;
             };
 
             const clampTrim = (val: number, isCorner: boolean) => isCorner ? Math.min(val, 7) : val;
