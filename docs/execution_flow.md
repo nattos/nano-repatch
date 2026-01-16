@@ -202,6 +202,29 @@ sequenceDiagram
         Sys->>Sys: Re-assemble Broadcast Result
         Sys-->>Sys: Output: { result: [5, 10, 15] }
     end
+
+### 5. Cycle Handling (Feedbacks)
+Graphs with feedback loops (cycles) require special handling to avoid infinite loops during topological sorting and to properly propagate state over time.
+
+#### Compiler Strategy: "Breaking" the Cycle
+1.  **Detection**: Unresolvable loops are detected during Kahn's Algorithm sorting (queue empty but nodes remain).
+2.  **Resolution**: The compiler looks for nodes with `cycleBreakingPorts` (e.g., `logic.delay`).
+3.  **Action**: Edges connected to these ports are conceptually "ignored" for sorting, breaking the dependency. The connections remain valid for data flow.
+
+#### Executor Strategy: Split Phase
+To handle the broken connection (where the input data comes from the *previous* frame or a future-calculated value), the execution tick is split into two phases:
+
+1.  **Main Pass (Execute)**:
+    *   Iterates through the sorted list.
+    *   Nodes in loops (e.g., `Delay`) execute with `undefined` for the feedback input involved in the cycle.
+    *   They output their *current* stored state.
+
+2.  **Consolidation Pass (Consolidate)**:
+    *   Iterates through nodes involved in loops again.
+    *   Calls `consolidate(inputs)` instead of `execute`.
+    *   Inputs are now available (calculated by the Main Pass).
+    *   The node updates its internal storage (e.g., `nextValue = inputs.value`) for the *next* frame.
+    *   **Crucial**: This phase does NOT output values or mark downstream nodes as dirty. It only prepares state.
 ```
 
 ### Auto-Broadcast Mechanics

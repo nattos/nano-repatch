@@ -434,6 +434,41 @@ execute: (inputs, config, context, state) => {
     // ... fire ...
   }
 }
+
+## 15. Feedback Loops & Cycles
+Nodes involved in feedback loops (like delays) need special configuration to break the dependency cycle and manage state across frames.
+
+### 1. Cycle Breaking Ports
+Declare which ports can tolerate "late" data (data from the generic previous frame or future tick). This tells the compiler where to break the topological sort loop.
+
+```typescript
+cycleBreakingPorts: ['feedbackInput'],
+```
+
+### 2. The `consolidate` Method
+Nodes with `cycleBreakingPorts` usually need a two-phase execution:
+1.  **`execute` (Main Pass)**: Runs first. The feedback input is `undefined`. You must return valid outputs (usually from stored state).
+2.  **`consolidate` (Second Pass)**: Runs after the loop is calculated. You receive the *actual* input value. Use this to update your state for the *next* frame.
+
+```typescript
+export const unitDelay = definePrimitiveNode({
+  // ...
+  cycleBreakingPorts: ['value'],
+  createState: () => ({ stored: 0 }),
+
+  execute: (inputs, config, context, state) => {
+    // inputs.value is undefined here!
+    // Output what we stored last frame
+    return { result: state.stored };
+  },
+
+  consolidate: (inputs, config, context, state) => {
+    // Now we have the input!
+    // Store it for next frame
+    state.stored = inputs.value;
+  }
+});
+```
 ```
 
 ## 15. Dynamic Ports & Configuration Pitfalls
