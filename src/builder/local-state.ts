@@ -49,6 +49,7 @@ export interface LocalSettings {
   beatSyncResolumeControlEnabled: boolean;
   areRegionsExpanded: boolean;
   beatSyncAudioDeviceId: string | null;
+  beatSyncSystemEnabled: boolean;
   beatSyncHardSyncEnabled: boolean;
   beatSyncResyncMidiMapping: SimpleMidiMapping | null;
 }
@@ -128,6 +129,7 @@ export class LocalController {
         beatSyncResolumeControlEnabled: false,
         areRegionsExpanded: true, // Default to expanded
         beatSyncAudioDeviceId: null,
+        beatSyncSystemEnabled: false,
         beatSyncHardSyncEnabled: false,
         beatSyncResyncMidiMapping: null,
       },

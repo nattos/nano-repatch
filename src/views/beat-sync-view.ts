@@ -2,7 +2,7 @@
 import { MobxLitElement } from './mobx-lit-element';
 import { reaction, IReactionDisposer } from 'mobx';
 import { css, html } from 'lit';
-import { customElement, query } from 'lit/decorators.js';
+import { customElement, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { BeatSyncVisualizer } from './beat-sync/visualizer';
 import { globalStyles } from '../styles';
@@ -27,36 +27,62 @@ export class BeatSyncView extends MobxLitElement {
 
 
       .header {
-        padding: 20px;
+        padding: 12px 20px;
         background-color: var(--panel-header-bg);
         border-bottom: 1px solid var(--border-color);
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .header-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+      }
+
+      .controls-row {
+         display: flex;
+         align-items: center;
+         justify-content: space-between;
+      }
+
+      /* Inline Device List */
+      .inline-device-list {
+         margin-top: 12px;
+         display: flex;
+         flex-wrap: wrap;
+         gap: 8px;
+         padding: 12px;
+         background: var(--bg-color); /* Slightly darker/lighter background to distinguish? */
+         border: 1px solid var(--border-color);
+         border-radius: 4px;
       }
 
       .title {
         font-size: 1.2em;
         font-weight: bold;
-        margin-bottom: 10px;
         color: var(--text-color);
+        margin: 0;
       }
 
       .content {
-        padding: 20px;
+        padding: 0; /* Clear old padding */
         display: flex;
         flex-direction: column;
-        gap: 20px;
         width: 100%;
         box-sizing: border-box;
       }
 
-      .device-selector {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-top: 10px;
+      .monitor-section {
+         padding: 16px;
+         display: flex;
+         flex-direction: column;
+         gap: 20px;
+         box-sizing: border-box;
       }
-
-
 
       .container {
         display: flex;
@@ -67,8 +93,14 @@ export class BeatSyncView extends MobxLitElement {
 
       .viz-container {
         display: flex;
-        gap: 10px;
+        gap: 20px;
         flex-wrap: wrap;
+        align-items: flex-start;
+      }
+
+      .viz-clocks {
+         display: flex;
+         gap: 12px;
       }
 
       .viz-column {
@@ -78,7 +110,7 @@ export class BeatSyncView extends MobxLitElement {
       }
 
       .viz-text-summaries {
-        min-width: 180px; /* Was 200px */
+        min-width: 180px;
         background-color: var(--panel-bg);
         padding: 15px;
         border-radius: 8px;
@@ -119,8 +151,8 @@ export class BeatSyncView extends MobxLitElement {
       }
 
       .clock-graph {
-        width: 120px; /* Was 150px */
-        height: 120px;
+        width: 80px;
+        height: 80px;
       }
 
       .waveform-wrapper {
@@ -175,10 +207,30 @@ export class BeatSyncView extends MobxLitElement {
       }
 
       .midi-mapping-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        justify-content: flex-end;
+         display: flex;
+         align-items: center;
+         gap: 8px;
+      }
+
+      .controls-right-col {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          margin-left: 12px;
+          align-items: flex-start;
+      }
+
+      .controls-row {
+          display: flex;
+          align-items: center;
+      }
+
+      .resync-btn {
+        height: 100%;
+        min-height: 52px;
+        font-size: 1.1em;
+        font-weight: bold;
+        padding: 0 16px;
       }
 
       .midi-learn-btn {
@@ -229,6 +281,8 @@ export class BeatSyncView extends MobxLitElement {
   @query('#bpmGraph') private bpmGraphCanvas!: HTMLCanvasElement;
   @query('#phaseGraph') private phaseGraphCanvas!: HTMLCanvasElement;
 
+  @state() private isDeviceListOpen = false;
+  private resizeObserver: ResizeObserver | null = null;
   private animationFrameId: number | null = null;
   private visualizer!: BeatSyncVisualizer;
   private loopDisposer: IReactionDisposer | null = null;
@@ -245,10 +299,49 @@ export class BeatSyncView extends MobxLitElement {
       phaseGraphCanvas: this.phaseGraphCanvas,
     });
 
+    // Setup ResizeObserver for large graphs
+    this.setupResizeObserver();
+
     // Start loop if already active
     if (runtimeManager.beatSyncManager.isMicActive && this.animationFrameId === null) {
       this.animationLoop();
     }
+  }
+
+  private setupResizeObserver() {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const target = entry.target as HTMLCanvasElement;
+        const { width } = entry.contentRect;
+        // Adjust canvas internal resolution to match display width * dpr
+        // But keep height fixed/controlled by CSS?
+        // CSS height is 80px.
+        // We only care about width matching container.
+        const dpr = window.devicePixelRatio || 1;
+        const displayWidth = width;
+        const displayHeight = target.clientHeight; // Reads CSS height
+
+        // Avoid resizing if close enough to prevent flicker loop?
+        // Actually, Visualizer draws every frame, so resizing just clears buffer.
+        // Drawing happens next frame.
+        if (target.width !== Math.round(displayWidth * dpr)) {
+          target.width = Math.round(displayWidth * dpr);
+        }
+        // Height is typically fixed for these graphs, but let's sync it too
+        if (target.height !== Math.round(displayHeight * dpr)) {
+          target.height = Math.round(displayHeight * dpr);
+        }
+      }
+    });
+
+    // Observe large graphs
+    const canvases = [
+      this.mainWaveformCanvas, this.odfCanvas, this.specCanvas,
+      this.bpmGraphCanvas, this.phaseGraphCanvas
+    ];
+    canvases.forEach(c => {
+      if (c) this.resizeObserver?.observe(c);
+    });
   }
 
   connectedCallback() {
@@ -278,6 +371,7 @@ export class BeatSyncView extends MobxLitElement {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+    this.resizeObserver?.disconnect();
   }
 
   private animationLoop() {
@@ -337,64 +431,95 @@ export class BeatSyncView extends MobxLitElement {
 
   render() {
     const manager = runtimeManager.beatSyncManager;
-    const { audioDevices, selectedDeviceId, isMicActive, loadingMessage,
+    const { audioDevices, selectedDeviceId, isMicActive, systemEnabled,
       externalBpm, bestBpm, bestBarPhase, predictedBpm, overallConfidence, bpmVariance, bestTrajectoryWeight } = manager;
+
+    const currentDevice = audioDevices.find(d => d.deviceId === selectedDeviceId);
+    const deviceLabel = currentDevice ? (currentDevice.label || `Microphone ${currentDevice.deviceId.slice(0, 5)}...`) : 'Select Input';
 
     return html`
       <div class="header">
         <div class="title">Audio Beat Sync</div>
-        <div class="device-selector">
-          ${audioDevices.map(device => html`
-            <div
-              class="chip ${selectedDeviceId === device.deviceId && isMicActive ? 'selected' : ''}"
-              @click=${() => manager.startMic(device.deviceId)}
-            >
-              <i class="la ${selectedDeviceId === device.deviceId && isMicActive ? 'la-microphone' : 'la-microphone-slash'}"></i>
-              ${device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
-            </div>
-          `)}
-          ${audioDevices.length === 0 ? html`
-            <div class="chip" @click=${() => manager.requestPermissions()}>
-              <i class="la la-unlock"></i> Request Microphone Access
-            </div>
-            <div>No Audio Inputs Found</div>
-          ` : ''}
-        </div>
-        <div class="status-message">${loadingMessage}</div>
-        <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-           <label style="display: inline-flex; width: auto; align-items: center; gap: 5px; cursor: pointer;">
-             <input type="checkbox"
-               .checked=${manager.localControllerInstance.observableState.localSettings.beatSyncResolumeControlEnabled}
-               @change=${(e: any) => manager.setResolumeControlEnabled(e.target.checked)}
-             >
-             Control Resolume BPM/Phase
-           </label>
-        </div>
 
-        <div style="margin-top: 10px; display: flex; align-items: center;">
-            <button class="action-button" @pointerdown=${() => manager.resync()}>
-                <i class="la la-sync"></i> Resync
-            </button>
+        <div class="header-row">
+            <!-- System Toggle -->
             <ui-option-bar
-                .value=${manager.isHardSync ? 'Hard' : 'Soft'}
-                .options=${[{ label: 'Soft', value: 'Soft' }, { label: 'Hard', value: 'Hard' }]}
-                @change=${(e: CustomEvent) => manager.setHardSync(e.detail.value === 'Hard')}
-                style="margin-right: 10px;"
+                .value=${systemEnabled ? 'On' : 'Off'}
+                .options=${[{ label: 'Off', value: 'Off' }, { label: 'On', value: 'On' }]}
+                @change=${(e: CustomEvent) => manager.setSystemEnabled(e.detail.value === 'On')}
             ></ui-option-bar>
-            <div class="midi-mapping-controls">
-                <button
-                  class="midi-learn-btn ${classMap({ pulsing: manager.isMidiMappingActive })}"
-                  @click=${() => manager.toggleMidiDoLearn()}
-                  title=${manager.isMidiMappingActive ? 'Listening for MIDI...' : 'Click to map MIDI'}
-                >
-                  MIDI
-                </button>
-                ${this.renderMidiMapping(manager)}
+
+            <!-- Device Selector Chip -->
+            <div
+                class="chip ${isMicActive ? (systemEnabled ? 'selected' : '') : ''} ${this.isDeviceListOpen ? 'active' : ''}"
+                style="cursor: pointer; min-width: 150px; justify-content: space-between;"
+                @click=${() => { this.isDeviceListOpen = !this.isDeviceListOpen; }}
+            >
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <i class="la ${isMicActive ? 'la-microphone' : 'la-microphone-slash'}"></i>
+                    ${deviceLabel}
+                </div>
+                <i class="la ${this.isDeviceListOpen ? 'la-angle-up' : 'la-angle-down'}"></i>
             </div>
-          </div>
+
+            <div style="flex: 1"></div>
+
+             <!-- Resolume Toggle -->
+             <ui-option-bar
+                .value=${manager.localControllerInstance.observableState.localSettings.beatSyncResolumeControlEnabled ? 'On' : 'Off'}
+                .options=${[{ label: 'Resolume Off', value: 'Off' }, { label: 'Resolume On', value: 'On' }]}
+                @change=${(e: CustomEvent) => manager.setResolumeControlEnabled(e.detail.value === 'On')}
+            ></ui-option-bar>
         </div>
 
-        <div class="monitor-section">
+        <!-- Inline Device List -->
+        ${this.isDeviceListOpen ? html`
+            <div class="inline-device-list">
+                ${audioDevices.map(device => html`
+                    <div
+                        class="chip ${selectedDeviceId === device.deviceId ? 'selected' : ''}"
+                        @click=${() => {
+        manager.startMic(device.deviceId);
+        this.isDeviceListOpen = false;
+      }}
+                    >
+                        ${device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                    </div>
+                `)}
+                ${audioDevices.length === 0 ? html`<div>No Inputs</div>` : ''}
+                <div class="chip" @click=${() => manager.requestPermissions()}>
+                        <i class="la la-unlock"></i> Request Access
+                </div>
+            </div>
+        ` : ''}
+
+        <div class="controls-row">
+             <button class="action-button resync-btn" @pointerdown=${() => manager.resync()}>
+                <i class="la la-sync"></i> Resync
+             </button>
+
+             <div class="controls-right-col">
+                <ui-option-bar
+                    .value=${manager.isHardSync ? 'Hard' : 'Soft'}
+                    .options=${[{ label: 'Soft', value: 'Soft' }, { label: 'Hard', value: 'Hard' }]}
+                    @change=${(e: CustomEvent) => manager.setHardSync(e.detail.value === 'Hard')}
+                ></ui-option-bar>
+
+                <div class="midi-mapping-controls">
+                    <button
+                      class="midi-learn-btn ${classMap({ pulsing: manager.isMidiMappingActive })}"
+                      @click=${() => manager.toggleMidiDoLearn()}
+                      title=${manager.isMidiMappingActive ? 'Listening for MIDI...' : 'Click to map MIDI'}
+                    >
+                      MIDI
+                    </button>
+                    ${this.renderMidiMapping(manager)}
+                </div>
+             </div>
+        </div>
+      </div>
+
+      <div class="monitor-section">
         <div class="viz-container">
             <div class="viz-text-summaries">
                 <div><b>SEND BPM:</b> ${externalBpm.toFixed(1)}</div>
@@ -406,17 +531,19 @@ export class BeatSyncView extends MobxLitElement {
                 <div><b>Traj. Weight:</b> ${bestTrajectoryWeight.toFixed(2)}</div>
             </div>
 
-            <div class="viz-column">
-              <canvas id="barClock" class="clock-graph" width="240" height="240"></canvas>
-              <label>Bar Phase</label>
-            </div>
-            <div class="viz-column">
-              <canvas id="trajectoryClock" class="clock-graph" width="240" height="240"></canvas>
-              <label>Trajectories</label>
-            </div>
-            <div class="viz-column">
-              <canvas id="phaseClock" class="clock-graph" width="240" height="240"></canvas>
-              <label>Raw Phase</label>
+            <div class="viz-clocks">
+                <div class="viz-column">
+                  <canvas id="barClock" class="clock-graph" width="160" height="160"></canvas>
+                  <label>Bar Phase</label>
+                </div>
+                <div class="viz-column">
+                  <canvas id="trajectoryClock" class="clock-graph" width="160" height="160"></canvas>
+                  <label>Trajectories</label>
+                </div>
+                <div class="viz-column">
+                  <canvas id="phaseClock" class="clock-graph" width="160" height="160"></canvas>
+                  <label>Raw Phase</label>
+                </div>
             </div>
         </div>
 

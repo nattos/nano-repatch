@@ -113,15 +113,24 @@ export class BeatSyncManager {
 
       // Auto-connect if allowed and previously selected
       const savedId = this.localController.observableState.localSettings.beatSyncAudioDeviceId;
+      const systemEnabled = this.localController.observableState.localSettings.beatSyncSystemEnabled;
 
       // Validate if the saved device still exists
       const deviceExists = this.audioDevices.some(d => d.deviceId === savedId);
 
-      if (savedId && deviceExists) {
-        await this.startMic(savedId);
-      } else if (savedId) {
-        console.warn(`[BeatSync] Saved audio device ${savedId} not found. Auto-connect validation failed.`);
-        // Optionally fallback to default? For now, we respect the user's specific choice and do nothing if missing.
+      if (systemEnabled) {
+        if (savedId && deviceExists) {
+          await this.startMic(savedId);
+        } else if (savedId) {
+          console.warn(`[BeatSync] Saved audio device ${savedId} not found. Auto-connect validation failed.`);
+          // Try fallback?
+          if (this.audioDevices.length > 0) {
+            await this.startMic(this.audioDevices[0].deviceId);
+          }
+        } else if (this.audioDevices.length > 0) {
+          // Enabled but no saved ID (migration?), pick first
+          await this.startMic(this.audioDevices[0].deviceId);
+        }
       }
     }).catch(err => {
       console.error("Failed to load audio worklet module", err);
@@ -313,13 +322,35 @@ export class BeatSyncManager {
     }
   }
 
+  public get systemEnabled(): boolean {
+    return this.localController.observableState.localSettings.beatSyncSystemEnabled;
+  }
+
+  @action
+  public setSystemEnabled(enabled: boolean) {
+    this.localController.observableState.localSettings.beatSyncSystemEnabled = enabled;
+    this.localController.saveSettings();
+
+    if (enabled) {
+      // If expanding system, try to start MIC with saved ID or first available
+      const savedId = this.localController.observableState.localSettings.beatSyncAudioDeviceId;
+      const deviceId = savedId || (this.audioDevices.length > 0 ? this.audioDevices[0].deviceId : null);
+      if (deviceId) {
+        this.startMic(deviceId);
+      } else {
+        runInAction(() => {
+          this.loadingMessage = "No audio devices found.";
+        });
+      }
+    } else {
+      this.stopMic();
+    }
+  }
+
+
   @action
   public async stopMic() {
-    this.micSource?.disconnect(); // Should match sourceNode from manager?
-    // Actually sourceNode is managed by inputManager, we just connect it.
-    // If we disconnect it here, we might break reuse?
-    // But setupAudioGraph connects it. So we should disconnect active connections.
-
+    this.micSource?.disconnect();
     this.audioCaptureNode?.disconnect();
     this.audioToClock?.setRunning(false);
 
@@ -332,8 +363,9 @@ export class BeatSyncManager {
       this.isMicActive = false;
       this.selectedDeviceId = null;
       this.rollingWaveformBuffer = null;
-      this.localController.observableState.localSettings.beatSyncAudioDeviceId = null;
-      this.localController.saveSettings();
+      // Do NOT clear the saved preference.
+      // this.localController.observableState.localSettings.beatSyncAudioDeviceId = null;
+      // this.localController.saveSettings();
     });
 
     this.onBeatSyncStateChanged(false);

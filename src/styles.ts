@@ -150,7 +150,6 @@ export const globalStyles = [
     cursor: pointer;
     border: 1px solid transparent;
     color: var(--text-muted);
-    transition: all 0.2s ease;
   }
 
   /* Interactive States */
