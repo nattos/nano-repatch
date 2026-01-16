@@ -25,6 +25,7 @@ export const logic_delay = definePrimitiveNode({
     result: AnyType // Dynamic
   },
   autoBroadcast: false, // Manual handling for logic consistency
+  isRealtime: () => true,
 
   createState: () => ({ storedValue: undefined, initialized: false }),
 

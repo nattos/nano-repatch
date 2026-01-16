@@ -2,7 +2,7 @@
   "nodes": {
     "node-84fdf635-da2a-4f2c-afb0-f485f263536b": {
       "id": "node-84fdf635-da2a-4f2c-afb0-f485f263536b",
-      "x": 1,
+      "x": 3,
       "y": 2,
       "config": {
         "typeId": "logic.delay",
@@ -11,21 +11,9 @@
         "initMode": "auto"
       }
     },
-    "node-59a93913-29e9-483a-891a-ea3d0717e17b": {
-      "id": "node-59a93913-29e9-483a-891a-ea3d0717e17b",
-      "x": 2,
-      "y": 1,
-      "config": {
-        "typeId": "data.float",
-        "name": "#",
-        "values": {
-          "value": 0
-        }
-      }
-    },
     "node-125b240a-bbbb-4d62-8d1d-5cd972adfc3b": {
       "id": "node-125b240a-bbbb-4d62-8d1d-5cd972adfc3b",
-      "x": 3,
+      "x": 5,
       "y": 2,
       "config": {
         "typeId": "debug.scope",
@@ -35,7 +23,7 @@
     },
     "node-c0b713ed-513c-4e75-bf9e-0793953d8d1d": {
       "id": "node-c0b713ed-513c-4e75-bf9e-0793953d8d1d",
-      "x": 3,
+      "x": 5,
       "y": 1,
       "config": {
         "typeId": "debug.scope",
@@ -45,35 +33,99 @@
     },
     "node-608a9c8e-ed54-48f5-b0ee-4a262575807a": {
       "id": "node-608a9c8e-ed54-48f5-b0ee-4a262575807a",
-      "x": 2,
+      "x": 4,
       "y": 3,
       "config": {
         "typeId": "math.add",
         "name": "#",
-        "values": {}
+        "values": {
+          "a": 0
+        }
       }
     },
     "node-7ebdf6df-08be-40b3-840b-1d0a9fd1245c": {
       "id": "node-7ebdf6df-08be-40b3-840b-1d0a9fd1245c",
-      "x": 2,
+      "x": 4,
       "y": 4,
       "config": {
         "typeId": "math.multiply",
         "name": "#",
         "values": {
-          "b": 0.95
+          "b": 0.93
         }
+      }
+    },
+    "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a": {
+      "id": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "x": 1,
+      "y": 2,
+      "config": {
+        "typeId": "logic.latch",
+        "name": "#",
+        "values": {},
+        "code": ""
+      }
+    },
+    "node-da3d2f26-ed09-4abe-8a7c-ff5110eba51e": {
+      "id": "node-da3d2f26-ed09-4abe-8a7c-ff5110eba51e",
+      "x": 1,
+      "y": 0,
+      "config": {
+        "typeId": "math.subtract",
+        "name": "#",
+        "values": {
+          "a": 1
+        }
+      }
+    },
+    "node-2f294d69-47cf-4c0d-a0e0-ea7118aa5858": {
+      "id": "node-2f294d69-47cf-4c0d-a0e0-ea7118aa5858",
+      "x": 1,
+      "y": 1,
+      "config": {
+        "typeId": "logic.delay",
+        "name": "#",
+        "values": {},
+        "initMode": "auto"
+      }
+    },
+    "node-a89104e0-8a9a-4ca8-b055-c43a4c4823cd": {
+      "id": "node-a89104e0-8a9a-4ca8-b055-c43a4c4823cd",
+      "x": 0,
+      "y": 2,
+      "config": {
+        "typeId": "midi.trigger",
+        "name": "#",
+        "values": {
+          "trigger": 74
+        },
+        "pitch": 60,
+        "velocity": 1,
+        "trigger": 0
+      }
+    },
+    "node-b78f9d5c-4089-4ad9-9f39-12ae03625c6e": {
+      "id": "node-b78f9d5c-4089-4ad9-9f39-12ae03625c6e",
+      "x": 0,
+      "y": 3,
+      "config": {
+        "typeId": "gen.sawtooth",
+        "name": "#",
+        "values": {}
+      }
+    },
+    "node-5af8989e-e608-472c-8e9a-13745fc7aca9": {
+      "id": "node-5af8989e-e608-472c-8e9a-13745fc7aca9",
+      "x": 2,
+      "y": 3,
+      "config": {
+        "typeId": "debug.scope",
+        "name": "#",
+        "values": {}
       }
     }
   },
   "connections": {
-    "conn-5f2c9a21-8509-47bc-aeb4-9a8e49d1c28e": {
-      "id": "conn-5f2c9a21-8509-47bc-aeb4-9a8e49d1c28e",
-      "fromNodeId": "node-59a93913-29e9-483a-891a-ea3d0717e17b",
-      "fromPort": "value",
-      "toNodeId": "node-608a9c8e-ed54-48f5-b0ee-4a262575807a",
-      "toPort": "a"
-    },
     "conn-1d2cb0c8-a162-4a97-9508-fc45eb1cb1c5": {
       "id": "conn-1d2cb0c8-a162-4a97-9508-fc45eb1cb1c5",
       "fromNodeId": "node-84fdf635-da2a-4f2c-afb0-f485f263536b",
@@ -101,6 +153,48 @@
       "fromPort": "result",
       "toNodeId": "node-84fdf635-da2a-4f2c-afb0-f485f263536b",
       "toPort": "value"
+    },
+    "conn-89313988-ab3a-472d-9589-a3bca9f63ffe": {
+      "id": "conn-89313988-ab3a-472d-9589-a3bca9f63ffe",
+      "fromNodeId": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "fromPort": "result",
+      "toNodeId": "node-da3d2f26-ed09-4abe-8a7c-ff5110eba51e",
+      "toPort": "b"
+    },
+    "conn-39f735fc-db71-4f90-82f0-a41cf398af37": {
+      "id": "conn-39f735fc-db71-4f90-82f0-a41cf398af37",
+      "fromNodeId": "node-da3d2f26-ed09-4abe-8a7c-ff5110eba51e",
+      "fromPort": "result",
+      "toNodeId": "node-2f294d69-47cf-4c0d-a0e0-ea7118aa5858",
+      "toPort": "value"
+    },
+    "conn-2709b99c-923e-4283-9984-6e4eaf9c34cc": {
+      "id": "conn-2709b99c-923e-4283-9984-6e4eaf9c34cc",
+      "fromNodeId": "node-2f294d69-47cf-4c0d-a0e0-ea7118aa5858",
+      "fromPort": "result",
+      "toNodeId": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "toPort": "value"
+    },
+    "conn-6c9a5073-65ba-439e-9d5b-be5424f7fbcd": {
+      "id": "conn-6c9a5073-65ba-439e-9d5b-be5424f7fbcd",
+      "fromNodeId": "node-a89104e0-8a9a-4ca8-b055-c43a4c4823cd",
+      "fromPort": "stream",
+      "toNodeId": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "toPort": "condition"
+    },
+    "conn-67f464b3-b452-4539-8502-3e8fb010b421": {
+      "id": "conn-67f464b3-b452-4539-8502-3e8fb010b421",
+      "fromNodeId": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "fromPort": "result",
+      "toNodeId": "node-5af8989e-e608-472c-8e9a-13745fc7aca9",
+      "toPort": "value"
+    },
+    "conn-c55b6aeb-7fc4-4739-b6cd-0e82978ddc9c": {
+      "id": "conn-c55b6aeb-7fc4-4739-b6cd-0e82978ddc9c",
+      "fromNodeId": "node-c8c8b4d7-b5f8-40e1-9317-b952d058d61a",
+      "fromPort": "result",
+      "toNodeId": "node-608a9c8e-ed54-48f5-b0ee-4a262575807a",
+      "toPort": "a"
     }
   }
 }
