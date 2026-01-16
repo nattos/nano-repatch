@@ -21,6 +21,7 @@ export class BeatSyncManager {
   @observable debugDataEnabled = false;
 
   @observable displayQuantizedBeat: number = 0;
+  @observable lastResyncTime: number = 0;
 
   @observable.ref lastInferenceUpdate: InferenceManagerDebugData | null = null;
   @observable.ref lastStabilizerUpdate: StabilizerDebugData | null = null;
@@ -155,6 +156,9 @@ export class BeatSyncManager {
 
   public resync() {
     this.audioToClock?.resync(this.isHardSync);
+    runInAction(() => {
+      this.lastResyncTime = Date.now();
+    });
   }
 
   @action

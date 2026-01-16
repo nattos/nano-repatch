@@ -257,3 +257,21 @@ export const widgetStyles = css`
     vector-effect: non-scaling-stroke;
   }
 `;
+
+export const animations = css`
+  @keyframes flash-activation {
+    0% {
+        background-color: var(--button-bg);
+        border-color: var(--app-hi-color1);
+        box-shadow: 0 0 5px var(--selection-color);
+    }
+    100% {
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+  }
+
+  .flashing {
+    animation: flash-activation 0.2s ease-out forwards;
+  }
+`;

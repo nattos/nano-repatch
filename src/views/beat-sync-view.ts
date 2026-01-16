@@ -5,7 +5,7 @@ import { css, html } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { BeatSyncVisualizer } from './beat-sync/visualizer';
-import { globalStyles } from '../styles';
+import { globalStyles, animations } from '../styles';
 import { runtimeManager } from '../builder/controllers';
 import './ui-option-bar';
 
@@ -13,6 +13,7 @@ import './ui-option-bar';
 export class BeatSyncView extends MobxLitElement {
   static styles = [
     globalStyles,
+    animations,
     css`
       :host {
         display: flex;
@@ -281,11 +282,14 @@ export class BeatSyncView extends MobxLitElement {
   @query('#bpmGraph') private bpmGraphCanvas!: HTMLCanvasElement;
   @query('#phaseGraph') private phaseGraphCanvas!: HTMLCanvasElement;
 
+  @query('.resync-btn') private resyncBtn!: HTMLButtonElement;
+
   @state() private isDeviceListOpen = false;
   private resizeObserver: ResizeObserver | null = null;
   private animationFrameId: number | null = null;
   private visualizer!: BeatSyncVisualizer;
   private loopDisposer: IReactionDisposer | null = null;
+  private resyncDisposer: IReactionDisposer | null = null;
 
   async firstUpdated() {
     this.visualizer = new BeatSyncVisualizer({
@@ -356,6 +360,25 @@ export class BeatSyncView extends MobxLitElement {
         }
       }
     );
+
+    // Flash Animation Trigger
+    this.resyncDisposer = reaction(
+      () => runtimeManager.beatSyncManager.lastResyncTime,
+      () => {
+        if (this.resyncBtn) {
+          this.resyncBtn.classList.remove('flashing');
+          void this.resyncBtn.offsetWidth; // Force Reflow
+          this.resyncBtn.classList.add('flashing');
+
+          // Cleanup on animation end
+          const handler = () => {
+            this.resyncBtn.classList.remove('flashing');
+            this.resyncBtn.removeEventListener('animationend', handler);
+          };
+          this.resyncBtn.addEventListener('animationend', handler);
+        }
+      }
+    );
   }
 
   disconnectedCallback() {
@@ -365,6 +388,11 @@ export class BeatSyncView extends MobxLitElement {
     if (this.loopDisposer) {
       this.loopDisposer();
       this.loopDisposer = null;
+    }
+
+    if (this.resyncDisposer) {
+      this.resyncDisposer();
+      this.resyncDisposer = null;
     }
 
     if (this.animationFrameId !== null) {
