@@ -164,6 +164,11 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
 
             gScore.set(startKey, 0);
 
+            // Virtual Parent to enforce "Horizontal" start direction (Wire comes out of Right)
+            // This forces any immediate vertical drop to be considered a 'Turn', incurring penalties.
+            const virtualParentKey = pack(startP.x - 1, startP.y);
+            cameFrom.set(startKey, virtualParentKey);
+
             // Heuristic
             const h = (ax: number, ay: number) => Math.abs(ax - endP.x) + Math.abs(ay - endP.y);
 
@@ -174,8 +179,10 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
             // Safety Bounds
             const searchMinY = -1;
             const searchMaxY = Math.max(startP.y, endP.y) + 256; // Allow some slack but prevent infinity
+            const searchMinX = Math.min(startP.x, endP.x) - 100;
+            const searchMaxX = Math.max(startP.x, endP.x) + 100;
             let safetyCounter = 0;
-            const SAFETY_LIMIT = 50000; // Increased limit because heap is fast
+            const SAFETY_LIMIT = 500000; // Increased limit because heap is fast
 
             while (openSet.size() > 0) {
                 safetyCounter++;
@@ -194,7 +201,11 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                     let currKey = currentKey;
                     path = [unpack(currKey)];
                     while (cameFrom.has(currKey)) {
-                        currKey = cameFrom.get(currKey)!;
+                        const prev = cameFrom.get(currKey)!;
+                        // Stop if we reach the virtual parent
+                        if (prev === virtualParentKey) break;
+
+                        currKey = prev;
                         path.unshift(unpack(currKey));
                     }
                     break;
@@ -222,9 +233,11 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                     const nx = neighborsX[i];
                     const ny = neighborsY[i];
 
-                    if (ny < searchMinY || ny > searchMaxY) continue; // Boundary Check
+                    if (nx < searchMinX || nx > searchMaxX || ny < searchMinY || ny > searchMaxY) continue; // Boundary Check
 
                     const nKey = pack(nx, ny);
+                    // Checking visited here is optimization but technically handled by set check above.
+                    // But good for perf.
                     if (visited.has(nKey)) continue;
 
                     let cost = 1;
@@ -245,6 +258,34 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
                             if (cP.x % 2 === 0) {
                                 cost += 20;
                             }
+                        }
+
+                        // Midpoint Bias: Penalize turning Vertical if far from Midpoint
+                        // We only care if we are turning FROM Horizontal TO Vertical.
+                        // cP is 'current' (parent of neighbor 'n'). prevP is 'grandparent'.
+                        // Direction prevP -> cP. Direction cP -> n(nx,ny).
+                        const dx1 = cP.x - prevP.x;
+                        const dy1 = cP.y - prevP.y;
+                        const dx2 = nx - cP.x;
+                        const dy2 = ny - cP.y;
+
+                        // Check if turn: (dx1 != dx2 || dy1 != dy2).
+                        // Specifically, check if we are turning Vertical (dy2 != 0) from Horizontal (dy1 == 0).
+                        if (dy1 === 0 && dy2 !== 0) {
+                            const midX = (startP.x + endP.x) / 2;
+                            const dist = Math.abs(cP.x - midX);
+                            // Penalty proportional to distance from midpoint.
+                            // We want to encourage being CLOSE to midX.
+                            // A linear penalty.
+                            // We need this to optionally outweigh the cost of an extra turn (GapTurn ~20).
+                            // If we turn at the end (L-shape), we save 1 turn.
+                            // So (Penalty at End) must be > (Cost of Extra Turn).
+                            // Penalty > 20.
+                            // If End is 10 units away, Factor 2 => 20. Borderline.
+                            // Factor 4 => 40. Clearly favors S-shape.
+                            // To force S-shape even for close nodes (Dist=1), we need Factor > 20.
+                            const midPenalty = dist * 25;
+                            cost += midPenalty;
                         }
                     }
 
@@ -308,7 +349,7 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
         }
     }
 
-    // 3. Convert to Segments
+    // 3. Assign Lanes
     const currentUsage = new Map<number, number>();
     const GAP_LANE_INDEX = LOGICAL_Y_SCALE - 1;
 
