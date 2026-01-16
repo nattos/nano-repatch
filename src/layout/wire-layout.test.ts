@@ -61,7 +61,7 @@ describe('Wire Layout Engine', () => {
 
     // Verify connectivity
     expect(path[0]).toEqual({ x: 4, y: 0 });
-    expect(path[path.length-1]).toEqual({ x: 6, y: 0 });
+    expect(path[path.length - 1]).toEqual({ x: 6, y: 0 });
   });
 
   it('should handle multiple wires sharing a segment', () => {
@@ -73,7 +73,7 @@ describe('Wire Layout Engine', () => {
 
     const wires = [w1, w2];
     const result = computeWireLayout(wires, {
-       previousResult: { segments: [], wires: {} }
+      previousResult: { segments: [], wires: {} }
     });
 
     // Find the grid crossing segments (at x=2) for both wires
@@ -87,9 +87,9 @@ describe('Wire Layout Engine', () => {
     // Note: Lane assignment logic in wire-layout might depend on order or something.
     // Ensure they are not equal.
     // And totalLanes >= 2.
-    expect(s1Grid!.lane).not.toBe(s2Grid!.lane);
-    expect(s1Grid!.totalLanes).toBeGreaterThanOrEqual(2);
-    expect(s2Grid!.totalLanes).toBeGreaterThanOrEqual(2);
+    expect(s1Grid!.laneH).not.toBe(s2Grid!.laneH);
+    expect(s1Grid!.totalHLanes).toBeGreaterThanOrEqual(2);
+    expect(s2Grid!.totalHLanes).toBeGreaterThanOrEqual(2);
   });
   it('should route straight line for offset ports (Port 2 to Port 2)', () => {
     // Start Node (x=0 -> Log 1). End Node (x=2 -> Log 5). Gap at Log 3 (x=1).
@@ -123,7 +123,7 @@ describe('Wire Layout Engine', () => {
     // Check for Jogs
     const firstY = path[0].y;
     for (const p of path) {
-        expect(p.y).toBe(firstY); // All points should be on same Y
+      expect(p.y).toBe(firstY); // All points should be on same Y
     }
   });
 });

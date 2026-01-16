@@ -334,6 +334,8 @@ export function computeWireLayout(wires: WireDef[], options: LayoutOptions = {})
             // It is horizontal if we enter or exit horizontally
             if (prev && prev.x !== p.x) isH = true;
             if (next && next.x !== p.x) isH = true;
+            // Single point path default to Horizontal (e.g. adjacent nodes)
+            if (!prev && !next) isH = true;
 
             let isV = false;
             // It is vertical if we enter or exit vertically
