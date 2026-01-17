@@ -25,11 +25,7 @@ import { BeatSyncManager } from './beat-sync-manager';
 
 const FRAME_RATE = 60;
 
-
 export class RuntimeManager {
-  // We no longer expose the executor directly.
-  // @observable executor: GraphExecutor | null = null;
-
   @observable outputs = new Map<string, any>();
   @observable inputs = new Map<string, any>();
   @observable uiStates = new Map<string, any>();

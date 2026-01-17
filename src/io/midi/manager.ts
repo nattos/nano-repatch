@@ -1,21 +1,6 @@
 import { MidiState, MidiDevice } from './state';
 import { MidiEvent } from './types';
 
-// Minimal Web MIDI types
-interface MIDIAccess extends EventTarget {
-  inputs: Map<string, MIDIInput>;
-  onstatechange: ((e: any) => void) | null;
-}
-
-interface MIDIInput extends EventTarget {
-  id: string;
-  name: string;
-  manufacturer: string;
-  state: 'connected' | 'disconnected';
-  connection: 'open' | 'closed' | 'pending';
-  onmidimessage: ((e: MIDIMessageEvent) => void) | null;
-}
-
 interface MIDIMessageEvent extends Event {
   data: Uint8Array;
 }
@@ -37,13 +22,13 @@ export class MidiManager {
   }
 
   private async init() {
-    if (!(navigator as any).requestMIDIAccess) {
+    if (!navigator.requestMIDIAccess) {
       console.warn('Web MIDI API not supported in this browser.');
       return;
     }
 
     try {
-      this.midiAccess = await (navigator as any).requestMIDIAccess();
+      this.midiAccess = await navigator.requestMIDIAccess();
       this.updateDevices();
 
       if (this.midiAccess) {
@@ -71,13 +56,6 @@ export class MidiManager {
   }
 
   private updateDevices() {
-    if (!this.midiAccess) return;
-
-    // Mark all existing as disconnected first? Or just update.
-    // Simpler to just re-scan.
-
-    // We want to preserve selection if possible.
-
     if (!this.midiAccess) return;
     const inputs = Array.from(this.midiAccess.inputs.values());
 
