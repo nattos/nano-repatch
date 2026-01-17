@@ -125,6 +125,12 @@ export interface EnhancedNodeOptions<
     visibility: RegionVisibility;
   };
 
+  /**
+   * Optional async method to load dependencies required for compilation (e.g. TypeScript).
+   * Called by the Compiler Worker before compilation.
+   */
+  loadCompileDeps?: () => Promise<void>;
+
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
   shouldRecompileOnConfigChange?: (uiConfig: TUIConfig) => boolean;
@@ -165,6 +171,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   displayName: string;
   aliases?: string[];
   compileConfig?: (uiConfig: any) => any;
+  loadCompileDeps?: () => Promise<void>;
   getDisplayLabel?: (uiConfig: any) => string | undefined;
   subgraphExpansionTag?: string; // Inherited from PrimitiveNodeDefinition but explicit here for clarity if needed
   extendedInputs?: ExtendedNodeInputsDef;
@@ -224,6 +231,29 @@ export function defineNode<
     autoBroadcast: options.autoBroadcast,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
+    compileConfig: (uiConfig: any, metadata?: any) => {
+      // Config here is coming from the Graph/Builder, so it is UIConfig
+      if (options.compileConfig) {
+        return (options.compileConfig as any)(uiConfig); // Note: We might need to pass metadata here if API allows
+      }
+      return uiConfig;
+    },
+    // We need to properly check signature of compileConfig in definePrimitiveNode
+    // It's manually constructed below, but definePrimitiveNode uses options...
+    // WAIT: definePrimitiveNode takes TypedNodeOptions.
+    // The previous implementation was:
+    /*
+    compileConfig: (uiConfig: any) => {
+      // ...
+      if (options.compileConfig) {
+         return options.compileConfig(uiConfig);
+      }
+      return { ... }
+    }
+    */
+    // Let's restore the previous logic but ensure loadCompileDeps is passed if definePrimitiveNode supported it (it doesn't yet).
+    // We'll add it to the return object.
+
     computeForwardPorts: (inputTypes: any, config: any, context: any, backwardMetadata?: any) => {
       // Config here is coming from the Graph/Builder, so it is UIConfig
       if (options.computeForwardPorts) {
@@ -254,6 +284,7 @@ export function defineNode<
     displayName: options.displayName || options.id,
     aliases: options.aliases,
     compileConfig: options.compileConfig,
+    loadCompileDeps: options.loadCompileDeps, // Pass it through
     getDisplayLabel: options.getDisplayLabel,
     subgraphExpansionTag: options.subgraphExpansionTag,
     extendedInputs: options.inputs,

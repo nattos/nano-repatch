@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GraphCompiler, ExpressionExecutor } from "./parser";
+import { GraphCompiler } from "./expr-compiler";
+import { ExpressionExecutor } from "./expr-executor";
 
 describe('Expression Parser & Executor', () => {
   const compiler = new GraphCompiler();

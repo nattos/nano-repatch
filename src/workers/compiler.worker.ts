@@ -8,7 +8,7 @@ self.onerror = (e) => {
   // Optional: Post error back to main thread if we had a message type for it
 };
 
-self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
+self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
   const { type } = event.data;
 
   if (type === 'COMPILE_GRAPH') {
@@ -16,6 +16,37 @@ self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
     try {
       // Convert subgraphs Record to Map
       const subgraphsMap = new Map<string, GraphState>(Object.entries(subgraphs));
+
+      // 0. Pre-load dependencies for nodes (e.g. TypeScript for Expression Node)
+      const uniqueTypeIds = new Set<string>();
+      // State is AppState, so we need state.graph.inner.nodes
+      if (state.graph && state.graph.inner && state.graph.inner.nodes) {
+        Object.values(state.graph.inner.nodes).forEach(n => uniqueTypeIds.add(n.config.typeId));
+      }
+
+      subgraphsMap.forEach(g => {
+        if (g.inner && g.inner.nodes) {
+          Object.values(g.inner.nodes).forEach(n => uniqueTypeIds.add(n.config.typeId));
+        }
+      });
+
+      const processedTypes = new Set<string>();
+      const loadPromises: Promise<void>[] = [];
+
+      for (const typeId of uniqueTypeIds) {
+        if (processedTypes.has(typeId)) continue;
+        processedTypes.add(typeId);
+
+        const nodeType = defaultNodeRepository.getNodeType(typeId);
+        if (nodeType && nodeType.definition && (nodeType.definition as any).loadCompileDeps) {
+          loadPromises.push((nodeType.definition as any).loadCompileDeps());
+        }
+      }
+
+      if (loadPromises.length > 0) {
+        // console.log(`Compiler Worker: Loading dependencies for ${loadPromises.length} node types...`);
+        await Promise.all(loadPromises);
+      }
 
       // console.log('Compiler Worker: Compiling graph...');
       const { graph, inferredTypes, virtualInputMappings, outputRemappings, nodeMetadata, idMap } = compileGraph(state, subgraphsMap, defaultNodeRepository);
@@ -37,6 +68,28 @@ self.onmessage = (event: MessageEvent<CompilerWorkerMessage>) => {
   } else if (type === 'COMPILE_CONFIGS') {
     try {
       const { nodes } = event.data;
+
+      // 0. Pre-load dependencies
+      const uniqueTypeIds = new Set<string>();
+      nodes.forEach((n: any) => uniqueTypeIds.add(n.typeId));
+
+      const loadPromises: Promise<void>[] = [];
+      const processedTypes = new Set<string>();
+
+      for (const typeId of uniqueTypeIds) {
+        if (processedTypes.has(typeId)) continue;
+        processedTypes.add(typeId);
+
+        const nodeType = defaultNodeRepository.getNodeType(typeId);
+        if (nodeType && nodeType.definition && (nodeType.definition as any).loadCompileDeps) {
+          loadPromises.push((nodeType.definition as any).loadCompileDeps());
+        }
+      }
+
+      if (loadPromises.length > 0) {
+        await Promise.all(loadPromises);
+      }
+
       const configs: Record<string, any> = {};
 
       for (const node of nodes) {

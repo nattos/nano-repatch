@@ -1,27 +1,39 @@
 import { defineNode, registerNode, InspectorFieldDef } from "../../structor/node-helpers";
 import { AnyType, NumberType, StringType } from "../../structor/type-helpers";
-import { GraphCompiler, ExpressionExecutor, ExecutionGraph } from "./parser";
+// Use the executor-only import for the worker bundle
+import { ExpressionExecutor } from "./expr-executor";
+import type { ExecutionGraph } from "./expr-types";
 import { NodeCategory, StructorType } from "../../structor/structor";
 import { anyType, numberType } from "../../structor/std-types";
 
-// Singleton instances for compilation and execution
-const compiler = new GraphCompiler();
+// Import Type for Compiler (but not the value)
+import type { GraphCompiler } from "./expr-compiler";
+
+// Singleton instances
+let compilerWrapper: { compiler: GraphCompiler } | null = null;
 const executor = new ExpressionExecutor();
 
-// Cache for compiled graphs to avoid re-compiling the same code
+// Cache for compiled graphs
 const graphCache = new Map<string, ExecutionGraph>();
 
 function getCompiledGraph(code: string): ExecutionGraph {
   if (graphCache.has(code)) {
     return graphCache.get(code)!;
   }
+
+  // If compiler is not loaded, we can't compile new code.
+  // Ideally this should not happen if loadCompileDeps is called correctly.
+  if (!compilerWrapper) {
+    console.warn("Expression Compiler not loaded yet. Returning empty graph.");
+    return { nodes: {}, rootId: null };
+  }
+
   try {
-    const graph = compiler.compile(code);
+    const graph = compilerWrapper.compiler.compile(code);
     graphCache.set(code, graph);
     return graph;
   } catch (e) {
     console.error("Compilation failed:", e);
-    // Return empty graph or handle error
     return { nodes: {}, rootId: null };
   }
 }
@@ -49,6 +61,16 @@ export const expressionNode = defineNode({
   },
   autoBroadcast: false, // We handle raw inputs
   ui: { inspector: { fields: ExpressionFields } },
+
+  // Lazy Load the heavy compiler (TypeScript)
+  loadCompileDeps: async () => {
+    if (!compilerWrapper) {
+      // Dynamic import of the compilation logic (which imports typescript)
+      const module = await import('./expr-compiler');
+      compilerWrapper = { compiler: new module.GraphCompiler() };
+    }
+  },
+
   compileConfig: (uiConfig: { code?: string }) => {
     const code = uiConfig.code || '';
     // Compile code to graph

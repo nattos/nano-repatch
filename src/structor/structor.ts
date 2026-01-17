@@ -265,6 +265,12 @@ export interface PrimitiveNodeDefinition {
     context: ExecutionContext,
     state: any
   ) => void;
+
+  /**
+   * Optional async method to load dependencies required for compilation (e.g. TypeScript).
+   * Called by the Compiler Worker before compilation.
+   */
+  loadCompileDeps?: () => Promise<void>;
 }
 
 /**
