@@ -21,6 +21,7 @@ export type GraphCompiledMessage = {
   outputRemappings?: Record<string, Record<string, string>>;
   nodeMetadata?: Record<string, any>;
   idMap?: Record<string, string>;
+  usesMidi?: boolean;
 };
 
 export type CompileConfigsMessage = {

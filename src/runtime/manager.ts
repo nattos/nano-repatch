@@ -115,7 +115,7 @@ export class RuntimeManager {
     // Listen for MIDI Events (Transient)
     midiManager.onMidiEvent((event) => {
       this.midiEventBuffer.push(event);
-    });
+    }, { skipPermissionCheck: true });
 
     // Resume audio context on selection change (user interaction intent)
     // We observe the selection size.
@@ -242,6 +242,10 @@ export class RuntimeManager {
   public outputRemappings: Record<string, Record<string, string>> = {};
 
   private handleGraphCompiled(msg: GraphCompiledMessage) {
+    if (msg.usesMidi) {
+      midiManager.ensureInitialized();
+    }
+
     this.virtualInputMappings = msg.virtualInputMappings || {};
     this.outputRemappings = msg.outputRemappings || {};
 

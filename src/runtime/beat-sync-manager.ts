@@ -183,6 +183,9 @@ export class BeatSyncManager {
   @action
   public toggleMidiDoLearn() {
     this.isMidiMappingActive = !this.isMidiMappingActive;
+    if (this.isMidiMappingActive) {
+      midiManager.ensureInitialized();
+    }
   }
 
   @action
@@ -238,7 +241,11 @@ export class BeatSyncManager {
       if (match) {
         this.resync(); // Use existing resync logic (respects hard/soft setting)
       }
-    });
+    }, { skipPermissionCheck: true });
+
+    if (this.midiMapping) {
+      midiManager.ensureInitialized();
+    }
   }
 
 

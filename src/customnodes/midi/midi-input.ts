@@ -33,6 +33,7 @@ export const midiInputNode = defineNode({
   },
   ui: { inspector: { fields: MidiInputFields } },
   isRealtime: () => true,
+  usesMidiDeviceIO: () => true,
   execute: (inputs, config, context) => {
     const midiEvents = context.midi?.events as MidiEvent[] | undefined;
     const deviceId = config.deviceId;
@@ -71,6 +72,7 @@ export const midiCcInputNode = defineNode({
   },
   ui: { inspector: { fields: MidiCcInputFields } },
   isRealtime: () => true,
+  usesMidiDeviceIO: () => true,
   execute: (inputs, config, context) => {
     const channel = config.channel || 1;
     const cc = config.cc || 0;

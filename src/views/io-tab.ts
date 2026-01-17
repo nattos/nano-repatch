@@ -352,6 +352,11 @@ export class IOTab extends MobxLitElement {
     `;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    midiManager.ensureInitialized();
+  }
+
   renderMidiSection() {
     const { state } = midiManager;
     return html`

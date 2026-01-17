@@ -18,7 +18,8 @@ export function compileGraph(
   virtualInputMappings: Record<string, Record<string, string>>,
   outputRemappings: Record<string, Record<string, string>>,
   nodeMetadata: Record<string, any>
-  idMap: Record<string, string>
+  idMap: Record<string, string>,
+  usesMidi: boolean
 } {
   const flatNodes: Record<string, NodeInstance> = {};
   const nodeUiConfigs: Record<string, any> = {}; // Store raw UI configs for re-compilation
@@ -609,6 +610,19 @@ export function compileGraph(
     outputRequirements.set(nodeId, {});
   }
 
+  // --- MIDI USAGE CHECK ---
+  let usesMidi = false;
+  for (const nodeId of executionOrder) {
+    const instance = flatNodes[nodeId];
+    const nodeDef = nodeRepository.get(instance.definitionId);
+    if (nodeDef && nodeDef.kind === 'primitive' && nodeDef.usesMidiDeviceIO) {
+      if (nodeDef.usesMidiDeviceIO(instance.defaultConfig as Structor)) {
+        usesMidi = true;
+        break; // Early exit scanning
+      }
+    }
+  }
+
   // --- BACKWARD PASS ---
   const context: AnalysisContext & { loadedSubgraphs: Map<string, GraphState> } = {
     repository: nodeRepository,
@@ -827,6 +841,7 @@ export function compileGraph(
     virtualInputMappings,
     outputRemappings,
     nodeMetadata,
-    idMap
+    idMap,
+    usesMidi
   };
 }

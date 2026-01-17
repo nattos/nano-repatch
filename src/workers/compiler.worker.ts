@@ -49,7 +49,7 @@ self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
       }
 
       // console.log('Compiler Worker: Compiling graph...');
-      const { graph, inferredTypes, virtualInputMappings, outputRemappings, nodeMetadata, idMap } = compileGraph(state, subgraphsMap, defaultNodeRepository);
+      const { graph, inferredTypes, virtualInputMappings, outputRemappings, nodeMetadata, idMap, usesMidi } = compileGraph(state, subgraphsMap, defaultNodeRepository);
       const response: GraphCompiledMessage = {
         type: 'GRAPH_COMPILED',
         graph,
@@ -57,7 +57,8 @@ self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
         virtualInputMappings,
         outputRemappings,
         nodeMetadata,
-        idMap
+        idMap,
+        usesMidi
       };
 
       self.postMessage(response);

@@ -195,6 +195,12 @@ export interface PrimitiveNodeDefinition {
 
   isRealtime?: (config: Structor) => boolean;
 
+  /**
+   * Determine if this node needs access to the Web MIDI API.
+   * If any node in the graph returns true, the app will request MIDI permission (if not already granted).
+   */
+  usesMidiDeviceIO?: (config: Structor) => boolean;
+
   /** Optional handler for realtime messages from UI */
   onMessage?: (state: any, message: any) => void;
 

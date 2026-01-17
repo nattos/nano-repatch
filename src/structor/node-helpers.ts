@@ -143,6 +143,8 @@ export interface EnhancedNodeOptions<
     backwardMetadata?: any,
   ) => { inputs: RecordType; outputs: RecordType };
 
+  usesMidiDeviceIO?: (uiConfig: TUIConfig) => boolean;
+
   computeBackwardPorts?: (
     outputRequirements: RecordType,
     uiConfig: TUIConfig,
@@ -293,7 +295,8 @@ export function defineNode<
     inspectInputs: options.inspectInputs,
     shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange,
     getChildren: options.getChildren,
-    getRegion: options.getRegion
+    getRegion: options.getRegion,
+    usesMidiDeviceIO: options.usesMidiDeviceIO
   };
 }
 

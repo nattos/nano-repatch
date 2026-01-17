@@ -1,4 +1,5 @@
 import { MidiState, MidiDevice } from './state';
+import { MidiEvent } from './types';
 
 // Minimal Web MIDI types
 interface MIDIAccess extends EventTarget {
@@ -19,18 +20,23 @@ interface MIDIMessageEvent extends Event {
   data: Uint8Array;
 }
 
-import { MidiEvent } from './types'; // Import MidiEvent
-
 export class MidiManager {
   state = new MidiState();
   private midiAccess: MIDIAccess | null = null;
   private listeners: Set<(event: MidiEvent) => void> = new Set();
 
   constructor() {
-    this.init();
+    // Lazy init
   }
 
-  async init() {
+  private initializationPromise: Promise<void> | null = null;
+  public async ensureInitialized() {
+    if (this.initializationPromise) return this.initializationPromise;
+    this.initializationPromise = this.init();
+    return this.initializationPromise;
+  }
+
+  private async init() {
     if (!(navigator as any).requestMIDIAccess) {
       console.warn('Web MIDI API not supported in this browser.');
       return;
@@ -50,7 +56,10 @@ export class MidiManager {
     }
   }
 
-  public onMidiEvent(callback: (event: MidiEvent) => void): () => void {
+  public onMidiEvent(callback: (event: MidiEvent) => void, options?: { skipPermissionCheck?: boolean }): () => void {
+    if (!options?.skipPermissionCheck) {
+      this.ensureInitialized();
+    }
     this.listeners.add(callback);
     return () => {
       this.listeners.delete(callback);
