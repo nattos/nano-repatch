@@ -661,11 +661,23 @@ export function isMobile() {
 }
 
 export function isEditingText(e: Event): boolean {
-  const target = (e.composedPath()[0] || e.target) as HTMLElement;
-  if (!target) return false;
-  return (
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.isContentEditable
-  );
+  const path = e.composedPath();
+
+  for (const element of path) {
+    const el = element as HTMLElement;
+    // Skip window/document which don't have tagName
+    if (!el.tagName) continue;
+
+    if (
+      el.tagName === 'INPUT' ||
+      el.tagName === 'TEXTAREA' ||
+      el.isContentEditable ||
+      // TODO: App specific!
+      el.tagName === 'MONACO-EDITOR-WRAPPER'
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }

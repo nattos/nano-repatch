@@ -1,0 +1,20 @@
+{
+  "nodes": {
+    "node-2deb851e-78be-4071-bd6c-794ccb1ece87": {
+      "id": "node-2deb851e-78be-4071-bd6c-794ccb1ece87",
+      "x": 1,
+      "y": 2,
+      "config": {
+        "typeId": "logic.expression",
+        "name": "#",
+        "values": {
+          "x": 0.02,
+          "z": 1,
+          "y": 0.24
+        },
+        "code": "y + z;\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      }
+    }
+  },
+  "connections": {}
+}
