@@ -165,4 +165,69 @@ describe('C++ Backend Integration', () => {
     expect(res.res.x).toBe(2);
     expect(res.res.y).toBe(4);
   });
+
+  it('should compile optional input fields', () => {
+    const src = `
+        interface VecOpt {
+            x: number;
+            y?: number;
+        }
+        // Input passed as JSON
+        // If y is present, return it. Else return 0.
+        // C++ backend needs to map VecOpt to struct with optional.
+
+        let v: VecOpt = { x: 1 }; // Placeholder init to get type inference if inputs not explicit?
+
+        // Actually inputs are passed to generateCPP.
+        // We need to define input type.
+        // Just use 'input' var to access top level input?
+        // The test harness passes { x:1, y:2 } or { x:1 }.
+        // Logic:
+        input.y; // Should return optional access?
+        // Wait, 'input' is treated as a struct in C++ codegen.
+        // If we define input as VecOpt.
+
+        // Let's use var decl flow:
+        // Main input struct is generated from 'inputs' map.
+      `;
+    // We pass explicit globals to compileToIR which defines 'input' type
+    const inputType = {
+      kind: DataTypeKind.Struct,
+      name: 'InputStruct',
+      fields: {
+        x: NUMBER_TYPE,
+        y: { kind: DataTypeKind.Union, types: [NUMBER_TYPE, { kind: DataTypeKind.Primitive, name: 'undefined' }] }
+      }
+    };
+    // Manually construct IR? Or just compile with globals?
+    // IR Spec: 'input' is a global var.
+    // But codegen treats it special?
+    // codegen uses `options.inputs` to generate Input struct definition.
+
+    const ir = compileToIR(`
+        let res = 0;
+        // Check if y (optional) has value?
+        // IR Simplification: Just access it.
+        // If we access 'input.y', in C++ it returns optional.
+        // We can't use it directly in math yet without manual unwrap logic in codegen or user logic.
+        // But we can return it!
+        // Output type: optional<number>.
+
+        // This test verifies compilation of the struct definition primarily.
+        return input.y;
+      `, { input: inputType as any });
+
+    const cpp = generateCPP(ir, {
+      inputs: { input: inputType as any },
+      outputType: inputType.fields.y as any // Output is optional<double>
+    });
+
+    // Case 1: Present
+    const res1 = runCPP(cpp, { input: { x: 1, y: 100 } });
+    expect(res1.res).toBe(100);
+
+    // Case 2: Missing
+    const res2 = runCPP(cpp, { input: { x: 1 } });
+    expect(res2.res).toBe(null); // JSON null for missing optional
+  });
 });

@@ -19,6 +19,99 @@ const isArrayOfNumber = (t: any) => t.kind === DataTypeKind.Array && (t.elementT
 
 describe('IR Specification (Integration)', () => {
 
+  it('should compile null and undefined literals', () => {
+    const ir = compileToIR(`
+      let a = null;
+      let b = undefined;
+      a; // Return assignment or just value?
+    `);
+    // root block
+    const block = ir.root as any;
+    // stmt 0: VarDecl a = null
+    // stmt 1: VarDecl b = undefined
+    // stmt 2: expression statement a
+
+    const declA = block.statements[0];
+    expect(declA.kind).toBe(OpKind.VarDecl);
+    expect((declA as any).init.kind).toBe(OpKind.Const);
+    expect((declA as any).init.value).toBe(null);
+    expect((declA as any).init.type.name).toBe('null');
+
+    const declB = block.statements[1];
+    expect(declB.kind).toBe(OpKind.VarDecl);
+    expect((declB as any).init.value).toBe(undefined);
+    expect((declB as any).init.type.name).toBe('undefined');
+  });
+
+  it('should compile optional types (Union)', () => {
+    const ir = compileToIR(`
+        let x: number | null = 10;
+        let y: number | undefined = undefined;
+        x;
+      `);
+    const block = ir.root as any;
+    const declX = block.statements[0];
+    const typeX = (declX as any).type;
+
+    expect(typeX.kind).toBe(DataTypeKind.Union);
+    expect(typeX.types.length).toBe(2);
+    expect(typeX.types.some((t: any) => t.name === 'number')).toBe(true);
+    expect(typeX.types.some((t: any) => t.name === 'null')).toBe(true);
+  });
+
+  it('should compile optional function parameters', () => {
+    const ir = compileToIR(`
+        function opt(a: number, b?: number) {
+            return b;
+        }
+        let v = opt(1); // b should be undefined
+      `);
+    // We need to check if 'b' type in function signature is Union.
+    // And if the call passed undefined.
+    // We need to inspect the inline result or Function definition if stored?
+    const block = ir.root as any;
+    // Stmt 0: Func Decl (hoisted/scope).
+    // Stmt 1: Var x = opt(1).
+
+    // Inline expansion happens.
+    // Function opt body: return b.
+    // Argument mapping: a=1, b=undefined (if logic handles missing args)
+
+    // let v = undefined;
+    const declV = block.statements[1];
+    expect((declV as any).name).toBe('v');
+    // Should be const undefined.
+    const init = (declV as any).init;
+    expect(init.kind).toBe(OpKind.Const);
+    expect(init.type.name).toBe('undefined');
+  });
+
+  it('should support interfaces with optional fields', () => {
+    const ir = compileToIR(`
+        interface Vector2 {
+            x: number;
+            y?: number;
+        }
+        let v: Vector2 = { x: 1 };
+        v;
+     `);
+    const block = ir.root as any;
+    // Stmt 0: Interface Decl (CompileNode returns null, registers type).
+    // Stmt 1: Var Decl v. Type should be resolved to Struct Vector2.
+
+    // Note: "v" var decl
+    const declV = block.statements[0]; // Interfaces skipped
+    expect(declV.kind).toBe(OpKind.VarDecl);
+    const type = (declV as any).type;
+    expect(type.kind).toBe(DataTypeKind.Struct);
+    expect(type.name).toBe('Vector2');
+
+    // Check fields
+    expect(type.fields.x.name).toBe('number');
+    const yType = type.fields.y;
+    expect(yType.kind).toBe(DataTypeKind.Union);
+  });
+
   it('should compile basic math with constant folding (Ex 1)', () => {
     const ir = compileToIR(EX_BASIC);
     const block = ir.root as any;

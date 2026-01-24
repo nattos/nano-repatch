@@ -15,12 +15,23 @@ export class Scope {
     return child;
   }
 
+  // Create a Lexical Child Scope (Nested Block)
+  extend(): Scope {
+    const child = new Scope(this, false);
+    return child;
+  }
+
   // Snapshot for Closures
   snapshot(): Scope {
     const copy = new Scope(null, false);
     copy.values = new Map(this.values);
     copy.variables = new Map(this.variables);
     copy.functions = new Map(this.functions);
+    copy.types = new Map(this.types);
+    // Types should likely be public or accessible.
+    // I'll update types to be public or use accessor?
+    // Actually, snapshot method is inside class, so it can access private 'types'.
+
     if (this.parent) {
       copy.parent = this.parent.snapshot();
     }
@@ -99,6 +110,18 @@ export class Scope {
     // Let's disable them here and move them to compiler.ts as separate functions to avoid dependencies?
     // `Scope` definition is enough. `merge` can be `mergeScopes(parent, a, b, cond)`.
   }
+  // Type Registry
+  public types = new Map<string, DataType>();
+
+  declareType(name: string, type: DataType) {
+    this.types.set(name, type);
+  }
+
+  resolveType(name: string): DataType | undefined {
+    if (this.types.has(name)) return this.types.get(name);
+    if (this.parent) return this.parent.resolveType(name);
+    return undefined;
+  }
 }
 
 export class CompilerContext {
@@ -107,7 +130,7 @@ export class CompilerContext {
     this.scope = new Scope();
   }
   pushScope() {
-    this.scope = new Scope(this.scope, false);
+    this.scope = this.scope.extend();
   }
   popScope() {
     if (this.scope.parent) {

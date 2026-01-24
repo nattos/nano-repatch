@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import {
   IRGraph, IRNode, OpKind, DataTypeKind, DataType, PrimitiveType,
-  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode
+  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType
 } from "./ir-types";
 import { Scope, CompilerContext, extractReturn } from "./scope";
 import { resolveGlobal, tryCompileStaticCall, tryCompileInstanceMethod } from "./stdlib";
@@ -40,17 +40,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         let init: IRNode | undefined;
         let type: DataType = { kind: DataTypeKind.Any };
         if (decl.type) {
-          // resolve type from annotation
-          // simple mapping for now
-          if (decl.type.kind === ts.SyntaxKind.NumberKeyword) type = NUMBER_TYPE;
-          if (decl.type.kind === ts.SyntaxKind.BooleanKeyword) type = BOOLEAN_TYPE;
-          if (decl.type.kind === ts.SyntaxKind.ArrayType) {
-            const el = (decl.type as ts.ArrayTypeNode).elementType;
-            let elType: DataType = ANY_TYPE;
-            if (el.kind === ts.SyntaxKind.NumberKeyword) elType = NUMBER_TYPE;
-            // recursion if needed, but for now depth 1
-            type = { kind: DataTypeKind.Array, elementType: elType };
-          }
+          type = resolveType(decl.type, ctx);
         } else if (decl.initializer) {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
@@ -137,7 +127,34 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         for (let i = 0; i < targetFunc.parameters.length; i++) {
           const param = targetFunc.parameters[i];
           const paramName = (param.name as ts.Identifier).text;
-          const argNode = callNode.arguments[i] ? compileNode(callNode.arguments[i], ctx) : undefined;
+          const pType = param.type ? resolveType(param.type, ctx) : ANY_TYPE; // Inside tryInlineFunc capture ctx
+
+          let argNode = callNode.arguments[i] ? compileNode(callNode.arguments[i], ctx) : undefined;
+
+          if (!argNode) {
+            if (param.initializer) {
+              // Compile default value in current context?
+              // Defaults are usually evaluated in callee scope but if simple constant ok.
+              // Simplification: We compile in caller context (ctx) because we are inlining?
+              // No, lexical scope of definition?
+              // If it's `b = 1`, 1 is const.
+              // If `b = someVar`, someVar must be resolved.
+              // If closure, we should switch scope?
+              // `tryInlineFunc` switches scope later.
+              // We should compile default in the closure scope if possible.
+              // But we are gathering args before pushing scope.
+              // Let's assume defaults are simple or handle later?
+              // Actually, for now, let's just use undefined for optional if no default.
+              // If default exists, we try to compile it.
+              // But wait, compileNode needs context.
+              // Let's defer default value?
+              // Or just handle `undefined` for now as requested.
+              argNode = compileNode(param.initializer, ctx) || undefined;
+            } else if (param.questionToken) {
+              argNode = { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'undefined' }, value: undefined } as ConstNode;
+            }
+          }
+
           if (argNode) {
             if (param.type && param.type.kind === ts.SyntaxKind.TypeReference) {
               const typeRef = param.type as ts.TypeReferenceNode;
@@ -364,6 +381,13 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       return { id: nextId(), kind: OpKind.Array, type: { kind: DataTypeKind.Array, elementType }, elements } as ArrayNode;
     }
 
+    case ts.SyntaxKind.NullKeyword: {
+      return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'null' }, value: null } as ConstNode;
+    }
+    case ts.SyntaxKind.UndefinedKeyword: {
+      return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'undefined' }, value: undefined } as ConstNode;
+    }
+
     case ts.SyntaxKind.PropertyAccessExpression: {
       const prop = node as ts.PropertyAccessExpression;
       const obj = compileNode(prop.expression, ctx);
@@ -433,6 +457,27 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         method: 'get',
         args: [obj, index]
       } as IntrinsicNode;
+    }
+
+    case ts.SyntaxKind.InterfaceDeclaration: {
+      const decl = node as ts.InterfaceDeclaration;
+      const name = decl.name.text;
+      const fields: Record<string, DataType> = {};
+      decl.members.forEach(m => {
+        if (ts.isPropertySignature(m) && m.name) {
+          const fieldName = (m.name as ts.Identifier).text || "unknown"; // Handle non-ident?
+          let fieldType = m.type ? resolveType(m.type, ctx) : ANY_TYPE;
+          if (m.questionToken) {
+            // Optional field -> Union(T, Undefined)
+            const undefinedType: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'undefined' };
+            fieldType = { kind: DataTypeKind.Union, types: [fieldType, undefinedType] };
+          }
+          fields[fieldName] = fieldType;
+        }
+      });
+      const structType: StructType = { kind: DataTypeKind.Struct, name, fields };
+      ctx.scope.declareType(name, structType);
+      return null; // Statements processing skips null
     }
 
     case ts.SyntaxKind.FunctionDeclaration: {
@@ -539,6 +584,50 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 // Helpers
 let nodeIdCounter = 0;
 function nextId() { return `ir${nodeIdCounter++}`; }
+// Helper to resolve TS TypeNode to DataType
+function resolveType(typeNode: ts.TypeNode, ctx: CompilerContext): DataType {
+  if (typeNode.kind === ts.SyntaxKind.NumberKeyword) return NUMBER_TYPE;
+  if (typeNode.kind === ts.SyntaxKind.BooleanKeyword) return BOOLEAN_TYPE;
+  if (typeNode.kind === ts.SyntaxKind.StringKeyword) return STR_TYPE;
+  if (typeNode.kind === ts.SyntaxKind.VoidKeyword) return VOID_TYPE;
+  if (typeNode.kind === ts.SyntaxKind.UndefinedKeyword) return { kind: DataTypeKind.Primitive, name: 'undefined' } as PrimitiveType;
+  if (typeNode.kind === ts.SyntaxKind.NullKeyword) return { kind: DataTypeKind.Primitive, name: 'null' } as PrimitiveType;
+
+  if (ts.isArrayTypeNode(typeNode)) {
+    const elType = resolveType(typeNode.elementType, ctx);
+    return { kind: DataTypeKind.Array, elementType: elType };
+  }
+  if (ts.isLiteralTypeNode(typeNode)) {
+    if (typeNode.literal.kind === ts.SyntaxKind.NullKeyword) return { kind: DataTypeKind.Primitive, name: 'null' } as PrimitiveType;
+    // Other literals (true/false/numbers)
+    // LiteralType in IR?
+  }
+
+  if (ts.isUnionTypeNode(typeNode)) {
+    const types = typeNode.types.map(t => resolveType(t, ctx));
+    // check if just null/undefined logic?
+    // flattening unions?
+    return { kind: DataTypeKind.Union, types };
+  }
+
+  // Handle TypeReference (structs, generics)
+  if (ts.isTypeReferenceNode(typeNode)) {
+    const name = (typeNode.typeName as ts.Identifier).text;
+    if (name === 'Array') {
+      if (typeNode.typeArguments && typeNode.typeArguments.length > 0) {
+        return { kind: DataTypeKind.Array, elementType: resolveType(typeNode.typeArguments[0], ctx) };
+      }
+    }
+    // Lookup in scope
+    const type = ctx.scope.resolveType(name);
+    if (type) return type;
+    // Fallback/Warning?
+    // console.warn(`Unresolved type: ${name}`);
+  }
+  return ANY_TYPE;
+}
+
+const STR_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'string' }; // Need to define if not exists?
 const VOID_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'void' };
 const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
 const BOOLEAN_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'boolean' };
@@ -548,7 +637,7 @@ const GENERIC_INST = (base: string, args: DataType[]) => ({ kind: DataTypeKind.G
 function getPrimitiveType(val: any): PrimitiveType | null {
   if (typeof val === 'number') return NUMBER_TYPE;
   if (typeof val === 'boolean') return BOOLEAN_TYPE;
-  if (typeof val === 'string') return { kind: DataTypeKind.Primitive, name: 'string' };
+  if (typeof val === 'string') return STR_TYPE;
   return null;
 }
 

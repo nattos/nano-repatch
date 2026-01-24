@@ -43,7 +43,7 @@ function collectStructs(ir: IRGraph, inputs: Record<string, DataType>): Map<stri
     if (n.kind === OpKind.If) {
       visitNode((n as IfNode).condition);
       visitNode((n as IfNode).thenBlock);
-      if ((n as IfNode).elseBlock) visitNode((n as IfNode).elseBlock);
+      if ((n as IfNode).elseBlock) visitNode((n as IfNode).elseBlock!);
     }
     // ... recursing all usage ...
     // Simplification: just scan flat list of nodes if we traverse block?
@@ -69,7 +69,7 @@ function collectStructs(ir: IRGraph, inputs: Record<string, DataType>): Map<stri
     else if (n.kind === OpKind.If) {
       stack.push((n as IfNode).condition);
       stack.push((n as IfNode).thenBlock);
-      if ((n as IfNode).elseBlock) stack.push((n as IfNode).elseBlock);
+      if ((n as IfNode).elseBlock) stack.push((n as IfNode).elseBlock!);
     }
     else if (n.kind === OpKind.Binary) { stack.push((n as BinaryNode).left, (n as BinaryNode).right); }
     else if (n.kind === OpKind.Assign) { stack.push((n as AssignNode).value); }
@@ -109,6 +109,20 @@ function typeToCpp(type: DataType): string {
       return `std::vector<${typeToCpp(inner)}>`;
     }
     case DataTypeKind.Struct: return getStructName(type as any);
+    case DataTypeKind.Union: {
+      const u = type as any;
+      const nonNull = u.types.filter((sub: DataType) =>
+        !(sub.kind === DataTypeKind.Primitive && (sub.name === 'null' || sub.name === 'undefined'))
+      );
+      if (nonNull.length === 1) {
+        return `std::optional<${typeToCpp(nonNull[0])}>`;
+      }
+      if (nonNull.length === 0) {
+        // Pure null/undefined
+        return `std::optional<double>`;
+      }
+      throw new Error(`Complex unions not supported in C++ backend: ${JSON.stringify(type)}`);
+    }
     default: return 'auto';
   }
 }
@@ -125,39 +139,63 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   lines.push('#include <string>');
   lines.push('#include <cmath>');
   lines.push('#include <algorithm>');
+  lines.push('#include <optional>');
   lines.push('#include "json.hpp"');
   lines.push('');
   lines.push('using json = nlohmann::json;');
   lines.push('');
 
   // 1.5 Emit Struct Defs
-  structs.forEach((type, name) => {
+
+
+  // 2. Input Struct
+  // 3. Define Types and Serialization
+  structs.forEach((structType, name) => {
     lines.push(`struct ${name} {`);
-    const fields: string[] = [];
-    for (const [fname, ftype] of Object.entries(type.fields)) {
+    for (const [fname, ftype] of Object.entries(structType.fields)) {
       lines.push(`    ${typeToCpp(ftype)} ${fname};`);
-      fields.push(fname);
     }
     lines.push('};');
-    if (fields.length > 0) {
-      lines.push(`NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(${name}, ${fields.join(', ')})`);
+    lines.push(`void to_json(json& j, const ${name}& p) {`);
+    lines.push('    j = json{');
+    const fieldNames = Object.keys(structType.fields);
+    lines.push(fieldNames.map(f => `        {"${f}", p.${f}}`).join(',\n'));
+    lines.push('    };');
+    lines.push('}');
+    lines.push(`void from_json(const json& j, ${name}& p) {`);
+    for (const [fname, ftype] of Object.entries(structType.fields)) {
+      // partial check for optional
+      // If type string starts with std::optional...
+      const cppTypeStr = typeToCpp(ftype);
+      if (cppTypeStr.startsWith('std::optional')) {
+        lines.push(`    if (j.contains("${fname}")) j.at("${fname}").get_to(p.${fname});`);
+      } else {
+        lines.push(`    j.at("${fname}").get_to(p.${fname});`);
+      }
     }
+    lines.push('}');
     lines.push('');
   });
 
-  // 2. Input Struct
+  // Input Struct
   lines.push('struct Input {');
   for (const [name, type] of Object.entries(options.inputs)) {
     lines.push(`    ${typeToCpp(type)} ${name};`);
   }
   lines.push('};');
-  lines.push('');
 
-  // 3. Define JSON parsing for Input
-  const inputFields = Object.keys(options.inputs).join(', ');
-  if (inputFields.length > 0) {
-    lines.push(`NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Input, ${inputFields})`);
+  lines.push('void from_json(const json& j, Input& p) {');
+  for (const [name, type] of Object.entries(options.inputs)) {
+    const cppTypeStr = typeToCpp(type);
+    if (cppTypeStr.startsWith('std::optional')) {
+      lines.push(`    if (j.contains("${name}")) j.at("${name}").get_to(p.${name});`);
+    } else {
+      lines.push(`    if (j.contains("${name}")) j.at("${name}").get_to(p.${name});`); // Inputs might be optional in root?
+      // Actually if root input is missing but required, we throw?
+      // Standard get_to throws.
+    }
   }
+  lines.push('}');
   lines.push('');
 
   // 4. Compute Function
@@ -229,6 +267,7 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
   switch (node.kind) {
     case OpKind.Const: {
       const c = node as ConstNode;
+      if (c.value === null || c.value === undefined) return 'std::nullopt';
       if (typeof c.value === 'string') return `"${c.value}"`;
       if (typeof c.value === 'boolean') return c.value ? 'true' : 'false';
       if (Array.isArray(c.value)) {

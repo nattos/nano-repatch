@@ -274,7 +274,7 @@ instanceMethods.set('push', (ctx, call, args, obj, compile) => {
           kind: OpKind.Const,
           type: typeof v === 'number' ? NUMBER_TYPE : ANY_TYPE,
           value: v
-        } as ConstNode));
+        } as ConstNode)) as IRNode[];
 
         // 2. Add new runtime arg
         elements.push(arg);
@@ -349,6 +349,6 @@ function registerMath(name: string, func: (...args: number[]) => number) {
   if (fn) registerMath(name, fn);
 });
 
-// Constants
-registerGlobal('Math', { id: 'global_Math', kind: OpKind.Const, type: ANY_TYPE, value: { name: 'Math' } } as ConstNode);
-
+// Globals
+globalScope.set('Math', { id: 'Math', kind: OpKind.Intrinsic, type: ANY_TYPE, value: 'Math' } as any); // Placeholder?
+globalScope.set('undefined', { id: 'undefined', kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'undefined' }, value: undefined } as ConstNode);
