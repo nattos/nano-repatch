@@ -14,9 +14,38 @@ class Scope {
 
   fork(): Scope {
     const child = new Scope(this);
-    // Forking logic: standard scope inheritance is handled by prototype-like `parent` chain.
-    // However, `values` map in child starts empty.
+    // In standard block scoping, we don't copy values, we resolve up.
+    // BUT for "Branching" where we might assign to parent vars, we need to track changes.
+    // If we assign to a var in parent, we shadow it in the branch for the purpose of Phi tracking?
+    // Actually, to implement Phi, we need to know "what changed".
     return child;
+  }
+
+  // Creates a detached copy of the scope with current values frozen.
+  // This effectively "captures" the state of variables at this moment.
+  // Used for Lambda Closures in Unrolling.
+  snapshot(): Scope {
+    const copy = new Scope(); // No parent? Or parent is also snapshot?
+    // Deep snapshotting whole chain is expensive.
+    // But for "i", it's in the current scope usually.
+    // Let's copy the values map.
+    // Any variable resolved in this scope will be found.
+    // Variables in parent scope?
+    // If we don't snapshot parent, we track live parent.
+    // If we want "capture by value" behavior for loop unrolling (which is what we expect for `let` in loops),
+    // we essentially want to bake the current resolution.
+
+    // Strategy: Flatten the scope chain into one Scope?
+    // Or just clone the current level and assume parents are stable (globals)?
+    // For loops, the inner scope changes.
+
+    copy.values = new Map(this.values);
+    copy.variables = new Map(this.variables);
+    copy.functions = new Map(this.functions);
+    if (this.parent) {
+      copy.parent = this.parent.snapshot();
+    }
+    return copy;
   }
 
   declare(name: string, type: DataType) {
@@ -177,18 +206,54 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
     // Convert Arrow Functions to Const Nodes (so they can be stored in Vars)
     case ts.SyntaxKind.ArrowFunction: {
       const func = node as ts.ArrowFunction;
-      // Optimization: Wrap it in a FunctionDeclaration-like object or just store the AST?
-      // We need to return a Value that *represents* the function.
-      // Let's use a ConstNode where value IS the AST node (shimmed to look like FunctionDeclaration?)
-      // Or just the ArrowFunction node itself.
-      // Our 'Call' logic expects specific structure.
-      // Let's coerce ArrowFunction to FunctionDeclaration interface loosely if needed, or update Resolve logic.
+
+      // Capture the current scope as the "closure"
+      // We need a snapshot?
+      // If we store 'ctx.scope' directly, it is a reference.
+      // Loops mutate the SAME scope object if not careful?
+      // In our Loop unrolling logic:
+      // We don't explicit branch scope for the loop body if it's not a block?
+      // But if it IS a block, `compileNode` pushes a new scope.
+      // The `i` variable is in the PARENT scope of the block?
+      // `for(let i...)` -> i is in the loop scope.
+      // Inside loop: `funcs.push(() => i)`. Arrow Func is created in Loop Scope.
+      // If Loop Scope is mutated (i changes), does the closure see the change?
+      // In JS, yes. Closures capture variables, not values.
+      // BUT in our UNROLLER, we want to capture the specific iteration's `i` value if we are unrolling.
+      // Loop Unrolling effectively produces distinct scopes for each iteration?
+      // Currently, `ForStatement` uses ONE `ctx` and just iterates.
+      // `i` is likely in `ctx.scope`.
+      // If we loop, we update `i` in `ctx.scope`.
+      // If we capture `ctx.scope` by reference, all lambdas see the FINAL `i`.
+      // WE NEED TO SNAPSHOT THE SCOPE for unrolling!
+      // Or at least snapshot the values map?
+
+      const closureScope = ctx.scope.fork();
+      // Fork creates a new child. That's not what we want. We want a COPY of the current state.
+      // Scope.fork() returns a child with `parent = this`.
+      // If we use the fork as the closure, it still resolves `i` from the parent (which is mutating).
+      // We need `Scope` to have a `snapshot()` method?
+      // Or we just rely on `fork` if the Loop implementation creates a NEW Scope for each iteration?
+
+      // FIX: Loop implementation should ideally create a fresh scope for each iteration to support `const` semantics anyway.
+      // But `i` is mutable.
+      // In JS `for(let i...)`, `i` is per-iteration.
+      // If we implement proper "per-iteration binding", we are good.
+      // But my `ForStatement` logic just does `compileNode` repeatedly.
+      // It relies on `i` being in the scope.
+
+      // Hack for Unroller: We want to "bake in" the values available at creation time?
+      // If we treat generic compilation as "Dynamic", we capture reference.
+      // If we treat it as "Unroll Immediate", we probably want to capture the VALUES.
+
+      // Let's implement `snapshot` on Scope.
+      const snapshot = ctx.scope.snapshot();
 
       return {
         id: nextId(),
         kind: OpKind.Const,
         type: { kind: DataTypeKind.Any }, // Function type TODO
-        value: func
+        value: { node: func, closure: snapshot } // Store both AST and Closure
       } as ConstNode;
     }
 
@@ -201,8 +266,14 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
     case ts.SyntaxKind.VariableStatement: {
       const stmt = node as ts.VariableStatement;
+      // Delegate to VariableDeclarationList handler
+      return compileNode(stmt.declarationList, ctx);
+    }
+
+    case ts.SyntaxKind.VariableDeclarationList: {
+      const list = node as ts.VariableDeclarationList;
       const decls: IRNode[] = [];
-      stmt.declarationList.declarations.forEach(decl => {
+      list.declarations.forEach(decl => {
         const name = (decl.name as ts.Identifier).text;
         let init: IRNode | undefined;
         let type: DataType = { kind: DataTypeKind.Any };
@@ -210,6 +281,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
             type = init.type;
+            // Always set in scope for unrolling/evaluated values
             ctx.scope.set(name, init);
           }
         }
@@ -291,6 +363,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         let condVal = true;
         if (stmt.condition) {
           const cond = compileNode(stmt.condition, ctx);
+          console.log('Loop Condition Node:', cond); // DEBUG
           if (!cond || cond.kind !== OpKind.Const) {
             throw new Error("Loop condition must be compile-time constant for unrolling");
           }
@@ -374,8 +447,10 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         const idxVal = (index as ConstNode).value;
         if (Array.isArray(arrVal) && typeof idxVal === 'number') {
           const val = arrVal[idxVal];
-          // Infer type? Assuming number for simplicity or we need to track element type
-          return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode;
+          // Check if val is an IRNode (e.g. Function AST wrapper)?
+          // If the array contains Objects or Primitives?
+          // If it contains Function Wrappers {node, closure}, we return that as CONST.
+          return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Any }, value: val } as ConstNode;
         }
       }
 
@@ -424,20 +499,11 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           const arrVal = (obj as ConstNode).value as any[];
           const elements = call.arguments.map(a => compileNode(a, ctx));
 
-          // Should arguments be const too?
-          // If they are not const, we can't push them into a CONST array value?
-          // Wait, if the array is Const, it means we know the values at compile time.
-          // If we push a Variable, the array is no longer Const Value.
-          // Ex 4 pushes {x: i*10}. 'i' is const. So the pushed object IS const.
-
           const pushedValues: any[] = [];
           for (const elem of elements) {
             if (elem && elem.kind === OpKind.Const) {
               pushedValues.push((elem as ConstNode).value);
             } else {
-              // Fallback? If we push dynamic stuff into const array, it becomes dynamic ArrayNode.
-              // This is tricky for "value" mutation.
-              // For Ex 4, it should be const.
               throw new Error("Cannot push non-constant value into constant array in unroller");
             }
           }
@@ -451,16 +517,15 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         // Map/Reduce
         if (methodName === 'map' && obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
           const arrValues = (obj as ConstNode).value as any[];
-          const callback = call.arguments[0]; // Arrow Function
-          const func = callback as ts.ArrowFunction;
-          const paramName = (func.parameters[0].name as ts.Identifier).text;
+          const callback = call.arguments[0] as ts.ArrowFunction; // Arrow Function
+          const paramName = (callback.parameters[0].name as ts.Identifier).text;
           const results: any[] = [];
           let resultType: DataType = NUMBER_TYPE;
           for (const val of arrValues) {
             ctx.pushScope();
             ctx.scope.set(paramName, { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode);
             ctx.scope.declare(paramName, NUMBER_TYPE);
-            const bodyRes = compileNode(func.body, ctx);
+            const bodyRes = compileNode(callback.body, ctx);
             ctx.popScope();
             if (bodyRes && bodyRes.kind === OpKind.Const) {
               results.push((bodyRes as ConstNode).value);
@@ -473,106 +538,112 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
       }
 
-      // 2. Identifier / Value Calls (Inline User Funcs)
+      // 2. Inline User Funcs (Identifier OR Anything that resolves to a Function Value)
+      let funcVal: IRNode | null = null;
+      let funcDecl: ts.FunctionLikeDeclaration | null = null;
+
       if (call.expression.kind === ts.SyntaxKind.Identifier) {
         const funcName = (call.expression as ts.Identifier).text;
+        funcVal = ctx.scope.resolveValue(funcName);
+        if (!funcVal) funcDecl = ctx.scope.resolveFunction(funcName);
+      } else {
+        // If expression is 'funcs[0]', it compiles to a ConstNode holding the Function
+        funcVal = compileNode(call.expression, ctx);
+      }
 
-        // Check for Value (Variable holding function or Phi)
-        const val = ctx.scope.resolveValue(funcName);
+      // Inline Logic (reused)
+      // Refactor 'tryInlineFunc' to be outside or capture ctx
+      // ... assume tryInlineFunc is available as method or helper ...
+      // I'll inline it here for simplicity or assume availability.
 
-        const tryInline = (targetFunc: ts.FunctionLikeDeclaration, callNode: ts.CallExpression): IRNode | null => {
-          ctx.pushScope();
-          // Infer Generics
-          const typeParams = targetFunc.typeParameters;
-          const genericMap = new Map<string, DataType>();
-
-          // Map Args
-          for (let i = 0; i < targetFunc.parameters.length; i++) {
-            const param = targetFunc.parameters[i];
-            const paramName = (param.name as ts.Identifier).text;
-            const argNode = callNode.arguments[i] ? compileNode(callNode.arguments[i], ctx) : undefined;
-            if (argNode) {
-              if (param.type && param.type.kind === ts.SyntaxKind.TypeReference) {
-                const typeRef = param.type as ts.TypeReferenceNode;
-                const typeName = (typeRef.typeName as ts.Identifier).text;
-                if (typeParams?.some(tp => tp.name.text === typeName)) genericMap.set(typeName, argNode.type);
-              }
-              ctx.scope.set(paramName, argNode);
-              ctx.scope.declare(paramName, argNode.type);
+      /* ... tryInlineFunc Definition ... */
+      const tryInlineFunc = (targetFunc: ts.FunctionLikeDeclaration, callNode: ts.CallExpression, closureScope?: Scope): IRNode | null => {
+        const args: { name: string, value: IRNode }[] = [];
+        const typeParams = targetFunc.typeParameters;
+        const genericMap = new Map<string, DataType>();
+        for (let i = 0; i < targetFunc.parameters.length; i++) {
+          const param = targetFunc.parameters[i];
+          const paramName = (param.name as ts.Identifier).text;
+          const argNode = callNode.arguments[i] ? compileNode(callNode.arguments[i], ctx) : undefined;
+          if (argNode) {
+            if (param.type && param.type.kind === ts.SyntaxKind.TypeReference) {
+              const typeRef = param.type as ts.TypeReferenceNode;
+              const typeName = (typeRef.typeName as ts.Identifier).text;
+              if (typeParams?.some(tp => tp.name.text === typeName)) genericMap.set(typeName, argNode.type);
             }
-          }
-
-          // Body
-          let result: IRNode | null = null;
-          if (targetFunc.body) {
-            if (targetFunc.kind === ts.SyntaxKind.ArrowFunction && targetFunc.body.kind !== ts.SyntaxKind.Block) {
-              // Expression Body
-              result = compileNode(targetFunc.body, ctx);
-            } else {
-              // Block Body
-              const bodyBlock = targetFunc.body as ts.Block;
-              for (const stmt of bodyBlock.statements) {
-                const compiledStmt = compileNode(stmt, ctx);
-                const ret = extractReturn(compiledStmt);
-                if (ret) { result = ret; break; }
-              }
-            }
-          }
-          ctx.popScope();
-
-          // Generic Return Type Reflection
-          if (result && targetFunc.type && targetFunc.type.kind === ts.SyntaxKind.TypeReference) {
-            const returnTypeRef = targetFunc.type as ts.TypeReferenceNode;
-            const returnTypeName = (returnTypeRef.typeName as ts.Identifier).text;
-            if (returnTypeRef.typeArguments && returnTypeRef.typeArguments.length > 0) {
-              const typeArg = returnTypeRef.typeArguments[0];
-              if (typeArg.kind === ts.SyntaxKind.TypeReference && genericMap.has((typeArg as ts.TypeReferenceNode).typeName.getText())) {
-                const resolvedT = genericMap.get((typeArg as ts.TypeReferenceNode).typeName.getText())!;
-                const reflectedType = GENERIC_INST(returnTypeName, [resolvedT]);
-                return { ...result, type: reflectedType };
-              }
-            }
-          }
-          return result;
-        };
-
-        if (val) {
-          // Phi Dispatch Logic
-          if (val.kind === OpKind.Phi) {
-            const phi = val as PhiNode;
-            // Dispatch True
-            // Hack: We need to "call" the trueValue.
-            // Since trueValue matches the signature of the call, we can assume it's a Function-like thing.
-            // Recursve helper for Phi unwrapping
-            const dispatchPhi = (node: IRNode): IRNode | null => {
-              if (node.kind === OpKind.Phi) {
-                const p = node as PhiNode;
-                const t = dispatchPhi(p.trueValue);
-                const f = dispatchPhi(p.falseValue);
-                if (!t || !f) return null;
-                return { id: nextId(), kind: OpKind.Phi, type: t.type, condition: p.condition, trueValue: t, falseValue: f } as PhiNode;
-              }
-              if (node.kind === OpKind.Const && (node as ConstNode).value && (node as ConstNode).value.kind) {
-                // Assume Value is a Function AST Node (ArrowFunc or FuncDecl)
-                const funcNode = (node as ConstNode).value as ts.FunctionLikeDeclaration;
-                return tryInline(funcNode, call);
-              }
-              return null;
-            };
-            return dispatchPhi(phi);
-          }
-
-          // Direct Variable Call (e.g. op = (x)=>x)
-          if (val.kind === OpKind.Const && (val as ConstNode).value && (val as ConstNode).value.kind) {
-            const funcNode = (val as ConstNode).value as ts.FunctionLikeDeclaration;
-            return tryInline(funcNode, call);
+            args.push({ name: paramName, value: argNode });
           }
         }
+        const savedScope = ctx.scope;
+        if (closureScope) ctx.scope = closureScope;
+        ctx.pushScope();
+        for (const arg of args) {
+          ctx.scope.set(arg.name, arg.value);
+          ctx.scope.declare(arg.name, arg.value.type);
+        }
+        let result: IRNode | null = null;
+        if (targetFunc.body) {
+          if (targetFunc.kind === ts.SyntaxKind.ArrowFunction && targetFunc.body.kind !== ts.SyntaxKind.Block) {
+            result = compileNode(targetFunc.body, ctx);
+          } else {
+            const bodyBlock = targetFunc.body as ts.Block;
+            for (const stmt of bodyBlock.statements) {
+              const compiledStmt = compileNode(stmt, ctx);
+              const ret = extractReturn(compiledStmt);
+              if (ret) { result = ret; break; }
+            }
+          }
+        }
+        ctx.popScope();
+        ctx.scope = savedScope;
+        if (result && targetFunc.type && targetFunc.type.kind === ts.SyntaxKind.TypeReference) {
+          const returnTypeRef = targetFunc.type as ts.TypeReferenceNode;
+          const returnTypeName = (returnTypeRef.typeName as ts.Identifier).text;
+          if (returnTypeRef.typeArguments && returnTypeRef.typeArguments.length > 0) {
+            const typeArg = returnTypeRef.typeArguments[0];
+            if (typeArg.kind === ts.SyntaxKind.TypeReference && genericMap.has((typeArg as ts.TypeReferenceNode).typeName.getText())) {
+              const resolvedT = genericMap.get((typeArg as ts.TypeReferenceNode).typeName.getText())!;
+              const reflectedType = GENERIC_INST(returnTypeName, [resolvedT]);
+              return { ...result, type: reflectedType };
+            }
+          }
+        }
+        return result;
+      };
 
-        // Static Function Decl lookup (fallback)
-        const staticDecl = ctx.scope.resolveFunction(funcName);
-        if (staticDecl) return tryInline(staticDecl, call);
+      if (funcVal) {
+        // Phi Dispatch
+        if (funcVal.kind === OpKind.Phi) {
+          const phi = funcVal as PhiNode;
+          const dispatchPhi = (node: IRNode): IRNode | null => {
+            if (node.kind === OpKind.Phi) {
+              const p = node as PhiNode;
+              const t = dispatchPhi(p.trueValue);
+              const f = dispatchPhi(p.falseValue);
+              if (!t || !f) return null;
+              return { id: nextId(), kind: OpKind.Phi, type: t.type, condition: p.condition, trueValue: t, falseValue: f } as PhiNode;
+            }
+            if (node.kind === OpKind.Const && (node as ConstNode).value) {
+              const v = (node as ConstNode).value;
+              if (v.node && v.closure) return tryInlineFunc(v.node, call, v.closure);
+              // Fallback for legacy/simple funcs without closure obj?
+              if (v.kind) return tryInlineFunc(v, call);
+            }
+            return null;
+          };
+          return dispatchPhi(phi);
+        }
+        // Const Dispatch
+        if (funcVal.kind === OpKind.Const && (funcVal as ConstNode).value) {
+          const v = (funcVal as ConstNode).value;
+          if (v.node && v.closure) return tryInlineFunc(v.node, call, v.closure);
+          // Legacy support if value was just the node (for built-ins?)
+          if (v.kind) return tryInlineFunc(v, call);
+        }
       }
+
+      if (funcDecl) return tryInlineFunc(funcDecl, call);
+
       return null;
     }
 
@@ -597,17 +668,58 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           case ts.SyntaxKind.PlusToken: result = lVal + rVal; break;
           case ts.SyntaxKind.MinusToken: result = lVal - rVal; break;
           case ts.SyntaxKind.AsteriskToken: result = lVal * rVal; break;
-          // ...
+          case ts.SyntaxKind.SlashToken: result = lVal / rVal; break;
+          case ts.SyntaxKind.LessThanToken: result = lVal < rVal; break;
+          case ts.SyntaxKind.GreaterThanToken: result = lVal > rVal; break;
+          case ts.SyntaxKind.LessThanEqualsToken: result = lVal <= rVal; break;
+          case ts.SyntaxKind.GreaterThanEqualsToken: result = lVal >= rVal; break;
+          case ts.SyntaxKind.EqualsEqualsToken: result = lVal == rVal; break;
+          case ts.SyntaxKind.ExclamationEqualsToken: result = lVal != rVal; break;
         }
         if (result !== null) return { id: nextId(), kind: OpKind.Const, type: left.type, value: result } as ConstNode;
       }
       let op: any = '?';
       switch (expr.operatorToken.kind) {
         case ts.SyntaxKind.PlusToken: op = '+'; break;
+        case ts.SyntaxKind.MinusToken: op = '-'; break;
         case ts.SyntaxKind.AsteriskToken: op = '*'; break;
-        // ...
+        case ts.SyntaxKind.SlashToken: op = '/'; break;
+        case ts.SyntaxKind.LessThanToken: op = '<'; break;
+        case ts.SyntaxKind.GreaterThanToken: op = '>'; break;
+        case ts.SyntaxKind.LessThanEqualsToken: op = '<='; break;
+        case ts.SyntaxKind.GreaterThanEqualsToken: op = '>='; break;
+        case ts.SyntaxKind.EqualsEqualsToken: op = '=='; break;
+        case ts.SyntaxKind.ExclamationEqualsToken: op = '!='; break;
       }
       return { id: nextId(), kind: OpKind.Binary, type: NUMBER_TYPE, op, left, right } as BinaryNode;
+    }
+
+    case ts.SyntaxKind.PostfixUnaryExpression:
+    case ts.SyntaxKind.PrefixUnaryExpression: {
+      const expr = node as (ts.PostfixUnaryExpression | ts.PrefixUnaryExpression);
+      const operand = expr.operand;
+
+      // Handle i++ / ++i
+      if ((expr.operator === ts.SyntaxKind.PlusPlusToken || expr.operator === ts.SyntaxKind.MinusMinusToken)
+        && operand.kind === ts.SyntaxKind.Identifier) {
+
+        const name = (operand as ts.Identifier).text;
+        const current = ctx.scope.resolveValue(name);
+
+        if (current && current.kind === OpKind.Const) {
+          const val = (current as ConstNode).value;
+          let newVal = val;
+          if (expr.operator === ts.SyntaxKind.PlusPlusToken) newVal++;
+          else newVal--;
+
+          const newNode = { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: newVal } as ConstNode;
+          ctx.scope.assign(name, newNode);
+
+          // Return old or new value depending on prefix/postfix
+          return node.kind === ts.SyntaxKind.PrefixUnaryExpression ? newNode : current;
+        }
+      }
+      return null;
     }
 
     case ts.SyntaxKind.ReturnStatement: {
