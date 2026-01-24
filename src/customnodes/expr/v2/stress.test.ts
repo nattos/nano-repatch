@@ -61,4 +61,125 @@ describe('Stress Tests & Advanced Features', () => {
     expect((v2Expr as any).value).toBe(2);
   });
 
+  it('should compile matrix multiplication (Ex 11)', () => {
+    // 2x2 Matrix Multiplication
+    // A = [[1, 2], [3, 4]]
+    // B = [[5, 6], [7, 8]]
+    // C = A * B
+    const CODE = `
+        const A = [[1, 2], [3, 4]];
+        const B = [[5, 6], [7, 8]];
+        let C = [[0, 0], [0, 0]]; // Pre-allocate 2x2
+
+        for (let i = 0; i < 2; i++) {
+            for (let j = 0; j < 2; j++) {
+                let sum = 0;
+                for (let k = 0; k < 2; k++) {
+                    // C[i][j] += A[i][k] * B[k][j]
+                    let a_val = A[i][k];
+                    let b_val = B[k][j];
+                    sum = sum + a_val * b_val;
+                }
+                // Write back to C?
+                // Our current array support is naive. C[i][j] assignment might need support.
+                // Or we can construct rows.
+                // Let's try direct assignment if supported, or rebuilding rows.
+                // Arrays in our IR are immutable structures usually?
+                // Wait, "Map/Reduce" produced new arrays.
+                // "Push" mutated constant arrays.
+                // Indexed assignment (C[i][j] = ...) is harder if C is a Value.
+                // If C is a variable holding a reference to a Mutable Array...
+                // In our compiler, Arrays are CONST VALUES if possible.
+                // We don't support "C[i][j] = val" on ConstNodes in the IR directly yet.
+                // But we can support it in the Unroller!
+
+                // Workaround: Use 1D array for C and push?
+                // Or implementing Indexed Assignment support in Unroller.
+                // Let's try 1D flat array construction for simplicity of verifying "Logic",
+                // or assume we add support for indexed assign.
+
+                // Let's assume we implement indexed assignment to constant arrays.
+                // C[i][j] = sum;
+                // But C is [[0,0], [0,0]].
+                // C[i] is [0,0]. C[i][j] is 0.
+            }
+        }
+
+        // Simpler approach: 1D push
+        let result = [];
+        for (let i = 0; i < 2; i++) {
+            for (let j = 0; j < 2; j++) {
+                let sum = 0;
+                for (let k = 0; k < 2; k++) {
+                    sum = sum + A[i][k] * B[k][j];
+                }
+                result.push(sum);
+            }
+        }
+        result;
+      `;
+
+    const ir = compileToIR(CODE);
+    const block = ir.root as any;
+    const last = block.statements[block.statements.length - 1]; // result
+
+    expect(last.kind).toBe(OpKind.Const);
+    // Row 1: 1*5+2*7=19, 1*6+2*8=22
+    // Row 2: 3*5+4*7=43, 3*6+4*8=50
+    expect(last.value).toEqual([19, 22, 43, 50]);
+  });
+
+  it('should compile chained generics (Ex 12)', () => {
+    // Tests passing generic type through multiple functions
+    const CODE = `
+        function identity<T>(arg: T): T {
+            return arg;
+        }
+
+        function box<U>(val: U) {
+            return { contents: identity(val) };
+        }
+
+        function process<X>(item: X) {
+            // X -> U -> T
+            return box(item);
+        }
+
+        const r1 = process(100);
+        const r2 = process("hello"); // String support? The compiler mainly does numbers but type checker should handle it?
+        // Actually our lexer/parser/IR has limited string support.
+        // Let's use number and an array.
+        const r3 = process([1, 2]);
+
+        r1;
+        r3;
+      `;
+
+    // Expected:
+    // r1: { contents: 100 }
+    // Type: Struct { contents: number } (Reflected Generics?)
+    // Actually we want to verify the TYPES are preserved.
+    // process<number> -> box<number> -> identity<number> -> returns number.
+    // box returns { contents: number }.
+
+    const ir = compileToIR(CODE);
+    const block = ir.root as any;
+    const stmts = block.statements;
+
+    const r1 = stmts[stmts.length - 2];
+    const r3 = stmts[stmts.length - 1];
+
+    expect(r1.kind).toBe(OpKind.Const);
+    expect(r1.value).toEqual({ contents: 100 });
+    // Verify Type
+    // Should be Struct with field contents: number
+    expect(r1.type.kind).toBe(DataTypeKind.Struct);
+
+    expect(r3.kind).toBe(OpKind.Const);
+    expect(r3.value).toEqual({ contents: [1, 2] });
+    expect(r3.type.kind).toBe(DataTypeKind.Struct);
+    // Deep check: contents should be array
+    // Due to structural typing, we might just see Struct { contents: Array<number> }
+  });
+
 });

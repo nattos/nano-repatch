@@ -10,14 +10,12 @@ class Scope {
   public values = new Map<string, IRNode>();
   private functions = new Map<string, ts.FunctionDeclaration>();
 
-  constructor(public parent: Scope | null = null) { }
+  constructor(public parent: Scope | null = null, public isBranchScope: boolean = false) { }
 
+  // Create a Branch Scope (Isolation Boundary)
   fork(): Scope {
-    const child = new Scope(this);
-    // In standard block scoping, we don't copy values, we resolve up.
-    // BUT for "Branching" where we might assign to parent vars, we need to track changes.
-    // If we assign to a var in parent, we shadow it in the branch for the purpose of Phi tracking?
-    // Actually, to implement Phi, we need to know "what changed".
+    const child = new Scope(this, true);
+    // Branch scopes trap assignments to emulate divergent control flow
     return child;
   }
 
@@ -25,7 +23,7 @@ class Scope {
   // This effectively "captures" the state of variables at this moment.
   // Used for Lambda Closures in Unrolling.
   snapshot(): Scope {
-    const copy = new Scope(); // No parent? Or parent is also snapshot?
+    const copy = new Scope(null, false); // Snapshot is effectively a root or detached
     // Deep snapshotting whole chain is expensive.
     // But for "i", it's in the current scope usually.
     // Let's copy the values map.
@@ -62,8 +60,31 @@ class Scope {
     }
   }
 
-  // Assign always writes to CURRENT scope (Shadowing for SSA/Versioning)
+  // Recursive Assignment Logic
   assign(name: string, value: IRNode) {
+    // 1. If currently tracked in this scope, update strictly here
+    if (this.values.has(name)) {
+      this.values.set(name, value);
+      return;
+    }
+
+    // 2. If not found locally, try to push to parent
+    if (this.parent) {
+      // If this is a Branch Scope, we MUST shadow here. We cannot mutate parent.
+      if (this.isBranchScope) {
+        this.values.set(name, value);
+      } else {
+        // Transparent Scope (Block): Propagate up
+        // Check if variable exists up chain?
+        // "resolveValue" checks values. Scope might just be pass-through.
+        // If we propagate, does parent accept it?
+        // Parent recurses until it finds 'has(name)' or hits its own Branch/Root.
+        this.parent.assign(name, value);
+      }
+      return;
+    }
+
+    // 3. Root Scope (or detached), set here
     this.values.set(name, value);
   }
 
@@ -143,8 +164,9 @@ class CompilerContext {
   constructor() {
     this.scope = new Scope();
   }
+  // Standard Block Scope (Transparent)
   pushScope() {
-    this.scope = new Scope(this.scope);
+    this.scope = new Scope(this.scope, false);
   }
   popScope() {
     if (this.scope.parent) {
