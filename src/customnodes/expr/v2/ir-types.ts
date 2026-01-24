@@ -11,6 +11,7 @@ export enum DataTypeKind {
   Tuple = 'tuple',
   Function = 'function',
   Generic = 'generic',
+  GenericInstantiation = 'generic_instantiation',
   Any = 'any', // For transition/error states
 }
 

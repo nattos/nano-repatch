@@ -13,6 +13,10 @@ const EX_BASIC = `
   y;
 `;
 
+// Helper for Type assertions
+const isNumber = (t: any) => t.kind === DataTypeKind.Primitive && t.name === 'number';
+const isArrayOfNumber = (t: any) => t.kind === DataTypeKind.Array && isNumber(t.elementType);
+
 describe('IR Specification (Integration)', () => {
 
   it('should compile basic math with constant folding (Ex 1)', () => {
@@ -23,6 +27,7 @@ describe('IR Specification (Integration)', () => {
     // Constant Folding works
     expect(lastStmt.kind).toBe(OpKind.Const);
     expect(lastStmt.value).toBe(20);
+    expect(isNumber(lastStmt.type)).toBe(true);
   });
 
   it('should unroll array map/reduce (Ex 2)', () => {
@@ -40,6 +45,7 @@ describe('IR Specification (Integration)', () => {
     // 10+20+30+40 = 100
     expect(lastStmt.kind).toBe(OpKind.Const);
     expect(lastStmt.value).toBe(100);
+    expect(isNumber(lastStmt.type)).toBe(true);
   });
 
   it('should handle structs and property access (Ex 3 simplified)', () => {
@@ -56,6 +62,7 @@ describe('IR Specification (Integration)', () => {
     // v1.x (10) + v1.y (20) = 30
     expect(lastStmt.kind).toBe(OpKind.Const);
     expect(lastStmt.value).toBe(30);
+    expect(isNumber(lastStmt.type)).toBe(true);
   });
 
   it('should inline generic functions (Ex 3 Generics)', () => {
@@ -89,6 +96,7 @@ describe('IR Specification (Integration)', () => {
 
     expect(lastStmt.kind).toBe(OpKind.Const);
     expect(lastStmt.value).toBe(4);
+    expect(isNumber(lastStmt.type)).toBe(true);
   });
 
   it('should handle function overloads (Ex 7)', () => {
@@ -96,9 +104,7 @@ describe('IR Specification (Integration)', () => {
       function double(val: number): number {
         return val * 2;
       }
-      // Overload simplified: using different names or just checking if implementation handles different types?
-      // TS Overloads usually share implementation.
-      // Let's use Union Type check pattern from example.
+      // Overload simplified pattern using Union Type check
 
       function doublePoly(val: number | number[]) {
          if (Array.isArray(val)) {
@@ -111,8 +117,8 @@ describe('IR Specification (Integration)', () => {
       const r1 = doublePoly(10);
       const r2 = doublePoly([1, 2]);
 
-      r1; // 20
-      r2; // [2, 4]
+      r1;
+      r2;
     `;
     // Note: The original Ex 7 used explicit overloads signatures + implementation.
     // Our compiler should handle the implementation body unrolling correctly based on the input type.
@@ -141,16 +147,20 @@ describe('IR Specification (Integration)', () => {
     // These are expression statements.
 
     const len = block.statements.length;
-    // Assuming the Statements are: ..., Decl(r1, ...), Decl(r2, ...), Expr(r1), Expr(r2)
+    // Statements are line-by-line compilations.
+    // r1; -> expression statement (Const Node)
+    // r2; -> expression statement (Const Node)
 
     const lastStmt = block.statements[len - 1]; // r2
     const secondLastStmt = block.statements[len - 2]; // r1
 
     expect(secondLastStmt.kind).toBe(OpKind.Const);
     expect(secondLastStmt.value).toBe(20);
+    expect(isNumber(secondLastStmt.type)).toBe(true);
 
     expect(lastStmt.kind).toBe(OpKind.Const);
     expect(lastStmt.value).toEqual([2, 4]);
+    expect(isArrayOfNumber(lastStmt.type)).toBe(true);
   });
 
   it('should fold Type Guards in function body (Ex 7 Realized)', () => {
@@ -168,6 +178,7 @@ describe('IR Specification (Integration)', () => {
     const last1 = (ir1.root as any).statements.slice(-1)[0];
     expect(last1.kind).toBe(OpKind.Const);
     expect(last1.value).toBe(20);
+    expect(isNumber(last1.type)).toBe(true);
 
     const CODE_ARRAY = `
           function doublePoly(val: any) {
@@ -184,6 +195,54 @@ describe('IR Specification (Integration)', () => {
     expect(last2.kind).toBe(OpKind.Const);
     // [2, 4]
     expect(last2.value).toEqual([2, 4]);
+    expect(isArrayOfNumber(last2.type)).toBe(true);
+    expect(last2.value).toEqual([2, 4]);
+    expect(isArrayOfNumber(last2.type)).toBe(true);
+  });
+
+  it('should reflect generic types in the output (Ex 8)', () => {
+    const EX_REFLECTION = `
+        interface Wrapper<T> {
+            value: T;
+        }
+
+        function box<T>(val: T): Wrapper<T> {
+            return { value: val };
+        }
+
+        const w1 = box(10);
+        const w2 = box([1, 2]);
+        w1;
+        w2;
+      `;
+
+    const ir = compileToIR(EX_REFLECTION);
+    const block = ir.root as any;
+    const len = block.statements.length;
+
+    const w1Expr = block.statements[len - 2];
+    const w2Expr = block.statements[len - 1];
+
+    // w1.value == 10
+    expect(w1Expr.kind).toBe(OpKind.Const);
+    expect(w1Expr.value).toEqual({ value: 10 });
+
+    // w1 Type should be GenericInstantiation: Wrapper<number>
+    const t1 = w1Expr.type;
+    expect(t1.kind).toBe(DataTypeKind.GenericInstantiation);
+    expect(t1.base).toBe('Wrapper');
+    expect(t1.args[0].kind).toBe(DataTypeKind.Primitive);
+    expect(t1.args[0].name).toBe('number');
+
+    // w2.value == [1, 2]
+    expect(w2Expr.kind).toBe(OpKind.Const);
+    expect(w2Expr.value).toEqual({ value: [1, 2] });
+
+    // w2 Type should be GenericInstantiation: Wrapper<number[]>
+    const t2 = w2Expr.type;
+    expect(t2.kind).toBe(DataTypeKind.GenericInstantiation);
+    expect(t2.base).toBe('Wrapper');
+    expect(t2.args[0].kind).toBe(DataTypeKind.Array);
   });
 
 });

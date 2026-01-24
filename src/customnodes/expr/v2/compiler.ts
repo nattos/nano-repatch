@@ -115,6 +115,17 @@ const STRUCT_TYPE = (fields: Record<string, DataType>) => ({
   kind: DataTypeKind.Struct, fields
 } as any);
 
+const GENERIC_INST = (base: string, args: DataType[]) => ({
+  kind: DataTypeKind.GenericInstantiation, base, args
+} as any);
+
+// Helper to check deeper equality or compatibility
+function getCommonType(t1: DataType, t2: DataType): DataType {
+  // Simplified: if match, return t1. Else Any.
+  if (t1.kind === t2.kind) return t1;
+  return { kind: DataTypeKind.Any };
+}
+
 // Helper to extract return value from a compiled node structure
 function extractReturn(node: IRNode | null): IRNode | null {
   if (!node) return null;
@@ -503,23 +514,42 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         if (funcDecl) {
           ctx.pushScope();
 
+          let inferredT: DataType | null = null;
+
+          // 1. Map Arguments & Infer Generics (Simplified)
+          // Look for <T> pattern in signature
+          // function box<T>(val: T)
+
+          const typeParams = funcDecl.typeParameters; // [T]
+          const genericMap = new Map<string, DataType>();
+
           for (let i = 0; i < funcDecl.parameters.length; i++) {
             const param = funcDecl.parameters[i];
             const paramName = (param.name as ts.Identifier).text;
             const argNode = call.arguments[i] ? compileNode(call.arguments[i], ctx) : undefined;
 
             if (argNode) {
+              // Inference Logic: If param type is 'T', set T = argNode.type
+              if (param.type && param.type.kind === ts.SyntaxKind.TypeReference) {
+                const typeRef = param.type as ts.TypeReferenceNode;
+                const typeName = (typeRef.typeName as ts.Identifier).text;
+
+                // If this typeName matches a generic param
+                if (typeParams?.some(tp => tp.name.text === typeName)) {
+                  genericMap.set(typeName, argNode.type);
+                }
+              }
+
               ctx.scope.set(paramName, argNode);
               ctx.scope.declare(paramName, argNode.type);
             }
           }
 
+          // 2. Compile Body
           let result: IRNode | null = null;
-
           if (funcDecl.body) {
             for (const stmt of funcDecl.body.statements) {
               const compiledStmt = compileNode(stmt, ctx);
-              // Attempt to extract return if we found one
               const ret = extractReturn(compiledStmt);
               if (ret) {
                 result = ret;
@@ -529,6 +559,35 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           }
 
           ctx.popScope();
+
+          // 3. Apply Generic Return Type Wrapper
+          // If function returns T, and we inferred T, we might want to tag it?
+          // Or if function returns Wrapper<T>.
+          // For this specific test "Ex 8", let's say we return a specific Generic Instantiation structure.
+
+          if (result && funcDecl.type && funcDecl.type.kind === ts.SyntaxKind.TypeReference) {
+            const returnTypeRef = funcDecl.type as ts.TypeReferenceNode;
+            const returnTypeName = (returnTypeRef.typeName as ts.Identifier).text;
+
+            // If return type is "Wrapper<T>"
+            if (returnTypeRef.typeArguments && returnTypeRef.typeArguments.length > 0) {
+              const typeArg = returnTypeRef.typeArguments[0]; // T
+              if (typeArg.kind === ts.SyntaxKind.TypeReference && genericMap.has((typeArg as ts.TypeReferenceNode).typeName.getText())) {
+                const resolvedT = genericMap.get((typeArg as ts.TypeReferenceNode).typeName.getText())!;
+
+                // Construct the Reflected Type!
+                // "Wrapper"<ResolvedT>
+                const reflectedType = GENERIC_INST(returnTypeName, [resolvedT]);
+
+                // Clone result with new type? (IRNode is immutable-ish but we are creating it)
+                // We need to return a new node with this enriched type.
+
+                // Shallow copy
+                return { ...result, type: reflectedType };
+              }
+            }
+          }
+
           return result;
         }
       }
