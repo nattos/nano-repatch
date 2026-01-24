@@ -22,7 +22,7 @@ export interface BaseDataType {
 
 export interface PrimitiveType extends BaseDataType {
   kind: DataTypeKind.Primitive;
-  name: 'number' | 'boolean' | 'string' | 'void';
+  name: 'number' | 'boolean' | 'string' | 'void' | 'null' | 'undefined';
 }
 
 export interface LiteralType extends BaseDataType {

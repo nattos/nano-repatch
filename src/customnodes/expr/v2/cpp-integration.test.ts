@@ -120,4 +120,49 @@ describe('C++ Backend Integration', () => {
     // 4*0.5 + 5*1 = 7.0
     expect(res.res).toEqual([2.5, 4.0, 5.5, 7.0]);
   });
+
+  it('should run Math intrinsics', () => {
+    const source = `
+        let val = x;
+        val = Math.sin(val);
+        val = Math.pow(val, 2);
+        val = Math.max(val, 0.5);
+        return val;
+      `;
+    // x = PI/2 => sin(PI/2) = 1 => 1^2 = 1 => max(1, 0.5) = 1
+    // x = 0 => sin(0) = 0 => 0^2 = 0 => max(0, 0.5) = 0.5
+
+    const inputs = { x: NUMBER_TYPE };
+    const ir = compileToIR(source, inputs);
+    const cpp = generateCPP(ir, { inputs, outputType: NUMBER_TYPE });
+
+    const res1 = runCPP(cpp, { x: Math.PI / 2 });
+    expect(Math.abs(res1.res - 1.0)).toBeLessThan(0.0001);
+
+    const res2 = runCPP(cpp, { x: 0 });
+    expect(res2.res).toBe(0.5);
+  });
+
+  it('should run struct ops', () => {
+    // Input: { pos: { x: 1, y: 2 } }
+    // Output: { x: 2, y: 4 }
+    const source = `
+        const s = pos;
+        return { x: s.x * 2, y: s.y * 2 };
+     `;
+    const VEC2_TYPE = {
+      kind: DataTypeKind.Struct,
+      fields: { x: NUMBER_TYPE, y: NUMBER_TYPE }
+    } as any;
+
+    const inputs = { pos: VEC2_TYPE };
+    const ir = compileToIR(source, inputs); // Need to verify compileToIR supports struct literal emission
+
+    const cpp = generateCPP(ir, { inputs, outputType: VEC2_TYPE });
+    // Expect compilation failure due to "Struct" type name placeholder
+
+    const res = runCPP(cpp, { pos: { x: 1, y: 2 } });
+    expect(res.res.x).toBe(2);
+    expect(res.res.y).toBe(4);
+  });
 });

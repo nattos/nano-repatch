@@ -1,9 +1,99 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
   outputType?: DataType; // Expected output type (or inferred)
 }
+
+// Helper to generate canonical name for structural types
+function getStructName(type: StructType): string {
+  if (type.name) return type.name;
+  // Canonical name based on sorted fields
+  const keys = Object.keys(type.fields).sort();
+  return `Struct_${keys.join('_')}`;
+}
+
+function collectStructs(ir: IRGraph, inputs: Record<string, DataType>): Map<string, StructType> {
+  const structs = new Map<string, StructType>();
+
+  function visitType(t: DataType) {
+    if (!t) return;
+    if (t.kind === DataTypeKind.Struct) {
+      const s = t as StructType;
+      const name = getStructName(s);
+      if (!structs.has(name)) {
+        structs.set(name, s);
+        // visit fields
+        Object.values(s.fields).forEach(visitType);
+      }
+    } else if (t.kind === DataTypeKind.Array) {
+      visitType((t as any).elementType);
+    }
+  }
+
+  // scans inputs
+  Object.values(inputs).forEach(visitType);
+
+  // scan nodes
+  function visitNode(n: IRNode) {
+    if (n.type) visitType(n.type);
+    if (n.kind === OpKind.Block) {
+      (n as BlockNode).statements.forEach(visitNode);
+    }
+    if (n.kind === OpKind.If) {
+      visitNode((n as IfNode).condition);
+      visitNode((n as IfNode).thenBlock);
+      if ((n as IfNode).elseBlock) visitNode((n as IfNode).elseBlock);
+    }
+    // ... recursing all usage ...
+    // Simplification: just scan flat list of nodes if we traverse block?
+    // But what about nested expressions? emitNode recurses.
+    // We need deep traversal.
+    // Let's assume types are captured on nodes.
+  }
+  // We need a proper traverse function or just rely on inputs + declarations?
+  // Constants might imply struct types.
+  // Let's iterate all reachable nodes.
+  const visited = new Set<string>();
+  const stack = [ir.root];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (!n || typeof n !== 'object') continue; // Defensive
+    // if (visited.has((n as any).id)) continue; // Nodes might not have IDs? IRNode has id.
+    // visited.add((n as any).id);
+
+    if ((n as any).type) visitType((n as any).type);
+
+    // Push children
+    if (n.kind === OpKind.Block) stack.push(...(n as BlockNode).statements);
+    else if (n.kind === OpKind.If) {
+      stack.push((n as IfNode).condition);
+      stack.push((n as IfNode).thenBlock);
+      if ((n as IfNode).elseBlock) stack.push((n as IfNode).elseBlock);
+    }
+    else if (n.kind === OpKind.Binary) { stack.push((n as BinaryNode).left, (n as BinaryNode).right); }
+    else if (n.kind === OpKind.Assign) { stack.push((n as AssignNode).value); }
+    else if (n.kind === OpKind.Return) { stack.push((n as ReturnNode).value); }
+    else if (n.kind === OpKind.Struct) {
+      const s = n as StructNode;
+      Object.values(s.fields).forEach(f => stack.push(f));
+    }
+    else if (n.kind === OpKind.Array) { stack.push(...(n as ArrayNode).elements); }
+    else if (n.kind === OpKind.PropAccess) { stack.push((n as PropAccessNode).object); }
+    else if (n.kind === OpKind.IndexAccess) { stack.push((n as any).object, (n as any).index); }
+    else if (n.kind === OpKind.Intrinsic) { stack.push(...(n as IntrinsicNode).args); }
+    else if (n.kind === OpKind.VarDecl) { if ((n as VarDeclNode).init) stack.push((n as VarDeclNode).init!); }
+
+  }
+
+  return structs;
+}
+
+// Garbage removed
+
+// Need to allow typeToCpp to be replaced or modified
+// We can shadow it or pass struct map.
+// Simpler: Just rely on getStructName in typeToCpp if we export it or use the new one locally?
 
 function typeToCpp(type: DataType): string {
   switch (type.kind) {
@@ -15,29 +105,45 @@ function typeToCpp(type: DataType): string {
       return 'auto';
     }
     case DataTypeKind.Array: {
-      // Assuming Array<number> -> std::vector<float>
-      // Simplification: We only support vector<float> for now in C++ harness?
-      // Recursion needed for Array<Array<T>>
       const inner = (type as any).elementType;
       return `std::vector<${typeToCpp(inner)}>`;
     }
-    case DataTypeKind.Struct: return 'Struct'; // Need generated struct name?
-    default: return 'auto'; // Templates or auto
+    case DataTypeKind.Struct: return getStructName(type as any);
+    default: return 'auto';
   }
 }
 
 export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   const lines: string[] = [];
 
+  // Collect Structs
+  const structs = collectStructs(ir, options.inputs);
+
   // 1. Headers
   lines.push('#include <iostream>');
   lines.push('#include <vector>');
   lines.push('#include <string>');
   lines.push('#include <cmath>');
-  lines.push('#include "json.hpp"'); // Assumes in same dir or include path
+  lines.push('#include <algorithm>');
+  lines.push('#include "json.hpp"');
   lines.push('');
   lines.push('using json = nlohmann::json;');
   lines.push('');
+
+  // 1.5 Emit Struct Defs
+  structs.forEach((type, name) => {
+    lines.push(`struct ${name} {`);
+    const fields: string[] = [];
+    for (const [fname, ftype] of Object.entries(type.fields)) {
+      lines.push(`    ${typeToCpp(ftype)} ${fname};`);
+      fields.push(fname);
+    }
+    lines.push('};');
+    if (fields.length > 0) {
+      lines.push(`NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(${name}, ${fields.join(', ')})`);
+    }
+    lines.push('');
+  });
 
   // 2. Input Struct
   lines.push('struct Input {');
@@ -47,9 +153,7 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   lines.push('};');
   lines.push('');
 
-  // 3. Define JSON parsing for Input (nlohmann macro)
-  // NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Input, x, y...)
-  // We need to list fields.
+  // 3. Define JSON parsing for Input
   const inputFields = Object.keys(options.inputs).join(', ');
   if (inputFields.length > 0) {
     lines.push(`NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Input, ${inputFields})`);
@@ -57,17 +161,11 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   lines.push('');
 
   // 4. Compute Function
-  // Determine return type.
-  // IR often returns last statement value if expression?
-  // Or assume explicit return.
   let retType = 'auto';
   if (options.outputType) retType = typeToCpp(options.outputType);
 
   lines.push(`${retType} compute(const Input& input) {`);
-
-  // Logic Generation
   lines.push(emitBlock(ir.root as BlockNode, 1, options.inputs));
-
   lines.push('}');
   lines.push('');
 
@@ -167,7 +265,7 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
     }
     case OpKind.Assign: {
       const a = node as AssignNode;
-      return `${a.name} = ${emitNode(a.value, indent, inputs)}`;
+      return `${a.target} = ${emitNode(a.value, indent, inputs)}`;
     }
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
@@ -189,21 +287,44 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
     case OpKind.Intrinsic: {
       const i = node as IntrinsicNode;
       if (i.library === 'Math') {
-        // Map Math.sin -> std::sin
-        const args = i.args.map(a => emitNode(a, indent, inputs)).join(', ');
-        return `std::${i.method}(${args})`;
-      }
-      // Array intrinsics?
-      if (i.library === 'Array' && i.method === 'push') {
-        // args[0] is array? No, push is method on array.
-        // Actually stdlib defines `args` as arguments list.
-        // push implementation in stdlib takes (ctx, call, args, obj).
-        // IntrinsicNode might need 'object'?
-        // Our IntrinsicNode def has `args`. Does it include `this`?
-        // In compiler.ts, IntrinsicNode usually stores flattened args.
-        // Let's check Array.get in IntrinsicNode.
+        // Simple 1-arg mapping
+        const simpleMaps: Record<string, string> = {
+          'sin': 'std::sin', 'cos': 'std::cos', 'tan': 'std::tan',
+          'abs': 'std::abs', 'sqrt': 'std::sqrt', 'log': 'std::log',
+          'exp': 'std::exp', 'floor': 'std::floor', 'ceil': 'std::ceil',
+          'round': 'std::round'
+        };
+        if (simpleMaps[i.method]) {
+          const arg = emitNode(i.args[0], indent, inputs);
+          return `${simpleMaps[i.method]}(${arg})`;
+        }
+        // 2-arg mapping
+        if (i.method === 'pow') {
+          const base = emitNode(i.args[0], indent, inputs);
+          const exp = emitNode(i.args[1], indent, inputs);
+          return `std::pow(${base}, ${exp})`;
+        }
+        if (i.method === 'min') {
+          // std::min requires same type or template args.
+          // std::min(a, b)
+          const a = emitNode(i.args[0], indent, inputs);
+          const b = emitNode(i.args[1], indent, inputs);
+          return `std::min(${a}, ${b})`;
+        }
+        if (i.method === 'max') {
+          const a = emitNode(i.args[0], indent, inputs);
+          const b = emitNode(i.args[1], indent, inputs);
+          return `std::max(${a}, ${b})`;
+        }
       }
       return `/* Unknown Intrinsic: ${i.library}.${i.method} */`;
+    }
+    case OpKind.Struct: {
+      const s = node as StructNode;
+      const name = getStructName(s.type as StructType);
+      const keys = Object.keys(s.fields).sort();
+      const args = keys.map(k => emitNode(s.fields[k], indent, inputs)).join(', ');
+      return `${name}{${args}}`;
     }
     case OpKind.PropAccess: {
       const p = node as PropAccessNode;
