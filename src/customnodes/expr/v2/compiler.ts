@@ -48,7 +48,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           }
         }
         ctx.scope.declare(name, type);
-        decls.push({ id: nextId(), kind: OpKind.VarDecl, type: VOID_TYPE, name, init } as VarDeclNode);
+        decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init } as VarDeclNode);
       });
       if (decls.length === 1) return decls[0];
       return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: decls } as BlockNode;
@@ -564,9 +564,17 @@ function mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
   }
 }
 
-export function compileToIR(source: string): IRGraph {
+export function compileToIR(source: string, globals: Record<string, DataType> = {}): IRGraph {
   const sourceFile = ts.createSourceFile("script.ts", source, ts.ScriptTarget.Latest, true);
   const ctx = new CompilerContext();
+
+  // Register Globals/Inputs
+  for (const [name, type] of Object.entries(globals)) {
+    ctx.scope.declare(name, type);
+    // We must set the value to a VarNode so it resolves!
+    ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
+  }
+
   const statements: IRNode[] = [];
 
   for (const stmt of sourceFile.statements) {
