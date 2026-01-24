@@ -15,22 +15,23 @@ export enum DataTypeKind {
   Any = 'any', // For transition/error states
 }
 
-export interface DataType {
+
+export interface BaseDataType {
   kind: DataTypeKind;
 }
 
-export interface PrimitiveType extends DataType {
+export interface PrimitiveType extends BaseDataType {
   kind: DataTypeKind.Primitive;
   name: 'number' | 'boolean' | 'string' | 'void';
 }
 
-export interface LiteralType extends DataType {
+export interface LiteralType extends BaseDataType {
   kind: DataTypeKind.Literal;
   baseType: PrimitiveType;
   value: number | boolean | string;
 }
 
-export interface UnionType extends DataType {
+export interface UnionType extends BaseDataType {
   kind: DataTypeKind.Union;
   types: DataType[];
 }
@@ -40,37 +41,44 @@ export interface GenericInstantiation {
   params: Record<string, DataType>; // Map of param name to concrete type (e.g. { T: number })
 }
 
-export interface StructType extends DataType {
+export interface StructType extends BaseDataType {
   kind: DataTypeKind.Struct;
   name?: string; // Optional name
   fields: Record<string, DataType>;
   generic?: GenericInstantiation;
 }
 
-export interface ArrayType extends DataType {
+export interface ArrayType extends BaseDataType {
   kind: DataTypeKind.Array;
   elementType: DataType;
   length?: number; // If static
   generic?: GenericInstantiation;
 }
 
-export interface TupleType extends DataType {
+export interface TupleType extends BaseDataType {
   kind: DataTypeKind.Tuple;
   elements: DataType[];
   generic?: GenericInstantiation;
 }
 
-export interface FunctionType extends DataType {
+export interface FunctionType extends BaseDataType {
   kind: DataTypeKind.Function;
   signature: string; // Placeholder for now
   generic?: GenericInstantiation;
 }
 
-export interface GenericType extends DataType {
+export interface GenericType extends BaseDataType {
   kind: DataTypeKind.Generic;
   name: string; // 'T'
   constraint?: DataType;
 }
+
+export interface AnyType extends BaseDataType {
+  kind: DataTypeKind.Any;
+}
+
+export type DataType = PrimitiveType | LiteralType | UnionType | StructType | ArrayType | TupleType | FunctionType | GenericType | AnyType;
+
 
 // --- IR Ops ---
 
@@ -87,7 +95,8 @@ export enum OpKind {
   Array = 'array',
   Struct = 'struct',
   PropAccess = 'prop_access',
-  Phi = 'phi'
+  Phi = 'phi',
+  Intrinsic = 'intrinsic'
 }
 
 export interface IRNode {
@@ -99,6 +108,13 @@ export interface IRNode {
 export interface ConstNode extends IRNode {
   kind: OpKind.Const;
   value: any;
+}
+
+export interface IntrinsicNode extends IRNode {
+  kind: OpKind.Intrinsic;
+  library: string; // e.g. 'Math'
+  method: string;  // e.g. 'sin'
+  args: IRNode[];
 }
 
 export interface BinaryNode extends IRNode {
@@ -129,11 +145,6 @@ export interface ReturnNode extends IRNode {
 export interface VarNode extends IRNode {
   kind: OpKind.Var;
   name: string;
-}
-export interface AssignNode extends IRNode {
-  kind: OpKind.Assign;
-  target: string;
-  value: IRNode;
 }
 export interface AssignNode extends IRNode {
   kind: OpKind.Assign;

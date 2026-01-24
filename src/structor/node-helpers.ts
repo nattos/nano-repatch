@@ -296,7 +296,7 @@ export function defineNode<
     shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange,
     getChildren: options.getChildren,
     getRegion: options.getRegion,
-    usesMidiDeviceIO: options.usesMidiDeviceIO
+    usesMidiDeviceIO: options.usesMidiDeviceIO as any
   };
 }
 

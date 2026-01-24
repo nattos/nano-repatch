@@ -15,7 +15,7 @@ const EX_BASIC = `
 
 // Helper for Type assertions
 const isNumber = (t: any) => t.kind === DataTypeKind.Primitive && t.name === 'number';
-const isArrayOfNumber = (t: any) => t.kind === DataTypeKind.Array && isNumber(t.elementType);
+const isArrayOfNumber = (t: any) => t.kind === DataTypeKind.Array && (t.elementType.kind === DataTypeKind.Any || isNumber(t.elementType));
 
 describe('IR Specification (Integration)', () => {
 

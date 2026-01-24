@@ -105,7 +105,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
       if (call.expression.kind === ts.SyntaxKind.Identifier) {
         const funcName = (call.expression as ts.Identifier).text;
-        funcVal = ctx.scope.resolveValue(funcName);
+        funcVal = ctx.scope.resolveValue(funcName) || null;
         if (!funcVal) funcDecl = ctx.scope.resolveFunction(funcName);
       } else {
         funcVal = compileNode(call.expression, ctx);
@@ -213,20 +213,39 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       const right = compileNode(expr.right, ctx);
       if (!left || !right) return null;
 
+      // Local type defs removed
+
+
       // Constant Folding
       if (left.kind === OpKind.Const && right.kind === OpKind.Const) {
         const lVal = (left as ConstNode).value;
         const rVal = (right as ConstNode).value;
+        // Check types match roughly (both numbers for arith/compare)
         if (typeof lVal === 'number' && typeof rVal === 'number') {
           let resVal: any = null;
+          let isBool = false;
           switch (expr.operatorToken.kind) {
             case ts.SyntaxKind.PlusToken: resVal = lVal + rVal; break;
             case ts.SyntaxKind.MinusToken: resVal = lVal - rVal; break;
             case ts.SyntaxKind.AsteriskToken: resVal = lVal * rVal; break;
             case ts.SyntaxKind.SlashToken: resVal = lVal / rVal; break;
+            case ts.SyntaxKind.PercentToken: resVal = lVal % rVal; break;
+            case ts.SyntaxKind.LessThanToken: resVal = lVal < rVal; isBool = true; break;
+            case ts.SyntaxKind.GreaterThanToken: resVal = lVal > rVal; isBool = true; break;
+            case ts.SyntaxKind.LessThanEqualsToken: resVal = lVal <= rVal; isBool = true; break;
+            case ts.SyntaxKind.GreaterThanEqualsToken: resVal = lVal >= rVal; isBool = true; break;
+            case ts.SyntaxKind.EqualsEqualsToken: resVal = lVal == rVal; isBool = true; break;
+            case ts.SyntaxKind.ExclamationEqualsToken: resVal = lVal != rVal; isBool = true; break;
+            case ts.SyntaxKind.EqualsEqualsEqualsToken: resVal = lVal === rVal; isBool = true; break;
+            case ts.SyntaxKind.ExclamationEqualsEqualsToken: resVal = lVal !== rVal; isBool = true; break;
           }
           if (resVal !== null) {
-            return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: resVal } as ConstNode;
+            return {
+              id: nextId(),
+              kind: OpKind.Const,
+              type: isBool ? BOOLEAN_TYPE : NUMBER_TYPE,
+              value: resVal
+            } as ConstNode;
           }
         }
       }
@@ -252,15 +271,168 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       const expr = node as (ts.PostfixUnaryExpression | ts.PrefixUnaryExpression);
       const operand = expr.operand;
       const val = compileNode(operand, ctx);
-      return val || null;
+      if (!val) return null;
+
+      if (expr.operator === ts.SyntaxKind.PlusPlusToken || expr.operator === ts.SyntaxKind.MinusMinusToken) {
+        if (operand.kind === ts.SyntaxKind.Identifier) {
+          const name = (operand as ts.Identifier).text;
+          // Evaluate new value
+          if (val.kind === OpKind.Const && typeof (val as ConstNode).value === 'number') {
+            const v = (val as ConstNode).value;
+            const nextV = (expr.operator === ts.SyntaxKind.PlusPlusToken) ? v + 1 : v - 1;
+            const nextNode = { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: nextV } as ConstNode;
+            ctx.scope.assign(name, nextNode);
+
+            return node.kind === ts.SyntaxKind.PrefixUnaryExpression ? nextNode : val;
+          } else {
+            // Runtime increment not supported fully in this minimal Const folding compiler yet?
+            // Or generate OpKind.Binary + Assign?
+            // Let's stick to Const folding for unrolling first.
+            console.warn("Runtime increment not supported in unrolling:", expr.getText());
+          }
+        }
+      }
+      return val;
     }
 
     case ts.SyntaxKind.ParenthesizedExpression: return compileNode((node as ts.ParenthesizedExpression).expression, ctx);
+
+    case ts.SyntaxKind.ObjectLiteralExpression: {
+      const obj = node as ts.ObjectLiteralExpression;
+      const fields: Record<string, IRNode> = {};
+      const fieldTypes: Record<string, DataType> = {};
+      let allConst = true;
+      for (const prop of obj.properties) {
+        if (prop.kind === ts.SyntaxKind.PropertyAssignment) {
+          const name = (prop.name as ts.Identifier).text;
+          const val = compileNode(prop.initializer, ctx);
+          if (val) {
+            fields[name] = val;
+            fieldTypes[name] = val.type;
+            if (val.kind !== OpKind.Const) allConst = false;
+          }
+        }
+      }
+      if (allConst) {
+        const valObj: any = {};
+        for (const k in fields) valObj[k] = (fields[k] as ConstNode).value;
+        return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Struct, fields: fieldTypes }, value: valObj } as ConstNode;
+      }
+      return { id: nextId(), kind: OpKind.Struct, type: { kind: DataTypeKind.Struct, fields: fieldTypes }, fields } as StructNode;
+    }
+
+    case ts.SyntaxKind.ArrayLiteralExpression: {
+      const arr = node as ts.ArrayLiteralExpression;
+      const elements: IRNode[] = [];
+      let elementType: DataType = ANY_TYPE;
+      let allConst = true;
+      for (const elem of arr.elements) {
+        const val = compileNode(elem, ctx);
+        if (val) {
+          elements.push(val);
+          if (elements.length === 1) elementType = val.type;
+          if (val.kind !== OpKind.Const) allConst = false;
+        }
+      }
+      if (allConst) {
+        const valArr = elements.map(e => (e as ConstNode).value);
+        if (elementType.kind === DataTypeKind.Any && valArr.length > 0) {
+          const firstT = getPrimitiveType(valArr[0]);
+          if (firstT) elementType = { kind: DataTypeKind.Array, elementType: firstT } as any; // Wait, type IS Array. elementType is internal.
+          if (firstT) elementType = firstT;
+        }
+        return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Array, elementType }, value: valArr } as ConstNode;
+      }
+      return { id: nextId(), kind: OpKind.Array, type: { kind: DataTypeKind.Array, elementType }, elements } as ArrayNode;
+    }
+
+    case ts.SyntaxKind.PropertyAccessExpression: {
+      const prop = node as ts.PropertyAccessExpression;
+      const obj = compileNode(prop.expression, ctx);
+      const name = prop.name.text;
+      if (!obj) return null;
+
+      // Constant Folding for Structs
+      if (obj.kind === OpKind.Struct) {
+        const struct = obj as StructNode;
+        if (struct.fields[name]) return struct.fields[name];
+      }
+
+      // Constant Folding for Const Objects
+      if (obj.kind === OpKind.Const && typeof (obj as ConstNode).value === 'object' && (obj as ConstNode).value !== null) {
+        const val = (obj as ConstNode).value[name];
+        if (val !== undefined) {
+          const type = getPrimitiveType(val) || ANY_TYPE;
+          return { id: nextId(), kind: OpKind.Const, type, value: val } as ConstNode;
+        }
+      }
+
+      return { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: name } as PropAccessNode;
+    }
+
+    case ts.SyntaxKind.ElementAccessExpression: {
+      const access = node as ts.ElementAccessExpression;
+      const obj = compileNode(access.expression, ctx);
+      const index = compileNode(access.argumentExpression, ctx);
+      if (!obj || !index) return null;
+
+      // Constant Folding for Arrays
+      const idxConst = index.kind === OpKind.Const ? (index as ConstNode).value : undefined;
+      if (typeof idxConst === 'number') {
+        if (obj.kind === OpKind.Array) {
+          const arr = obj as ArrayNode;
+          if (arr.elements[idxConst]) return arr.elements[idxConst];
+        }
+        if (obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
+          const val = (obj as ConstNode).value[idxConst];
+          if (val !== undefined) {
+            const type = getPrimitiveType(val) || ANY_TYPE;
+            return { id: nextId(), kind: OpKind.Const, type, value: val } as ConstNode;
+          }
+        }
+      }
+
+      return { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: 'element_access_todo' } as PropAccessNode; // PropAccess used for generic access? or need ArrayAccess op?
+      // Using PropAccess for now or creating generic call?
+      // IR Types has 'PropAccess'. Does it support dynamic index? No, 'property' key is string.
+      // We might need an 'IndexAccess' OpKind or 'ArrayAccess'.
+      // For now, let's leave runtime indexing as limitation or map to Intrinsic?
+      // "Intrinsic: Array.get"?
+      // Ex 6 uses `signal[i-1]`.
+      // If `i` is loop variable, it's Const during unrolling.
+      // So Constant Folding path will hit.
+      // We just need to ensure `index` folds to Const.
+
+      // If not constant index, we can't represent it with PropAccess(string).
+      // We need OpKind.ArrayAccess?
+      // IR Types: ArrayNode, StructNode... No ArrayAccess.
+      // Maybe use Intrinsic?
+      return {
+        id: nextId(),
+        kind: OpKind.Intrinsic,
+        type: ANY_TYPE,
+        library: 'Array',
+        method: 'get',
+        args: [obj, index]
+      } as IntrinsicNode;
+    }
 
     case ts.SyntaxKind.FunctionDeclaration: {
       const decl = node as ts.FunctionDeclaration;
       if (decl.name) ctx.scope.declareFunction(decl.name.text, decl);
       return { id: nextId(), kind: OpKind.Const, type: VOID_TYPE, value: null } as ConstNode;
+    }
+
+    case ts.SyntaxKind.ArrowFunction:
+    case ts.SyntaxKind.FunctionExpression: {
+      const func = node as ts.FunctionLikeDeclaration;
+      // Capture closure
+      return {
+        id: nextId(),
+        kind: OpKind.Const,
+        type: ANY_TYPE,
+        value: { node: func, closure: ctx.scope.snapshot() }
+      } as ConstNode;
     }
 
     case ts.SyntaxKind.ReturnStatement: {
@@ -312,7 +484,20 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         let condVal = true;
         if (loop.condition) {
           const cond = compileNode(loop.condition, ctx);
-          if (!cond || cond.kind !== OpKind.Const) throw new Error("Loop condition must be constant");
+          // console.error(`Loop ${loops} condition:`, cond?.kind, (cond as any)?.value);
+          if (!cond || cond.kind !== OpKind.Const) {
+            console.error("FAIL: Loop condition not constant", cond);
+            if (cond && cond.kind === OpKind.Binary) {
+              console.error("Binary Left:", (cond as any).left);
+              console.error("Binary Right:", (cond as any).right);
+            }
+            if (cond && cond.kind === OpKind.Var) {
+              console.error("Var:", (cond as any).name);
+              const val = ctx.scope.resolveValue((cond as any).name);
+              console.error("Resolved Var:", val);
+            }
+            throw new Error("Loop condition must be constant");
+          }
           condVal = !!(cond as ConstNode).value;
         }
         if (!condVal) break;
@@ -321,7 +506,10 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           if (body.kind === OpKind.Block) statements.push(...(body as BlockNode).statements);
           else statements.push(body);
         }
-        if (loop.incrementor) compileNode(loop.incrementor, ctx);
+        if (loop.incrementor) {
+          compileNode(loop.incrementor, ctx);
+          // console.error("Compiled incrementor");
+        }
         loops++;
       }
       return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements } as BlockNode;
@@ -335,8 +523,16 @@ let nodeIdCounter = 0;
 function nextId() { return `ir${nodeIdCounter++}`; }
 const VOID_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'void' };
 const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
+const BOOLEAN_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'boolean' };
 const ANY_TYPE: DataType = { kind: DataTypeKind.Any };
 const GENERIC_INST = (base: string, args: DataType[]) => ({ kind: DataTypeKind.GenericInstantiation, base, args } as any);
+
+function getPrimitiveType(val: any): PrimitiveType | null {
+  if (typeof val === 'number') return NUMBER_TYPE;
+  if (typeof val === 'boolean') return BOOLEAN_TYPE;
+  if (typeof val === 'string') return { kind: DataTypeKind.Primitive, name: 'string' };
+  return null;
+}
 
 function mergeScopes(parent: Scope, branchA: Scope, branchB: Scope, condition: IRNode): void {
   // implementation

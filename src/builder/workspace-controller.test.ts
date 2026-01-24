@@ -30,7 +30,7 @@ Object.defineProperty(window, 'showDirectoryPicker', {
   value: vi.fn().mockResolvedValue(mockDirHandle),
 });
 Object.defineProperty(window, 'location', {
-  value: { search: '' },
+  value: { search: '', href: 'http://localhost/' },
   writable: true,
 });
 Object.defineProperty(window, 'history', {

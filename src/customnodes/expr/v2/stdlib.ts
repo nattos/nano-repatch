@@ -1,4 +1,4 @@
-import { IRNode, DataType, OpKind, ConstNode, DataTypeKind, ReturnNode, IntrinsicNode } from './ir-types';
+import { IRNode, DataType, OpKind, ConstNode, DataTypeKind, ReturnNode, IntrinsicNode, PrimitiveType, ArrayNode } from './ir-types';
 import { Scope, CompilerContext, extractReturn } from './scope';
 import * as ts from 'typescript';
 
@@ -64,8 +64,8 @@ export function tryCompileInstanceMethod(ctx: CompilerContext, call: ts.CallExpr
 
 /* --- Implementations --- */
 
-const NUMBER_TYPE: DataType = { kind: DataTypeKind.Primitive, name: 'number' };
-const VOID_TYPE: DataType = { kind: DataTypeKind.Primitive, name: 'void' };
+const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
+const VOID_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'void' };
 const ANY_TYPE: DataType = { kind: DataTypeKind.Any };
 
 // Array.isArray
@@ -82,9 +82,6 @@ staticMethods.set('Array.isArray', (ctx, call, args) => {
   // Runtime check? Not supported in Const folding yet.
   return { id: 'const_false_fallback', kind: OpKind.Const, type: NUMBER_TYPE, value: 0 } as ConstNode;
 });
-
-// Instance Method Registry Type
-export type InstanceLibFuncHandler = (ctx: CompilerContext, call: ts.CallExpression, args: IRNode[], object: IRNode, compile: CompileNodeFn) => IRNode | null;
 
 // Array.push
 instanceMethods.set('push', (ctx, call, args, obj) => {
@@ -103,81 +100,193 @@ instanceMethods.set('push', (ctx, call, args, obj) => {
 });
 
 // Array.map
-instanceMethods.set('map', (ctx, call, args, obj) => {
+instanceMethods.set('map', (ctx, call, args, obj, compile) => {
+  let arrValues: any[] = [];
   if (obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
-    const arrValues = (obj as ConstNode).value as any[];
-    const callback = call.arguments[0] as ts.ArrowFunction; // Original AST needed for compilation
-    // Wait, we passed 'args' as IRNodes. We need the AST for the callback to compile it repeatedly.
-    // args[0] is the compiled lambda (ConstNode holding func).
-
-    // Re-extract function from args[0]
-    const funcNode = args[0];
-    let targetFunc: ts.FunctionLikeDeclaration | null = null;
-    let closureScope: Scope | undefined = undefined;
-
-    if (funcNode.kind === OpKind.Const) {
-      const val = (funcNode as ConstNode).value;
-      if (val.node) {
-        targetFunc = val.node;
-        closureScope = val.closure;
-      }
-    }
-
-    if (!targetFunc) return null; // Can't map without compile-time function
-
-    const paramName = (targetFunc.parameters[0].name as ts.Identifier).text;
-    const results: any[] = [];
-    let resultType: DataType = ANY_TYPE;
-
-    for (const val of arrValues) {
-      // Compile Body for each element
-      // We need 'compileNode' access? Yes, imported.
-      // We need to manage Scope.
-
-      // 1. Prepare Scope
-      const savedScope = ctx.scope;
-      if (closureScope) ctx.scope = closureScope; // Switch to closure capture
-      ctx.pushScope();
-
-      // 2. Bind Param
-      // Create ConstNode for the element
-      const elemNode = { id: 'map_elem', kind: OpKind.Const, type: NUMBER_TYPE /*infer?*/, value: val } as ConstNode;
-      ctx.scope.set(paramName, elemNode);
-      ctx.scope.declare(paramName, elemNode.type);
-
-      // 3. Compile Body
-      let bodyRes: IRNode | null = null;
-      if (targetFunc.body.kind !== ts.SyntaxKind.Block) {
-        bodyRes = compileNode(targetFunc.body, ctx);
-      } else {
-        // Block body ... (simple return extraction)
-        // We need `extractReturn` helper from compiler? Or duplicating logic?
-        // It's better to export `extractReturn` or `compileFunctionBody`?
-        // Let's assume expression body for now or simple block.
-        // Duplicate block logic for now.
-        const bodyBlock = targetFunc.body as ts.Block;
-        for (const stmt of bodyBlock.statements) {
-          const s = compileNode(stmt, ctx);
-          // extractReturn logic...
-          const ret = extractReturn(s);
-          if (ret) { bodyRes = ret; break; }
-        }
-      }
-
-      ctx.popScope();
-      ctx.scope = savedScope;
-
-      if (bodyRes && bodyRes.kind === OpKind.Const) {
-        results.push((bodyRes as ConstNode).value);
-        resultType = bodyRes.type;
-      } else {
-        throw new Error("Map callback must produce constant values in unroller");
-      }
-    }
-
-    return { id: 'map_res', kind: OpKind.Const, type: { kind: DataTypeKind.Array, elementType: resultType, length: results.length }, value: results } as ConstNode;
+    arrValues = (obj as ConstNode).value;
+  } else if (obj.kind === OpKind.Array) {
+    // ArrayNode elements comprise the array
+    arrValues = (obj as ArrayNode).elements;
+    // Elements are IRNodes.
+  } else {
+    return null;
   }
-  return null;
+
+  const funcNode = args[0];
+  let targetFunc: ts.FunctionLikeDeclaration | null = null;
+  let closureScope: Scope | undefined = undefined;
+
+  if (funcNode.kind === OpKind.Const && (funcNode as ConstNode).value) {
+    const val = (funcNode as ConstNode).value;
+    if (val.node) {
+      targetFunc = val.node;
+      closureScope = val.closure;
+    }
+  }
+
+  if (!targetFunc) return null;
+
+  const paramName = (targetFunc.parameters[0].name as ts.Identifier).text;
+  const results: any[] = [];
+  const resultElements: IRNode[] = [];
+  let resultType: DataType = ANY_TYPE;
+  let isConstArray = true;
+
+  for (const val of arrValues) {
+    const savedScope = ctx.scope;
+    if (closureScope) ctx.scope = closureScope;
+    ctx.pushScope();
+
+    // Prepare Element Node
+    // If 'val' is raw value (from Const array), wrap in ConstNode.
+    // If 'val' is IRNode (from ArrayNode), use it directly.
+    let elemNode: IRNode;
+    if (obj.kind === OpKind.Const) {
+      elemNode = { id: 'map_elem', kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode;
+    } else {
+      elemNode = val as IRNode;
+    }
+
+    ctx.scope.set(paramName, elemNode);
+    ctx.scope.declare(paramName, elemNode.type);
+
+    let bodyRes: IRNode | null = null;
+    if (targetFunc.body && targetFunc.body.kind !== ts.SyntaxKind.Block) {
+      bodyRes = compile(targetFunc.body, ctx);
+    } // else block handling... simplified for map unrolling usually expr
+
+    ctx.popScope();
+    ctx.scope = savedScope;
+
+    if (bodyRes) {
+      resultElements.push(bodyRes);
+      if (bodyRes.kind !== OpKind.Const) isConstArray = false;
+      // resultType update...
+    } else {
+      throw new Error("Map body failed to compile");
+    }
+  }
+
+  if (isConstArray) {
+    // Return ConstNode array
+    const values = resultElements.map(e => (e as ConstNode).value);
+    return { id: 'map_res_const', kind: OpKind.Const, type: { kind: DataTypeKind.Array, elementType: ANY_TYPE }, value: values } as ConstNode;
+  }
+  // Return ArrayNode
+  return { id: 'map_res_arr', kind: OpKind.Array, type: { kind: DataTypeKind.Array, elementType: ANY_TYPE }, elements: resultElements } as ArrayNode;
+});
+
+instanceMethods.set('reduce', (ctx, call, args, obj, compile) => {
+  let arrValues: any[] = [];
+  if (obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
+    arrValues = (obj as ConstNode).value;
+  } else if (obj.kind === OpKind.Array) {
+    arrValues = (obj as ArrayNode).elements;
+  } else {
+    return null;
+  }
+
+  const funcNode = args[0];
+  const initialValNode = args[1]; // Should be ConstNode or IRNode
+
+  let targetFunc: ts.FunctionLikeDeclaration | null = null;
+  let closureScope: Scope | undefined = undefined;
+
+  if (funcNode.kind === OpKind.Const && (funcNode as ConstNode).value) {
+    const val = (funcNode as ConstNode).value;
+    if (val.node) {
+      targetFunc = val.node;
+      closureScope = val.closure;
+    }
+  }
+  if (!targetFunc) return null;
+
+  const accParamName = (targetFunc.parameters[0].name as ts.Identifier).text;
+  const valParamName = (targetFunc.parameters[1].name as ts.Identifier).text;
+
+  let acc: IRNode = initialValNode || { id: 'init_undef', kind: OpKind.Const, type: ANY_TYPE, value: undefined };
+
+  for (const val of arrValues) {
+    const savedScope = ctx.scope;
+    if (closureScope) ctx.scope = closureScope;
+    ctx.pushScope();
+
+    let elemNode: IRNode;
+    if (obj.kind === OpKind.Const) {
+      elemNode = { id: 'reduce_elem', kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode;
+    } else {
+      elemNode = val as IRNode;
+    }
+
+    ctx.scope.set(accParamName, acc); // acc updates each iter
+    ctx.scope.declare(accParamName, acc.type);
+    ctx.scope.set(valParamName, elemNode);
+    ctx.scope.declare(valParamName, elemNode.type);
+
+    let bodyRes: IRNode | null = null;
+    if (targetFunc.body && targetFunc.body.kind !== ts.SyntaxKind.Block) {
+      bodyRes = compile(targetFunc.body, ctx);
+    }
+
+    ctx.popScope();
+    ctx.scope = savedScope;
+
+    if (bodyRes) {
+      acc = bodyRes;
+    }
+  }
+  return acc;
+});
+
+instanceMethods.set('push', (ctx, call, args, obj, compile) => {
+  // Push mutates the array.
+  // We need to resolve the array reference and update its state?
+  // IR Arrays (ArrayNode) are immutable nodes in graph usually?
+  // But our unroller treats scopes as mutable state.
+  // We need to find the ArrayNode and mutate its elements list?
+  // ArrayNode.elements is mutable array?
+
+  let arrNode: ArrayNode | null = null;
+  let constArr: any[] | null = null;
+
+  if (obj.kind === OpKind.Array) {
+    arrNode = obj as ArrayNode;
+  } else if (obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
+    constArr = (obj as ConstNode).value;
+  } else {
+    return null;
+  }
+
+  const newElements: IRNode[] = [];
+  for (const arg of args) {
+    if (arrNode) {
+      arrNode.elements.push(arg);
+    }
+    if (constArr) {
+      if (arg.kind === OpKind.Const) {
+        constArr.push((arg as ConstNode).value);
+      } else {
+        // Cannot push non-const to const array. Must upgrade array to ArrayNode?
+        // This is complex. For now assume push usage in unrolling maintains constness or arrayness.
+        // If we have Const Array, and push Var. We can't mutate ConstNode value to hold Var.
+        // We should convert ConstNode -> ArrayNode?
+        // But 'obj' is the node. We can't change 'obj' reference held by others.
+        // But we can update what scope holds? No, 'obj' is passed by value (IRNode).
+        // Actually, if 'obj' came from scope resolve, it's the node.
+        // ArrayNode.elements IS mutable.
+        // ConstNode.value IS mutable (JS array).
+
+        // If constArr, but arg is Var.
+        // We fail? Or we create ArrayNode from ConstNode and push?
+        // But we can't update usages.
+        // For now throw error or just fail.
+        throw new Error("Cannot push non-constant value to Constant Array during unrolling (upgrade not implemented)");
+      }
+    }
+  }
+  // push returns new length
+  const len = arrNode ? arrNode.elements.length : constArr!.length;
+  return { id: 'push_res', kind: OpKind.Const, type: NUMBER_TYPE, value: len } as ConstNode;
 });
 
 // Register Global 'Array' identifier logic?
