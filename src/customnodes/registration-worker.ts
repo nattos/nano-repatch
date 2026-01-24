@@ -8,6 +8,7 @@ import './midi/midi-metronome';
 import './time/time-nodes';
 import './nicepattern/nodes';
 import './seq/nodes';
+import './resolume/nodes';
 // Register all core primitive nodes
 import '../structor/primitives';
 

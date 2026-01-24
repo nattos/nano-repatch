@@ -47,9 +47,9 @@ export class MidiState {
   @action
   addEvent(event: MidiEvent) {
     // Keep only last 20 events
-    this.recentEvents.unshift(event);
-    if (this.recentEvents.length > 20) {
-      this.recentEvents.pop();
+    this.recentEvents.push(event);
+    if (this.recentEvents.length > 128) {
+      this.recentEvents.shift();
     }
 
     // Update current state

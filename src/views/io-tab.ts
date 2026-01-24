@@ -171,26 +171,21 @@ export class IOTab extends MobxLitElement {
         padding: 0 15px;
       }
 
-
-
       .midi-events {
         display: flex;
         flex-direction: column;
         gap: 5px;
-        max-height: 200px;
-        overflow-y: auto;
         padding: 0 15px;
       }
 
       .event-card {
-        background-color: var(--input-bg);
         padding: 8px;
         border-radius: 4px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         cursor: grab;
-        border: 1px solid transparent;
+        border: 1px solid var(--input-bg);
       }
 
       .event-card:hover {
@@ -359,12 +354,41 @@ export class IOTab extends MobxLitElement {
 
   renderMidiSection() {
     const { state } = midiManager;
+
+    // Group events by deviceId + channel + note/cc
+    const uniqueEvents = new Map<string, MidiEvent>();
+
+    // We want to group NoteOn/NoteOff together as just "Note".
+    // So if we have NoteOn 60, then NoteOff 60, we just show Note 60 with value Off.
+
+    state.recentEvents.forEach(e => {
+      let typeKey: string = e.type;
+      let index = 0;
+
+      if (e.type === 'note_on' || e.type === 'note_off') {
+        typeKey = 'note';
+        index = e.note;
+      } else if (e.type === 'cc') {
+        typeKey = 'cc';
+        index = e.cc;
+      }
+
+      const key = `${e.deviceId}-${e.channel}-${typeKey}-${index}`;
+      if (uniqueEvents.has(key)) {
+        uniqueEvents.delete(key);
+      }
+      uniqueEvents.set(key, e);
+    });
+
+    // Reverse to show newest on top
+    const events = Array.from(uniqueEvents.values()).reverse();
+
     return html`
       <div class="midi-devices">
         ${Array.from(state.devices.values()).map(d => this.renderDevice(d))}
       </div>
       <div class="midi-events">
-        ${state.recentEvents.map(e => this.renderMidiEvent(e))}
+        ${events.map(e => this.renderMidiEvent(e))}
       </div>
     `;
   }
