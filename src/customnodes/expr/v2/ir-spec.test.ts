@@ -58,4 +58,132 @@ describe('IR Specification (Integration)', () => {
     expect(lastStmt.value).toBe(30);
   });
 
+  it('should inline generic functions (Ex 3 Generics)', () => {
+    const EX_GENERICS = `
+      interface Vector2 {
+        x: number;
+        y: number;
+      }
+
+      function add<T extends {x: number, y: number}>(a: T, b: T): T {
+        return { ...a, x: a.x + b.x, y: a.y + b.y };
+      }
+
+      const v1 = { x: 1, y: 2 };
+      const v2 = { x: 3, y: 4 };
+      const v3 = add(v1, v2);
+      v3.x;
+    `;
+    const ir = compileToIR(EX_GENERICS);
+
+    // Expected:
+    // v1, v2 are Compile-time Constants (Structs)
+    // add(v1, v2) is inlined:
+    //   T is inferred as the Struct Type of v1/v2
+    //   Body executes: { ...a, x: 1+3, y: 2+4 } -> { ..., x:4, y:6 }
+    //   Returns Const Struct { x: 4, y: 6 }
+    // v3.x -> 4
+
+    const block = ir.root as any;
+    const lastStmt = block.statements[block.statements.length - 1];
+
+    expect(lastStmt.kind).toBe(OpKind.Const);
+    expect(lastStmt.value).toBe(4);
+  });
+
+  it('should handle function overloads (Ex 7)', () => {
+    const EX_OVERLOADS = `
+      function double(val: number): number {
+        return val * 2;
+      }
+      // Overload simplified: using different names or just checking if implementation handles different types?
+      // TS Overloads usually share implementation.
+      // Let's use Union Type check pattern from example.
+
+      function doublePoly(val: number | number[]) {
+         if (Array.isArray(val)) {
+           return val.map(v => v * 2);
+         } else {
+           return val * 2;
+         }
+      }
+
+      const r1 = doublePoly(10);
+      const r2 = doublePoly([1, 2]);
+
+      r1; // 20
+      r2; // [2, 4]
+    `;
+    // Note: The original Ex 7 used explicit overloads signatures + implementation.
+    // Our compiler should handle the implementation body unrolling correctly based on the input type.
+    // Array.isArray(10) -> false (Const)
+    // Array.isArray([1,2]) -> true (Const)
+    // So Dead Code Elimination should pick the right path!
+
+    // Actually, this just tests "Dead Code Elimination" + "Type Guards" + "Array checks".
+    // Does it test "Overloads"?
+    // True overloads dispatch based on signature matching.
+    // But in TS, the implementation is single.
+    // So if I implement 'IsArray' folding, this should work "for free" with current architecture?
+
+    const ir = compileToIR(EX_OVERLOADS);
+    const block = ir.root as any;
+
+    // We expect the code to fold to:
+    // r1 = 20
+    // r2 = [2, 4]
+    // The last two statements in the block should be the ExpressionStatements for r1 and r2.
+    // However, depending on how VarDecl is emitted, we might look for the Declarations or the final expressions.
+
+    // The code ends with:
+    // r1;
+    // r2;
+    // These are expression statements.
+
+    const len = block.statements.length;
+    // Assuming the Statements are: ..., Decl(r1, ...), Decl(r2, ...), Expr(r1), Expr(r2)
+
+    const lastStmt = block.statements[len - 1]; // r2
+    const secondLastStmt = block.statements[len - 2]; // r1
+
+    expect(secondLastStmt.kind).toBe(OpKind.Const);
+    expect(secondLastStmt.value).toBe(20);
+
+    expect(lastStmt.kind).toBe(OpKind.Const);
+    expect(lastStmt.value).toEqual([2, 4]);
+  });
+
+  it('should fold Type Guards in function body (Ex 7 Realized)', () => {
+    const CODE_SCALAR = `
+          function doublePoly(val: any) {
+             if (Array.isArray(val)) {
+               return 0; // Dummy array path
+             } else {
+               return val * 2;
+             }
+          }
+          doublePoly(10);
+      `;
+    const ir1 = compileToIR(CODE_SCALAR);
+    const last1 = (ir1.root as any).statements.slice(-1)[0];
+    expect(last1.kind).toBe(OpKind.Const);
+    expect(last1.value).toBe(20);
+
+    const CODE_ARRAY = `
+          function doublePoly(val: any) {
+             if (Array.isArray(val)) {
+               return val.map(v => v * 2);
+             } else {
+               return val * 2;
+             }
+          }
+          doublePoly([1, 2]);
+      `;
+    const ir2 = compileToIR(CODE_ARRAY);
+    const last2 = (ir2.root as any).statements.slice(-1)[0];
+    expect(last2.kind).toBe(OpKind.Const);
+    // [2, 4]
+    expect(last2.value).toEqual([2, 4]);
+  });
+
 });

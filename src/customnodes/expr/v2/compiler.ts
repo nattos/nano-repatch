@@ -4,11 +4,11 @@ import {
   VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode
 } from "./ir-types";
 
-// --- Scope Management ---
-
+// ... Scope ...
 class Scope {
   private variables = new Map<string, DataType>();
   private values = new Map<string, IRNode>(); // Track constant/known values
+  private functions = new Map<string, ts.FunctionDeclaration>();
 
   constructor(public parent: Scope | null = null) { }
 
@@ -20,7 +20,12 @@ class Scope {
     this.values.set(name, value);
   }
 
-  // Updates an existing variable's value in the appropriate scope
+  declareFunction(name: string, node: ts.FunctionDeclaration) {
+    if (node.body) {
+      this.functions.set(name, node);
+    }
+  }
+
   assign(name: string, value: IRNode) {
     if (this.values.has(name)) {
       this.values.set(name, value);
@@ -44,6 +49,12 @@ class Scope {
     if (this.parent) return this.parent.resolveValue(name);
     return null;
   }
+
+  resolveFunction(name: string): ts.FunctionDeclaration | null {
+    if (this.functions.has(name)) return this.functions.get(name)!;
+    if (this.parent) return this.parent.resolveFunction(name);
+    return null;
+  }
 }
 
 class CompilerContext {
@@ -63,8 +74,6 @@ class CompilerContext {
     }
   }
 }
-
-// --- Main Compiler ---
 
 export function compileToIR(source: string): IRGraph {
   const sourceFile = ts.createSourceFile(
@@ -106,6 +115,26 @@ const STRUCT_TYPE = (fields: Record<string, DataType>) => ({
   kind: DataTypeKind.Struct, fields
 } as any);
 
+// Helper to extract return value from a compiled node structure
+function extractReturn(node: IRNode | null): IRNode | null {
+  if (!node) return null;
+  if (node.kind === OpKind.Return) {
+    return (node as ReturnNode).value;
+  }
+  if (node.kind === OpKind.Block) {
+    const block = node as BlockNode;
+    if (block.statements.length > 0) {
+      // Check last statement? Or any statement?
+      // In linear block, return is usually last.
+      // But we should check all for early return?
+      // Simplification: Check last.
+      return extractReturn(block.statements[block.statements.length - 1]);
+    }
+  }
+  // IfNode folded cases are handled by returning the block, so covered above.
+  return null;
+}
+
 function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
   switch (node.kind) {
     case ts.SyntaxKind.ExpressionStatement:
@@ -127,6 +156,16 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         type: VOID_TYPE,
         statements
       } as BlockNode;
+    }
+
+    case ts.SyntaxKind.InterfaceDeclaration: return null;
+
+    case ts.SyntaxKind.FunctionDeclaration: {
+      const func = node as ts.FunctionDeclaration;
+      if (func.name) {
+        ctx.scope.declareFunction(func.name.text, func);
+      }
+      return null;
     }
 
     case ts.SyntaxKind.VariableStatement: {
@@ -176,7 +215,9 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
       const type = ctx.scope.resolve(name);
       if (!type) {
-        console.warn(`Unresolved identifier: ${name}, treating as external/any`);
+        if (name !== 'Array') {
+          console.warn(`Unresolved identifier: ${name}, treating as external/any`);
+        }
         return {
           id: nextId(),
           kind: OpKind.Var,
@@ -328,7 +369,6 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
       if (!object) return null;
 
-      // Constant Folding: {x:10}.x -> 10
       if (object.kind === OpKind.Const) {
         const objVal = (object as ConstNode).value;
         if (objVal && typeof objVal === 'object' && propertyName in objVal) {
@@ -354,10 +394,25 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
     case ts.SyntaxKind.CallExpression: {
       const call = node as ts.CallExpression;
 
+      // Method Calls & Static Calls
       if (call.expression.kind === ts.SyntaxKind.PropertyAccessExpression) {
         const propMain = call.expression as ts.PropertyAccessExpression;
         const methodName = propMain.name.text;
         const obj = compileNode(propMain.expression, ctx);
+
+        // Handle "Array.isArray(x)"
+        if (methodName === 'isArray' && propMain.expression.kind === ts.SyntaxKind.Identifier && (propMain.expression as ts.Identifier).text === 'Array') {
+          const arg = call.arguments[0] ? compileNode(call.arguments[0], ctx) : null;
+          if (arg) {
+            if (arg.kind === OpKind.Const && Array.isArray((arg as ConstNode).value)) {
+              return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: 1 } as ConstNode;
+            }
+            if (arg.kind === OpKind.Const && !Array.isArray((arg as ConstNode).value)) {
+              return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: 0 } as ConstNode;
+            }
+          }
+          return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: 0 } as ConstNode;
+        }
 
         if (!obj) return null;
 
@@ -384,7 +439,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
             let bodyRes: IRNode | null = null;
             if (func.body.kind === ts.SyntaxKind.Block) {
-              // ...
+              // Map body should be expression ideally
             } else {
               bodyRes = compileNode(func.body, ctx);
             }
@@ -437,6 +492,44 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
             type: NUMBER_TYPE,
             value: accumulator
           } as ConstNode;
+        }
+      }
+
+      // User Function Calls (Inline)
+      if (call.expression.kind === ts.SyntaxKind.Identifier) {
+        const funcName = (call.expression as ts.Identifier).text;
+        const funcDecl = ctx.scope.resolveFunction(funcName);
+
+        if (funcDecl) {
+          ctx.pushScope();
+
+          for (let i = 0; i < funcDecl.parameters.length; i++) {
+            const param = funcDecl.parameters[i];
+            const paramName = (param.name as ts.Identifier).text;
+            const argNode = call.arguments[i] ? compileNode(call.arguments[i], ctx) : undefined;
+
+            if (argNode) {
+              ctx.scope.set(paramName, argNode);
+              ctx.scope.declare(paramName, argNode.type);
+            }
+          }
+
+          let result: IRNode | null = null;
+
+          if (funcDecl.body) {
+            for (const stmt of funcDecl.body.statements) {
+              const compiledStmt = compileNode(stmt, ctx);
+              // Attempt to extract return if we found one
+              const ret = extractReturn(compiledStmt);
+              if (ret) {
+                result = ret;
+                break;
+              }
+            }
+          }
+
+          ctx.popScope();
+          return result;
         }
       }
 
