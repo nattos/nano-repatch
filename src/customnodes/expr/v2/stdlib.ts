@@ -1,4 +1,4 @@
-import { IRNode, DataType, OpKind, ConstNode, DataTypeKind, ReturnNode } from './ir-types';
+import { IRNode, DataType, OpKind, ConstNode, DataTypeKind, ReturnNode, IntrinsicNode } from './ir-types';
 import { Scope, CompilerContext, extractReturn } from './scope';
 import * as ts from 'typescript';
 
@@ -184,6 +184,45 @@ instanceMethods.set('map', (ctx, call, args, obj) => {
 // compiler.ts handles identifiers.
 // If valid identifier isn't found, we check globals.
 
-// Init Globals
-registerGlobal('Array', { id: 'global_Array', kind: OpKind.Const, type: ANY_TYPE, value: { name: 'Array' } } as ConstNode);
+// Math Library Support
+
+function registerMath(name: string, func: (...args: number[]) => number) {
+  staticMethods.set(`Math.${name}`, (ctx, call, args) => {
+    // 1. Try Constant Folding
+    const allConst = args.every(a => a.kind === OpKind.Const && a.type.kind === DataTypeKind.Primitive && a.type.name === 'number');
+    if (allConst) {
+      const val = func(...args.map(a => (a as ConstNode).value as number));
+      return { id: `const_math_${name}`, kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode;
+    }
+
+    // 2. Emit Runtime Intrinsic
+    // Generate a unique ID for the intrinsic call
+    // We need a way to get nextId logic, but it's internal to compiler.
+    // We can use a makeshift ID or we need nextId exposed/injected?
+    // Using a timestamp/random or just 'intrinsic_' + suffix is okay for IR as long as unique?
+    // Actually, IR IDs should be unique.
+    // Let's assume we don't strictly need sequentially perfect IDs for now, or use a local counter.
+    // We can inject `ctx.nextId()` if we added it to Context, but we didn't.
+    // Let's use `math_${name}_${Math.random().toString(36).substr(2, 5)}`
+
+    return {
+      id: `intr_${name}_${Math.floor(Math.random() * 10000)}`,
+      kind: OpKind.Intrinsic,
+      type: NUMBER_TYPE,
+      library: 'Math',
+      method: name,
+      args
+    } as IntrinsicNode;
+  });
+}
+
+// Register Standard Math Functions
+['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log', 'sqrt', 'abs', 'ceil', 'floor', 'round', 'max', 'min', 'pow'].forEach(name => {
+  // Cast to any because TS doesn't know dynamic Math access easily
+  const fn = (Math as any)[name];
+  if (fn) registerMath(name, fn);
+});
+
+// Constants
+registerGlobal('Math', { id: 'global_Math', kind: OpKind.Const, type: ANY_TYPE, value: { name: 'Math' } } as ConstNode);
 
