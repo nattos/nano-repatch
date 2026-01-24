@@ -86,7 +86,8 @@ export enum OpKind {
   VarDecl = 'var_decl',
   Array = 'array',
   Struct = 'struct',
-  PropAccess = 'prop_access'
+  PropAccess = 'prop_access',
+  Phi = 'phi'
 }
 
 export interface IRNode {
@@ -154,6 +155,13 @@ export interface PropAccessNode extends IRNode {
   kind: OpKind.PropAccess;
   object: IRNode;
   property: string;
+}
+
+export interface PhiNode extends IRNode {
+  kind: OpKind.Phi;
+  condition: IRNode;
+  trueValue: IRNode;
+  falseValue: IRNode;
 }
 
 export interface VarDeclNode extends IRNode {

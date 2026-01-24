@@ -243,6 +243,60 @@ describe('IR Specification (Integration)', () => {
     expect(t2.kind).toBe(DataTypeKind.GenericInstantiation);
     expect(t2.base).toBe('Wrapper');
     expect(t2.args[0].kind).toBe(DataTypeKind.Array);
+    expect(t2.base).toBe('Wrapper');
+    expect(t2.args[0].kind).toBe(DataTypeKind.Array);
+  });
+
+  it('should handle conditional assignment of lambdas (Ex 5 Dynamic)', () => {
+    const EX_DYN = `
+        // We simulate a dynamic condition with a function parameter or external logic
+        // But since we control the source, let's treat a global 'mode' as dynamic Var (VarNode)
+
+        let op;
+        if (check_mode > 0) { // 'check_mode' unresolved -> VarNode (Dynamic)
+            op = (x) => x + 1;
+        } else {
+            op = (x) => x * 10;
+        }
+
+        const res = op(5);
+        res;
+      `;
+
+    const ir = compileToIR(EX_DYN);
+    const block = ir.root as any;
+    const lastStmt = block.statements[block.statements.length - 1]; // res
+
+    // Expected IR Structure:
+    // It should NOT be a Const. It should be a conditional expression.
+    // Or an If/Phi structure.
+    // Since our IR is statement based, 'res' computation might be:
+    // If(check_mode > 0, res = 6, res = 50)
+    // Then last stmt is 'res' (VarNode) ?
+    // OR if we support Phi nodes as values:
+    // res = Phi(check_mode > 0, 6, 50)
+
+    // Our compiler unrolls statements.
+    // If we merge scopes:
+    // op = Phi(cond, f1, f2)
+    // Call(op, 5) -> Inlines both? -> Phi(cond, inline(f1,5), inline(f2,5))
+    // -> Phi(cond, 6, 50)
+
+    // So last stmt should be a PhiNode (if it's an expression) or it refers to a variable holding a PhiNode?
+    // compileToIR returns the Block. The 'statements' list.
+    // If 'res' is a const variable holding a PhiNode...
+
+    // Let's assert on the value structure.
+
+    expect(lastStmt.kind).toBe(OpKind.Phi);
+    const phi = lastStmt as any;
+    // True path: x+1 = 6
+    expect(phi.trueValue.kind).toBe(OpKind.Const);
+    expect(phi.trueValue.value).toBe(6);
+
+    // False path: x*10 = 50
+    expect(phi.falseValue.kind).toBe(OpKind.Const);
+    expect(phi.falseValue.value).toBe(50);
   });
 
 });
