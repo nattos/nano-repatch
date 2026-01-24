@@ -1,4 +1,7 @@
 import { IRNode, DataType, OpKind, ConstNode, DataTypeKind, ReturnNode, IntrinsicNode, PrimitiveType, ArrayNode } from './ir-types';
+
+const ANY_TYPE: DataType = { kind: DataTypeKind.Any };
+const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
 import { Scope, CompilerContext, extractReturn } from './scope';
 import * as ts from 'typescript';
 
@@ -64,9 +67,8 @@ export function tryCompileInstanceMethod(ctx: CompilerContext, call: ts.CallExpr
 
 /* --- Implementations --- */
 
-const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
+// Local types removed (defined at top)
 const VOID_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'void' };
-const ANY_TYPE: DataType = { kind: DataTypeKind.Any };
 
 // Array.isArray
 staticMethods.set('Array.isArray', (ctx, call, args) => {
@@ -239,13 +241,6 @@ instanceMethods.set('reduce', (ctx, call, args, obj, compile) => {
 });
 
 instanceMethods.set('push', (ctx, call, args, obj, compile) => {
-  // Push mutates the array.
-  // We need to resolve the array reference and update its state?
-  // IR Arrays (ArrayNode) are immutable nodes in graph usually?
-  // But our unroller treats scopes as mutable state.
-  // We need to find the ArrayNode and mutate its elements list?
-  // ArrayNode.elements is mutable array?
-
   let arrNode: ArrayNode | null = null;
   let constArr: any[] | null = null;
 
@@ -257,35 +252,57 @@ instanceMethods.set('push', (ctx, call, args, obj, compile) => {
     return null;
   }
 
-  const newElements: IRNode[] = [];
   for (const arg of args) {
     if (arrNode) {
       arrNode.elements.push(arg);
     }
-    if (constArr) {
+    else if (constArr) {
+      // Pushing to constant array logic
       if (arg.kind === OpKind.Const) {
+        // Constant push -> Constant result
         constArr.push((arg as ConstNode).value);
+        // Update scope if variable to reflect new const value
+        // (Actually constArr is reference to value in ConstNode, so mutating it updates ConstNode value directly?)
+        // YES. In-place mutation of JS array.
+        // But strict SSA might require new node ID?
+        // For now, in-place is fine for simple unrolling.
       } else {
-        // Cannot push non-const to const array. Must upgrade array to ArrayNode?
-        // This is complex. For now assume push usage in unrolling maintains constness or arrayness.
-        // If we have Const Array, and push Var. We can't mutate ConstNode value to hold Var.
-        // We should convert ConstNode -> ArrayNode?
-        // But 'obj' is the node. We can't change 'obj' reference held by others.
-        // But we can update what scope holds? No, 'obj' is passed by value (IRNode).
-        // Actually, if 'obj' came from scope resolve, it's the node.
-        // ArrayNode.elements IS mutable.
-        // ConstNode.value IS mutable (JS array).
+        // Runtime push -> Upgrade to ArrayNode
+        // 1. Create ArrayNode from current const elements
+        const elements = constArr.map(v => ({
+          id: 'c_upg',
+          kind: OpKind.Const,
+          type: typeof v === 'number' ? NUMBER_TYPE : ANY_TYPE,
+          value: v
+        } as ConstNode));
 
-        // If constArr, but arg is Var.
-        // We fail? Or we create ArrayNode from ConstNode and push?
-        // But we can't update usages.
-        // For now throw error or just fail.
-        throw new Error("Cannot push non-constant value to Constant Array during unrolling (upgrade not implemented)");
+        // 2. Add new runtime arg
+        elements.push(arg);
+
+        // 3. Update scope variable to point to new ArrayNode
+        if (ts.isPropertyAccessExpression(call.expression)) {
+          const prop = call.expression;
+          if (ts.isIdentifier(prop.expression)) {
+            const name = prop.expression.text;
+            // Infer type
+            const type: DataType = { kind: DataTypeKind.Array, elementType: arg.type || ANY_TYPE };
+            const newArrNode: ArrayNode = { id: `arr_upg_${elements.length}`, kind: OpKind.Array, type, elements };
+
+            ctx.scope.assign(name, newArrNode);
+
+            // IMPORTANT: Switch mode for subsequent args in loop!
+            arrNode = newArrNode;
+            constArr = null;
+            continue;
+          }
+        }
+        throw new Error("Cannot push non-constant value to r-value constant array (only variables supported)");
       }
     }
   }
+
   // push returns new length
-  const len = arrNode ? arrNode.elements.length : constArr!.length;
+  const len = arrNode ? arrNode.elements.length : (constArr ? constArr.length : 0);
   return { id: 'push_res', kind: OpKind.Const, type: NUMBER_TYPE, value: len } as ConstNode;
 });
 

@@ -78,4 +78,46 @@ describe('C++ Backend Integration', () => {
     const res = runCPP(cpp, { step: 2 });
     expect(res.res).toBe(6); // 0 + 2 + 2 + 2
   });
+
+  it('should run convolution (Ex 6 Array)', () => {
+    // Ex 6 with runtime signal
+    // kernel is constant for simplicity, or can be input too.
+    // Let's make signal an input.
+    const source = `
+       const kernel = [0.5, 1];
+       let result: number[] = [];
+       // signal is input array of size 5
+       // Convolve:
+       // i=0: signal[0]*0.5 + signal[1]*1
+       // i=1: signal[1]*0.5 + signal[2]*1
+       // i=2: signal[2]*0.5 + signal[3]*1
+       // i=3: signal[3]*0.5 + signal[4]*1
+
+       for (let i = 0; i < 4; i++) {
+          let sum = 0;
+          for (let j = 0; j < 2; j++) {
+             // We need to use 'signal' which is external
+             sum = sum + signal[i+j] * kernel[j];
+          }
+          result.push(sum);
+       }
+       return result;
+     `;
+    const ARRAY_NUM = { kind: DataTypeKind.Array, elementType: NUMBER_TYPE } as any;
+    const inputs = { signal: ARRAY_NUM };
+
+    const ir = compileToIR(source, inputs);
+
+    const cpp = generateCPP(ir, { inputs, outputType: ARRAY_NUM });
+
+    const signalData = [1, 2, 3, 4, 5];
+    const res = runCPP(cpp, { signal: signalData });
+
+    // Expected:
+    // 1*0.5 + 2*1 = 2.5
+    // 2*0.5 + 3*1 = 4.0
+    // 3*0.5 + 4*1 = 5.5
+    // 4*0.5 + 5*1 = 7.0
+    expect(res.res).toEqual([2.5, 4.0, 5.5, 7.0]);
+  });
 });

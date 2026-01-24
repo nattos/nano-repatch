@@ -1,4 +1,4 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
@@ -9,7 +9,7 @@ function typeToCpp(type: DataType): string {
   switch (type.kind) {
     case DataTypeKind.Primitive: {
       const p = type as PrimitiveType;
-      if (p.name === 'number') return 'float';
+      if (p.name === 'number') return 'double';
       if (p.name === 'boolean') return 'bool';
       if (p.name === 'void') return 'void';
       return 'auto';
@@ -143,6 +143,11 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
       }
       return String(c.value);
     }
+    case OpKind.Array: {
+      const a = node as ArrayNode;
+      const elems = a.elements.map(e => emitNode(e, indent, inputs)).join(', ');
+      return `{ ${elems} }`; // std::vector initializer
+    }
     case OpKind.Var: {
       const v = node as VarNode;
       if (inputs[v.name]) return `input.${v.name}`;
@@ -203,6 +208,10 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
     case OpKind.PropAccess: {
       const p = node as PropAccessNode;
       return `${emitNode(p.object, indent, inputs)}.${p.property}`;
+    }
+    case OpKind.IndexAccess: {
+      const p = node as any; // IndexAccessNode
+      return `${emitNode(p.object, indent, inputs)}[${emitNode(p.index, indent, inputs)}]`;
     }
   }
   return `/* Unknown Op: ${node.kind} */`;

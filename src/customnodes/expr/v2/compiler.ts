@@ -39,13 +39,31 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         const name = (decl.name as ts.Identifier).text;
         let init: IRNode | undefined;
         let type: DataType = { kind: DataTypeKind.Any };
-        if (decl.initializer) {
+        if (decl.type) {
+          // resolve type from annotation
+          // simple mapping for now
+          if (decl.type.kind === ts.SyntaxKind.NumberKeyword) type = NUMBER_TYPE;
+          if (decl.type.kind === ts.SyntaxKind.BooleanKeyword) type = BOOLEAN_TYPE;
+          if (decl.type.kind === ts.SyntaxKind.ArrayType) {
+            const el = (decl.type as ts.ArrayTypeNode).elementType;
+            let elType: DataType = ANY_TYPE;
+            if (el.kind === ts.SyntaxKind.NumberKeyword) elType = NUMBER_TYPE;
+            // recursion if needed, but for now depth 1
+            type = { kind: DataTypeKind.Array, elementType: elType };
+          }
+        } else if (decl.initializer) {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
             type = init.type;
             // Always set in scope for unrolling/evaluated values
             ctx.scope.set(name, init);
           }
+        }
+
+        // Initializer compilation if type was from annotation but init exists
+        if (decl.initializer && !init) {
+          init = compileNode(decl.initializer, ctx) || undefined;
+          if (init) ctx.scope.set(name, init);
         }
         ctx.scope.declare(name, type);
         decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init } as VarDeclNode);
@@ -392,7 +410,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         }
       }
 
-      return { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: 'element_access_todo' } as PropAccessNode; // PropAccess used for generic access? or need ArrayAccess op?
+      return { id: nextId(), kind: OpKind.IndexAccess, type: ANY_TYPE, object: obj, index } as any;
       // Using PropAccess for now or creating generic call?
       // IR Types has 'PropAccess'. Does it support dynamic index? No, 'property' key is string.
       // We might need an 'IndexAccess' OpKind or 'ArrayAccess'.

@@ -95,6 +95,7 @@ export enum OpKind {
   Array = 'array',
   Struct = 'struct',
   PropAccess = 'prop_access',
+  IndexAccess = 'index_access',
   Phi = 'phi',
   Intrinsic = 'intrinsic'
 }
@@ -166,6 +167,12 @@ export interface PropAccessNode extends IRNode {
   kind: OpKind.PropAccess;
   object: IRNode;
   property: string;
+}
+
+export interface IndexAccessNode extends IRNode {
+  kind: OpKind.IndexAccess;
+  object: IRNode;
+  index: IRNode;
 }
 
 export interface PhiNode extends IRNode {
