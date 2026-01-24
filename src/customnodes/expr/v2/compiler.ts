@@ -274,6 +274,61 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       return { id: nextId(), kind: OpKind.If, type: VOID_TYPE, condition, thenBlock, elseBlock } as IfNode;
     }
 
+    case ts.SyntaxKind.ForStatement: {
+      const stmt = node as ts.ForStatement;
+
+      // 1. Initializer
+      if (stmt.initializer) {
+        compileNode(stmt.initializer, ctx);
+      }
+
+      const statements: IRNode[] = [];
+      const MAX_LOOPS = 100; // safety guard
+      let loops = 0;
+
+      while (loops < MAX_LOOPS) {
+        // 2. Condition Check
+        let condVal = true;
+        if (stmt.condition) {
+          const cond = compileNode(stmt.condition, ctx);
+          if (!cond || cond.kind !== OpKind.Const) {
+            throw new Error("Loop condition must be compile-time constant for unrolling");
+          }
+          const val = (cond as ConstNode).value;
+          if (typeof val === 'number') condVal = val !== 0; // C-style
+          else condVal = !!val;
+        }
+
+        if (!condVal) break;
+
+        // 3. Body
+        const bodyRes = compileNode(stmt.statement, ctx);
+        if (bodyRes && bodyRes.kind === OpKind.Block) {
+          statements.push(...(bodyRes as BlockNode).statements);
+        } else if (bodyRes) {
+          statements.push(bodyRes);
+        }
+
+        // 4. Incrementor
+        if (stmt.incrementor) {
+          compileNode(stmt.incrementor, ctx);
+        }
+
+        loops++;
+      }
+
+      if (loops >= MAX_LOOPS) {
+        console.warn("Loop unrolling hit safety limit");
+      }
+
+      return {
+        id: nextId(),
+        kind: OpKind.Block,
+        type: VOID_TYPE,
+        statements
+      } as BlockNode;
+    }
+
     // Literals...
     case ts.SyntaxKind.NumericLiteral: return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: parseFloat((node as ts.NumericLiteral).text) } as ConstNode;
     // ... Array/Object Literals ...
@@ -305,6 +360,31 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       if (allConst) return { id: nextId(), kind: OpKind.Const, type: structType, value: constValue } as ConstNode;
       return { id: nextId(), kind: OpKind.Struct, type: structType, fields } as StructNode;
     }
+    // Element Access (Array[i])
+    case ts.SyntaxKind.ElementAccessExpression: {
+      const elem = node as ts.ElementAccessExpression;
+      const object = compileNode(elem.expression, ctx);
+      const index = compileNode(elem.argumentExpression, ctx);
+
+      if (!object || !index) return null;
+
+      // Constant Folding: arr[0]
+      if (object.kind === OpKind.Const && index.kind === OpKind.Const) {
+        const arrVal = (object as ConstNode).value;
+        const idxVal = (index as ConstNode).value;
+        if (Array.isArray(arrVal) && typeof idxVal === 'number') {
+          const val = arrVal[idxVal];
+          // Infer type? Assuming number for simplicity or we need to track element type
+          return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: val } as ConstNode;
+        }
+      }
+
+      // Dynamic access? Not supported by unroller yet unless folded.
+      // But for Ex 6, indices should fold if loop is unrolled.
+      // If we fall through here, it means we couldn't fold.
+      return null;
+    }
+
     case ts.SyntaxKind.PropertyAccessExpression: {
       const prop = node as ts.PropertyAccessExpression;
       const object = compileNode(prop.expression, ctx);
@@ -338,6 +418,35 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: 0 } as ConstNode;
         }
         if (!obj) return null;
+
+        // Array.push (Compile-time mutation)
+        if (methodName === 'push' && obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
+          const arrVal = (obj as ConstNode).value as any[];
+          const elements = call.arguments.map(a => compileNode(a, ctx));
+
+          // Should arguments be const too?
+          // If they are not const, we can't push them into a CONST array value?
+          // Wait, if the array is Const, it means we know the values at compile time.
+          // If we push a Variable, the array is no longer Const Value.
+          // Ex 4 pushes {x: i*10}. 'i' is const. So the pushed object IS const.
+
+          const pushedValues: any[] = [];
+          for (const elem of elements) {
+            if (elem && elem.kind === OpKind.Const) {
+              pushedValues.push((elem as ConstNode).value);
+            } else {
+              // Fallback? If we push dynamic stuff into const array, it becomes dynamic ArrayNode.
+              // This is tricky for "value" mutation.
+              // For Ex 4, it should be const.
+              throw new Error("Cannot push non-constant value into constant array in unroller");
+            }
+          }
+
+          arrVal.push(...pushedValues);
+
+          // Push returns new length
+          return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: arrVal.length } as ConstNode;
+        }
 
         // Map/Reduce
         if (methodName === 'map' && obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {

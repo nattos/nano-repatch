@@ -297,6 +297,52 @@ describe('IR Specification (Integration)', () => {
     // False path: x*10 = 50
     expect(phi.falseValue.kind).toBe(OpKind.Const);
     expect(phi.falseValue.value).toBe(50);
+    expect(phi.falseValue.value).toBe(50);
+  });
+
+  // Expected to fail: ForStatement not implemented
+  it('should compile simulation loop (Ex 4)', () => {
+    const EX_SIM = `
+        let particles = [];
+        let r = 0;
+        // Simple loop unrolling
+        for (let i = 0; i < 3; i++) {
+            particles.push({ x: i * 10 });
+            r = r + 1;
+        }
+        r;
+      `;
+    const ir = compileToIR(EX_SIM);
+    const block = ir.root as any;
+    const last = block.statements[block.statements.length - 1]; // r
+
+    // r should be 3
+    expect(last.kind).toBe(OpKind.Const);
+    expect(last.value).toBe(3);
+  });
+
+  // Expected to fail: ForStatement + Array Access
+  it('should compile convolution (Ex 6)', () => {
+    const EX_CONV = `
+        const signal = [1, 2, 3, 4, 5];
+        const kernel = [0.5, 0.5];
+        let output = [];
+
+        for (let i = 0; i < 4; i++) {
+            // output[i] = signal[i] * k[0] + signal[i+1] * k[1]
+            let val = signal[i] * kernel[0] + signal[i+1] * kernel[1];
+            output.push(val);
+        }
+        output;
+      `;
+    const ir = compileToIR(EX_CONV);
+    const block = ir.root as any;
+    const last = block.statements[block.statements.length - 1];
+
+    // Expected: [1.5, 2.5, 3.5, 4.5]
+    expect(last.kind).toBe(OpKind.Const);
+    expect(isArrayOfNumber(last.type)).toBe(true);
+    expect(last.value).toEqual([1.5, 2.5, 3.5, 4.5]);
   });
 
 });
