@@ -3,174 +3,57 @@ import {
   IRGraph, IRNode, OpKind, DataTypeKind, DataType, PrimitiveType,
   VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode
 } from "./ir-types";
+import { Scope, CompilerContext, extractReturn } from "./scope";
+import { resolveGlobal, tryCompileStaticCall, tryCompileInstanceMethod } from "./stdlib";
 
 // ... Scope ...
-class Scope {
-  private variables = new Map<string, DataType>();
-  public values = new Map<string, IRNode>();
-  private functions = new Map<string, ts.FunctionDeclaration>();
+// Scope and Context moved to scope.ts
 
-  constructor(public parent: Scope | null = null, public isBranchScope: boolean = false) { }
+// Scope and Context moved to scope.ts
 
-  // Create a Branch Scope (Isolation Boundary)
-  fork(): Scope {
-    const child = new Scope(this, true);
-    // Branch scopes trap assignments to emulate divergent control flow
-    return child;
-  }
+function mergeScopes(parent: Scope, branchA: Scope, branchB: Scope, condition: IRNode): void {
+  const distinctKeys = new Set([...branchA.values.keys(), ...branchB.values.keys()]);
+  for (const key of distinctKeys) {
+    const valA = branchA.values.get(key) || parent.resolveValue(key);
+    const valB = branchB.values.get(key) || parent.resolveValue(key);
 
-  // Creates a detached copy of the scope with current values frozen.
-  // This effectively "captures" the state of variables at this moment.
-  // Used for Lambda Closures in Unrolling.
-  snapshot(): Scope {
-    const copy = new Scope(null, false); // Snapshot is effectively a root or detached
-    // Deep snapshotting whole chain is expensive.
-    // But for "i", it's in the current scope usually.
-    // Let's copy the values map.
-    // Any variable resolved in this scope will be found.
-    // Variables in parent scope?
-    // If we don't snapshot parent, we track live parent.
-    // If we want "capture by value" behavior for loop unrolling (which is what we expect for `let` in loops),
-    // we essentially want to bake the current resolution.
-
-    // Strategy: Flatten the scope chain into one Scope?
-    // Or just clone the current level and assume parents are stable (globals)?
-    // For loops, the inner scope changes.
-
-    copy.values = new Map(this.values);
-    copy.variables = new Map(this.variables);
-    copy.functions = new Map(this.functions);
-    if (this.parent) {
-      copy.parent = this.parent.snapshot();
-    }
-    return copy;
-  }
-
-  declare(name: string, type: DataType) {
-    this.variables.set(name, type);
-  }
-
-  set(name: string, value: IRNode) {
-    this.values.set(name, value);
-  }
-
-  declareFunction(name: string, node: ts.FunctionDeclaration) {
-    if (node.body) {
-      this.functions.set(name, node);
-    }
-  }
-
-  // Recursive Assignment Logic
-  assign(name: string, value: IRNode) {
-    // 1. If currently tracked in this scope, update strictly here
-    if (this.values.has(name)) {
-      this.values.set(name, value);
-      return;
-    }
-
-    // 2. If not found locally, try to push to parent
-    if (this.parent) {
-      // If this is a Branch Scope, we MUST shadow here. We cannot mutate parent.
-      if (this.isBranchScope) {
-        this.values.set(name, value);
-      } else {
-        // Transparent Scope (Block): Propagate up
-        // Check if variable exists up chain?
-        // "resolveValue" checks values. Scope might just be pass-through.
-        // If we propagate, does parent accept it?
-        // Parent recurses until it finds 'has(name)' or hits its own Branch/Root.
-        this.parent.assign(name, value);
+    if (valA && valB && valA !== valB) {
+      if (valA.kind === OpKind.Const && valB.kind === OpKind.Const && (valA as ConstNode).value === (valB as ConstNode).value) {
+        parent.assign(key, valA);
+        continue;
       }
-      return;
-    }
-
-    // 3. Root Scope (or detached), set here
-    this.values.set(name, value);
-  }
-
-  resolve(name: string): DataType | null {
-    if (this.variables.has(name)) return this.variables.get(name)!;
-    if (this.parent) return this.parent.resolve(name);
-    return null;
-  }
-
-  resolveValue(name: string): IRNode | null {
-    if (this.values.has(name)) return this.values.get(name)!;
-    if (this.parent) return this.parent.resolveValue(name);
-    return null;
-  }
-
-  resolveFunction(name: string): ts.FunctionDeclaration | null {
-    if (this.functions.has(name)) return this.functions.get(name)!;
-    if (this.parent) return this.parent.resolveFunction(name);
-    return null;
-  }
-
-  static merge(parent: Scope, branchA: Scope, branchB: Scope, condition: IRNode): void {
-    const keys = new Set([...branchA.values.keys(), ...branchB.values.keys()]);
-
-    for (const key of keys) {
-      const valA = branchA.values.get(key) || parent.resolveValue(key);
-      const valB = branchB.values.get(key) || parent.resolveValue(key);
-
-      if (!valA || !valB) continue;
-
-      if (valA !== valB) {
-        if (valA.kind === OpKind.Const && valB.kind === OpKind.Const &&
-          (valA as ConstNode).value === (valB as ConstNode).value) {
-          parent.assign(key, valA);
-          continue;
-        }
-        const parentVal = parent.resolveValue(key);
-        if (valA === parentVal && valB === parentVal) continue;
-
-        const phi: PhiNode = {
-          id: nextId(),
-          kind: OpKind.Phi,
-          type: valA.type,
-          condition,
-          trueValue: valA,
-          falseValue: valB
-        };
-
-        parent.assign(key, phi);
-      }
-    }
-  }
-
-  static mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
-    const keys = new Set([...branchA.values.keys()]);
-    for (const key of keys) {
-      const valA = branchA.values.get(key)!;
       const parentVal = parent.resolveValue(key);
+      if (valA === parentVal && valB === parentVal) continue;
 
-      if (valA !== parentVal && parentVal) {
-        const phi: PhiNode = {
-          id: nextId(),
-          kind: OpKind.Phi,
-          type: valA.type,
-          condition,
-          trueValue: valA,
-          falseValue: parentVal
-        };
-        parent.assign(key, phi);
-      }
+      const phi: PhiNode = {
+        id: nextId(),
+        kind: OpKind.Phi,
+        type: valA.type,
+        condition,
+        trueValue: valA,
+        falseValue: valB
+      };
+      parent.assign(key, phi);
     }
   }
 }
 
-class CompilerContext {
-  public scope: Scope;
-  constructor() {
-    this.scope = new Scope();
-  }
-  // Standard Block Scope (Transparent)
-  pushScope() {
-    this.scope = new Scope(this.scope, false);
-  }
-  popScope() {
-    if (this.scope.parent) {
-      this.scope = this.scope.parent;
+function mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
+  const keys = new Set([...branchA.values.keys()]);
+  for (const key of keys) {
+    const valA = branchA.values.get(key)!;
+    const parentVal = parent.resolveValue(key);
+
+    if (valA !== parentVal && parentVal) {
+      const phi: PhiNode = {
+        id: nextId(),
+        kind: OpKind.Phi,
+        type: valA.type,
+        condition,
+        trueValue: valA,
+        falseValue: parentVal
+      };
+      parent.assign(key, phi);
     }
   }
 }
@@ -198,15 +81,6 @@ const ARRAY_TYPE = (elementType: DataType, length?: number) => ({ kind: DataType
 const STRUCT_TYPE = (fields: Record<string, DataType>) => ({ kind: DataTypeKind.Struct, fields } as any);
 const GENERIC_INST = (base: string, args: DataType[]) => ({ kind: DataTypeKind.GenericInstantiation, base, args } as any);
 
-function extractReturn(node: IRNode | null): IRNode | null {
-  if (!node) return null;
-  if (node.kind === OpKind.Return) return (node as ReturnNode).value;
-  if (node.kind === OpKind.Block) {
-    const block = node as BlockNode;
-    if (block.statements.length > 0) return extractReturn(block.statements[block.statements.length - 1]);
-  }
-  return null;
-}
 
 function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
   switch (node.kind) {
@@ -324,6 +198,10 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       }
       const type = ctx.scope.resolve(name);
       if (!type) {
+        // Check Globals (StdLib)
+        const globalVal = resolveGlobal(name);
+        if (globalVal) return globalVal;
+
         if (name !== 'Array') console.warn(`Unresolved identifier: ${name}`);
         return { id: nextId(), kind: OpKind.Var, type: { kind: DataTypeKind.Any }, name } as VarNode;
       }
@@ -359,9 +237,9 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         } else {
           elseBlock = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: [] } as BlockNode;
         }
-        Scope.merge(parentScope, thenScope, elseScope, condition);
+        mergeScopes(parentScope, thenScope, elseScope, condition); // used to be Scope.merge
       } else {
-        Scope.mergeOneWay(parentScope, thenScope, condition);
+        mergeOneWay(parentScope, thenScope, condition); // used to be Scope.mergeOneWay
       }
       ctx.scope = parentScope;
 
