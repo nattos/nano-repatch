@@ -230,4 +230,39 @@ describe('C++ Backend Integration', () => {
     const res2 = runCPP(cpp, { input: { x: 1 } });
     expect(res2.res).toBe(null); // JSON null for missing optional
   });
+
+  it('should compile dynamic function dispatch (inlining)', () => {
+    // Tests if `let f = cond ? A : B; f()` works in C++ via full inlining/unrolling
+    const src = `
+      // Input: "mode" (number)
+      // Logic:
+      const add = (a: number) => a + 10;
+      const mul = (a: number) => a * 10;
+
+      let f = add;
+      if (input.mode > 0) {
+          f = mul;
+      }
+
+      return f(5);
+    `;
+    // If mode > 0: 5*10=50. Else 5+10=15.
+
+    // Globals/Inputs
+    const INPUT_TYPE = { kind: DataTypeKind.Struct, fields: { mode: NUMBER_TYPE } };
+
+    const ir = compileToIR(src, { input: INPUT_TYPE as any });
+    const cpp = generateCPP(ir, {
+      inputs: { input: INPUT_TYPE as any },
+      outputType: NUMBER_TYPE
+    });
+
+    // Case A: Mode 0 -> Add
+    const resA = runCPP(cpp, { input: { mode: 0 } });
+    expect(resA.res).toBe(15);
+
+    // Case B: Mode 1 -> Mul
+    const resB = runCPP(cpp, { input: { mode: 1 } });
+    expect(resB.res).toBe(50);
+  }, 15000);
 });

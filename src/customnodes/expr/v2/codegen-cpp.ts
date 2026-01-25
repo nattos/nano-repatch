@@ -1,4 +1,4 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
@@ -278,6 +278,15 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
         }).join(', ');
         return `{ ${elems} }`;
       }
+      if (typeof c.value === 'object' && c.value && !Array.isArray(c.value)) {
+        // Suppress unused function variables in C++.
+        // The compiler fully inlines these functions at call sites (e.g. via Phi-Lifting).
+        // However, the original `let f = ...` variable declaration might still exist in the IR as dead code.
+        // We emit a dummy '0' to allow `auto f = ...` to compile valid C++ (unused double), preventing build errors.
+
+        return '/* unused_function */ 0';
+      }
+
       return String(c.value);
     }
     case OpKind.Array: {
@@ -322,6 +331,16 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
         res += ` else {\n${elseB}\n${'    '.repeat(indent)}}`;
       }
       return res;
+    }
+    default: {
+      return `/* Unknown Op: ${(node as any).kind} */`;
+    }
+    case OpKind.Phi: {
+      const p = node as PhiNode;
+      const cond = emitNode(p.condition, indent, inputs);
+      const tVal = emitNode(p.trueValue, indent, inputs);
+      const fVal = emitNode(p.falseValue, indent, inputs);
+      return `((${cond}) ? (${tVal}) : (${fVal}))`;
     }
     case OpKind.Intrinsic: {
       const i = node as IntrinsicNode;

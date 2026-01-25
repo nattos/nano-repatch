@@ -204,15 +204,15 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
       if (funcVal) {
         if (funcVal.kind === OpKind.Phi) {
-          // Skip Phi dispatch implementation for brevity in restore (assume inlining works for Const)
-          // Actually, Phi dispatch is needed for Recursion exercises.
           const phi = funcVal as PhiNode;
+          // Recursively dispatch the call to each branch
           const dispatchPhi = (node: IRNode): IRNode | null => {
             if (node.kind === OpKind.Phi) {
               const p = node as PhiNode;
               const t = dispatchPhi(p.trueValue);
               const f = dispatchPhi(p.falseValue);
               if (!t || !f) return null;
+              // Check type compatibility?
               return { id: nextId(), kind: OpKind.Phi, type: t.type, condition: p.condition, trueValue: t, falseValue: f } as PhiNode;
             }
             if (node.kind === OpKind.Const && (node as ConstNode).value) {
