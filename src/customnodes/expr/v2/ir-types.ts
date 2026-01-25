@@ -125,7 +125,7 @@ export interface IntrinsicNode extends IRNode {
 
 export interface BinaryNode extends IRNode {
   kind: OpKind.Binary;
-  op: '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '<' | '>' | '<=' | '>=';
+  op: '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '<' | '>' | '<=' | '>=' | '&&' | '||';
   left: IRNode;
   right: IRNode;
 }

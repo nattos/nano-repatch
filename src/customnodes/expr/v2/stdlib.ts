@@ -257,7 +257,15 @@ instanceMethods.set('push', (ctx, call, args, obj, compile) => {
   } else if (obj.kind === OpKind.Const && Array.isArray((obj as ConstNode).value)) {
     constArr = (obj as ConstNode).value;
   } else {
-    return null;
+    // Runtime Push (Generic)
+    return {
+      id: `intr_push_${args.length}`,
+      kind: OpKind.Intrinsic,
+      type: NUMBER_TYPE,
+      library: 'Array',
+      method: 'push',
+      args: [obj, ...args]
+    } as IntrinsicNode;
   }
 
   for (const arg of args) {

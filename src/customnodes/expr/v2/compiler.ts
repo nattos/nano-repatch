@@ -445,6 +445,8 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           case ts.SyntaxKind.GreaterThanEqualsToken: op = '>='; break;
           case ts.SyntaxKind.EqualsEqualsToken: op = '=='; break;
           case ts.SyntaxKind.ExclamationEqualsToken: op = '!='; break;
+          case ts.SyntaxKind.AmpersandAmpersandToken: op = '&&'; break;
+          case ts.SyntaxKind.BarBarToken: op = '||'; break;
         }
         return { id: nextId(), kind: OpKind.Binary, type: NUMBER_TYPE, op, left, right } as BinaryNode;
       }
