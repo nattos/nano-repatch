@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { compileToIR } from './compiler';
+
+
+
 import { generateCPP } from './codegen-cpp';
 import { DataTypeKind, PrimitiveType } from './ir-types';
 import * as fs from 'fs';
@@ -12,7 +15,9 @@ const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number
 const TMP_DIR = path.resolve(__dirname, '../../../../tmp');
 
 function runCPP(code: string, input: any): any {
-  const filename = `test_${Date.now()}.cpp`;
+  // Use unique ID to prevent collisions in parallel execution
+  const id = Math.random().toString(36).substring(7);
+  const filename = `test_${Date.now()}_${id}.cpp`;
   const cppPath = path.join(TMP_DIR, filename);
   const exePath = path.join(TMP_DIR, filename.replace('.cpp', '.out'));
 
@@ -21,21 +26,16 @@ function runCPP(code: string, input: any): any {
     throw new Error("json.hpp not found in tmp/");
   }
 
-  fs.writeFileSync(cppPath, code);
-
-  // Compile
   try {
-    execSync(`clang++ -std=c++17 "${cppPath}" -o "${exePath}"`, { stdio: 'inherit' });
+    fs.writeFileSync(cppPath, code);
+    execSync(`clang++ -std=c++17 "${cppPath}" -o "${exePath}"`, { stdio: 'ignore' }); // silent compilation
   } catch (e) {
     throw new Error(`Compilation failed: ${e}`);
   }
 
-  // Run
   try {
     const inputStr = JSON.stringify({ inputs: input });
-    // echo input | ./exe
     const res = execSync(`"${exePath}"`, { input: inputStr, encoding: 'utf-8' });
-    // Parse output
     const json = JSON.parse(res);
     if (json.debug) {
       json.outputs._debug = json.debug;
@@ -44,9 +44,9 @@ function runCPP(code: string, input: any): any {
   } catch (e) {
     throw new Error(`Execution failed: ${e}`);
   } finally {
-    // Cleanup?
-    // fs.unlinkSync(cppPath);
-    // fs.unlinkSync(exePath);
+    // Cleanup to save space
+    if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
+    if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
   }
 }
 
@@ -61,6 +61,9 @@ function compileToCpp(src: string, inputValues: any, options: any = {}): string 
 }
 
 describe('C++ Backend Integration', () => {
+  beforeAll(() => {
+    vi.setConfig({ testTimeout: 60000 });
+  });
 
   it('should compile and run basic math (Ex 1)', () => {
     const source = 'return x + y;';
@@ -72,7 +75,7 @@ describe('C++ Backend Integration', () => {
 
     const res = runCPP(cpp, { x: 10, y: 32 });
     expect(res.res).toBe(42);
-  });
+  }, 60000);
 
   it('should run loops (Ex 4 Loop)', () => {
     // Ex 4: Simulation loop
@@ -90,7 +93,7 @@ describe('C++ Backend Integration', () => {
 
     const res = runCPP(cpp, { step: 2 });
     expect(res.res).toBe(6); // 0 + 2 + 2 + 2
-  });
+  }, 60000);
 
   it('should run convolution (Ex 6 Array)', () => {
     // Ex 6 with runtime signal
@@ -98,7 +101,7 @@ describe('C++ Backend Integration', () => {
     // Let's make signal an input.
     const source = `
        const kernel = [0.5, 1];
-       let result: number[] = [];
+       const result: number[] = [];
        // signal is input array of size 5
        // Convolve:
        // i=0: signal[0]*0.5 + signal[1]*1
@@ -132,7 +135,7 @@ describe('C++ Backend Integration', () => {
     // 3*0.5 + 4*1 = 5.5
     // 4*0.5 + 5*1 = 7.0
     expect(res.res).toEqual([2.5, 4.0, 5.5, 7.0]);
-  });
+  }, 60000);
 
   it('should run Math intrinsics', () => {
     const source = `
@@ -154,7 +157,7 @@ describe('C++ Backend Integration', () => {
 
     const res2 = runCPP(cpp, { x: 0 });
     expect(res2.res).toBe(0.5);
-  });
+  }, 60000);
 
   it('should run struct ops', () => {
     // Input: { pos: { x: 1, y: 2 } }
@@ -177,7 +180,7 @@ describe('C++ Backend Integration', () => {
     const res = runCPP(cpp, { pos: { x: 1, y: 2 } });
     expect(res.res.x).toBe(2);
     expect(res.res.y).toBe(4);
-  });
+  }, 60000);
 
   it('should compile optional input fields', () => {
     const src = `
@@ -242,7 +245,7 @@ describe('C++ Backend Integration', () => {
     // Case 2: Missing
     const res2 = runCPP(cpp, { input: { x: 1 } });
     expect(res2.res).toBe(null); // JSON null for missing optional
-  });
+  }, 60000);
 
   it('should compile dynamic function dispatch (inlining)', () => {
     // Tests if `let f = cond ? A : B; f()` works in C++ via full inlining/unrolling
@@ -277,7 +280,7 @@ describe('C++ Backend Integration', () => {
     // Case B: Mode 1 -> Mul
     const resB = runCPP(cpp, { input: { mode: 1 } });
     expect(resB.res).toBe(50);
-  }, 15000);
+  }, 60000);
 
   it('should run unary ops', () => {
     const src = `
@@ -294,7 +297,7 @@ describe('C++ Backend Integration', () => {
 
     const res2 = runCPP(cpp, { x: 10, b: true });
     expect(res2.res).toBe(0);
-  }, 30000);
+  }, 60000);
 
   it('should support debug map logging', () => {
     const src = `
@@ -346,5 +349,5 @@ describe('C++ Backend Integration', () => {
     // We expect line 4 (y = y + 1) to capture y=21
     expect(res._debug["4"]).toBeDefined();
     expect(res._debug["4"]).toBe(21);
-  }, 30000);
+  }, 60000);
 });

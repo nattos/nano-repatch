@@ -1,5 +1,7 @@
 import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode, WhileNode, BreakNode, SetPropNode, SetIndexNode } from './ir-types';
 
+const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
+
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
   outputType?: DataType; // Expected output type (or inferred)
@@ -216,7 +218,7 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
     lines.push('}');
   }
 
-  lines.push(`${retType} compute(const Input& input) {`);
+  lines.push(`${retType} compute(Input& input) {`);
   // Pass debug option recursively? Or global flag?
   // emitNode needs access to 'options.debug'.
   // I must pass options or 'debug' boolean to emitBlock/emitNode.
@@ -434,6 +436,12 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
         'abs': 'std::abs', 'sqrt': 'std::sqrt', 'log': 'std::log',
         'exp': 'std::exp', 'floor': 'std::floor', 'ceil': 'std::ceil', 'round': 'std::round'
       };
+      if (i.library === 'Array' && i.method === 'length') {
+        return `${emitNode(i.args[0], indent, options)}.size()`;
+      }
+      if (i.library === 'Array' && i.method === 'push') {
+        return `${emitNode(i.args[0], indent, options)}.push_back(${emitNode(i.args[1], indent, options)})`;
+      }
       if (simpleMaps[i.method]) {
         return `${simpleMaps[i.method]} (${emitNode(i.args[0], indent, options)})`;
       }
@@ -464,6 +472,11 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
     case OpKind.IndexAccess: {
       const p = node as any;
       return `${emitNode(p.object, indent, options)} [${emitNode(p.index, indent, options)}]`;
+    }
+    case OpKind.Block: {
+      const b = node as BlockNode;
+      const content = emitBlock(b, indent + 1, options);
+      return `{\n${content}\n${'    '.repeat(indent)}}`;
     }
     default:
       return `/* Unknown Op: ${node.kind} */`;

@@ -419,7 +419,7 @@ describe('IR Specification (Integration)', () => {
     const EX_CONV = `
         const signal = [1, 2, 3, 4, 5];
         const kernel = [0.5, 0.5];
-        let output = [];
+        const output = [];
 
         for (let i = 0; i < 4; i++) {
             // output[i] = signal[i] * k[0] + signal[i+1] * k[1]

@@ -45,9 +45,16 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
             type = init.type;
+
+            // Check if 'const' declaration
+            let isConst = false;
+            if (ts.isVariableDeclarationList(decl.parent)) {
+              isConst = !!(decl.parent.flags & ts.NodeFlags.Const);
+            }
+
             // For Array/Structs, bind to the Variable Name (VarNode) to allow mutation and L-Value usage.
-            // Constant folding them into values prevents assignment (e.g. {1,2}[0] = 5).
-            if (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct) {
+            // UNLESS it is a 'const' declaration, in which case we prefer optimization (Constant Folding).
+            if (!isConst && (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct)) {
               ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
             } else {
               ctx.scope.set(name, init);
@@ -59,7 +66,10 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         if (decl.initializer && !init) {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
-            if (init.type.kind === DataTypeKind.Array || init.type.kind === DataTypeKind.Struct) {
+            const flags = ts.getCombinedNodeFlags(decl);
+            const isConst = !!(flags & ts.NodeFlags.Const);
+
+            if (!isConst && (init.type.kind === DataTypeKind.Array || init.type.kind === DataTypeKind.Struct)) {
               ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type: init.type, name } as VarNode);
             } else {
               ctx.scope.set(name, init);
@@ -504,7 +514,26 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         }
       }
 
-      return { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: name } as PropAccessNode;
+      // Resolve Type if Struct
+      let type: DataType = ANY_TYPE;
+      if (obj.type.kind === DataTypeKind.Struct) {
+        const sType = obj.type as StructType;
+        if (sType.fields[name]) type = sType.fields[name];
+      }
+
+      // Handle Array.length
+      if (obj.type.kind === DataTypeKind.Array && name === 'length') {
+        return {
+          id: nextId(),
+          kind: OpKind.Intrinsic,
+          type: NUMBER_TYPE,
+          library: 'Array',
+          method: 'length',
+          args: [obj]
+        } as IntrinsicNode;
+      }
+
+      return { id: nextId(), kind: OpKind.PropAccess, type, object: obj, property: name } as PropAccessNode;
     }
 
     case ts.SyntaxKind.ElementAccessExpression: {
@@ -660,44 +689,79 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
     }
 
     case ts.SyntaxKind.ForStatement: {
-      // Loops need to exist!
       const loop = node as ts.ForStatement;
-      if (loop.initializer) compileNode(loop.initializer, ctx);
-      const statements: IRNode[] = [];
-      let loops = 0;
-      while (loops < 100) {
-        let condVal = true;
-        if (loop.condition) {
-          const cond = compileNode(loop.condition, ctx);
-          // console.error(`Loop ${loops} condition:`, cond?.kind, (cond as any)?.value);
-          if (!cond || cond.kind !== OpKind.Const) {
-            console.error("FAIL: Loop condition not constant", cond);
-            if (cond && cond.kind === OpKind.Binary) {
-              console.error("Binary Left:", (cond as any).left);
-              console.error("Binary Right:", (cond as any).right);
-            }
-            if (cond && cond.kind === OpKind.Var) {
-              console.error("Var:", (cond as any).name);
-              const val = ctx.scope.resolveValue((cond as any).name);
-              console.error("Resolved Var:", val);
-            }
-            throw new Error("Loop condition must be constant");
-          }
-          condVal = !!(cond as ConstNode).value;
-        }
-        if (!condVal) break;
+
+      // Prepare Scope for Loop Variables (e.g. let i = 0)
+      const parentScope = ctx.scope;
+      const loopScope = parentScope.extend(); // Use extend (nested) instead of fork (branch) to allow side-effects
+      ctx.scope = loopScope;
+
+      // 1. Compile Init
+      const init = loop.initializer ? compileNode(loop.initializer, ctx) : null;
+
+      // 2. Check Condition for Constness (First Pass)
+      let cond = loop.condition ? compileNode(loop.condition, ctx) : null;
+      const isConst = cond && cond.kind === OpKind.Const;
+
+      if (!isConst) {
+        // --- Runtime Loop Fallback ---
+
+        // Invalidate constants to force VarNode usage
+        ctx.scope.invalidateAll();
+
+        // Re-compile condition with invalidated scope
+        const rtCond = loop.condition ? compileNode(loop.condition, ctx) : { id: nextId(), kind: OpKind.Const, type: BOOLEAN_TYPE, value: true } as ConstNode;
         const body = compileNode(loop.statement, ctx);
+        const incr = loop.incrementor ? compileNode(loop.incrementor, ctx) : null;
+
+        const whileStmts: IRNode[] = [];
         if (body) {
-          if (body.kind === OpKind.Block) statements.push(...(body as BlockNode).statements);
-          else statements.push(body);
+          if (body.kind === OpKind.Block) whileStmts.push(...(body as BlockNode).statements);
+          else whileStmts.push(body);
         }
-        if (loop.incrementor) {
-          compileNode(loop.incrementor, ctx);
-          // console.error("Compiled incrementor");
+        if (incr) whileStmts.push(incr);
+
+        const whileNode: WhileNode = {
+          id: nextId(),
+          kind: OpKind.While,
+          type: VOID_TYPE,
+          condition: rtCond!,
+          body: { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: whileStmts } as BlockNode
+        };
+
+        const resultStmts: IRNode[] = [];
+        if (init) resultStmts.push(init);
+        resultStmts.push(whileNode);
+
+        ctx.scope = parentScope;
+        return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: resultStmts } as BlockNode;
+
+      } else {
+        // --- Unrolling Logic (Original) ---
+        // Note: init already compiled inside loopScope, but unrolling logic might ignore the IR node if relying on scope state.
+        // However, unrolling expects 'loops=0' start.
+        // Usually initializer 'let i = 0' sets 'i' in scope to '0'.
+
+        const statements: IRNode[] = [];
+
+        let loops = 0;
+        while (loops < 100) {
+          // Re-eval condition
+          const c = loop.condition ? compileNode(loop.condition, ctx) : null;
+          if (c && c.kind === OpKind.Const && !(c as ConstNode).value) break;
+
+          const body = compileNode(loop.statement, ctx);
+          if (body) {
+            statements.push(body);
+          }
+          if (loop.incrementor) {
+            compileNode(loop.incrementor, ctx);
+          }
+          loops++;
         }
-        loops++;
+        ctx.scope = parentScope;
+        return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements } as BlockNode;
       }
-      return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements } as BlockNode;
     }
   }
   return null;

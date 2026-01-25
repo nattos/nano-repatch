@@ -98,7 +98,15 @@ instanceMethods.set('push', (ctx, call, args, obj) => {
     arrVal.push(...pushedValues);
     return { id: 'push_ret', kind: OpKind.Const, type: NUMBER_TYPE, value: arrVal.length } as ConstNode;
   }
-  return null;
+  // Runtime push
+  return {
+    id: 'runtime_push',
+    kind: OpKind.Intrinsic,
+    type: NUMBER_TYPE,
+    library: 'Array',
+    method: 'push',
+    args: [obj, ...args]
+  } as IntrinsicNode;
 });
 
 // Array.map
