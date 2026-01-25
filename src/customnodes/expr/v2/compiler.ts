@@ -320,6 +320,8 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           }
         }
         if (funcDecl) return tryInlineFunc(funcDecl, call);
+
+        ctx.addError(`Unsupported dynamic dispatch or unresolved function: ${node.getText()}`, node);
         return null;
       }
 
