@@ -1,7 +1,8 @@
 import * as ts from "typescript";
 import {
   IRGraph, IRNode, OpKind, DataTypeKind, DataType, PrimitiveType,
-  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType, WhileNode, SetPropNode, SetIndexNode, DiagnosticSeverity
+  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType, WhileNode, SetPropNode, SetIndexNode, DiagnosticSeverity,
+  IndexAccessNode
 } from "./ir-types";
 import { Scope, CompilerContext, extractReturn } from "./scope";
 import { resolveGlobal, tryCompileStaticCall, tryCompileInstanceMethod } from "./stdlib";

@@ -395,8 +395,18 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
       let init = '';
-      if (d.init) init = ` = ${emitNode(d.init, indent, options)} `;
-      return `${typeToCpp(d.type || NUMBER_TYPE)} ${d.name}${init} `;
+      if (d.init) init = ` = ${emitNode(d.init, indent, options)}`;
+
+      let typeStr = typeToCpp(d.type || NUMBER_TYPE);
+      if (d.type && (d.type.kind === DataTypeKind.Struct || d.type.kind === DataTypeKind.Array)) {
+        if (d.init) {
+          const k = d.init.kind;
+          if (k === OpKind.Var || k === OpKind.IndexAccess || k === OpKind.PropAccess) {
+            typeStr += '&';
+          }
+        }
+      }
+      return `${typeStr} ${d.name}${init}`;
     }
     case OpKind.If: {
       const i = node as IfNode;

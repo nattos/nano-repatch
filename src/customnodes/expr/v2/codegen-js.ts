@@ -9,11 +9,10 @@ export interface CodeGenOptions {
 export function generateJS(ir: IRGraph, options: CodeGenOptions): string {
   const lines: string[] = [];
 
-  lines.push('function compute(input) {');
+  lines.push('function compute(input, debug_out) {');
 
   if (options.debug) {
-    lines.push('    const debug_log = {};');
-    lines.push('    function record_debug(line, val) { debug_log[line] = val; }');
+    lines.push('    function record_debug(line, val) { if(debug_out) debug_out[line] = val; }');
   }
 
   lines.push(emitBlock(ir.root as BlockNode, 1, options));
@@ -71,6 +70,7 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
         return `[${elems}]`;
       }
       if (typeof c.value === 'object') {
+        if ((c.value as any).node && (c.value as any).closure) return 'null /* Inlined Function */';
         return JSON.stringify(c.value);
       }
       return String(c.value);
