@@ -47,6 +47,16 @@ function runCPP(code: string, input: any): any {
   }
 }
 
+function compileToCpp(src: string, inputValues: any): string {
+  const inputs: Record<string, any> = {};
+  for (const k in inputValues) {
+    if (typeof inputValues[k] === 'number') inputs[k] = NUMBER_TYPE;
+    if (typeof inputValues[k] === 'boolean') inputs[k] = { kind: DataTypeKind.Primitive, name: 'boolean' };
+  }
+  const ir = compileToIR(src, inputs);
+  return generateCPP(ir, { inputs });
+}
+
 describe('C++ Backend Integration', () => {
 
   it('should compile and run basic math (Ex 1)', () => {
@@ -265,4 +275,21 @@ describe('C++ Backend Integration', () => {
     const resB = runCPP(cpp, { input: { mode: 1 } });
     expect(resB.res).toBe(50);
   }, 15000);
+
+  it('should run unary ops', () => {
+    const src = `
+        interface In { x: number; b: boolean; }
+        const neg = -x;
+        const notNull = !b;
+        if (notNull) return neg;
+        return 0;
+    `;
+    const cpp = compileToCpp(src, { x: 10, b: false });
+    // b is false -> notNull is true -> return neg (-10)
+    const res = runCPP(cpp, { x: 10, b: false });
+    expect(res.res).toBe(-10);
+
+    const res2 = runCPP(cpp, { x: 10, b: true });
+    expect(res2.res).toBe(0);
+  }, 30000);
 });

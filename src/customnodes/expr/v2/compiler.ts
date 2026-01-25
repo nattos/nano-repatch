@@ -320,13 +320,29 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
             return node.kind === ts.SyntaxKind.PrefixUnaryExpression ? nextNode : val;
           } else {
-            // Runtime increment not supported fully in this minimal Const folding compiler yet?
-            // Or generate OpKind.Binary + Assign?
-            // Let's stick to Const folding for unrolling first.
             console.warn("Runtime increment not supported in unrolling:", expr.getText());
           }
         }
       }
+
+      // Check for standard Unary Ops
+      let op = '';
+      if (expr.operator === ts.SyntaxKind.MinusToken) op = '-';
+      else if (expr.operator === ts.SyntaxKind.ExclamationToken) op = '!';
+      else if (expr.operator === ts.SyntaxKind.TildeToken) op = '~';
+
+      if (op) {
+        // Constant Folding
+        if (val.kind === OpKind.Const) {
+          const v = (val as ConstNode).value;
+          if (op === '-' && typeof v === 'number') return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: -v } as ConstNode;
+          if (op === '!' && (typeof v === 'boolean' || typeof v === 'number')) return { id: nextId(), kind: OpKind.Const, type: BOOLEAN_TYPE, value: !v } as ConstNode;
+          // Tilde usually number
+          if (op === '~' && typeof v === 'number') return { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: ~v } as ConstNode;
+        }
+        return { id: nextId(), kind: OpKind.Unary, type: val.type, op, operand: val } as any; // Cast as any if UnaryNode not imported yet locally
+      }
+
       return val;
     }
 
@@ -519,14 +535,19 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
       const parentScope = ctx.scope;
       const thenScope = parentScope.fork();
       ctx.scope = thenScope;
-      const thenBlock = compileNode(ifStmt.thenStatement, ctx) as BlockNode | null;
+      let thenRes = compileNode(ifStmt.thenStatement, ctx);
+      let thenBlock: BlockNode;
+      if (thenRes && thenRes.kind === OpKind.Block) thenBlock = thenRes as BlockNode;
+      else thenBlock = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: thenRes ? [thenRes] : [] } as BlockNode;
 
-      let elseBlock: BlockNode | null = null;
+      let elseBlock: BlockNode | undefined = undefined;
       if (ifStmt.elseStatement) {
         const elseScope = parentScope.fork();
         ctx.scope = elseScope;
         const e = compileNode(ifStmt.elseStatement, ctx);
-        elseBlock = e as BlockNode;
+        if (e && e.kind === OpKind.Block) elseBlock = e as BlockNode;
+        else elseBlock = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: e ? [e] : [] } as BlockNode;
+
         ctx.scope = parentScope;
         mergeScopes(parentScope, thenScope, elseScope, condition);
       } else {

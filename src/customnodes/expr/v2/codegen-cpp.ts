@@ -1,4 +1,4 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
@@ -153,7 +153,7 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   structs.forEach((structType, name) => {
     lines.push(`struct ${name} {`);
     for (const [fname, ftype] of Object.entries(structType.fields)) {
-      lines.push(`    ${typeToCpp(ftype)} ${fname};`);
+      lines.push(`    ${typeToCpp(ftype)} ${fname}{};`);
     }
     lines.push('};');
     lines.push(`void to_json(json& j, const ${name}& p) {`);
@@ -180,7 +180,7 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   // Input Struct
   lines.push('struct Input {');
   for (const [name, type] of Object.entries(options.inputs)) {
-    lines.push(`    ${typeToCpp(type)} ${name};`);
+    lines.push(`    ${typeToCpp(type)} ${name}{};`);
   }
   lines.push('};');
 
@@ -273,7 +273,10 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
       if (Array.isArray(c.value)) {
         // Vector initializer
         const elems = c.value.map(v => {
-          if (typeof v === 'number') return String(v);
+          if (typeof v === 'number') {
+            const s = String(v);
+            return s.includes('.') ? s : s + '.0';
+          }
           return emitNode({ kind: OpKind.Const, value: v } as any, indent, inputs); // Recurse hack?
         }).join(', ');
         return `{ ${elems} }`;
@@ -287,6 +290,10 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
         return '/* unused_function */ 0';
       }
 
+      if (typeof c.value === 'number') {
+        const s = String(c.value);
+        return s.includes('.') ? s : s + '.0';
+      }
       return String(c.value);
     }
     case OpKind.Array: {
@@ -334,6 +341,11 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
     }
     default: {
       return `/* Unknown Op: ${(node as any).kind} */`;
+    }
+    case OpKind.Unary: {
+      const u = node as UnaryNode;
+      const operand = emitNode(u.operand, indent, inputs);
+      return `(${u.op}${operand})`;
     }
     case OpKind.Phi: {
       const p = node as PhiNode;

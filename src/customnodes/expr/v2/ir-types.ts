@@ -147,6 +147,12 @@ export interface VarNode extends IRNode {
   kind: OpKind.Var;
   name: string;
 }
+
+export interface UnaryNode extends IRNode {
+  kind: OpKind.Unary;
+  op: '-' | '!' | '~';
+  operand: IRNode;
+}
 export interface AssignNode extends IRNode {
   kind: OpKind.Assign;
   target: string;
