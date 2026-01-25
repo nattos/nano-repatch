@@ -99,7 +99,9 @@ export enum OpKind {
   Phi = 'phi',
   Intrinsic = 'intrinsic',
   While = 'while',
-  Break = 'break'
+  Break = 'break',
+  SetProp = 'set_prop',
+  SetIndex = 'set_index'
 }
 
 export interface IRNode {
@@ -205,6 +207,20 @@ export interface WhileNode extends IRNode {
 
 export interface BreakNode extends IRNode {
   kind: OpKind.Break;
+}
+
+export interface SetPropNode extends IRNode {
+  kind: OpKind.SetProp;
+  object: IRNode;
+  property: string;
+  value: IRNode;
+}
+
+export interface SetIndexNode extends IRNode {
+  kind: OpKind.SetIndex;
+  object: IRNode;
+  index: IRNode;
+  value: IRNode;
 }
 
 export interface IRGraph {

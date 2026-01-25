@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import {
   IRGraph, IRNode, OpKind, DataTypeKind, DataType, PrimitiveType,
-  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType, WhileNode
+  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType, WhileNode, SetPropNode, SetIndexNode
 } from "./ir-types";
 import { Scope, CompilerContext, extractReturn } from "./scope";
 import { resolveGlobal, tryCompileStaticCall, tryCompileInstanceMethod } from "./stdlib";
@@ -45,15 +45,26 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
             type = init.type;
-            // Always set in scope for unrolling/evaluated values
-            ctx.scope.set(name, init);
+            // For Array/Structs, bind to the Variable Name (VarNode) to allow mutation and L-Value usage.
+            // Constant folding them into values prevents assignment (e.g. {1,2}[0] = 5).
+            if (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct) {
+              ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
+            } else {
+              ctx.scope.set(name, init);
+            }
           }
         }
 
         // Initializer compilation if type was from annotation but init exists
         if (decl.initializer && !init) {
           init = compileNode(decl.initializer, ctx) || undefined;
-          if (init) ctx.scope.set(name, init);
+          if (init) {
+            if (init.type.kind === DataTypeKind.Array || init.type.kind === DataTypeKind.Struct) {
+              ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type: init.type, name } as VarNode);
+            } else {
+              ctx.scope.set(name, init);
+            }
+          }
         }
         ctx.scope.declare(name, type);
         const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(decl.getStart());
@@ -237,14 +248,64 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
     case ts.SyntaxKind.BinaryExpression: {
       const expr = node as ts.BinaryExpression;
-      if (expr.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
-        if (expr.left.kind !== ts.SyntaxKind.Identifier) throw new Error("Assignment target must be an identifier");
-        const targetName = (expr.left as ts.Identifier).text;
-        const result = compileNode(expr.right, ctx);
-        if (!result) return null;
-        ctx.scope.assign(targetName, result);
-        const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(expr.getStart());
-        return { id: nextId(), kind: OpKind.Assign, type: VOID_TYPE, target: targetName, value: result, debugInfo: { line: line + 1 } } as AssignNode;
+      if (expr.operatorToken.kind === ts.SyntaxKind.EqualsToken || expr.operatorToken.kind === ts.SyntaxKind.PlusEqualsToken) {
+        const isCompound = expr.operatorToken.kind === ts.SyntaxKind.PlusEqualsToken;
+
+        // Compile Value (RHS)
+        let right = compileNode(expr.right, ctx);
+        if (!right) return null;
+
+        // Helper to get read value for compound op
+        const getReadValue = (lhsNode: IRNode): IRNode => {
+          // We need to construct (lhsNode + right)
+          // Note: lhsNode might be re-evaluated. Assuming safe for DSL usage (e.g. loops).
+          return { id: nextId(), kind: OpKind.Binary, type: NUMBER_TYPE, op: '+', left: lhsNode, right } as BinaryNode; // Assuming + for now
+        };
+
+        if (expr.left.kind === ts.SyntaxKind.Identifier) {
+          const targetName = (expr.left as ts.Identifier).text;
+          if (isCompound) {
+            // Resolve current value
+            const currentVal = ctx.scope.resolveValue(targetName);
+            // If not found, look up by name (VarNode)
+            const lhs = currentVal || { id: nextId(), kind: OpKind.Var, type: NUMBER_TYPE, name: targetName } as VarNode;
+            right = getReadValue(lhs);
+          }
+          ctx.scope.assign(targetName, right);
+          const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(expr.getStart());
+          return { id: nextId(), kind: OpKind.Assign, type: VOID_TYPE, target: targetName, value: right, debugInfo: { line: line + 1 } } as AssignNode;
+
+        } else if (expr.left.kind === ts.SyntaxKind.PropertyAccessExpression) {
+          const prop = expr.left as ts.PropertyAccessExpression;
+          const obj = compileNode(prop.expression, ctx);
+          if (!obj) return null;
+          const name = prop.name.text;
+
+          if (isCompound) {
+            // Synthesize Read: PropAccess(obj, name)
+            // NOTE: obj re-evaluation risk.
+            const readProp = { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: name } as PropAccessNode;
+            right = getReadValue(readProp);
+          }
+          return { id: nextId(), kind: OpKind.SetProp, type: VOID_TYPE, object: obj, property: name, value: right } as SetPropNode;
+
+        } else if (expr.left.kind === ts.SyntaxKind.ElementAccessExpression) {
+          const elem = expr.left as ts.ElementAccessExpression;
+          const obj = compileNode(elem.expression, ctx);
+          const index = compileNode(elem.argumentExpression, ctx);
+          if (!obj || !index) return null;
+
+          if (isCompound) {
+            // Synthesize Read: IndexAccess(obj, index)
+            // NOTE: obj/index re-evaluation risk.
+            const readIndex = { id: nextId(), kind: OpKind.IndexAccess, type: ANY_TYPE, object: obj, index } as any; // Cast/Ensure interface exists??
+            // IndexAccess interface exists but OpKind? Yes.
+            right = getReadValue(readIndex);
+          }
+          return { id: nextId(), kind: OpKind.SetIndex, type: VOID_TYPE, object: obj, index, value: right } as SetIndexNode;
+        } else {
+          throw new Error("Assignment target must be Identifier, Property, or Element access");
+        }
       }
       const left = compileNode(expr.left, ctx);
       const right = compileNode(expr.right, ctx);

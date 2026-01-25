@@ -1,4 +1,4 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode, WhileNode, BreakNode } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode, WhileNode, BreakNode, SetPropNode, SetIndexNode } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
@@ -319,12 +319,16 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
       if (typeof c.value === 'string') return `"${c.value}"`;
       if (typeof c.value === 'boolean') return c.value ? 'true' : 'false';
       if (Array.isArray(c.value)) {
-        const elems = c.value.map(v => {
+        let elemType: DataType | undefined = undefined;
+        if (c.type && c.type.kind === DataTypeKind.Array) {
+          elemType = (c.type as any).elementType;
+        }
+        const elems = c.value.map((v: any) => {
           if (typeof v === 'number') {
             const s = String(v);
             return s.includes('.') ? s : s + '.0';
           }
-          return emitNode({ kind: OpKind.Const, value: v } as any, indent, options);
+          return emitNode({ kind: OpKind.Const, type: elemType, value: v } as any, indent, options);
         }).join(', ');
         return `{ ${elems} } `;
       }
@@ -448,6 +452,14 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
     case OpKind.PropAccess: {
       const p = node as PropAccessNode;
       return `${emitNode(p.object, indent, options)}.${p.property} `;
+    }
+    case OpKind.SetProp: {
+      const sp = node as SetPropNode;
+      return `${emitNode(sp.object, indent, options)}.${sp.property} = ${emitNode(sp.value, indent, options)} `;
+    }
+    case OpKind.SetIndex: {
+      const si = node as SetIndexNode;
+      return `${emitNode(si.object, indent, options)}[${emitNode(si.index, indent, options)}] = ${emitNode(si.value, indent, options)} `;
     }
     case OpKind.IndexAccess: {
       const p = node as any;
