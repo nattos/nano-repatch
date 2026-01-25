@@ -11,8 +11,8 @@ export interface CodeGenOptions {
 // Helper to generate canonical name for structural types
 function getStructName(type: StructType): string {
   if (type.name) return type.name;
-  // Canonical name based on sorted fields
-  const keys = Object.keys(type.fields).sort();
+  // Canonical name based on fields (User Order)
+  const keys = Object.keys(type.fields);
   return `Struct_${keys.join('_')}`;
 }
 
@@ -155,6 +155,7 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   // 3. Define Types and Serialization
   structs.forEach((structType, name) => {
     lines.push(`struct ${name} {`);
+
     for (const [fname, ftype] of Object.entries(structType.fields)) {
       lines.push(`    ${typeToCpp(ftype)} ${fname}{};`);
     }
@@ -338,7 +339,7 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
         if (c.type.kind === DataTypeKind.Struct) {
           const sType = c.type as StructType;
           const name = getStructName(sType);
-          const keys = Object.keys(sType.fields).sort();
+          const keys = Object.keys(sType.fields);
           // Value is a JS object { r: 0, i: 0 }
           const valObj = c.value as any;
           const args = keys.map(k => {
@@ -453,7 +454,9 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
     case OpKind.Struct: {
       const s = node as StructNode;
       const name = getStructName(s.type as StructType);
-      const keys = Object.keys(s.fields).sort();
+      // Use definition order from type to ensure C++ brace init matches struct layout
+      const st = s.type as StructType;
+      const keys = Object.keys(st.fields);
       const args = keys.map(k => emitNode(s.fields[k], indent, options)).join(', ');
       return `${name} {${args} } `;
     }
