@@ -92,34 +92,37 @@ describe('Bouncing Balls Simulation', () => {
         }
         return balls;
     `;
-    // NOTE: In JS `let b = balls[i]` copies the object reference, so `b.x += ...` modifies the array.
-    // In C++ (generated), `b` might be a copy (value semantics for structs).
-    // If our compiler emits `auto b = balls[i]`, it is a COPY.
-    // To support reference semantics, we need `let b` to be `&b` (unsupported yet?)
-    // OR simply `balls[i].x += ...` directly.
-    // Let's rewrite simulation to use direct array access for now, OR write-back.
-    // "b.x += ..."
+
 
     const directSrc = `
-        const width = 100.0;
+    const width = 100.0;
 
-        for (let i = 0; i < balls.length; i++) {
-           // Direct Access Mutation
-           balls[i].x += balls[i].vx * dt;
-           balls[i].y += balls[i].vy * dt;
+    for (let i = 0; i < balls.length; i++) {
+      let b = balls[i]; // Should be aliased reference now!
 
-           if (balls[i].x < 0.0) {
-               balls[i].x = 0.0;
-               balls[i].vx = -balls[i].vx;
-           }
-           if (balls[i].x > width) {
-               balls[i].x = width;
-               balls[i].vx = -balls[i].vx;
-           }
-        }
-        return balls;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      // Bounce X
+      if (b.x > width) {
+        b.x = width;
+        b.vx = -b.vx;
+      } else if (b.x < 0) {
+        b.x = 0;
+        b.vx = -b.vx;
+      }
+
+      // Bounce Y (Simplified ceiling check only for demo?)
+      // Original logic was just y < 0 check?
+      // Let's copy roughly logical checks.
+      // Actually let's assume floor bounce.
+      if (b.y < 0) {
+        b.y = 0;
+        b.vy = -b.vy;
+      }
+    }
+    return balls;
     `;
-
     const inputs = {
       dt: 0.1,
       balls: [
@@ -140,7 +143,7 @@ describe('Bouncing Balls Simulation', () => {
     const b1 = balls[1];
 
     // b0: 10 + 50*0.1 = 15.
-    console.error(`Simulation Result: b0.x=${b0.x}, b1.x=${b1.x}, b1.vx=${b1.vx}`);
+    console.error(`Simulation Result: b0.x = ${b0.x}, b1.x = ${b1.x}, b1.vx = ${b1.vx} `);
     expect(b0.x).toBeCloseTo(15, 1);
 
     // b1: 99 + 5 = 104. > 100.

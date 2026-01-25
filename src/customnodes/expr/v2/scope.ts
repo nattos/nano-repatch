@@ -5,6 +5,7 @@ import * as ts from 'typescript';
 export class Scope {
   private variables = new Map<string, DataType>();
   public values = new Map<string, IRNode | undefined>();
+  public aliases = new Map<string, IRNode>(); // Reference Aliases
   private functions = new Map<string, ts.FunctionDeclaration>();
 
   constructor(public parent: Scope | null = null, public isBranchScope: boolean = false) { }
@@ -31,6 +32,7 @@ export class Scope {
     // Types should likely be public or accessible.
     // I'll update types to be public or use accessor?
     // Actually, snapshot method is inside class, so it can access private 'types'.
+    copy.aliases = new Map(this.aliases);
 
     if (this.parent) {
       copy.parent = this.parent.snapshot();
@@ -78,6 +80,12 @@ export class Scope {
   resolveValue(name: string): IRNode | undefined {
     if (this.values.has(name)) return this.values.get(name);
     if (this.parent) return this.parent.resolveValue(name);
+    return undefined;
+  }
+
+  resolveAlias(name: string): IRNode | undefined {
+    if (this.aliases.has(name)) return this.aliases.get(name);
+    if (this.parent) return this.parent.resolveAlias(name);
     return undefined;
   }
 

@@ -81,27 +81,8 @@ describe('Stress Tests & Advanced Features', () => {
                     sum = sum + a_val * b_val;
                 }
                 // Write back to C?
-                // Our current array support is naive. C[i][j] assignment might need support.
-                // Or we can construct rows.
-                // Let's try direct assignment if supported, or rebuilding rows.
-                // Arrays in our IR are immutable structures usually?
-                // Wait, "Map/Reduce" produced new arrays.
-                // "Push" mutated constant arrays.
-                // Indexed assignment (C[i][j] = ...) is harder if C is a Value.
-                // If C is a variable holding a reference to a Mutable Array...
-                // In our compiler, Arrays are CONST VALUES if possible.
-                // We don't support "C[i][j] = val" on ConstNodes in the IR directly yet.
-                // But we can support it in the Unroller!
-
-                // Workaround: Use 1D array for C and push?
-                // Or implementing Indexed Assignment support in Unroller.
-                // Let's try 1D flat array construction for simplicity of verifying "Logic",
-                // or assume we add support for indexed assign.
-
-                // Let's assume we implement indexed assignment to constant arrays.
-                // C[i][j] = sum;
-                // But C is [[0,0], [0,0]].
-                // C[i] is [0,0]. C[i][j] is 0.
+                // Our current array support is naive.
+                // We just compute.
             }
         }
 

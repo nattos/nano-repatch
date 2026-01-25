@@ -39,53 +39,72 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         const name = (decl.name as ts.Identifier).text;
         let init: IRNode | undefined;
         let type: DataType = { kind: DataTypeKind.Any };
+
+        const flags = ts.getCombinedNodeFlags(decl);
+        const isConst = !!(flags & ts.NodeFlags.Const);
+
         if (decl.type) {
           type = resolveType(decl.type, ctx);
         } else if (decl.initializer) {
           init = compileNode(decl.initializer, ctx) || undefined;
           if (init) {
             type = init.type;
-
-            // Check if 'const' declaration
-            let isConst = false;
-            if (ts.isVariableDeclarationList(decl.parent)) {
-              isConst = !!(decl.parent.flags & ts.NodeFlags.Const);
-            }
-
-            // For Array/Structs, bind to the Variable Name (VarNode) to allow mutation and L-Value usage.
-            // UNLESS it is a 'const' declaration, in which case we prefer optimization (Constant Folding).
-            if (!isConst && (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct)) {
-              ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
-            } else {
-              ctx.scope.set(name, init);
-            }
           }
         }
 
-        // Initializer compilation if type was from annotation but init exists
+        // Initializer compilation if type was from annotation but init exists (and not processed above)
         if (decl.initializer && !init) {
           init = compileNode(decl.initializer, ctx) || undefined;
-          if (init) {
-            const flags = ts.getCombinedNodeFlags(decl);
-            const isConst = !!(flags & ts.NodeFlags.Const);
+          // Only infer type from initializer if NOT explicitly annotated
+          if (init && !decl.type) type = init.type;
+        }
 
-            if (!isConst && (init.type.kind === DataTypeKind.Array || init.type.kind === DataTypeKind.Struct)) {
-              ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type: init.type, name } as VarNode);
-            } else {
-              ctx.scope.set(name, init);
-            }
+        // Aliasing Logic for 'let' (mutable) variables initialized with L-Values
+        if (init && !isConst && (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct)) {
+          // Check if init is an L-Value Expression (Reference)
+          // Var, PropAccess, IndexAccess
+          // Also if init is an Alias (Identifier that resolved to Alias), it is already an IRNode of that kind.
+          const isLValue = init.kind === OpKind.Var ||
+            init.kind === OpKind.PropAccess ||
+            init.kind === OpKind.IndexAccess ||
+            init.kind === OpKind.SetIndex || // Chain assignment? No.
+            init.kind === OpKind.SetProp; // Chain?
+
+          // Also special case: If init is loop variable? VarNode.
+
+          if (isLValue) {
+            // Register Alias
+            ctx.scope.aliases.set(name, init);
+            ctx.scope.declare(name, type); // Declare type but no VarDecl
+            return; // SKIP emitting VarDecl
           }
         }
+
+        // Standard Handling
+        if (init) {
+          if (!isConst && (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct)) {
+            ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
+          } else {
+            ctx.scope.set(name, init);
+          }
+        }
+
         ctx.scope.declare(name, type);
         const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(decl.getStart());
         decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init, debugInfo: { line: line + 1 } } as VarDeclNode);
       });
+      if (decls.length === 0) return null; // No emissions (all aliased)
       if (decls.length === 1) return decls[0];
       return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: decls } as BlockNode;
     }
 
     case ts.SyntaxKind.Identifier: {
       const name = (node as ts.Identifier).text;
+
+      // Check Alias
+      const alias = ctx.scope.resolveAlias(name);
+      if (alias) return { ...alias }; // Shallow copy
+
       const val = ctx.scope.resolveValue(name);
       if (val) return val;
       const func = ctx.scope.resolveFunction(name);
@@ -199,10 +218,36 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
             result = compileNode(targetFunc.body, ctx);
           } else {
             const bodyBlock = targetFunc.body as ts.Block;
+            const statements: IRNode[] = [];
             for (const stmt of bodyBlock.statements) {
               const compiledStmt = compileNode(stmt, ctx);
+              if (compiledStmt) statements.push(compiledStmt);
               const ret = extractReturn(compiledStmt);
-              if (ret) { result = ret; break; }
+              if (ret) {
+                result = ret;
+                // If we have side effects before return, we need to preserve them.
+                // But 'result' (Expression) is not a Block.
+                // Only if we return BlockNode do we preserve statements.
+                // If result is found, we assume it's the value.
+                // BUT side effects must run!
+                // Current compiler assumes pure expressions usually.
+                // For 'modify(s)', result is null.
+                break;
+              }
+            }
+            if (!result && statements.length > 0) {
+              // Void function with side effects -> Return Block
+              result = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements } as BlockNode;
+            } else if (result && statements.length > 1) {
+              // Side effects + Return -> Block?
+              // Return BlockNode but how to represent return value?
+              // C++: ({ stmt; stmt; val; }) ?
+              // Or if usage is Statement context, Block is fine.
+              // If usage is Expression context, we lose side effects unless we handle 'BlockExpression'.
+              // For now, let's assume void functions return Block, value functions return Value.
+              // If value function has side effects (stmt before return), we might lose them here
+              // unless we implement Statement Expression.
+              // But specifically for 'modify(s)' references (void function side effects), Block is correct.
             }
           }
         }
