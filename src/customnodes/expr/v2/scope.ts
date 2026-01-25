@@ -53,6 +53,11 @@ export class Scope {
 
   // Recursive Assignment Logic
   assign(name: string, value: IRNode) {
+    // Invalidate alias if being reassigned
+    if (this.aliases.has(name)) {
+      this.aliases.delete(name);
+    }
+
     if (this.values.has(name)) {
       this.values.set(name, value);
       return;

@@ -364,6 +364,9 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
               const readProp = { id: nextId(), kind: OpKind.PropAccess, type: ANY_TYPE, object: obj, property: name } as PropAccessNode;
               right = getReadValue(readProp);
             }
+            if (obj.kind === OpKind.Phi) {
+              ctx.addWarning('Mutation of Phi value: Reference origin is ambiguous due to control flow.', node);
+            }
             return { id: nextId(), kind: OpKind.SetProp, type: VOID_TYPE, object: obj, property: name, value: right } as SetPropNode;
 
           } else if (expr.left.kind === ts.SyntaxKind.ElementAccessExpression) {
@@ -378,6 +381,9 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
               const readIndex = { id: nextId(), kind: OpKind.IndexAccess, type: ANY_TYPE, object: obj, index } as any; // Cast/Ensure interface exists??
               // IndexAccess interface exists but OpKind? Yes.
               right = getReadValue(readIndex);
+            }
+            if (obj.kind === OpKind.Phi) {
+              ctx.addWarning('Mutation of Phi value: Reference origin is ambiguous due to control flow. Mutation will apply to audio-rate copy, not original source.', node);
             }
             return { id: nextId(), kind: OpKind.SetIndex, type: VOID_TYPE, object: obj, index, value: right } as SetIndexNode;
           } else {
@@ -625,29 +631,13 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           }
         }
 
-        return { id: nextId(), kind: OpKind.IndexAccess, type: ANY_TYPE, object: obj, index } as any;
-        // Using PropAccess for now or creating generic call?
-        // IR Types has 'PropAccess'. Does it support dynamic index? No, 'property' key is string.
-        // We might need an 'IndexAccess' OpKind or 'ArrayAccess'.
-        // For now, let's leave runtime indexing as limitation or map to Intrinsic?
-        // "Intrinsic: Array.get"?
-        // Ex 6 uses `signal[i-1]`.
-        // If `i` is loop variable, it's Const during unrolling.
-        // So Constant Folding path will hit.
-        // We just need to ensure `index` folds to Const.
+        // Infer Type
+        let type: DataType = ANY_TYPE;
+        if (obj.type.kind === DataTypeKind.Array) {
+          type = (obj.type as any).elementType || ANY_TYPE;
+        }
 
-        // If not constant index, we can't represent it with PropAccess(string).
-        // We need OpKind.ArrayAccess?
-        // IR Types: ArrayNode, StructNode... No ArrayAccess.
-        // Maybe use Intrinsic?
-        return {
-          id: nextId(),
-          kind: OpKind.Intrinsic,
-          type: ANY_TYPE,
-          library: 'Array',
-          method: 'get',
-          args: [obj, index]
-        } as IntrinsicNode;
+        return { id: nextId(), kind: OpKind.IndexAccess, type, object: obj, index } as IndexAccessNode;
       }
 
       case ts.SyntaxKind.InterfaceDeclaration: {
@@ -904,14 +894,14 @@ function mergeScopes(parent: Scope, branchA: Scope, branchB: Scope, condition: I
   // implementation
   const distinctKeys = new Set([...branchA.values.keys(), ...branchB.values.keys()]);
   for (const key of distinctKeys) {
-    const valA = branchA.values.get(key) || parent.resolveValue(key);
-    const valB = branchB.values.get(key) || parent.resolveValue(key);
+    const valA = branchA.values.get(key) || parent.resolveValue(key) || parent.resolveAlias(key);
+    const valB = branchB.values.get(key) || parent.resolveValue(key) || parent.resolveAlias(key);
     if (valA && valB && valA !== valB) {
       if (valA.kind === OpKind.Const && valB.kind === OpKind.Const && (valA as ConstNode).value === (valB as ConstNode).value) {
         parent.assign(key, valA);
         continue;
       }
-      const parentVal = parent.resolveValue(key);
+      const parentVal = parent.resolveValue(key) || parent.resolveAlias(key);
       if (valA === parentVal && valB === parentVal) continue;
       const phi: PhiNode = { id: nextId(), kind: OpKind.Phi, type: valA.type, condition, trueValue: valA, falseValue: valB };
       parent.assign(key, phi);
@@ -922,7 +912,7 @@ function mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
   const keys = new Set([...branchA.values.keys()]);
   for (const key of keys) {
     const valA = branchA.values.get(key)!;
-    const parentVal = parent.resolveValue(key);
+    const parentVal = parent.resolveValue(key) || parent.resolveAlias(key);
     if (valA !== parentVal && parentVal) {
       const phi: PhiNode = { id: nextId(), kind: OpKind.Phi, type: valA.type, condition, trueValue: valA, falseValue: parentVal };
       parent.assign(key, phi);
