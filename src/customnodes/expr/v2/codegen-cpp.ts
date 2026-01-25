@@ -1,4 +1,4 @@
-import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode } from './ir-types';
+import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, BinaryNode, ConstNode, VarNode, VarDeclNode, AssignNode, ReturnNode, IntrinsicNode, ArrayNode, StructNode, PropAccessNode, PrimitiveType, IndexAccessNode, StructType, PhiNode, UnaryNode, WhileNode, BreakNode } from './ir-types';
 
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
@@ -272,7 +272,7 @@ function emitBlock(block: BlockNode, indent: number, options: CodeGenOptions): s
   for (const stmt of block.statements) {
     const code = emitNode(stmt, indent, options);
     if (code) {
-      if (stmt.kind === OpKind.If || stmt.kind === OpKind.Block || stmt.kind === OpKind.VarDecl) {
+      if (stmt.kind === OpKind.If || stmt.kind === OpKind.Block || stmt.kind === OpKind.VarDecl || stmt.kind === OpKind.While) {
         if (options.debug && stmt.kind === OpKind.VarDecl) {
           lines.push(`${spaces}${code}; `);
           const d = stmt as VarDeclNode;
@@ -328,7 +328,33 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
         }).join(', ');
         return `{ ${elems} } `;
       }
-      if (typeof c.value === 'object' && c.value && !Array.isArray(c.value)) return '/* unused_function */ 0';
+      if (typeof c.value === 'object' && c.value && !Array.isArray(c.value)) {
+        if (c.type.kind === DataTypeKind.Struct) {
+          const sType = c.type as StructType;
+          const name = getStructName(sType);
+          const keys = Object.keys(sType.fields).sort();
+          // Value is a JS object { r: 0, i: 0 }
+          const valObj = c.value as any;
+          const args = keys.map(k => {
+            // We need to emit the field value.
+            // Recursively emit const?
+            // Helper: typeToCpp(valObj[k])? No, we need value string.
+            // We can synthesize a ConstNode?
+            // Or simple recursion if we assume primitives?
+            // Let's use emitNode with a synthetic ConstNode used for recursion.
+            // NOTE: We need correct type for the field.
+            // Field type is in sType.fields[k].
+            return emitNode({
+              kind: OpKind.Const,
+              type: sType.fields[k],
+              value: valObj[k],
+              id: 'const_inner'
+            } as any, indent, options);
+          }).join(', ');
+          return `${name}{${args}}`;
+        }
+        return '/* unused_function */ 0';
+      }
       if (typeof c.value === 'number') {
         const s = String(c.value);
         return s.includes('.') ? s : s + '.0';
@@ -388,6 +414,13 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
       const fVal = emitNode(p.falseValue, indent, options);
       return `((${cond}) ? (${tVal}) : (${fVal}))`;
     }
+    case OpKind.While: {
+      const w = node as WhileNode;
+      const cond = emitNode(w.condition, indent, options);
+      const body = emitBlock(w.body, indent + 1, options);
+      return `while (${cond}) {\n${body}\n${'    '.repeat(indent)}}`;
+    }
+    case OpKind.Break: return 'break';
     case OpKind.Intrinsic: {
       const i = node as IntrinsicNode;
       // ... Intrinsic Helper needs recursion ...

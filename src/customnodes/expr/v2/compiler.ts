@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import {
   IRGraph, IRNode, OpKind, DataTypeKind, DataType, PrimitiveType,
-  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType
+  VarDeclNode, VarNode, BlockNode, IfNode, ReturnNode, BinaryNode, ConstNode, AssignNode, ArrayNode, StructNode, PropAccessNode, PhiNode, IntrinsicNode, StructType, WhileNode
 } from "./ir-types";
 import { Scope, CompilerContext, extractReturn } from "./scope";
 import { resolveGlobal, tryCompileStaticCall, tryCompileInstanceMethod } from "./stdlib";
@@ -322,7 +322,23 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
 
             return node.kind === ts.SyntaxKind.PrefixUnaryExpression ? nextNode : val;
           } else {
-            console.warn("Runtime increment not supported in unrolling:", expr.getText());
+            // Runtime Increment Fallback
+            const op = (expr.operator === ts.SyntaxKind.PlusPlusToken) ? '+' : '-';
+            const one = { id: nextId(), kind: OpKind.Const, type: NUMBER_TYPE, value: 1 } as ConstNode;
+            // val is the operand (VarNode)
+            const bin = { id: nextId(), kind: OpKind.Binary, type: NUMBER_TYPE, op, left: val, right: one } as BinaryNode;
+
+            // Assign back
+            const assign = { id: nextId(), kind: OpKind.Assign, type: VOID_TYPE, target: name, value: bin, debugInfo: val.debugInfo } as AssignNode;
+            // Update scope to point to result of assignment (BinaryNode) for subsequent uses
+            // Actually, AssignNode -> void.
+            // We should map name -> bin (the result).
+            // But 'assign' node is the statement.
+            // If used as expression, we need to return 'val' (old) or 'bin' (new).
+            // For now return AssignNode (statement).
+            ctx.scope.assign(name, bin);
+
+            return assign;
           }
         }
       }
@@ -514,6 +530,28 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         type: ANY_TYPE,
         value: { node: func, closure: ctx.scope.snapshot() }
       } as ConstNode;
+    }
+
+    case ts.SyntaxKind.BreakStatement:
+      return { id: nextId(), kind: OpKind.Break, type: VOID_TYPE } as any;
+
+    case ts.SyntaxKind.WhileStatement: {
+      const w = node as ts.WhileStatement;
+      // Invalidate scopes BEFORE condition, because loop backedge affects values.
+      ctx.scope.invalidateAll();
+
+      const cond = compileNode(w.expression, ctx);
+      if (!cond) return null;
+
+      const bodyRes = compileNode(w.statement, ctx);
+      let body: BlockNode;
+      if (bodyRes && bodyRes.kind === OpKind.Block) body = bodyRes as BlockNode;
+      else body = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: bodyRes ? [bodyRes] : [] } as BlockNode;
+
+      // Invalidate again after loop
+      ctx.scope.invalidateAll();
+
+      return { id: nextId(), kind: OpKind.While, type: VOID_TYPE, condition: cond, body } as WhileNode;
     }
 
     case ts.SyntaxKind.ReturnStatement: {

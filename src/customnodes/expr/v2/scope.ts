@@ -4,7 +4,7 @@ import * as ts from 'typescript';
 // Scope Definitions
 export class Scope {
   private variables = new Map<string, DataType>();
-  public values = new Map<string, IRNode>();
+  public values = new Map<string, IRNode | undefined>();
   private functions = new Map<string, ts.FunctionDeclaration>();
 
   constructor(public parent: Scope | null = null, public isBranchScope: boolean = false) { }
@@ -76,9 +76,19 @@ export class Scope {
   }
 
   resolveValue(name: string): IRNode | undefined {
-    if (this.values.has(name)) return this.values.get(name)!;
+    if (this.values.has(name)) return this.values.get(name);
     if (this.parent) return this.parent.resolveValue(name);
     return undefined;
+  }
+
+  invalidateAll() {
+    let current: Scope | null = this;
+    while (current) {
+      for (const k of current.variables.keys()) {
+        this.values.set(k, undefined);
+      }
+      current = current.parent;
+    }
   }
 
   resolveFunction(name: string): ts.FunctionDeclaration | null {

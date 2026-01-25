@@ -97,7 +97,9 @@ export enum OpKind {
   PropAccess = 'prop_access',
   IndexAccess = 'index_access',
   Phi = 'phi',
-  Intrinsic = 'intrinsic'
+  Intrinsic = 'intrinsic',
+  While = 'while',
+  Break = 'break'
 }
 
 export interface IRNode {
@@ -193,6 +195,16 @@ export interface VarDeclNode extends IRNode {
   kind: OpKind.VarDecl;
   name: string;
   init?: IRNode;
+}
+
+export interface WhileNode extends IRNode {
+  kind: OpKind.While;
+  condition: IRNode;
+  body: BlockNode;
+}
+
+export interface BreakNode extends IRNode {
+  kind: OpKind.Break;
 }
 
 export interface IRGraph {
