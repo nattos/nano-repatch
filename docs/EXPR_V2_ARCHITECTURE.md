@@ -59,6 +59,29 @@ The system now includes a robust C++ code generator (`codegen-cpp.ts`) targeting
 *   **Null Safety**: `null` and `undefined` are treated as valid `PrimitiveType`s, often wrapped in `UnionType`. The compiler enforces strict checking where C++ would require it (e.g., no implicit `optional + number`).
 
 
+
+### 9. C++ Backend & Memory Model
+
+The system now lowers IR to C++ 17, with specific attention to memory management and performance.
+
+#### Reference Tracking (Aliasing)
+To bridge the gap between TS Reference Semantics and C++ Value Semantics, we implemented **Compiler-Level Aliasing**.
+*   **Problem**: `let b = balls[i]` compiles to `auto b = balls[i]` (Copy) in C++. Modifying `b.x` fails to update the array.
+*   **Solution**: The compiler detects L-Value initialization (`let b = balls[i]`). It registers `b` as an **Alias** in the Scope instead of emitting a variable. All subsequent usages of `b` are inlined as `balls[i]`.
+*   **Propagation**: Aliases propagate across function calls. `modify(b)` becomes `modify(balls[i])`. Inlined void functions preserve side effects in place.
+
+#### Struct Layout & Packing
+We enforce **Deterministic Struct Layout** matching the TypeScript definition order.
+*   **Old Behavior**: Fields were sorted alphabetically (`center, color, radius` -> `center, color, radius`).
+*   **New Behavior**: Fields respect insertion order (`center, radius, color`).
+*   **Why**: This matches user intent and allows careful padding/alignment for C++ interop.
+
+#### Void Function Side Effects
+Function inlining (`tryInlineFunc`) was upgraded to support imperative side effects.
+*   **Issue**: Void functions returning `null` were initially treated as "no-op" expressions, dropping their body statements.
+*   **Fix**: Inlined void functions now emit a `BlockNode` containing their statements, ensuring mutations (like `p.x += 20` inside a helper) are preserved in the generated C++.
+
+
 ## Known Pitfalls & Limitations
 
 1.  **Infinite Loops**: If the loop condition depends on a runtime variable (not a constant), the unroller will crash or hang (currently capped at 100 iterations).

@@ -1,4 +1,4 @@
-import { IRNode, DataType, OpKind, ConstNode, PhiNode, BlockNode, ReturnNode } from './ir-types';
+import { IRNode, DataType, OpKind, ConstNode, PhiNode, BlockNode, ReturnNode, Diagnostic, DiagnosticSeverity } from './ir-types';
 import * as ts from 'typescript';
 
 // Scope Definitions
@@ -29,9 +29,6 @@ export class Scope {
     copy.variables = new Map(this.variables);
     copy.functions = new Map(this.functions);
     copy.types = new Map(this.types);
-    // Types should likely be public or accessible.
-    // I'll update types to be public or use accessor?
-    // Actually, snapshot method is inside class, so it can access private 'types'.
     copy.aliases = new Map(this.aliases);
 
     if (this.parent) {
@@ -106,28 +103,9 @@ export class Scope {
   }
 
   static merge(parent: Scope, branchA: Scope, branchB: Scope, condition: IRNode): void {
-    // Logic for merging... (Must be duplicated or moved here)
-    // Since this class is getting big, moving it is good.
-    // Copying merge logic from compiler.ts...
-
-    const distinctKeys = new Set([...branchA.values.keys(), ...branchB.values.keys()]);
-    let nodeIdCounter = 0; // Local counter if needed? No, use external nextId?
-    // Wait, 'nextId' is in compiler.ts.
-    // Scope.merge creates PhiNodes. It needs nextId.
-    // We can pass a closure or generator for nextId.
-    // Or we define nextId in ir-types or utils?
-    // Or Scope.merge doesn't generate IDs? It generates PhiNodes.
-
-    // Refactor: Move merge logic to compiler.ts as a standalone function?
-    // Or keep static method in Scope but accept idGenerator.
-
-    // Let's defer moving `merge` and `mergeOneWay` unless necessary.
-    // `Scope` class itself doesn't need them if they are static helpers using Scope public API.
-    // But they modify `parent`.
-
-    // Let's disable them here and move them to compiler.ts as separate functions to avoid dependencies?
-    // `Scope` definition is enough. `merge` can be `mergeScopes(parent, a, b, cond)`.
+    // Intentionally empty for now (logic externalized)
   }
+
   // Type Registry
   public types = new Map<string, DataType>();
 
@@ -144,9 +122,56 @@ export class Scope {
 
 export class CompilerContext {
   public scope: Scope;
+  public diagnostics: Diagnostic[] = [];
+  public depth: number = 0;
+
+  // Configurable limit
+  public maxDepth: number = 500;
+
   constructor(public sourceFile: ts.SourceFile) {
     this.scope = new Scope();
   }
+
+  addDiagnostic(message: string, severity: DiagnosticSeverity, node?: ts.Node | IRNode) {
+    let range;
+    if (node && (node as any).getStart) {
+      // TS Node
+      const tsNode = node as ts.Node;
+      const start = this.sourceFile.getLineAndCharacterOfPosition(tsNode.getStart());
+      const end = this.sourceFile.getLineAndCharacterOfPosition(tsNode.getEnd());
+      range = {
+        startLineNumber: start.line + 1,
+        startColumn: start.character + 1,
+        endLineNumber: end.line + 1,
+        endColumn: end.character + 1
+      };
+    } else if (node && (node as any).debugInfo) {
+      // IR Node (limited info)
+      const line = (node as any).debugInfo.line;
+      range = {
+        startLineNumber: line,
+        startColumn: 1,
+        endLineNumber: line,
+        endColumn: 1
+      };
+    }
+
+    this.diagnostics.push({
+      message,
+      severity,
+      source: 'compiler',
+      range
+    });
+  }
+
+  addError(message: string, node?: ts.Node | IRNode) {
+    this.addDiagnostic(message, DiagnosticSeverity.Error, node);
+  }
+
+  addWarning(message: string, node?: ts.Node | IRNode) {
+    this.addDiagnostic(message, DiagnosticSeverity.Warning, node);
+  }
+
   pushScope() {
     this.scope = this.scope.extend();
   }

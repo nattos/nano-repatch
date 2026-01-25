@@ -223,6 +223,44 @@ export interface SetIndexNode extends IRNode {
   value: IRNode;
 }
 
+// --- Diagnostics ---
+
+export enum DiagnosticSeverity {
+  Error = 'error',
+  Warning = 'warning',
+  Information = 'info',
+  Hint = 'hint'
+}
+
+export interface Diagnostic {
+  message: string;
+  severity: DiagnosticSeverity;
+  source: string; // e.g. 'ts-parser', 'compiler', 'clang'
+  code?: number | string;
+  file?: string;
+  range?: {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  };
+  relatedInformation?: DiagnosticRelatedInformation[];
+}
+
+export interface DiagnosticRelatedInformation {
+  location?: {
+    file: string;
+    range: {
+      startLineNumber: number;
+      startColumn: number;
+      endLineNumber: number;
+      endColumn: number;
+    };
+  };
+  message: string;
+}
+
 export interface IRGraph {
   root: IRNode;
+  diagnostics?: Diagnostic[];
 }
