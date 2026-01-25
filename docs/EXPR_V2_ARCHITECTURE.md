@@ -45,6 +45,20 @@ Method calls (`arr.map`, `Math.sin`) are handled via a plugin system:
 *   **Array Methods**: `map` and `reduce` support unrolling over both `ConstNode` arrays (literals) and `ArrayNode` (IR inputs), generating parallel IR chains.
 *   **Array Mutation**: `push` is supported in unrolled contexts for building lists found in `ForStatement` bodies, provided the target is a tracked `ConstNode` (JS Array).
 
+### 7. C++ Backend & Code Generation
+The system now includes a robust C++ code generator (`codegen-cpp.ts`) targeting C++17.
+*   **Pipeline**: `TS -> IR -> C++`.
+*   **Structs**: Logic-defined interfaces (`interface Vector { x: number }`) are compiled into C++ `struct` definitions with `nlohmann/json` serialization macros.
+*   **Optionals**: `T | null` / `T | undefined` in IR maps to `std::optional<T>`.
+*   **Serialization**: Uses manual `from_json` implementations to safely handle missing optional fields (`if (j.contains("x")) ...`), ensuring robust Input handling.
+*   **Intrinsics**: Maps `Math.sin`, `floor`, etc., to their `std::` equivalents (`<cmath>`).
+
+### 8. Type System Extensions
+*   **Structs**: Fully supported via namespaced `Scope.declareType`. Anonymous object literals `{ x: 1 }` are inferred as ad-hoc structs.
+*   **Scope & Types**: The `Scope` class now maintains a Type Registry, allowing recursive resolution of named types (interfaces) across scopes.
+*   **Null Safety**: `null` and `undefined` are treated as valid `PrimitiveType`s, often wrapped in `UnionType`. The compiler enforces strict checking where C++ would require it (e.g., no implicit `optional + number`).
+
+
 ## Known Pitfalls & Limitations
 
 1.  **Infinite Loops**: If the loop condition depends on a runtime variable (not a constant), the unroller will crash or hang (currently capped at 100 iterations).
