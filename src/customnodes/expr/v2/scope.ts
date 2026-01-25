@@ -126,7 +126,7 @@ export class Scope {
 
 export class CompilerContext {
   public scope: Scope;
-  constructor() {
+  constructor(public sourceFile: ts.SourceFile) {
     this.scope = new Scope();
   }
   pushScope() {

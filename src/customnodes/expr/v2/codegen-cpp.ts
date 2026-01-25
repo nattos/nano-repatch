@@ -3,6 +3,7 @@ import { IRGraph, IRNode, OpKind, DataType, DataTypeKind, BlockNode, IfNode, Bin
 export interface CodeGenOptions {
   inputs: Record<string, DataType>; // Map of input names to types
   outputType?: DataType; // Expected output type (or inferred)
+  debug?: boolean; // Enable debug source map logging
 }
 
 // Helper to generate canonical name for structural types
@@ -202,13 +203,29 @@ export function generateCPP(ir: IRGraph, options: CodeGenOptions): string {
   let retType = 'auto';
   if (options.outputType) retType = typeToCpp(options.outputType);
 
+  // Debug Scaffolding
+  if (options.debug) {
+    lines.push('json debug_log = json::object();');
+    lines.push('template <typename T> auto to_debug_json(const T& v) { return v; }');
+    lines.push('template <typename T> auto to_debug_json(const std::vector<T>& v) {');
+    lines.push('    if (v.size() > 4) return std::vector<T>(v.begin(), v.begin() + 4);');
+    lines.push('    return v;');
+    lines.push('}');
+    lines.push('template <typename T> void record_debug(int line, const T& val) {');
+    lines.push('    debug_log[std::to_string(line)] = to_debug_json(val);');
+    lines.push('}');
+  }
+
   lines.push(`${retType} compute(const Input& input) {`);
-  lines.push(emitBlock(ir.root as BlockNode, 1, options.inputs));
+  // Pass debug option recursively? Or global flag?
+  // emitNode needs access to 'options.debug'.
+  // I must pass options or 'debug' boolean to emitBlock/emitNode.
+  // Currently emitBlock takes (block, indent, inputs).
+  // I need to refactor emitBlock signature or bind it.
+  // I'll update emitBlock signature below.
+  lines.push(emitBlock(ir.root as BlockNode, 1, options));
   lines.push('}');
   lines.push('');
-
-  // 5. Output Struct? Or just serialization logic.
-  // If we return a single value, we just output { "res": val }
 
   // 6. Main Harness
   lines.push(`
@@ -229,8 +246,13 @@ int main() {
 
         json j_out;
         j_out["outputs"] = { {"res", res} };
-        std::cout << j_out.dump(4) << std::endl;
+`);
+  if (options.debug) {
+    lines.push('        j_out["debug"] = debug_log;');
+  }
+  lines.push(`        std::cout << j_out.dump(4) << std::endl;`);
 
+  lines.push(`
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;
@@ -242,28 +264,54 @@ int main() {
   return lines.join('\n');
 }
 
-function emitBlock(block: BlockNode, indent: number, inputs: Record<string, DataType>): string {
+
+function emitBlock(block: BlockNode, indent: number, options: CodeGenOptions): string {
   const lines: string[] = [];
   const spaces = '    '.repeat(indent);
 
   for (const stmt of block.statements) {
-    const code = emitNode(stmt, indent, inputs); // Pass indent to emitNode
+    const code = emitNode(stmt, indent, options);
     if (code) {
-      // If the code contains newlines (like for if statements),
-      // we need to indent each line.
-      // Otherwise, just prepend spaces.
-      if (code.includes('\n')) {
-        lines.push(code.split('\n').map((line, idx) => (idx === 0 ? spaces : spaces) + line).join('\n'));
+      if (stmt.kind === OpKind.If || stmt.kind === OpKind.Block || stmt.kind === OpKind.VarDecl) {
+        if (options.debug && stmt.kind === OpKind.VarDecl) {
+          lines.push(`${spaces}${code}; `);
+          const d = stmt as VarDeclNode;
+          if (d.debugInfo) lines.push(`${spaces} record_debug(${d.debugInfo.line}, ${d.name}); `);
+        } else {
+          lines.push(code.includes('\n') ? code.split('\n').map((line, idx) => (idx === 0 ? spaces : spaces) + line).join('\n') : `${spaces}${code}${stmt.kind === OpKind.VarDecl ? ';' : ''} `);
+          // If VarDecl (not block/if), it needs semicolon if not provided?
+          // Actually my prev logic was: `lines.push((stmt.kind === OpKind.If || OpKind.Block) ? code : `${spaces}${code};`); `
+          // VarDecl emits `type name = val`. It needs semicolon.
+          // If statement had logic: if (If/Block) push(code) else push(`${ code }; `).
+          // So VarDecl fell into `else `?
+          // Checking prev code line 280: `lines.push(`${spaces}${code}; `); `
+          // So VarDecl was in the semicolon bucket.
+          // But my "ReplacementContent" logic for `If` check was: `stmt.kind === OpKind.If || stmt.kind === OpKind.Block || stmt.kind === OpKind.VarDecl`.
+          // If I put VarDecl in the "no semicolon added" bucket, I must ensure `emitNode` adds it OR `emitBlock` logic handles it manually.
+          // Best to keep standard logic:
+          // If Block/If: code covers it.
+          // Else: append ;
+        }
       } else {
-        lines.push(`${spaces}${code};`);
+        // Assign, Return, Expr
+        if (code.includes('\n')) { // e.g. multi-line struct init?
+          lines.push(code.split('\n').map((line, idx) => (idx === 0 ? spaces : spaces) + line).join('\n') + ';');
+        } else {
+          lines.push(`${spaces}${code}; `);
+        }
+        // Debug logic for Assign
+        if (options.debug && stmt.kind === OpKind.Assign) {
+          const a = stmt as AssignNode;
+          if (a.debugInfo) lines.push(`${spaces} record_debug(${a.debugInfo.line}, ${a.target}); `);
+        }
       }
     }
   }
-
   return lines.join('\n');
 }
 
-function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>): string {
+function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string {
+  const inputs = options.inputs;
   switch (node.kind) {
     case OpKind.Const: {
       const c = node as ConstNode;
@@ -271,25 +319,16 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
       if (typeof c.value === 'string') return `"${c.value}"`;
       if (typeof c.value === 'boolean') return c.value ? 'true' : 'false';
       if (Array.isArray(c.value)) {
-        // Vector initializer
         const elems = c.value.map(v => {
           if (typeof v === 'number') {
             const s = String(v);
             return s.includes('.') ? s : s + '.0';
           }
-          return emitNode({ kind: OpKind.Const, value: v } as any, indent, inputs); // Recurse hack?
+          return emitNode({ kind: OpKind.Const, value: v } as any, indent, options);
         }).join(', ');
-        return `{ ${elems} }`;
+        return `{ ${elems} } `;
       }
-      if (typeof c.value === 'object' && c.value && !Array.isArray(c.value)) {
-        // Suppress unused function variables in C++.
-        // The compiler fully inlines these functions at call sites (e.g. via Phi-Lifting).
-        // However, the original `let f = ...` variable declaration might still exist in the IR as dead code.
-        // We emit a dummy '0' to allow `auto f = ...` to compile valid C++ (unused double), preventing build errors.
-
-        return '/* unused_function */ 0';
-      }
-
+      if (typeof c.value === 'object' && c.value && !Array.isArray(c.value)) return '/* unused_function */ 0';
       if (typeof c.value === 'number') {
         const s = String(c.value);
         return s.includes('.') ? s : s + '.0';
@@ -298,112 +337,90 @@ function emitNode(node: IRNode, indent: number, inputs: Record<string, DataType>
     }
     case OpKind.Array: {
       const a = node as ArrayNode;
-      const elems = a.elements.map(e => emitNode(e, indent, inputs)).join(', ');
-      return `{ ${elems} }`; // std::vector initializer
+      const elems = a.elements.map(e => emitNode(e, indent, options)).join(', ');
+      return `{ ${elems} } `;
     }
     case OpKind.Var: {
       const v = node as VarNode;
-      if (inputs[v.name]) return `input.${v.name}`;
+      if (inputs[v.name]) return `input.${v.name} `;
       return v.name;
     }
     case OpKind.Binary: {
       const b = node as BinaryNode;
-      const left = emitNode(b.left, indent, inputs);
-      const right = emitNode(b.right, indent, inputs);
+      const left = emitNode(b.left, indent, options);
+      const right = emitNode(b.right, indent, options);
       return `(${left} ${b.op} ${right})`;
     }
     case OpKind.Return: {
       const r = node as ReturnNode;
-      return `return ${emitNode(r.value, indent, inputs)}`;
-      // Note: return is a statement, not expression.
-      // emitNode returns string. If statement, we add semi-colon in emitBlock.
+      return `return ${emitNode(r.value, indent, options)} `;
     }
     case OpKind.Assign: {
       const a = node as AssignNode;
-      return `${a.target} = ${emitNode(a.value, indent, inputs)}`;
+      return `${a.target} = ${emitNode(a.value, indent, options)} `;
     }
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
       let init = '';
-      if (d.init) init = ` = ${emitNode(d.init, indent, inputs)}`;
-      return `${typeToCpp(d.type as any || { kind: DataTypeKind.Primitive, name: 'number' })} ${d.name}${init}`;
+      if (d.init) init = ` = ${emitNode(d.init, indent, options)} `;
+      return `${typeToCpp(d.type || NUMBER_TYPE)} ${d.name}${init} `;
     }
     case OpKind.If: {
       const i = node as IfNode;
-      const cond = emitNode(i.condition, indent, inputs);
-      const thenB = emitBlock(i.thenBlock, indent + 1, inputs);
-      let res = `if (${cond}) {\n${thenB}\n${'    '.repeat(indent)}}`;
+      const cond = emitNode(i.condition, indent, options);
+      const thenB = emitBlock(i.thenBlock, indent + 1, options);
+      let res = `if (${cond}) { \n${thenB} \n${'    '.repeat(indent)} } `;
       if (i.elseBlock) {
-        const elseB = emitBlock(i.elseBlock, indent + 1, inputs);
-        res += ` else {\n${elseB}\n${'    '.repeat(indent)}}`;
+        const elseB = emitBlock(i.elseBlock, indent + 1, options);
+        res += ` else { \n${elseB} \n${'    '.repeat(indent)} } `;
       }
       return res;
     }
-    default: {
-      return `/* Unknown Op: ${(node as any).kind} */`;
-    }
     case OpKind.Unary: {
       const u = node as UnaryNode;
-      const operand = emitNode(u.operand, indent, inputs);
+      const operand = emitNode(u.operand, indent, options);
       return `(${u.op}${operand})`;
     }
     case OpKind.Phi: {
       const p = node as PhiNode;
-      const cond = emitNode(p.condition, indent, inputs);
-      const tVal = emitNode(p.trueValue, indent, inputs);
-      const fVal = emitNode(p.falseValue, indent, inputs);
+      const cond = emitNode(p.condition, indent, options);
+      const tVal = emitNode(p.trueValue, indent, options);
+      const fVal = emitNode(p.falseValue, indent, options);
       return `((${cond}) ? (${tVal}) : (${fVal}))`;
     }
     case OpKind.Intrinsic: {
       const i = node as IntrinsicNode;
-      if (i.library === 'Math') {
-        // Simple 1-arg mapping
-        const simpleMaps: Record<string, string> = {
-          'sin': 'std::sin', 'cos': 'std::cos', 'tan': 'std::tan',
-          'abs': 'std::abs', 'sqrt': 'std::sqrt', 'log': 'std::log',
-          'exp': 'std::exp', 'floor': 'std::floor', 'ceil': 'std::ceil',
-          'round': 'std::round'
-        };
-        if (simpleMaps[i.method]) {
-          const arg = emitNode(i.args[0], indent, inputs);
-          return `${simpleMaps[i.method]}(${arg})`;
-        }
-        // 2-arg mapping
-        if (i.method === 'pow') {
-          const base = emitNode(i.args[0], indent, inputs);
-          const exp = emitNode(i.args[1], indent, inputs);
-          return `std::pow(${base}, ${exp})`;
-        }
-        if (i.method === 'min') {
-          // std::min requires same type or template args.
-          // std::min(a, b)
-          const a = emitNode(i.args[0], indent, inputs);
-          const b = emitNode(i.args[1], indent, inputs);
-          return `std::min(${a}, ${b})`;
-        }
-        if (i.method === 'max') {
-          const a = emitNode(i.args[0], indent, inputs);
-          const b = emitNode(i.args[1], indent, inputs);
-          return `std::max(${a}, ${b})`;
-        }
+      // ... Intrinsic Helper needs recursion ...
+      // I'll inline the simple map logic for brevity in replace
+      const simpleMaps: Record<string, string> = {
+        'sin': 'std::sin', 'cos': 'std::cos', 'tan': 'std::tan',
+        'abs': 'std::abs', 'sqrt': 'std::sqrt', 'log': 'std::log',
+        'exp': 'std::exp', 'floor': 'std::floor', 'ceil': 'std::ceil', 'round': 'std::round'
+      };
+      if (simpleMaps[i.method]) {
+        return `${simpleMaps[i.method]} (${emitNode(i.args[0], indent, options)})`;
       }
-      return `/* Unknown Intrinsic: ${i.library}.${i.method} */`;
+      if (i.method === 'pow') return `std:: pow(${emitNode(i.args[0], indent, options)}, ${emitNode(i.args[1], indent, options)})`;
+      if (i.method === 'min') return `std:: min(${emitNode(i.args[0], indent, options)}, ${emitNode(i.args[1], indent, options)})`;
+      if (i.method === 'max') return `std:: max(${emitNode(i.args[0], indent, options)}, ${emitNode(i.args[1], indent, options)})`;
+      return `/* Unknown Intrinsic */`;
     }
     case OpKind.Struct: {
       const s = node as StructNode;
       const name = getStructName(s.type as StructType);
       const keys = Object.keys(s.fields).sort();
-      const args = keys.map(k => emitNode(s.fields[k], indent, inputs)).join(', ');
-      return `${name}{${args}}`;
+      const args = keys.map(k => emitNode(s.fields[k], indent, options)).join(', ');
+      return `${name} {${args} } `;
     }
     case OpKind.PropAccess: {
       const p = node as PropAccessNode;
-      return `${emitNode(p.object, indent, inputs)}.${p.property}`;
+      return `${emitNode(p.object, indent, options)}.${p.property} `;
     }
     case OpKind.IndexAccess: {
-      const p = node as any; // IndexAccessNode
-      return `${emitNode(p.object, indent, inputs)}[${emitNode(p.index, indent, inputs)}]`;
+      const p = node as any;
+      return `${emitNode(p.object, indent, options)} [${emitNode(p.index, indent, options)}]`;
     }
+    default:
+      return `/* Unknown Op: ${node.kind} */`;
   }
-  return `/* Unknown Op: ${node.kind} */`;
 }

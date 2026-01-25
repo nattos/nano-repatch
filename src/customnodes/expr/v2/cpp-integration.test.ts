@@ -37,6 +37,9 @@ function runCPP(code: string, input: any): any {
     const res = execSync(`"${exePath}"`, { input: inputStr, encoding: 'utf-8' });
     // Parse output
     const json = JSON.parse(res);
+    if (json.debug) {
+      json.outputs._debug = json.debug;
+    }
     return json.outputs;
   } catch (e) {
     throw new Error(`Execution failed: ${e}`);
@@ -47,14 +50,14 @@ function runCPP(code: string, input: any): any {
   }
 }
 
-function compileToCpp(src: string, inputValues: any): string {
+function compileToCpp(src: string, inputValues: any, options: any = {}): string {
   const inputs: Record<string, any> = {};
   for (const k in inputValues) {
     if (typeof inputValues[k] === 'number') inputs[k] = NUMBER_TYPE;
     if (typeof inputValues[k] === 'boolean') inputs[k] = { kind: DataTypeKind.Primitive, name: 'boolean' };
   }
   const ir = compileToIR(src, inputs);
-  return generateCPP(ir, { inputs });
+  return generateCPP(ir, { inputs, ...options });
 }
 
 describe('C++ Backend Integration', () => {
@@ -291,5 +294,57 @@ describe('C++ Backend Integration', () => {
 
     const res2 = runCPP(cpp, { x: 10, b: true });
     expect(res2.res).toBe(0);
+  }, 30000);
+
+  it('should support debug map logging', () => {
+    const src = `
+        interface In { x: number; }
+        let y = x * 2;
+        y = y + 1;
+        return y;
+    `;
+    // Lines:
+    // 2: let y = x * 2;
+    // 3: y = y + 1;
+    const cpp = compileToCpp(src, { x: 10 }, { debug: true });
+    const res = runCPP(cpp, { x: 10 });
+    expect(res.res).toBe(21);
+    expect(res._debug).toBeDefined();
+    // Keys are string line numbers.
+    // Line numbers from TS are 0-based +1.
+    // `let y = ...` is on line 2 (index 1? No, logic adds +1).
+    // string template starts with newline. So first line matches empty line.
+    // Line 2 is `interface In ...`.
+    // Line 3 is `let y = ...`.
+    // Line 4 is `y = y + 1`.
+    // Wait, source string:
+    // `
+    //         interface In ...
+    //         let y ...
+    // `
+    // Row 0: ""
+    // Row 1: "        interface ..."
+    // Row 2: "        let y = x * 2;"
+    // Row 3: "        y = y + 1;"
+    // So distinct lines:
+    // 3: 20
+    // 4: 21
+
+    // Actually, expecting usage of "3" and "4".
+    // Note: C++ json keys are strings.
+    // Just check existence of keys logic.
+    // console.log("Debug Log:", res._debug);
+    const keys = Object.keys(res._debug);
+    expect(keys.length).toBeGreaterThan(0);
+    // Rough check
+    // expect(res._debug[keys[0]]).toBeDefined();
+
+    // We expect line 3 (let y = ...) to capture y=20
+    expect(res._debug["3"]).toBeDefined();
+    expect(res._debug["3"]).toBe(20);
+
+    // We expect line 4 (y = y + 1) to capture y=21
+    expect(res._debug["4"]).toBeDefined();
+    expect(res._debug["4"]).toBe(21);
   }, 30000);
 });

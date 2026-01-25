@@ -56,7 +56,8 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           if (init) ctx.scope.set(name, init);
         }
         ctx.scope.declare(name, type);
-        decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init } as VarDeclNode);
+        const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(decl.getStart());
+        decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init, debugInfo: { line: line + 1 } } as VarDeclNode);
       });
       if (decls.length === 1) return decls[0];
       return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: decls } as BlockNode;
@@ -242,7 +243,8 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         const result = compileNode(expr.right, ctx);
         if (!result) return null;
         ctx.scope.assign(targetName, result);
-        return { id: nextId(), kind: OpKind.Assign, type: VOID_TYPE, target: targetName, value: result } as AssignNode;
+        const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(expr.getStart());
+        return { id: nextId(), kind: OpKind.Assign, type: VOID_TYPE, target: targetName, value: result, debugInfo: { line: line + 1 } } as AssignNode;
       }
       const left = compileNode(expr.left, ctx);
       const right = compileNode(expr.right, ctx);
@@ -694,7 +696,7 @@ function mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
 
 export function compileToIR(source: string, globals: Record<string, DataType> = {}): IRGraph {
   const sourceFile = ts.createSourceFile("script.ts", source, ts.ScriptTarget.Latest, true);
-  const ctx = new CompilerContext();
+  const ctx = new CompilerContext(sourceFile);
 
   // Register Globals/Inputs
   for (const [name, type] of Object.entries(globals)) {

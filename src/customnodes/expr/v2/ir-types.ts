@@ -104,6 +104,7 @@ export interface IRNode {
   id: string;
   kind: OpKind;
   type: DataType;
+  debugInfo?: { line: number };
 }
 
 export interface ConstNode extends IRNode {
