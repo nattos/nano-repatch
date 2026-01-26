@@ -142,7 +142,7 @@ function emitBlock(block: BlockNode, indent: number, options: WGSLGenOptions): s
   for (const stmt of block.statements) {
     if (stmt.kind === OpKind.Return) {
       const r = stmt as ReturnNode;
-      let valCode = emitNode(r.value, options);
+      let valCode = emitNode(r.value, options, options.outputType);
 
       // Heuristic: If we are returning a Boolean to an f32 output, cast it.
       // This is needed because 'select(0,1,bool)' is how we output booleans to storage buffers.
@@ -173,21 +173,33 @@ function emitBlock(block: BlockNode, indent: number, options: WGSLGenOptions): s
   return lines.join('\n');
 }
 
-function emitVal(val: any, type: DataType, options: WGSLGenOptions): string {
-  if (typeof val === 'number') {
-    const s = String(val);
+function emitVal(value: any, type: DataType, options: WGSLGenOptions, expectedType?: DataType): string {
+  if (expectedType && expectedType.kind === type.kind) {
+    // Prefer expectedType if it has a name and current type doesn't
+    if (type.kind === DataTypeKind.Struct) {
+      const sType = type as StructType;
+      const eType = expectedType as StructType;
+      if (!sType.name && eType.name) {
+        type = eType;
+      }
+    }
+    // Arrays?
+  }
+
+  if (typeof value === 'number') {
+    const s = String(value);
     return s.includes('.') ? s : s + '.0';
   }
-  if (typeof val === 'boolean') return String(val);
-  if (Array.isArray(val)) {
+  if (typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
     const inner = (type as any).elementType;
-    const args = val.map((v: any) => emitVal(v, inner, options)).join(', ');
+    const args = value.map((v: any) => emitVal(v, inner, options, inner)).join(', ');
     return `${typeToWGSL(type)}(${args})`;
   }
-  if (typeof val === 'object' && val !== null && type.kind === DataTypeKind.Struct) {
+  if (typeof value === 'object' && value !== null && type.kind === DataTypeKind.Struct) {
     const name = getStructName(type as StructType);
     const keys = Object.keys((type as StructType).fields).sort();
-    const args = keys.map(k => emitVal(val[k], (type as StructType).fields[k], options)).join(', ');
+    const args = keys.map(k => emitVal(value[k], (type as StructType).fields[k], options, (type as StructType).fields[k])).join(', ');
     return `${name}(${args})`;
   }
   return '0.0';
@@ -247,7 +259,7 @@ function emitValueAsBool(node: IRNode, options: WGSLGenOptions): string {
   return `(${emitNode(node, options)} != 0.0)`;
 }
 
-function emitNode(node: IRNode, options: WGSLGenOptions): string {
+function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType): string {
   switch (node.kind) {
     case OpKind.Const: {
       const c = node as ConstNode;
@@ -258,7 +270,7 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
       if (typeof c.value === 'boolean') return String(c.value);
       // Objects/Arrays
       if (typeof c.value === 'object' || Array.isArray(c.value)) {
-        return emitVal(c.value, c.type, options);
+        return emitVal(c.value, c.type, options, expectedType);
       }
       return '0.0';
     }
@@ -304,13 +316,13 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
       let typeStr = typeToWGSL(d.type || { kind: DataTypeKind.Primitive, name: 'number' } as any);
-      let init = d.init ? ` = ${emitNode(d.init, options)}` : '';
+      let init = d.init ? ` = ${emitNode(d.init, options, d.type)}` : '';
       // If init is boolean and target is f32 (e.g. inferred from 'number'), we should cast?
       // But VarDecl type comes from TS inference which might say 'boolean | number'.
       // For now, trust emitNode or rely on WGSL error if types mismatch,
       // OR upgrade VarDecl to auto-cast init if type is f32.
       if (d.type && (d.type as PrimitiveType).name === 'number' && d.init && isBooleanExpr(d.init, options)) {
-        init = ` = select(0.0, 1.0, ${emitNode(d.init, options)})`;
+        init = ` = select(0.0, 1.0, ${emitNode(d.init, options, d.type)})`;
       }
       return `var ${safeName(d.name)} : ${typeStr}${init}`;
     }
@@ -340,15 +352,28 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
     }
     case OpKind.Struct: {
       const s = node as StructNode;
-      const name = getStructName(s.type as StructType);
-      const keys = Object.keys((s.type as StructType).fields).sort();
-      const args = keys.map(k => emitNode(s.fields[k], options)).join(', ');
-      return `${name}(${args})`;
+      let type = s.type;
+      if (expectedType && expectedType.kind === DataTypeKind.Struct) {
+        const eType = expectedType as StructType;
+        if (!(type as StructType).name && eType.name) type = eType;
+      }
+
+      const typeName = getStructName(type as StructType);
+      if (!typeName) return '/* Anonymous Struct */'; // Should not happen with getStructName
+
+      const fieldValues = Object.keys((type as StructType).fields).sort().map(k => {
+        // We need to match fields?
+        // Assuming s.fields has matching content.
+        // Ideally we sort by key to match Struct Definition order (alphabetical in codegen).
+        if (s.fields[k]) return emitNode(s.fields[k], options, (type as StructType).fields[k]);
+        return '0'; // Missing field?
+      });
+      return `${typeName}(${fieldValues.join(', ')})`;
     }
     case OpKind.Array: {
       const a = node as ArrayNode;
       const type = typeToWGSL(a.type);
-      return `${type}(${a.elements.map(e => emitNode(e, options)).join(', ')})`;
+      return `${type}(${a.elements.map(e => emitNode(e, options, (a.type as any).elementType)).join(', ')})`;
     }
     case OpKind.Break: return 'break;';
     default: return `/* Unknown ${node.kind} */`;

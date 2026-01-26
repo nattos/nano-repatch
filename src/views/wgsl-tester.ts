@@ -120,13 +120,13 @@ export class WGSLTester extends MobxLitElement {
 
       if (!navigator.gpu) {
         this.output += '\nWebGPU not supported in this browser.';
-        return;
+        return 'Error: WebGPU not supported';
       }
 
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) {
         this.output += '\nNo adapter found.';
-        return;
+        return 'Error: No adapter found';
       }
       const device = await adapter.requestDevice();
 
@@ -142,7 +142,7 @@ export class WGSLTester extends MobxLitElement {
         }
         if (hadError) {
           this.output += '\n\nShader Compilation Failed. Aborting.';
-          return;
+          return `Error: Shader Compilation Failed\nLogs:\n${this.output}\n\nCode:\n${this.wgslCode}`;
         }
       }
 
@@ -241,10 +241,19 @@ export class WGSLTester extends MobxLitElement {
       }
 
       readBuffer.unmap();
+      return `Success: ${JSON.stringify(resValue)}`;
 
     } catch (e: any) {
       this.output += `\nError: ${e.message}\n${e.stack}`;
+      return `Error: ${e.message}`;
     }
+  }
+
+  async runTestByName(name: string): Promise<string> {
+    const tc = testCases.find(t => t.name === name);
+    if (!tc) return `Error: Test ${name} not found`;
+    this.loadTest(tc);
+    return await this.run();
   }
 
   render() {

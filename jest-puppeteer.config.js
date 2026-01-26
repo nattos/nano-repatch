@@ -8,8 +8,8 @@ module.exports = {
   //   debug: true,
   // },
   launch: {
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: "new",
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--enable-unsafe-webgpu'],
   },
   browserContext: 'default',
 };
