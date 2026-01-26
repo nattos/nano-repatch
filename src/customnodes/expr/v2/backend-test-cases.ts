@@ -411,21 +411,23 @@ testCases.push({
     // C[1][0] = 3*5 + 4*7 = 15 + 28 = 43
     // C[1][1] = 3*6 + 4*8 = 18 + 32 = 50
 
-    let result: number[] = [];
+    let result = [0, 0, 0, 0];
+    let idx = 0;
     for (let i = 0; i < 2; i++) {
       for (let j = 0; j < 2; j++) {
         let sum = 0;
         for (let k = 0; k < 2; k++) {
           sum = sum + A[i][k] * B[k][j];
         }
-        result.push(sum);
+        result[idx] = sum;
+        idx = idx + 1;
       }
     }
     return result;
     `,
-  outputType: { kind: DataTypeKind.Array, elementType: NUMBER_TYPE },
+  outputType: { kind: DataTypeKind.Array, elementType: NUMBER_TYPE, length: 4 },
   expected: [19, 22, 43, 50],
-  skipWGSL: true // Dynamic array push
+  skipWGSL: false // Dynamic array push (Wait, code uses push. Needs fix?)
 });
 
 testCases.push({

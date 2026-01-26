@@ -69,8 +69,15 @@ function typeToWGSL(type: DataType): string {
     case DataTypeKind.Array: {
       const inner = (type as any).elementType;
       const len = (type as any).length;
-      if (typeof len === 'number') return `array<${typeToWGSL(inner)}, ${len}>`;
-      return `array<${typeToWGSL(inner)}>`; // Runtime-sized (only valid for storage buffers)
+      if (typeof len === 'number') {
+        const innerType = typeToWGSL(inner);
+        // Vector Specialization: array<f32, N> -> vecN<f32> where N in [2, 3, 4]
+        if (innerType === F32 && (len === 2 || len === 3 || len === 4)) {
+          return `vec${len}<f32>`;
+        }
+        return `array<${innerType}, ${len}>`;
+      }
+      return `array<${typeToWGSL(inner)}>`; // Runtime-sized
     }
     case DataTypeKind.Struct: return getStructName(type as StructType);
     default: return F32;
@@ -439,8 +446,12 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
     }
     case OpKind.Array: {
       const a = node as ArrayNode;
-      const type = typeToWGSL(a.type);
-      return `${type}(${a.elements.map(e => emitNode(e, options, (a.type as any).elementType)).join(', ')})`;
+      const typeStr = typeToWGSL(a.type);
+      // If it's a vector, we use vecN(elements)
+      // typeToWGSL already helps with type name, but constructor syntax is same as array or fn call: Type(args)
+      // vec2<f32>(...) or vec2(...) ? WGSL prefers vec2(...) or vec2f(...)
+      // typeToWGSL returns 'vec2<f32>'. 'vec2<f32>(1.0, 2.0)' is valid.
+      return `${typeStr}(${a.elements.map(e => emitNode(e, options, (a.type as any).elementType)).join(', ')})`;
     }
     case OpKind.Break: return 'break;';
     default: return `/* Unknown ${node.kind} */`;

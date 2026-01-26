@@ -556,12 +556,11 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           const valArr = elements.map(e => (e as ConstNode).value);
           if (elementType.kind === DataTypeKind.Any && valArr.length > 0) {
             const firstT = getPrimitiveType(valArr[0]);
-            if (firstT) elementType = { kind: DataTypeKind.Array, elementType: firstT } as any; // Wait, type IS Array. elementType is internal.
             if (firstT) elementType = firstT;
           }
-          return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Array, elementType }, value: valArr } as ConstNode;
+          return { id: nextId(), kind: OpKind.Const, type: { kind: DataTypeKind.Array, elementType, length: valArr.length }, value: valArr } as ConstNode;
         }
-        return { id: nextId(), kind: OpKind.Array, type: { kind: DataTypeKind.Array, elementType }, elements } as ArrayNode;
+        return { id: nextId(), kind: OpKind.Array, type: { kind: DataTypeKind.Array, elementType, length: elements.length }, elements } as ArrayNode;
       }
 
       case ts.SyntaxKind.NullKeyword: {

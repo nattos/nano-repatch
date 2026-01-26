@@ -84,18 +84,20 @@ export function unpackData(buffer: Float32Array | number[], type: DataType): any
     }
 
     if (t.kind === DataTypeKind.Array) {
-      // Dynamic array unpacking is impossible without knowing length.
-      // But output array length is UNKNOWN in general (unless fixed size).
-      // But we can check REMAINING buffer size?
-      // If strict structure: "Array<f32>" usually implies "Rest of buffer".
-      // So we read until end?
+      const len = (t as any).length;
       const inner = (t as any).elementType;
       const res = [];
-      // This assumes the array is the LAST element or the ONLY element.
-      // We'll read until stream ends?
-      // Or assume fixed count if we knew it (we don't from Type).
-      while (ptr < stream.length) {
-        res.push(read(inner));
+
+      if (typeof len === 'number') {
+        // Fixed size array
+        for (let i = 0; i < len; i++) {
+          res.push(read(inner));
+        }
+      } else {
+        // Dynamic array (assume rest of buffer)
+        while (ptr < stream.length) {
+          res.push(read(inner));
+        }
       }
       return res;
     }
