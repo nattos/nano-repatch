@@ -194,16 +194,31 @@ function emitVal(val: any, type: DataType, options: WGSLGenOptions): string {
 }
 
 
-function isBooleanExpr(node: IRNode): boolean {
+function isBooleanExpr(node: IRNode, options: WGSLGenOptions): boolean {
   if (node.kind === OpKind.Const) {
     return typeof (node as ConstNode).value === 'boolean';
   }
   if (node.kind === OpKind.Binary) {
-    const op = (node as BinaryNode).op;
-    return ['==', '!=', '<', '>', '<=', '>=', '&&', '||'].includes(op);
+    const b = node as BinaryNode;
+    if (['==', '!=', '<', '>', '<=', '>='].includes(b.op)) return true; // Comparison always returns bool
+    if (['&&', '||'].includes(b.op)) {
+      // Logic ops are bool ONLY if both operands are bool (WGSL Strictness)
+      // If mixed, we treat as coalescing float ops.
+      return isBooleanExpr(b.left, options) && isBooleanExpr(b.right, options);
+    }
+    return false; // +, -, *, /
   }
   if (node.kind === OpKind.Unary) {
     return (node as UnaryNode).op === '!';
+  }
+  if (node.kind === OpKind.Var) {
+    const v = node as VarNode;
+    // Check input definition
+    if (options.inputs[v.name]) {
+      const t = options.inputs[v.name];
+      if (t.kind === DataTypeKind.Primitive && (t as PrimitiveType).name === 'boolean') return true;
+    }
+    // Fallback to node type if available
   }
   if (node.type && node.type.kind === DataTypeKind.Primitive && (node.type as PrimitiveType).name === 'boolean') {
     return true;
@@ -213,7 +228,7 @@ function isBooleanExpr(node: IRNode): boolean {
 
 // Helper to ensure expression results in f32
 function emitValueAsFloat(node: IRNode, options: WGSLGenOptions): string {
-  if (isBooleanExpr(node)) {
+  if (isBooleanExpr(node, options)) {
     return `select(0.0, 1.0, ${emitNode(node, options)})`;
   }
   // Attempt standard emit
