@@ -81,6 +81,22 @@ We migrated from scattered test files (`cpp-integration`, `codegen-js`, `raytrac
 *   **Dual Execution**: The runner executes every test against **both** JS and C++ backends (unless skipped).
 *   **Skipping Logic**: `skipCPP: true` is used for cases where C++ compilation hits resource limits (e.g. Excessive Inlining in Ray Tracer), while JS handles them fine.
 
+### 10. WebGPU Backend (`codegen-wgsl.ts`)
+For GPU acceleration, we added a WGSL code generator.
+*   **Pipeline**: `TS -> IR -> WGSL`.
+*   **Type Mapping**:
+    *   `number` -> `f32`.
+    *   `Struct` -> `struct T { ... }` (Recursive generation).
+    *   `Array` -> `array<T, N>` (Fixed) or `array<T>` (Runtime, handled via Storage Buffer).
+*   **Buffers**:
+    *   Inputs and Outputs are mapped to `storage` buffers (`@group(0) @binding(0/1)`).
+    *   Inputs are flattened into a single `Input` struct.
+*   **Compute Kernel**: Generates a `@compute @workgroup_size(1)` kernel for simple linear tasks.
+*   **Limitations**:
+    *   No dynamic array resizing (append).
+    *   Recursive structures must be finite (no cycles).
+    *   Strings are unsupported.
+
 ## Known Pitfalls & Limitations
 
 1.  **Infinite Loops**: If the loop condition depends on a runtime variable (not a constant), the unroller will crash or hang (currently capped at 100 iterations).

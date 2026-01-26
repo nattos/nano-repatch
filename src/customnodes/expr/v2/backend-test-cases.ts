@@ -11,6 +11,7 @@ export interface TestCase {
   // Metadata to skip specific backends if feature missing
   skipCPP?: boolean;
   skipJS?: boolean;
+  skipWGSL?: boolean; // New
   debug?: boolean;
 }
 

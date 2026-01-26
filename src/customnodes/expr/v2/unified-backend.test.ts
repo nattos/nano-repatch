@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { compileToIR, CompilerOptions } from './compiler';
 import { generateJS } from './codegen-js';
 import { generateCPP } from './codegen-cpp';
+import { generateWGSL } from './codegen-wgsl'; // New
 import { DataTypeKind, DataType, PrimitiveType } from './ir-types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -153,6 +154,25 @@ describe('Unified Backend Verification', () => {
           if (tc.check) {
             tc.check(val, debugOut);
           }
+        });
+      }
+
+      // WGSL Test (Generation Only)
+      if (!tc.skipWGSL) {
+        it('WGSL Backend (Compile Only)', () => {
+          const testInputs = JSON.parse(JSON.stringify(inputs));
+          const wgslIR = compileToIR(tc.code, inputTypes);
+          let outType = tc.outputType;
+          if (!outType && tc.expected !== undefined) {
+            if (typeof tc.expected === 'number') outType = NUMBER_TYPE;
+            else if (typeof tc.expected === 'boolean') outType = { kind: DataTypeKind.Primitive, name: 'boolean' };
+          }
+          if (!outType) outType = NUMBER_TYPE;
+
+          // Simply generate and assert non-empty
+          const wgsl = generateWGSL(wgslIR, { inputs: inputTypes, outputType: outType });
+          expect(wgsl.length).toBeGreaterThan(0);
+          expect(wgsl).toContain('fn main()');
         });
       }
 
