@@ -103,10 +103,26 @@ export function generateWGSL(ir: IRGraph, options: WGSLGenOptions): string {
 
   lines.push('struct Input {');
   const inputEntries = Object.entries(options.inputs);
-  if (inputEntries.length === 0) {
+  // Sort inputs: Primitives first, Arrays last (Runtime array restriction)
+  // Also validate max 1 array
+  const arrays = inputEntries.filter(([k, v]) => v.kind === DataTypeKind.Array);
+  if (arrays.length > 1) {
+    // TODO: Multiple bindings?
+    // For now, warn or error. simple-expr-v2 uses single buffer.
+    // We'll proceed but it will fail compilation if multiple arrays.
+  }
+  const sortedInputs = inputEntries.sort((a, b) => {
+    const aIsArray = a[1].kind === DataTypeKind.Array;
+    const bIsArray = b[1].kind === DataTypeKind.Array;
+    if (aIsArray && !bIsArray) return 1;
+    if (!aIsArray && bIsArray) return -1;
+    return 0;
+  });
+
+  if (sortedInputs.length === 0) {
     lines.push('    _dummy: f32,');
   } else {
-    for (const [k, v] of inputEntries) {
+    for (const [k, v] of sortedInputs) {
       lines.push(`    ${k}: ${typeToWGSL(v)},`);
     }
   }
@@ -122,7 +138,7 @@ export function generateWGSL(ir: IRGraph, options: WGSLGenOptions): string {
   lines.push('};');
   lines.push('');
 
-  lines.push('@group(0) @binding(0) var<storage, read> input: Input;');
+  lines.push('@group(0) @binding(0) var<storage, read_write> input: Input;');
   lines.push('@group(0) @binding(1) var<storage, read_write> output: Output;');
   lines.push('');
 
@@ -311,6 +327,11 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
       }
       return `(${emitNode(b.left, options)} ${b.op} ${emitNode(b.right, options)})`;
     }
+    case OpKind.Unary: {
+      const u = node as UnaryNode;
+      if (u.op === '!') return `!${emitValueAsBool(u.operand, options)}`;
+      return `${u.op}${emitNode(u.operand, options)}`;
+    }
     case OpKind.Assign: {
       const a = node as AssignNode;
       // Assign needs type match. We assume target is inferred correctly.
@@ -318,6 +339,16 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
     }
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
+      // OPTIMIZATION/FIX: If we are declaring a variable for a Reference Type (Struct/Array)
+      // and the initializer is an L-Value (Var, Prop, Index), use a POINTER ('let x = &init')
+      // instead of a COPY ('var x = init').
+      const isRefType = d.type && (d.type.kind === DataTypeKind.Struct || d.type.kind === DataTypeKind.Array);
+      const isLVal = d.init && (d.init.kind === OpKind.Var || d.init.kind === OpKind.PropAccess || d.init.kind === OpKind.IndexAccess);
+
+      if (isRefType && isLVal) {
+        return `let ${safeName(d.name)} = &${emitNode(d.init!, options, d.type)}`;
+      }
+
       // Infer Array Length from Init if available
       if (d.type && d.type.kind === DataTypeKind.Array && typeof (d.type as any).length === 'undefined' && d.init && d.init.kind === OpKind.Array) {
         (d.type as any).length = (d.init as ArrayNode).elements.length;
@@ -356,6 +387,15 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
     }
     case OpKind.Intrinsic: {
       const i = node as IntrinsicNode;
+      if (i.library === 'Array' && i.method === 'length') {
+        // Check if array is fixed size
+        const arg = i.args[0];
+        if (arg.type && arg.type.kind === DataTypeKind.Array && typeof (arg.type as any).length === 'number') {
+          return `${(arg.type as any).length}.0`; // Return constant f32
+        }
+        // Otherwise assume runtime array (storage buffer)
+        return `f32(arrayLength(&${emitNode(arg, options)}))`;
+      }
       return `${i.method}(${i.args.map(a => emitNode(a, options)).join(', ')})`;
     }
     case OpKind.PropAccess: {

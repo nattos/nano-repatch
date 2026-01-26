@@ -181,7 +181,7 @@ export class WGSLTester extends MobxLitElement {
           {
             binding: 0,
             visibility: GPUShaderStage.COMPUTE,
-            buffer: { type: 'read-only-storage' }
+            buffer: { type: 'storage' }
           },
           {
             binding: 1,

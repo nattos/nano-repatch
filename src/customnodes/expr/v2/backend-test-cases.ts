@@ -330,7 +330,7 @@ const BALL_TYPE: DataType = {
   }
 };
 
-const BALLS_INPUT_TYPE: DataType = { kind: DataTypeKind.Array, elementType: BALL_TYPE };
+const BALLS_INPUT_TYPE: DataType = { kind: DataTypeKind.Array, elementType: BALL_TYPE, length: 2 };
 
 testCases.push({
   name: 'Bouncing Balls Simulation (1 Tick)',
@@ -396,7 +396,7 @@ testCases.push({
 // Actually 'b.x = ...' where b = balls[i].
 // Ref Safety should catch this?
 // Yes, likely WGSL will copy.
-testCases[testCases.length - 1].skipWGSL = true;
+testCases[testCases.length - 1].skipWGSL = false;
 
 // --- Stress Tests ---
 
