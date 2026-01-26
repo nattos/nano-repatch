@@ -135,7 +135,7 @@ export const testCases: TestCase[] = [
         return p1.x; // Becomes 10
     `,
     expected: 10,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
   {
     name: 'Nested Struct Mutation',
@@ -146,7 +146,7 @@ export const testCases: TestCase[] = [
          return a.p.x;
     `,
     expected: 10,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
   {
     name: 'Array Reference Sharing',
@@ -157,7 +157,7 @@ export const testCases: TestCase[] = [
         return a[0];
     `,
     expected: 10,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
   {
     name: 'Struct Reference Assignment (Alias)',
@@ -169,7 +169,7 @@ export const testCases: TestCase[] = [
         return s.x; // Should be 10 if aliased
     `,
     expected: 10,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
   {
     name: 'Nested Array Element Alias',
@@ -187,7 +187,7 @@ export const testCases: TestCase[] = [
         return arr[0].x; // Should be 100
     `,
     expected: 100,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
   {
     name: 'Reference Passing to Function',
@@ -202,7 +202,7 @@ export const testCases: TestCase[] = [
         return s.x;
     `,
     expected: 30,
-    skipWGSL: true // Reference semantics lost (Copy)
+    skipWGSL: false // Reference semantics
   },
 
   // --- Math Intrinsics ---

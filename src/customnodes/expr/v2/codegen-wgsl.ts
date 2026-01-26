@@ -68,7 +68,9 @@ function typeToWGSL(type: DataType): string {
     }
     case DataTypeKind.Array: {
       const inner = (type as any).elementType;
-      return `array<${typeToWGSL(inner)}>`;
+      const len = (type as any).length;
+      if (typeof len === 'number') return `array<${typeToWGSL(inner)}, ${len}>`;
+      return `array<${typeToWGSL(inner)}>`; // Runtime-sized (only valid for storage buffers)
     }
     case DataTypeKind.Struct: return getStructName(type as StructType);
     default: return F32;
@@ -165,7 +167,8 @@ function emitBlock(block: BlockNode, indent: number, options: WGSLGenOptions): s
     if (code) {
       if (stmt.kind === OpKind.If || stmt.kind === OpKind.While || stmt.kind === OpKind.Block) {
         lines.push(code.includes('\n') ? code.split('\n').map((l, i) => (i === 0 ? spaces : spaces) + l).join('\n') : `${spaces}${code}`);
-      } else {
+      } else if (stmt.kind !== OpKind.Const) {
+        // Skip Const statements (e.g. hoisted function decls resulting in 0.0;)
         lines.push(`${spaces}${code};`);
       }
     }
@@ -315,6 +318,15 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
     }
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
+      // Infer Array Length from Init if available
+      if (d.type && d.type.kind === DataTypeKind.Array && typeof (d.type as any).length === 'undefined' && d.init && d.init.kind === OpKind.Array) {
+        (d.type as any).length = (d.init as ArrayNode).elements.length;
+      }
+      // Also if init is Const Array
+      if (d.type && d.type.kind === DataTypeKind.Array && typeof (d.type as any).length === 'undefined' && d.init && d.init.kind === OpKind.Const && Array.isArray((d.init as ConstNode).value)) {
+        (d.type as any).length = (d.init as ConstNode).value.length;
+      }
+
       let typeStr = typeToWGSL(d.type || { kind: DataTypeKind.Primitive, name: 'number' } as any);
       let init = d.init ? ` = ${emitNode(d.init, options, d.type)}` : '';
       // If init is boolean and target is f32 (e.g. inferred from 'number'), we should cast?
