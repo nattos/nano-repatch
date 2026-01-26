@@ -652,7 +652,7 @@ testCases.push({
         return arr[0];
     `,
   expected: 10,
-  skipWGSL: true // Mutation of array ref
+  skipWGSL: false // Mutation of array ref
 });
 
 testCases.push({
@@ -663,7 +663,7 @@ testCases.push({
         return p.x + p.y;
     `,
   expected: 102,
-  skipWGSL: true // Mutation of struct ref
+  skipWGSL: false // Mutation of struct ref
 });
 
 testCases.push({
@@ -674,7 +674,7 @@ testCases.push({
         return arr[0].x + arr[1].x;
     `,
   expected: 52,
-  skipWGSL: true // Mutation of nested ref
+  skipWGSL: false // Mutation of nested ref
 });
 
 testCases.push({
@@ -685,7 +685,7 @@ testCases.push({
           return p.val;
       `,
   expected: 15,
-  skipWGSL: true // Compound assign to ref
+  skipWGSL: false // Compound assign to ref
 });
 
 testCases.push({

@@ -350,6 +350,21 @@ function emitNode(node: IRNode, options: WGSLGenOptions, expectedType?: DataType
       const p = node as PropAccessNode;
       return `${emitNode(p.object, options)}.${p.property}`;
     }
+    case OpKind.SetProp: {
+      const s = node as SetPropNode;
+      // Synthesize "obj.prop = value"
+      return `${emitNode(s.object, options)}.${s.property} = ${emitNode(s.value, options)}`;
+    }
+    case OpKind.SetIndex: {
+      const s = node as SetIndexNode;
+      // Synthesize "obj[i32(idx)] = value"
+      return `${emitNode(s.object, options)}[i32(${emitNode(s.index, options)})] = ${emitNode(s.value, options)}`;
+    }
+    case OpKind.IndexAccess: {
+      const i = node as IndexAccessNode;
+      // Synthesize "obj[i32(idx)]"
+      return `${emitNode(i.object, options)}[i32(${emitNode(i.index, options)})]`;
+    }
     case OpKind.Struct: {
       const s = node as StructNode;
       let type = s.type;
