@@ -22,6 +22,12 @@ export default defineConfig({
     outDir: '../dist',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: 'src/index.html',
+        wgsl: 'src/wgsl.html',
+      },
+    },
   },
   worker: {
     format: 'es',
