@@ -92,6 +92,7 @@ For GPU acceleration, we added a WGSL code generator.
     *   Inputs and Outputs are mapped to `storage` buffers (`@group(0) @binding(0/1)`).
     *   Inputs are flattened into a single `Input` struct.
 *   **Compute Kernel**: Generates a `@compute @workgroup_size(1)` kernel for simple linear tasks.
+    *   **Dead Code Stripping**: To prevent binding errors, we inject `_ = &input;` and `_ = &output;` in `main` to force bindings to remain active.
 *   **Limitations**:
     *   No dynamic array resizing (append).
     *   Recursive structures must be finite (no cycles).

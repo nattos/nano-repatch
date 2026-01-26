@@ -4,6 +4,8 @@ import { MobxLitElement } from './mobx-lit-element';
 import { compileToIR } from '../customnodes/expr/v2/compiler';
 import { generateWGSL } from '../customnodes/expr/v2/codegen-wgsl';
 import { DataTypeKind, PrimitiveType, DataType } from '../customnodes/expr/v2/ir-types';
+import { testCases, TestCase } from '../customnodes/expr/v2/backend-test-cases';
+import { packData, unpackData } from '../customnodes/expr/v2/wgsl-utils';
 
 const F32_SIZE = 4;
 
@@ -12,7 +14,7 @@ export class WGSLTester extends MobxLitElement {
   static styles = css`
     :host {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       width: 100%;
       height: 100%;
       background: #1e1e1e;
@@ -54,8 +56,10 @@ export class WGSLTester extends MobxLitElement {
   `;
 
   @state()
-  code = `// Ex 1: Basic Math
-return x + 10;`;
+  currentTest: TestCase | null = null;
+
+  @state()
+  code = '';
 
   @state()
   output = '';
@@ -63,50 +67,52 @@ return x + 10;`;
   @state()
   wgslCode = '';
 
-  // Helpers for preset loading
-  setPreset(name: string) {
-    if (name === 'math') this.code = 'return x * 2 + 1;';
-    if (name === 'loop') this.code = `let sum = 0;
-for(let i=0; i<10; i++) {
-    sum = sum + i;
-}
-return sum;`;
-    if (name === 'struct') this.code = `const v = { x: 1, y: 2 };
-return v.x + v.y + x;`;
-    if (name === 'mandel') this.code = `
-        let z_re = 0.0;
-        let z_im = 0.0;
-        let c_re = 0.353;
-        let c_im = 0.288;
-        let i = 0;
-        for (let k = 0; k < 100; k++) {
-            if (z_re * z_re + z_im * z_im > 4.0) {
-               break;
-            }
-            let next_re = z_re * z_re - z_im * z_im + c_re;
-            let next_im = 2.0 * z_re * z_im + c_im;
-            z_re = next_re;
-            z_im = next_im;
-            i = i + 1;
-        }
-        return i;
-    `;
+  loadTest(tc: TestCase) {
+    this.currentTest = tc;
+    this.code = tc.code;
+    this.output = '';
+    this.wgslCode = '';
   }
 
   async run() {
-    this.output = 'Compiling...';
     try {
-      // Guess inputs based on code check?
-      // Or just provide standard Inputs.
-      // Let's providing "x" (number) as standard input.
-      const inputs: Record<string, DataType> = {
-        x: { kind: DataTypeKind.Primitive, name: 'number' } as PrimitiveType
-      };
+      if (!this.currentTest) {
+        // Default "Custom" run?
+        // Assume inputs { x: number }
+        this.currentTest = {
+          name: 'Custom',
+          code: this.code,
+          inputValues: { x: 10 },
+          inputTypes: { x: { kind: DataTypeKind.Primitive, name: 'number' } as PrimitiveType },
+          outputType: { kind: DataTypeKind.Primitive, name: 'number' } as PrimitiveType
+        };
+      }
 
-      const ir = compileToIR(this.code, inputs);
+      this.output = `=== ${this.currentTest.name} ===\nCompiling...`;
+
+      // Use inputs from test case (or defaults)
+      const inputs = this.currentTest.inputValues || {};
+      let inputTypes = this.currentTest.inputTypes;
+
+      // Infer types if missing
+      if (!inputTypes) {
+        inputTypes = {};
+        for (const k in inputs) {
+          if (typeof inputs[k] === 'number') inputTypes[k] = { kind: DataTypeKind.Primitive, name: 'number' } as any;
+          else if (Array.isArray(inputs[k])) inputTypes[k] = { kind: DataTypeKind.Array, elementType: { kind: DataTypeKind.Primitive, name: 'number' } as any } as any; // Simple inference fallback
+          else if (typeof inputs[k] === 'object') inputTypes[k] = { kind: DataTypeKind.Struct, fields: {} } as any; // Naive
+        }
+      }
+
+      const ir = compileToIR(this.code, inputTypes);
+      // Default output type to number if undefined, unless inferred by codegen?
+      // Codegen needs explicit output type struct wrapper.
+      // We'll trust testCase.outputType or default to number.
+      const outputType = this.currentTest.outputType || { kind: DataTypeKind.Primitive, name: 'number' } as any;
+
       const wgsl = generateWGSL(ir, {
-        inputs: inputs,
-        outputType: { kind: DataTypeKind.Primitive, name: 'number' } as any
+        inputs: inputTypes,
+        outputType: outputType
       });
       this.wgslCode = wgsl;
 
@@ -126,16 +132,45 @@ return v.x + v.y + x;`;
 
       const shaderModule = device.createShaderModule({ code: wgsl });
 
-      // Input Buffer (x = 10.0)
-      const inputData = new Float32Array([10.0]); // x
+      // Check for compilation errors
+      const compilationInfo = await shaderModule.getCompilationInfo();
+      if (compilationInfo.messages.length > 0) {
+        let hadError = false;
+        for (const msg of compilationInfo.messages) {
+          this.output += `\n[${msg.type}] line ${msg.lineNum}:${msg.linePos} - ${msg.message}`;
+          if (msg.type === 'error') hadError = true;
+        }
+        if (hadError) {
+          this.output += '\n\nShader Compilation Failed. Aborting.';
+          return;
+        }
+      }
+
+      // --- Pack Inputs ---
+      // Flatten all inputs into single buffer (Input struct)
+      const inputFloats: number[] = [];
+      // Order must match codegen (Object.keys sorted)
+      const sortedKeys = Object.keys(inputTypes).sort();
+      for (const k of sortedKeys) {
+        inputFloats.push(...packData(inputs[k], inputTypes[k]));
+      }
+
+      const inputData = new Float32Array(inputFloats);
+      // If empty input? Make at least 4 bytes to avoid validation error on zero-size binding?
+      // WGSL struct Input {} is valid? empty struct.
+      // If inputData is empty, buffer create might fail if size 0.
+      const inputSize = Math.max(inputData.byteLength, 16); // Minimum size
       const inputBuffer = device.createBuffer({
-        size: inputData.byteLength,
+        size: inputSize,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
-      device.queue.writeBuffer(inputBuffer, 0, inputData);
+      if (inputData.byteLength > 0) {
+        device.queue.writeBuffer(inputBuffer, 0, inputData);
+      }
 
-      // Output Buffer (result = f32)
-      const outputBufferSize = 4;
+      // --- Output Buffer ---
+      // Allocate generous size (e.g. 64KB) or estimate
+      const outputBufferSize = 65536;
       const outputBuffer = device.createBuffer({
         size: outputBufferSize,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -191,9 +226,20 @@ return v.x + v.y + x;`;
 
       await readBuffer.mapAsync(GPUMapMode.READ);
       const arrayBuffer = readBuffer.getMappedRange();
-      const result = new Float32Array(arrayBuffer)[0];
+      const floatView = new Float32Array(arrayBuffer);
 
-      this.output += `\nSuccess!\nResult: ${result}`;
+      // Unpack Result from Output Struct
+      // Output struct is { result: T }
+      // So simple unpack of T
+      const resValue = unpackData(floatView, outputType);
+
+      this.output += `\nSuccess!\nResult: ${JSON.stringify(resValue, null, 2)}`;
+
+      // Verify against expected?
+      if (this.currentTest.expected !== undefined) {
+        this.output += `\nExpected: ${JSON.stringify(this.currentTest.expected, null, 2)}`;
+      }
+
       readBuffer.unmap();
 
     } catch (e: any) {
@@ -203,24 +249,33 @@ return v.x + v.y + x;`;
 
   render() {
     return html`
-      <div class="toolbar">
-        <button @click=${() => this.setPreset('math')}>Math</button>
-        <button @click=${() => this.setPreset('loop')}>Loop</button>
-        <button @click=${() => this.setPreset('struct')}>Struct</button>
-        <button @click=${() => this.setPreset('mandel')}>Mandelbrot</button>
-        <div style="flex:1"></div>
-        <button @click=${this.run}>RUN WGSL</button>
+      <div style="width: 250px; border-right: 1px solid #333; overflow:auto; display:flex; flex-direction:column;">
+        <div style="padding:10px; font-weight:bold; background:#252526;">Test Cases</div>
+        ${testCases.map(tc => html`
+            <div
+                style="padding:5px 10px; cursor:pointer; background:${this.currentTest === tc ? '#37373d' : 'transparent'}; text-overflow:ellipsis; white-space:nowrap; overflow:hidden;"
+                @click=${() => this.loadTest(tc)}
+            >
+                ${tc.name}
+                ${tc.skipWGSL ? ' (SKIP)' : ''}
+            </div>
+        `)}
       </div>
-      <div style="display:flex; flex:1; gap:10px; min-height:0;">
-        <div style="flex:1; display:flex; flex-direction:column;">
-            <h3>TypeScript</h3>
-            <textarea @input=${(e: any) => this.code = e.target.value} .value=${this.code}></textarea>
-            <h3>WGSL Output</h3>
-            <pre style="flex:1">${this.wgslCode}</pre>
+      <div style="flex:1; display:flex; flex-direction:column; padding:10px;">
+        <div class="toolbar">
+           <button @click=${this.run}>RUN WGSL</button>
         </div>
-        <div style="flex:1; display:flex; flex-direction:column;">
-            <h3>Execution Output</h3>
-            <pre>${this.output}</pre>
+        <div style="display:flex; flex:1; gap:10px; min-height:0; margin-top:10px;">
+            <div style="flex:1; display:flex; flex-direction:column;">
+                <h3>TypeScript</h3>
+                <textarea @input=${(e: any) => this.code = e.target.value} .value=${this.code}></textarea>
+                <h3>WGSL Output</h3>
+                <pre style="flex:1">${this.wgslCode}</pre>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column;">
+                <h3>Execution Output</h3>
+                <pre>${this.output}</pre>
+            </div>
         </div>
       </div>
     `;

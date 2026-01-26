@@ -81,21 +81,32 @@ function ANY_OUTPUT_TYPE(ir: IRGraph): DataType {
 
 export function generateWGSL(ir: IRGraph, options: WGSLGenOptions): string {
   const lines: string[] = [];
+  lines.push('diagnostic(off, derivative_uniformity);');
+  lines.push('');
   const structs = collectStructs(ir, options.inputs);
 
   structs.forEach((s, name) => {
     lines.push(`struct ${name} {`);
     const keys = Object.keys(s.fields).sort();
-    keys.forEach(k => {
-      lines.push(`    ${k}: ${typeToWGSL(s.fields[k])},`);
-    });
+    if (keys.length === 0) {
+      lines.push('    _dummy: f32,');
+    } else {
+      keys.forEach(k => {
+        lines.push(`    ${k}: ${typeToWGSL(s.fields[k])},`);
+      });
+    }
     lines.push('};');
     lines.push('');
   });
 
   lines.push('struct Input {');
-  for (const [k, v] of Object.entries(options.inputs)) {
-    lines.push(`    ${k}: ${typeToWGSL(v)},`);
+  const inputEntries = Object.entries(options.inputs);
+  if (inputEntries.length === 0) {
+    lines.push('    _dummy: f32,');
+  } else {
+    for (const [k, v] of inputEntries) {
+      lines.push(`    ${k}: ${typeToWGSL(v)},`);
+    }
   }
   lines.push('};');
   lines.push('');
@@ -131,7 +142,21 @@ function emitBlock(block: BlockNode, indent: number, options: WGSLGenOptions): s
   for (const stmt of block.statements) {
     if (stmt.kind === OpKind.Return) {
       const r = stmt as ReturnNode;
-      lines.push(`${spaces}output.result = ${emitNode(r.value, options)};`);
+      let valCode = emitNode(r.value, options);
+
+      // Heuristic: If we are returning a Boolean to an f32 output, cast it.
+      // This is needed because 'select(0,1,bool)' is how we output booleans to storage buffers.
+      // And we often default outputType to 'number' (f32) in tests.
+      if (options.outputType &&
+        options.outputType.kind === DataTypeKind.Primitive &&
+        (options.outputType as PrimitiveType).name === 'number') {
+
+        if (isBooleanExpr(r.value)) {
+          valCode = `select(0.0, 1.0, ${valCode})`;
+        }
+      }
+
+      lines.push(`${spaces}output.result = ${valCode};`);
       lines.push(`${spaces}return;`);
       continue;
     }
@@ -168,6 +193,45 @@ function emitVal(val: any, type: DataType, options: WGSLGenOptions): string {
   return '0.0';
 }
 
+
+function isBooleanExpr(node: IRNode): boolean {
+  if (node.kind === OpKind.Const) {
+    return typeof (node as ConstNode).value === 'boolean';
+  }
+  if (node.kind === OpKind.Binary) {
+    const op = (node as BinaryNode).op;
+    return ['==', '!=', '<', '>', '<=', '>=', '&&', '||'].includes(op);
+  }
+  if (node.kind === OpKind.Unary) {
+    return (node as UnaryNode).op === '!';
+  }
+  if (node.type && node.type.kind === DataTypeKind.Primitive && (node.type as PrimitiveType).name === 'boolean') {
+    return true;
+  }
+  return false;
+}
+
+// Helper to ensure expression results in f32
+function emitValueAsFloat(node: IRNode, options: WGSLGenOptions): string {
+  if (isBooleanExpr(node)) {
+    return `select(0.0, 1.0, ${emitNode(node, options)})`;
+  }
+  // Attempt standard emit
+  const code = emitNode(node, options);
+  // If it looks like a bool constant "true"/"false" or comparison, we might have missed it in isBooleanExpr?
+  // But assumes implicit is float if not bool.
+  return code;
+}
+
+// Helper to ensure expression results in bool
+function emitValueAsBool(node: IRNode, options: WGSLGenOptions): string {
+  if (isBooleanExpr(node)) {
+    return emitNode(node, options);
+  }
+  // Assume float, check != 0.0
+  return `(${emitNode(node, options)} != 0.0)`;
+}
+
 function emitNode(node: IRNode, options: WGSLGenOptions): string {
   switch (node.kind) {
     case OpKind.Const: {
@@ -190,28 +254,63 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
     }
     case OpKind.Binary: {
       const b = node as BinaryNode;
+      // Handle Logic Ops with JS Semantics (Coalescing)
+      if (b.op === '&&' || b.op === '||') {
+        // If either operand is non-boolean (number), treat as float selection
+        const leftBool = isBooleanExpr(b.left);
+        const rightBool = isBooleanExpr(b.right);
+
+        if (!leftBool || !rightBool) {
+          // Mixed or both numbers. Convert all to float and use select.
+          const l = emitValueAsFloat(b.left, options);
+          const r = emitValueAsFloat(b.right, options);
+
+          // JS Semantics:
+          // OR: a || b -> if a truthy return a, else b.
+          // WGSL select(falseVal, trueVal, cond).
+          // cond = a != 0.0
+          // select(b, a, a!=0)
+          if (b.op === '||') return `select(${r}, ${l}, ${l} != 0.0)`;
+
+          // AND: a && b -> if a truthy return b, else a.
+          // cond = a != 0.0
+          // select(a, b, a!=0)
+          if (b.op === '&&') return `select(${l}, ${r}, ${l} != 0.0)`;
+        }
+        // Fallthrough for purely boolean logic
+      }
       return `(${emitNode(b.left, options)} ${b.op} ${emitNode(b.right, options)})`;
     }
     case OpKind.Assign: {
       const a = node as AssignNode;
+      // Assign needs type match. We assume target is inferred correctly.
       return `${safeName(a.target)} = ${emitNode(a.value, options)}`;
     }
     case OpKind.VarDecl: {
       const d = node as VarDeclNode;
       let typeStr = typeToWGSL(d.type || { kind: DataTypeKind.Primitive, name: 'number' } as any);
       let init = d.init ? ` = ${emitNode(d.init, options)}` : '';
+      // If init is boolean and target is f32 (e.g. inferred from 'number'), we should cast?
+      // But VarDecl type comes from TS inference which might say 'boolean | number'.
+      // For now, trust emitNode or rely on WGSL error if types mismatch,
+      // OR upgrade VarDecl to auto-cast init if type is f32.
+      if (d.type && (d.type as PrimitiveType).name === 'number' && d.init && isBooleanExpr(d.init)) {
+        init = ` = select(0.0, 1.0, ${emitNode(d.init, options)})`;
+      }
       return `var ${safeName(d.name)} : ${typeStr}${init}`;
     }
     case OpKind.While: {
       const w = node as WhileNode;
-      return `while (${emitNode(w.condition, options)}) {\n${emitBlock(w.body, 1, options)}\n}`;
+      // Condition must be boolean
+      return `while (${emitValueAsBool(w.condition, options)}) {\n${emitBlock(w.body, 1, options)}\n}`;
     }
     case OpKind.If: {
       const i = node as IfNode;
-      let res = `if (${emitNode(i.condition, options)}) {\n${emitBlock(i.thenBlock, 1, options)}\n}`;
+      let res = `if (${emitValueAsBool(i.condition, options)}) {\n${emitBlock(i.thenBlock, 1, options)}\n}`;
       if (i.elseBlock) res += ` else {\n${emitBlock(i.elseBlock, 1, options)}\n}`;
       return res;
     }
+    // ... rest strict logical ops ...
     case OpKind.Block: {
       const b = node as BlockNode;
       return `{\n${emitBlock(b, 1, options)}\n}`;
