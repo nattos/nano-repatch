@@ -151,7 +151,7 @@ function emitBlock(block: BlockNode, indent: number, options: WGSLGenOptions): s
         options.outputType.kind === DataTypeKind.Primitive &&
         (options.outputType as PrimitiveType).name === 'number') {
 
-        if (isBooleanExpr(r.value)) {
+        if (isBooleanExpr(r.value, options)) {
           valCode = `select(0.0, 1.0, ${valCode})`;
         }
       }
@@ -240,7 +240,7 @@ function emitValueAsFloat(node: IRNode, options: WGSLGenOptions): string {
 
 // Helper to ensure expression results in bool
 function emitValueAsBool(node: IRNode, options: WGSLGenOptions): string {
-  if (isBooleanExpr(node)) {
+  if (isBooleanExpr(node, options)) {
     return emitNode(node, options);
   }
   // Assume float, check != 0.0
@@ -272,8 +272,8 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
       // Handle Logic Ops with JS Semantics (Coalescing)
       if (b.op === '&&' || b.op === '||') {
         // If either operand is non-boolean (number), treat as float selection
-        const leftBool = isBooleanExpr(b.left);
-        const rightBool = isBooleanExpr(b.right);
+        const leftBool = isBooleanExpr(b.left, options);
+        const rightBool = isBooleanExpr(b.right, options);
 
         if (!leftBool || !rightBool) {
           // Mixed or both numbers. Convert all to float and use select.
@@ -309,7 +309,7 @@ function emitNode(node: IRNode, options: WGSLGenOptions): string {
       // But VarDecl type comes from TS inference which might say 'boolean | number'.
       // For now, trust emitNode or rely on WGSL error if types mismatch,
       // OR upgrade VarDecl to auto-cast init if type is f32.
-      if (d.type && (d.type as PrimitiveType).name === 'number' && d.init && isBooleanExpr(d.init)) {
+      if (d.type && (d.type as PrimitiveType).name === 'number' && d.init && isBooleanExpr(d.init, options)) {
         init = ` = select(0.0, 1.0, ${emitNode(d.init, options)})`;
       }
       return `var ${safeName(d.name)} : ${typeStr}${init}`;
