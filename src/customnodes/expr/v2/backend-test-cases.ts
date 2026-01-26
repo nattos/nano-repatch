@@ -28,7 +28,7 @@ export const testCases: TestCase[] = [
   {
     name: 'Logic Ops (&& ||)',
     code: 'return (true && false) || true;',
-    code: 'return (true && false) || true;',
+
     check: (res: any) => {
       if (typeof res === 'boolean' && res === true) return;
       if (typeof res === 'number' && Math.abs(res - 1) < 0.001) return;
@@ -48,9 +48,8 @@ export const testCases: TestCase[] = [
   {
     name: 'Mixed Logic Ops',
     code: 'return (true && false) || true || 1.0;',
-    expected: 1 // JS returns true (1), or 1.0? true || 1.0 is true.
-    // In our system, return boolean is typically 1 (if number expected) or true.
-    // If output is number, correct is 1.
+    expected: 1,
+    outputType: NUMBER_TYPE // Force numeric return (will cast bool to 1)
   },
   {
     name: 'Variables (Input)',

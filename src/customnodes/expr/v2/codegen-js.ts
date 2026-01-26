@@ -132,7 +132,13 @@ function emitNode(node: IRNode, indent: number, options: CodeGenOptions): string
 
     case OpKind.Return: {
       const r = node as ReturnNode;
-      return `return ${emitNode(r.value, indent, options)}`;
+      const val = emitNode(r.value, indent, options);
+      // Coerce to number if outputType dictates it (for parity with C++/WGSL boolean->int/float)
+      if (options.outputType && options.outputType.kind === DataTypeKind.Primitive &&
+        (options.outputType as PrimitiveType).name === 'number') {
+        return `return Number(${val})`;
+      }
+      return `return ${val}`;
     }
 
     case OpKind.Phi: {

@@ -106,7 +106,7 @@ describe('Unified Backend Verification', () => {
         it('JS Backend', () => {
           const testInputs = JSON.parse(JSON.stringify(inputs)); // Deep copy to prevent mutation
           const jsIR = compileToIR(tc.code, inputTypes);
-          const js = generateJS(jsIR, { inputs: inputTypes, debug: tc.debug });
+          const js = generateJS(jsIR, { inputs: inputTypes, debug: tc.debug, outputType: tc.outputType });
 
           let res = runJS(js, testInputs, tc.debug);
           let debugOut = undefined;
