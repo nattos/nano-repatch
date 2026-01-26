@@ -115,6 +115,9 @@ export function generateWGSL(ir: IRGraph, options: WGSLGenOptions): string {
 
   lines.push('@compute @workgroup_size(1)');
   lines.push('fn main() {');
+  // Force bindings to be active to prevent dead-code stripping
+  lines.push('    _ = &input;');
+  lines.push('    _ = &output;');
   lines.push(emitBlock(ir.root as BlockNode, 1, options));
   lines.push('}');
 
