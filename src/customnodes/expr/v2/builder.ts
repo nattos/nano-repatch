@@ -2,7 +2,7 @@ import { compileToIR } from './compiler';
 import { generateJS } from './codegen-js';
 import { generateCPP } from './codegen-cpp';
 import { generateWGSL } from './codegen-wgsl';
-import { IRGraph, Diagnostic, DataType, DiagnosticSeverity, OpKind, IRNode, BlockNode, ReturnNode, IfNode, WhileNode } from './ir-types';
+import { IRGraph, Diagnostic, DataType, DiagnosticSeverity, OpKind, IRNode, BlockNode, ReturnNode, IfNode, WhileNode, DataTypeKind, PrimitiveType } from './ir-types';
 
 export interface BuildOptions {
   code: string;
@@ -104,7 +104,14 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   }
 
   // Common inputs from IR (merged source + global)
-  const inputs: Record<string, DataType> = ir.inputs || {};
+  const inputs: Record<string, DataType> = { ...(ir.inputs || {}) };
+
+  // Ensure injected inputs are treated as inputs
+  for (const name of injectedInputs) {
+    if (!inputs[name]) {
+      inputs[name] = { kind: DataTypeKind.Primitive, name: 'number' } as PrimitiveType;
+    }
+  }
 
   result.inputs = inputs;
   result.output = (ir.root && inferReturnType(ir.root)) || { kind: 'primitive', name: 'void' } as any;
