@@ -18,7 +18,7 @@ export class EditorStatusBar extends LitElement {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 4px 8px;
+      padding: 4px 0px;
       font-family: 'JetBrains Mono', monospace;
       font-size: var(--font-size-xs);
       border-bottom: 1px solid var(--border-color);
@@ -59,10 +59,32 @@ export class EditorStatusBar extends LitElement {
       gap: 4px;
       font-weight: bold;
     }
+
+    .view-code-btn {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .view-code-btn:hover {
+      text-decoration: underline;
+      color: var(--text-color);
+    }
   `;
 
   private handleClick() {
     this.dispatchEvent(new CustomEvent('show-diagnostics', {
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  private handleViewCode(e: Event) {
+    e.stopPropagation(); // prevent triggering show-diagnostics logic from parent container click if any
+    this.dispatchEvent(new CustomEvent('view-code', {
       bubbles: true,
       composed: true
     }));
@@ -109,6 +131,10 @@ export class EditorStatusBar extends LitElement {
               <ui-icon icon="la-exclamation-triangle"></ui-icon> ${warnings}
           </div>
         ` : ''}
+      </div>
+
+      <div class="view-code-btn" @click=${this.handleViewCode}>
+        <ui-icon icon="la-code"></ui-icon> view code
       </div>
     `;
 

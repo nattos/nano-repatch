@@ -157,6 +157,7 @@ export const expressionNode = defineNode({
 
   syncUIFromCompiledConfig: (compiledConfig: any, uiState: any) => {
     uiState.diagnostics = compiledConfig.diagnostics || [];
+    uiState.jsCode = compiledConfig.jsCode;
   },
 
   execute: (inputs, config: any, context, state: any) => {
