@@ -60,6 +60,44 @@ describe('Unified Builder', () => {
     // Current compiler might return partial graph.
   });
 
+  describe('Debug Flags', () => {
+    it('should generate debug code only', () => {
+      const res = buildCode({ code: 'return 1;', emitJS: true, debug: 'only' });
+      expect(res.outJS?.code).toBeUndefined();
+      expect(res.outJS?.debugCode).toContain('record_debug');
+    });
+    it('should generate both codes', () => {
+      const res = buildCode({ code: 'return 1;', emitJS: true, debug: 'both' });
+      expect(res.outJS?.code).toBeDefined();
+      expect(res.outJS?.code).not.toContain('record_debug');
+      expect(res.outJS?.debugCode).toBeDefined();
+      expect(res.outJS?.debugCode).toContain('record_debug');
+    });
+
+    it('should execute debugRunner and populate traces', () => {
+      const res = buildCode({
+        code: 'var x = 10; return x + 5;',
+        emitJSRunner: true,
+        debug: 'only'
+      });
+      expect(res.outJSRunner?.runner).toBeUndefined();
+      expect(res.outJSRunner?.debugRunner).toBeDefined();
+
+      const debugOut: Record<string, any> = {};
+      const val = res.outJSRunner!.debugRunner!({}, debugOut);
+
+      expect(val).toBe(15);
+      // Check if debugOut is populated.
+      // Keys are line numbers (strings).
+      const keys = Object.keys(debugOut);
+      expect(keys.length).toBeGreaterThan(0);
+      // We expect '10' (var decl) and '15' (return) or similar.
+      // Just check one value.
+      const hasValue = Object.values(debugOut).some(v => v === 10 || v === 15);
+      expect(hasValue).toBe(true);
+    });
+  });
+
   it('should reuse runner instance (no eval loop)', () => {
     const res = buildCode({
       code: 'return 42;',

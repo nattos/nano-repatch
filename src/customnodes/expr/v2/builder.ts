@@ -13,7 +13,7 @@ export interface BuildOptions {
   emitCPP?: boolean;
 
   outputType?: DataType; // For coercion (JS) or return type (CPP)
-  debug?: boolean; // Enable debug instrumentation
+  debug?: 'none' | 'only' | 'both'; // Debug instrumentation control
 
   // Pass-through options
   globalInputs?: Record<string, any>;
@@ -21,10 +21,27 @@ export interface BuildOptions {
 
 export type BuildResult<T extends BuildOptions> = {
   outIR: T['emitIR'] extends true ? { graph: IRGraph } : undefined;
-  outJS: T['emitJS'] extends true ? { code: string } : undefined;
-  outJSRunner: T['emitJSRunner'] extends true ? { runner: (inputs: any, debug?: any) => any } : undefined;
-  outWGSL: T['emitWGSL'] extends true ? { code: string } : undefined;
-  outCPP: T['emitCPP'] extends true ? { code: string } : undefined;
+
+  outJS: T['emitJS'] extends true ? {
+    code: T['debug'] extends 'only' ? undefined : string;
+    debugCode: T['debug'] extends 'only' | 'both' ? string : undefined;
+  } : undefined;
+
+  outJSRunner: T['emitJSRunner'] extends true ? {
+    runner: T['debug'] extends 'only' ? undefined : (inputs: any, debug?: any) => any;
+    debugRunner: T['debug'] extends 'only' | 'both' ? (inputs: any, debug?: any) => any : undefined;
+  } : undefined;
+
+  outWGSL: T['emitWGSL'] extends true ? {
+    code: T['debug'] extends 'only' ? undefined : string;
+    debugCode: T['debug'] extends 'only' | 'both' ? string : undefined;
+  } : undefined;
+
+  outCPP: T['emitCPP'] extends true ? {
+    code: T['debug'] extends 'only' ? undefined : string;
+    debugCode: T['debug'] extends 'only' | 'both' ? string : undefined;
+  } : undefined;
+
   diagnostics: Diagnostic[];
 };
 
@@ -33,8 +50,6 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   let diagnostics: Diagnostic[] = [];
 
   // 1. Compile to IR
-  // We default to empty global inputs for now, assuming source verification.
-  // TODO: Allow passing input types in options?
   const ir = compileToIR(opts.code, {});
   if (ir.diagnostics) {
     diagnostics.push(...ir.diagnostics);
@@ -47,29 +62,50 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   }
 
   // Common inputs from IR (merged source + global)
-  // Ensure we have a valid object even if inputs is undefined
   const inputs: Record<string, DataType> = ir.inputs || {};
+
+  const mode = opts.debug || 'none';
+  const genClean = mode === 'none' || mode === 'both';
+  const genDebug = mode === 'only' || mode === 'both';
 
   if (opts.emitJS || opts.emitJSRunner) {
     try {
-      const jsCode = generateJS(ir, {
-        inputs,
-        checkInputs: true,
-        outputType: opts.outputType,
-        debug: opts.debug
-      });
+      const out: any = {};
+      const outRunner: any = {};
 
-      if (opts.emitJS) {
-        result.outJS = { code: jsCode };
+      // Clean Pass
+      if (genClean) {
+        const jsCode = generateJS(ir, {
+          inputs,
+          checkInputs: true,
+          outputType: opts.outputType,
+          debug: false
+        });
+        if (opts.emitJS) out.code = jsCode;
+        if (opts.emitJSRunner) {
+          const body = jsCode.replace('module.exports = { compute };', 'return compute;');
+          outRunner.runner = new Function(body)();
+        }
       }
 
-      if (opts.emitJSRunner) {
-        // Pre-eval: Create functionality
-        const body = jsCode.replace('module.exports = { compute };', 'return compute;');
-        const factory = new Function(body);
-        const runner = factory();
-        result.outJSRunner = { runner };
+      // Debug Pass
+      if (genDebug) {
+        const jsDebug = generateJS(ir, {
+          inputs,
+          checkInputs: true,
+          outputType: opts.outputType,
+          debug: true
+        });
+        if (opts.emitJS) out.debugCode = jsDebug;
+        if (opts.emitJSRunner) {
+          const body = jsDebug.replace('module.exports = { compute };', 'return compute;');
+          outRunner.debugRunner = new Function(body)();
+        }
       }
+
+      if (opts.emitJS) result.outJS = out;
+      if (opts.emitJSRunner) result.outJSRunner = outRunner;
+
     } catch (e: any) {
       diagnostics.push({ message: `JS Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-js' });
     }
@@ -77,8 +113,15 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
 
   if (opts.emitWGSL) {
     try {
+      // WGSL doesn't support debug instrumentation yet, so code == debugCode effectively.
+      // But adhering to interface:
       const wgslCode = generateWGSL(ir, { inputs, outputType: opts.outputType });
-      result.outWGSL = { code: wgslCode };
+      const out: any = {};
+
+      if (genClean) out.code = wgslCode;
+      if (genDebug) out.debugCode = wgslCode; // Duplicate for now
+
+      result.outWGSL = out;
     } catch (e: any) {
       diagnostics.push({ message: `WGSL Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-wgsl' });
     }
@@ -86,12 +129,26 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
 
   if (opts.emitCPP) {
     try {
-      const cppCode = generateCPP(ir, {
-        inputs,
-        outputType: opts.outputType,
-        debug: opts.debug
-      });
-      result.outCPP = { code: cppCode };
+      const out: any = {};
+
+      if (genClean) {
+        out.code = generateCPP(ir, {
+          inputs,
+          outputType: opts.outputType,
+          debug: false
+        });
+      }
+
+      if (genDebug) {
+        out.debugCode = generateCPP(ir, {
+          inputs,
+          outputType: opts.outputType,
+          debug: true
+        });
+      }
+
+      result.outCPP = out;
+
     } catch (e: any) {
       diagnostics.push({ message: `CPP Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-cpp' });
     }

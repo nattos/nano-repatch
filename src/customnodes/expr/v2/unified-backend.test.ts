@@ -108,7 +108,7 @@ describe('Unified Backend Verification', () => {
             emitJS: true,
             emitJSRunner: true,
             outputType: tc.outputType,
-            debug: tc.debug
+            debug: tc.debug ? 'only' : 'none'
           });
 
           if (res.diagnostics.length > 0) {
@@ -123,10 +123,10 @@ describe('Unified Backend Verification', () => {
 
           if (tc.debug) {
             const dbg = {};
-            ret = res.outJSRunner!.runner(testInputs, dbg);
+            ret = res.outJSRunner!.debugRunner!(testInputs, dbg);
             debugOut = dbg;
           } else {
-            ret = res.outJSRunner!.runner(testInputs);
+            ret = res.outJSRunner!.runner!(testInputs);
           }
 
           if (tc.expected !== undefined) {
@@ -147,11 +147,12 @@ describe('Unified Backend Verification', () => {
             code: tc.code,
             emitCPP: true,
             outputType: tc.outputType,
-            debug: tc.debug
+            debug: tc.debug ? 'only' : 'none'
           });
           expect(res.outCPP).toBeDefined();
 
-          const cppCode = res.outCPP!.code;
+
+          const cppCode = tc.debug ? res.outCPP!.debugCode! : res.outCPP!.code!;
           const runRes = runCPP(cppCode, testInputs); // Helper still useful for clang execution
           if (runRes === null) return;
 
