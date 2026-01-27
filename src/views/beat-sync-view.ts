@@ -491,7 +491,8 @@ export class BeatSyncView extends MobxLitElement {
             </div>
 
             <div style="flex: 1"></div>
-
+        </div>
+        <div>
              <!-- Resolume Toggle -->
              <ui-option-bar
                 .value=${manager.localControllerInstance.observableState.localSettings.beatSyncResolumeControlEnabled ? 'On' : 'Off'}
