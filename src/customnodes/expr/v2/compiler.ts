@@ -100,6 +100,16 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
             }
           }
 
+          // Top-level Uninitialized Variable -> Input Definition
+          if (!init && ctx.scope.parent === null && !ctx.scope.isBranchScope) {
+            // Register as Input
+            ctx.declaredInputs[name] = type;
+            // Register as Var in Scope (so it resolves to Input Binding/VarNode)
+            ctx.scope.set(name, { id: nextId(), kind: OpKind.Var, type, name } as VarNode);
+            // Do NOT emit VarDecl
+            return;
+          }
+
           // Standard Handling
           if (init) {
             if (!isConst && (type.kind === DataTypeKind.Array || type.kind === DataTypeKind.Struct)) {
@@ -113,7 +123,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           const { line } = ctx.sourceFile.getLineAndCharacterOfPosition(decl.getStart());
           decls.push({ id: nextId(), kind: OpKind.VarDecl, type, name, init, debugInfo: { line: line + 1 } } as VarDeclNode);
         });
-        if (decls.length === 0) return null; // No emissions (all aliased)
+        if (decls.length === 0) return null; // No emissions (aliased or input)
         if (decls.length === 1) return decls[0];
         return { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: decls } as BlockNode;
       }
@@ -662,6 +672,7 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
         });
         const structType: StructType = { kind: DataTypeKind.Struct, name, fields };
         ctx.scope.declareType(name, structType);
+
         return null; // Statements processing skips null
       }
 
@@ -863,6 +874,22 @@ function resolveType(typeNode: ts.TypeNode, ctx: CompilerContext): DataType {
     return { kind: DataTypeKind.Union, types };
   }
 
+  if (ts.isTypeLiteralNode(typeNode)) {
+    const fields: Record<string, DataType> = {};
+    typeNode.members.forEach(m => {
+      if (ts.isPropertySignature(m) && m.name) {
+        const fieldName = (m.name as ts.Identifier).text;
+        let fieldType = m.type ? resolveType(m.type, ctx) : ANY_TYPE;
+        if (m.questionToken) {
+          const undefinedType: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'undefined' };
+          fieldType = { kind: DataTypeKind.Union, types: [fieldType, undefinedType] };
+        }
+        fields[fieldName] = fieldType;
+      }
+    });
+    return { kind: DataTypeKind.Struct, fields };
+  }
+
   // Handle TypeReference (structs, generics)
   if (ts.isTypeReferenceNode(typeNode)) {
     const name = (typeNode.typeName as ts.Identifier).text;
@@ -876,6 +903,7 @@ function resolveType(typeNode: ts.TypeNode, ctx: CompilerContext): DataType {
     if (type) return type;
     // Fallback/Warning?
     // console.warn(`Unresolved type: ${name}`);
+
   }
   return ANY_TYPE;
 }
@@ -961,8 +989,7 @@ export function compileToIR(src: string, globalInputs: Record<string, DataType> 
     ctx.scope.set(key, { id: nextId(), kind: OpKind.Var, type, name: key } as VarNode);
   }
 
-  // Pre-declare StdLib
-  // ... (unchanged) ...
+
 
   let rootBlock: BlockNode;
   try {
@@ -981,5 +1008,8 @@ export function compileToIR(src: string, globalInputs: Record<string, DataType> 
     rootBlock = { id: nextId(), kind: OpKind.Block, type: VOID_TYPE, statements: [] } as BlockNode;
   }
 
-  return { root: rootBlock, diagnostics: ctx.diagnostics };
+  // Merge Global Inputs (passed in) with Declared Inputs (from source)
+  const combinedInputs = { ...globalInputs, ...ctx.declaredInputs };
+
+  return { root: rootBlock, diagnostics: ctx.diagnostics, inputs: combinedInputs };
 }

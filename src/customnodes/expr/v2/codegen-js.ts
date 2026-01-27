@@ -4,6 +4,7 @@ export interface CodeGenOptions {
   inputs: Record<string, DataType>;
   outputType?: DataType;
   debug?: boolean;
+  checkInputs?: boolean;
 }
 
 export function generateJS(ir: IRGraph, options: CodeGenOptions): string {
@@ -13,6 +14,20 @@ export function generateJS(ir: IRGraph, options: CodeGenOptions): string {
 
   if (options.debug) {
     lines.push('    function record_debug(line, val) { if(debug_out) debug_out[line] = val; }');
+  }
+
+  if (options.checkInputs && options.inputs) {
+    for (const [key, type] of Object.entries(options.inputs)) {
+      if (type.kind === DataTypeKind.Primitive) {
+        const prim = type as PrimitiveType;
+        if (prim.name === 'number') {
+          lines.push(`    if (typeof input.${key} !== 'number') throw new Error("Input '${key}' must be a number");`);
+        } else if (prim.name === 'boolean') {
+          lines.push(`    if (typeof input.${key} !== 'boolean') throw new Error("Input '${key}' must be a boolean");`);
+        }
+      }
+      // Arrays/Structs checks could be added here
+    }
   }
 
   lines.push(emitBlock(ir.root as BlockNode, 1, options));

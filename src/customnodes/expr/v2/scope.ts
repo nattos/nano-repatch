@@ -133,6 +133,9 @@ export class CompilerContext {
   // Configurable limit
   public maxDepth: number = 500;
 
+  // Accumulated Inputs from Var Decls
+  public declaredInputs: Record<string, DataType> = {};
+
   constructor(public sourceFile: ts.SourceFile) {
     this.scope = new Scope();
   }

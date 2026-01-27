@@ -263,4 +263,5 @@ export interface DiagnosticRelatedInformation {
 export interface IRGraph {
   root: IRNode;
   diagnostics?: Diagnostic[];
+  inputs?: Record<string, DataType>;
 }

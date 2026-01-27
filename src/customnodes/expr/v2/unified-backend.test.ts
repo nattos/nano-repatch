@@ -105,8 +105,17 @@ describe('Unified Backend Verification', () => {
       if (!tc.skipJS) {
         it('JS Backend', () => {
           const testInputs = JSON.parse(JSON.stringify(inputs)); // Deep copy to prevent mutation
-          const jsIR = compileToIR(tc.code, inputTypes);
-          const js = generateJS(jsIR, { inputs: inputTypes, debug: tc.debug, outputType: tc.outputType });
+          const jsIR = compileToIR(tc.code, {});
+
+          // Merge harness inputs (inferred) with source inputs (declared)
+          const mergedInputs = { ...inputTypes, ...(jsIR.inputs || {}) };
+
+          const js = generateJS(jsIR, {
+            inputs: mergedInputs,
+            debug: tc.debug,
+            outputType: tc.outputType,
+            checkInputs: true // Enable runtime checks
+          });
 
           let res = runJS(js, testInputs, tc.debug);
           let debugOut = undefined;
@@ -128,7 +137,7 @@ describe('Unified Backend Verification', () => {
       if (!tc.skipCPP) {
         it('C++ Backend', () => {
           const testInputs = JSON.parse(JSON.stringify(inputs)); // Deep copy
-          const cppIR = compileToIR(tc.code, inputTypes);
+          const cppIR = compileToIR(tc.code, {});
           let outType = tc.outputType;
           if (!outType && tc.expected !== undefined) {
             if (typeof tc.expected === 'number') outType = NUMBER_TYPE;
@@ -136,7 +145,8 @@ describe('Unified Backend Verification', () => {
           }
           if (!outType) outType = NUMBER_TYPE;
 
-          const cpp = generateCPP(cppIR, { inputs: inputTypes, outputType: outType, debug: tc.debug });
+          const combinedInputs = { ...inputTypes, ...(cppIR.inputs || {}) };
+          const cpp = generateCPP(cppIR, { inputs: combinedInputs, outputType: outType, debug: tc.debug });
 
           const res = runCPP(cpp, testInputs);
           if (res === null) return;
@@ -161,7 +171,7 @@ describe('Unified Backend Verification', () => {
       if (!tc.skipWGSL) {
         it('WGSL Backend (Compile Only)', () => {
           const testInputs = JSON.parse(JSON.stringify(inputs));
-          const wgslIR = compileToIR(tc.code, inputTypes);
+          const wgslIR = compileToIR(tc.code, {});
           let outType = tc.outputType;
           if (!outType && tc.expected !== undefined) {
             if (typeof tc.expected === 'number') outType = NUMBER_TYPE;
