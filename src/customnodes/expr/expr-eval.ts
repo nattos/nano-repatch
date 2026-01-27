@@ -7,6 +7,7 @@ import { anyType, numberType } from "../../structor/std-types";
 // Import Types Only (to avoid bundling heavy compilers)
 import type { buildCode } from "./v2/builder";
 import type { Diagnostic } from "./v2/ir-types";
+import { CompileContext } from "../../structor/structor";
 
 // Wrapper for Lazy Loaded Builder
 let builderWrapper: { buildCode: typeof buildCode } | null = null;
@@ -65,8 +66,15 @@ export const expressionNode = defineNode({
     return true;
   },
 
-  compileConfig: (uiConfig: any) => {
+  compileConfig: (uiConfig: any, context?: CompileContext) => {
     const code = uiConfig.code || '';
+    const cacheKey = `expr_v2_1:${code}`; // Version 1 of cache schema
+
+    // Try Cache
+    if (context && context.compileCache && context.compileCache.has(cacheKey)) {
+      // console.log('Expr Cache HIT', cacheKey);
+      return context.compileCache.get(cacheKey);
+    }
 
     if (!builderWrapper) {
       return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
@@ -81,7 +89,7 @@ export const expressionNode = defineNode({
         containerMode: 'expression-like'
       });
 
-      const hasErrors = res.diagnostics.some(d => d.severity === 'error' || (d as any).category === 1);
+      const hasErrors = res.diagnostics.some(d => d.severity === 'error'); // Fixed check
 
       // Map detected inputs to StructorType
       const inputs: Record<string, StructorType> = {};
@@ -90,19 +98,24 @@ export const expressionNode = defineNode({
         if (type.kind === 'primitive' && type.name === 'number') {
           structorType = numberType as any;
         }
-        // TODO: Add support for vectors (float2/3/4) mapping when V2 supports them explicitly in reflection
-
         inputs[name] = { ...structorType, description: `Variable ${name}` };
       }
 
       const outputs = { result: { ...anyType, description: 'Result' } };
 
-      return {
+      const compiledConfig = {
         jsCode: hasErrors ? undefined : res.outJS?.code,
         diagnostics: res.diagnostics,
         inputs,
         outputs
       };
+
+      // Store in Cache
+      if (context && context.compileCache) {
+        context.compileCache.set(cacheKey, compiledConfig);
+      }
+
+      return compiledConfig;
     } catch (e) {
       return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
     }

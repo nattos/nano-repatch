@@ -955,8 +955,13 @@ function mergeOneWay(parent: Scope, branchA: Scope, condition: IRNode): void {
   }
 }
 
-export function compileToIR(src: string, globalInputs: Record<string, DataType> = {}): IRGraph {
-  const sourceFile = ts.createSourceFile("expr.ts", src, ts.ScriptTarget.ES2015, true);
+export function compileToIR(src: string | ts.SourceFile, globalInputs: Record<string, DataType> = {}): IRGraph {
+  let sourceFile: ts.SourceFile;
+  if (typeof src === 'string') {
+    sourceFile = ts.createSourceFile("expr.ts", src, ts.ScriptTarget.ES2015, true);
+  } else {
+    sourceFile = src;
+  }
   const ctx = new CompilerContext(sourceFile);
 
   // 1. Capture TS Parser Diagnostics

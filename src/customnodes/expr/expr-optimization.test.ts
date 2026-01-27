@@ -23,6 +23,35 @@ describe('Expression Node Optimization', () => {
     // expect(compiled.graph).toBeDefined();
   });
 
+  it('compileConfig should cache results', () => {
+    const uiConfig = { code: 'a * 3' };
+    const context: any = { compileCache: new Map() };
+
+    // First Compile
+    const result1 = expressionNode.compileConfig!(uiConfig, context);
+    expect(context.compileCache.size).toBe(1);
+
+    // Second Compile (Same Code)
+    const result2 = expressionNode.compileConfig!(uiConfig, context);
+
+    // Should be same object reference
+    expect(result2).toBe(result1);
+    expect(context.compileCache.size).toBe(1);
+  });
+
+  it('compileConfig should invalidate cache on code change', () => {
+    const context: any = { compileCache: new Map() };
+
+    // First Compile
+    const result1 = expressionNode.compileConfig!({ code: 'x + 1' }, context);
+
+    // Second Compile (Different Code)
+    const result2 = expressionNode.compileConfig!({ code: 'x + 2' }, context);
+
+    expect(result2).not.toBe(result1);
+    expect(context.compileCache.size).toBe(2);
+  });
+
   // 2. Verify compilePorts
   it('compilePorts should use compiledConfig via reflection', () => {
     const uiConfig = { code };

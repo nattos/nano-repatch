@@ -11,7 +11,8 @@ import { resolvePortName } from '../structor/primitives';
 export function compileGraph(
   appState: AppState,
   loadedSubgraphs: Map<string, GraphState>,
-  nodeRepository: NodeRepository
+  nodeRepository: NodeRepository,
+  persistentCache: Map<string, any> = new Map()
 ): {
   graph: GraphDefinition,
   inferredTypes: Record<string, { inputs: StructorType, outputs: StructorType }>,
@@ -789,7 +790,7 @@ export function compileGraph(
       const uiConfig = nodeUiConfigs[nodeId];
       if (uiConfig) {
         try {
-          const newCompiledConfig = nodeDef.compileConfig(uiConfig, metadata);
+          const newCompiledConfig = nodeDef.compileConfig(uiConfig, { compileCache: persistentCache, metadata });
 
           // Re-inject the values from the original compiled config (virtual inputs)
           // Because compileConfig might return a fresh object without them if it doesn't handle them explicitly.

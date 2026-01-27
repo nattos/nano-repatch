@@ -59,9 +59,13 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   let currentCode = opts.code;
   let injectedInputs: string[] = [];
 
+  let sourceFileToUse: ts.SourceFile | undefined;
+
   // 0. Pre-process code for Container Mode (Implicit Return)
   if (opts.containerMode === 'expression-like') {
     const sf = ts.createSourceFile('temp.ts', currentCode, ts.ScriptTarget.Latest, true);
+    let modified = false;
+
     if (sf.statements.length > 0) {
       const lastStmt = sf.statements[sf.statements.length - 1];
       if (ts.isExpressionStatement(lastStmt)) {
@@ -91,12 +95,17 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
         // But comments? sourceFile parsing usually attaches them.
 
         currentCode = before + 'return (' + exprText + ');' + after;
+        modified = true;
       }
+    }
+
+    if (!modified) {
+      sourceFileToUse = sf;
     }
   }
 
   // 1. Initial Compile
-  let ir = compileToIR(currentCode, {});
+  let ir = compileToIR(sourceFileToUse || currentCode, {});
 
   // 2. Auto-Inputs Logic (Retry Loop)
   if (opts.autoInputs && ir.diagnostics) {

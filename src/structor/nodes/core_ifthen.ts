@@ -126,7 +126,8 @@ export const primitive_ifthen = definePrimitiveNode({
     };
   },
 
-  compileConfig: (uiConfig: any, metadata: any) => {
+  compileConfig: (uiConfig: any, context: any) => {
+    const metadata = context?.metadata;
     return {
       fields: {
         ...uiConfig,

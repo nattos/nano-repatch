@@ -12,7 +12,8 @@ import {
   ExecutionContext,
   RecordType,
   AnalysisContext,
-  TypedBroadcastChannel
+  TypedBroadcastChannel,
+  CompileContext
 } from './structor';
 import { defaultNodeRepository, PortHint, NodeType, RegionVisibility } from './repository';
 import { UIConfigStructorType } from './std-types';
@@ -112,7 +113,7 @@ export interface EnhancedNodeOptions<
   version?: string;
   displayName?: string;
   aliases?: string[];
-  compileConfig?: (uiConfig: TUIConfig) => any; // Returns TCompiledConfig (raw values struct) or just any
+  compileConfig?: (uiConfig: TUIConfig, context: CompileContext) => any; // Returns TCompiledConfig (raw values struct) or just any
   getDisplayLabel?: (uiConfig: TUIConfig) => string | undefined;
   subgraphExpansionTag?: string; // This ends up on the definitions
   getChildren?: (node: any, allNodes: any) => string[]; // Helper to attach to NodeType
@@ -172,7 +173,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
   version: string;
   displayName: string;
   aliases?: string[];
-  compileConfig?: (uiConfig: any) => any;
+  compileConfig?: (uiConfig: any, context: CompileContext) => any;
   loadCompileDeps?: () => Promise<void>;
   getDisplayLabel?: (uiConfig: any) => string | undefined;
   subgraphExpansionTag?: string; // Inherited from PrimitiveNodeDefinition but explicit here for clarity if needed
@@ -233,10 +234,10 @@ export function defineNode<
     autoBroadcast: options.autoBroadcast,
     inputs: simpleInputs,
     outputs: simpleOutputs, // Use stripped outputs
-    compileConfig: (uiConfig: any, metadata?: any) => {
+    compileConfig: (uiConfig: any, context: any) => {
       // Config here is coming from the Graph/Builder, so it is UIConfig
       if (options.compileConfig) {
-        return (options.compileConfig as any)(uiConfig); // Note: We might need to pass metadata here if API allows
+        return (options.compileConfig as any)(uiConfig, context); // Pass context through
       }
       return uiConfig;
     },

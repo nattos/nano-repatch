@@ -111,6 +111,17 @@ export interface ExecutionContext {
   executeSubgraph?: (tag: string) => void;
 };
 
+export interface CompileContext {
+  // A persistent cache provided by the compiler/runtime manager.
+  // Entries in this cache persist across graph compilations.
+  // Nodes can use this to store expensive compilation results (e.g. parsed ASTs, generated code).
+  compileCache: Map<string, any>;
+
+  // Metadata from the analysis pass (e.g. inferred input types).
+  // This is populated during re-compilation.
+  metadata?: any;
+}
+
 
 
 export enum NodeCategory {
@@ -146,7 +157,11 @@ export interface PrimitiveNodeDefinition {
     * Compiles the UI configuration (from inspector) into the runtime configuration.
     * Can use inferred metadata (e.g. input types) to adjust the configuration.
     */
-  compileConfig?: (uiConfig: any, metadata?: any) => Structor;
+  /**
+    * Compiles the UI configuration (from inspector) into the runtime configuration.
+    * Can use inferred metadata (e.g. input types) to adjust the configuration.
+    */
+  compileConfig?: (uiConfig: any, context: CompileContext) => Structor;
   inputs?: Record<string, StructorType & { redirect?: string }>; // Exposed for reflection (e.g. tests)
   outputs?: Record<string, StructorType>; // Exposed for reflection (e.g. registration)
 

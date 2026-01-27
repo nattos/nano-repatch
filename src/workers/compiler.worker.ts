@@ -8,6 +8,9 @@ self.onerror = (e) => {
   // Optional: Post error back to main thread if we had a message type for it
 };
 
+const persistentCache = new Map<string, any>();
+
+
 self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
   const { type } = event.data;
 
@@ -49,7 +52,7 @@ self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
       }
 
       // console.log('Compiler Worker: Compiling graph...');
-      const { graph, inferredTypes, virtualInputMappings, outputRemappings, nodeMetadata, idMap, usesMidi } = compileGraph(state, subgraphsMap, defaultNodeRepository);
+      const { graph, inferredTypes, virtualInputMappings, outputRemappings, nodeMetadata, idMap, usesMidi } = compileGraph(state, subgraphsMap, defaultNodeRepository, persistentCache);
       const response: GraphCompiledMessage = {
         type: 'GRAPH_COMPILED',
         graph,
@@ -96,7 +99,7 @@ self.onmessage = async (event: MessageEvent<CompilerWorkerMessage>) => {
       for (const node of nodes) {
         const nodeType = defaultNodeRepository.getNodeType(node.typeId);
         if (nodeType && nodeType.compileConfig) {
-          configs[node.id] = nodeType.compileConfig(node.config);
+          configs[node.id] = nodeType.compileConfig(node.config, { compileCache: persistentCache });
         } else {
           configs[node.id] = node.config; // Fallback to raw config
         }

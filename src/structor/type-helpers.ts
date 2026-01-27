@@ -9,7 +9,8 @@ import {
   Structor,
   BroadcastConfig,
   NodeMetadata,
-  AnalysisContext
+  AnalysisContext,
+  CompileContext
 } from './structor';
 import { RegionVisibility } from './repository';
 
@@ -199,7 +200,7 @@ export interface TypedNodeOptions<
     backwardMetadata?: any,
   ) => { inputs: RecordType; outputs: RecordType; forwardMetadata?: any };
 
-  compileConfig?: (uiConfig: any, metadata?: any) => Structor;
+  compileConfig?: (uiConfig: any, context: CompileContext) => Structor;
 
   shouldRecompileOnConfigChange?: (
     newConfig: InferRecord<{ kind: 'record', fields: TConfig, untagged: [] }>,
