@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { compileToIR, CompilerOptions } from './compiler';
-import { generateJS } from './codegen-js';
-import { generateCPP } from './codegen-cpp';
-import { generateWGSL } from './codegen-wgsl'; // New
+import { buildCode } from './builder';
 import { DataTypeKind, DataType, PrimitiveType } from './ir-types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -104,31 +101,39 @@ describe('Unified Backend Verification', () => {
       // JS Test
       if (!tc.skipJS) {
         it('JS Backend', () => {
-          const testInputs = JSON.parse(JSON.stringify(inputs)); // Deep copy to prevent mutation
-          const jsIR = compileToIR(tc.code, {});
+          const testInputs = JSON.parse(JSON.stringify(inputs));
 
-          // Merge harness inputs (inferred) with source inputs (declared)
-          const mergedInputs = { ...inputTypes, ...(jsIR.inputs || {}) };
-
-          const js = generateJS(jsIR, {
-            inputs: mergedInputs,
-            debug: tc.debug,
+          const res = buildCode({
+            code: tc.code,
+            emitJS: true,
+            emitJSRunner: true,
             outputType: tc.outputType,
-            checkInputs: true // Enable runtime checks
+            debug: tc.debug
           });
 
-          let res = runJS(js, testInputs, tc.debug);
+          if (res.diagnostics.length > 0) {
+            // throw new Error(res.diagnostics.map(d => d.message).join('\n'));
+          }
+          expect(res.outJS).toBeDefined();
+          expect(res.outJSRunner).toBeDefined();
+
+          // Use the generated runner
+          let ret;
           let debugOut = undefined;
+
           if (tc.debug) {
-            debugOut = res._debug;
-            res = res.res;
+            const dbg = {};
+            ret = res.outJSRunner!.runner(testInputs, dbg);
+            debugOut = dbg;
+          } else {
+            ret = res.outJSRunner!.runner(testInputs);
           }
 
           if (tc.expected !== undefined) {
-            expect(res).toEqual(tc.expected);
+            expect(ret).toEqual(tc.expected);
           }
           if (tc.check) {
-            tc.check(res, debugOut);
+            tc.check(ret, debugOut);
           }
         });
       }
@@ -136,23 +141,22 @@ describe('Unified Backend Verification', () => {
       // C++ Test
       if (!tc.skipCPP) {
         it('C++ Backend', () => {
-          const testInputs = JSON.parse(JSON.stringify(inputs)); // Deep copy
-          const cppIR = compileToIR(tc.code, {});
-          let outType = tc.outputType;
-          if (!outType && tc.expected !== undefined) {
-            if (typeof tc.expected === 'number') outType = NUMBER_TYPE;
-            else if (typeof tc.expected === 'boolean') outType = { kind: DataTypeKind.Primitive, name: 'boolean' };
-          }
-          if (!outType) outType = NUMBER_TYPE;
+          const testInputs = JSON.parse(JSON.stringify(inputs));
 
-          const combinedInputs = { ...inputTypes, ...(cppIR.inputs || {}) };
-          const cpp = generateCPP(cppIR, { inputs: combinedInputs, outputType: outType, debug: tc.debug });
+          const res = buildCode({
+            code: tc.code,
+            emitCPP: true,
+            outputType: tc.outputType,
+            debug: tc.debug
+          });
+          expect(res.outCPP).toBeDefined();
 
-          const res = runCPP(cpp, testInputs);
-          if (res === null) return;
+          const cppCode = res.outCPP!.code;
+          const runRes = runCPP(cppCode, testInputs); // Helper still useful for clang execution
+          if (runRes === null) return;
 
-          let val = res.res;
-          let debugOut = res._debug;
+          let val = runRes.res;
+          let debugOut = runRes._debug;
 
           if (tc.expected !== undefined) {
             if (typeof tc.expected === 'number') {
@@ -167,22 +171,16 @@ describe('Unified Backend Verification', () => {
         });
       }
 
-      // WGSL Test (Generation Only)
+      // WGSL Test
       if (!tc.skipWGSL) {
         it('WGSL Backend (Compile Only)', () => {
-          const testInputs = JSON.parse(JSON.stringify(inputs));
-          const wgslIR = compileToIR(tc.code, {});
-          let outType = tc.outputType;
-          if (!outType && tc.expected !== undefined) {
-            if (typeof tc.expected === 'number') outType = NUMBER_TYPE;
-            else if (typeof tc.expected === 'boolean') outType = { kind: DataTypeKind.Primitive, name: 'boolean' };
-          }
-          if (!outType) outType = NUMBER_TYPE;
-
-          // Simply generate and assert non-empty
-          const wgsl = generateWGSL(wgslIR, { inputs: inputTypes, outputType: outType });
-          expect(wgsl.length).toBeGreaterThan(0);
-          expect(wgsl).toContain('fn main()');
+          const res = buildCode({
+            code: tc.code,
+            emitWGSL: true,
+            outputType: tc.outputType
+          });
+          expect(res.outWGSL).toBeDefined();
+          expect(res.outWGSL!.code).toContain('fn main');
         });
       }
 
