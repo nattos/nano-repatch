@@ -328,8 +328,12 @@ instanceMethods.set('push', (ctx, call, args, obj, compile) => {
 
 // Math Library Support
 
-function registerMath(name: string, func: (...args: number[]) => number) {
-  staticMethods.set(`Math.${name}`, (ctx, call, args) => {
+// Metadata Registry for .d.ts generation
+export const libSignatures = new Map<string, string>();
+
+function registerMath(name: string, func: (...args: number[]) => number, sigArgs: string = 'x: number') {
+  const key = `Math.${name}`;
+  staticMethods.set(key, (ctx, call, args) => {
     // 1. Try Constant Folding
     const allConst = args.every(a => a.kind === OpKind.Const && a.type.kind === DataTypeKind.Primitive && a.type.name === 'number');
     if (allConst) {
@@ -338,15 +342,6 @@ function registerMath(name: string, func: (...args: number[]) => number) {
     }
 
     // 2. Emit Runtime Intrinsic
-    // Generate a unique ID for the intrinsic call
-    // We need a way to get nextId logic, but it's internal to compiler.
-    // We can use a makeshift ID or we need nextId exposed/injected?
-    // Using a timestamp/random or just 'intrinsic_' + suffix is okay for IR as long as unique?
-    // Actually, IR IDs should be unique.
-    // Let's assume we don't strictly need sequentially perfect IDs for now, or use a local counter.
-    // We can inject `ctx.nextId()` if we added it to Context, but we didn't.
-    // Let's use `math_${name}_${Math.random().toString(36).substr(2, 5)}`
-
     return {
       id: `intr_${name}_${Math.floor(Math.random() * 10000)}`,
       kind: OpKind.Intrinsic,
@@ -356,15 +351,34 @@ function registerMath(name: string, func: (...args: number[]) => number) {
       args
     } as IntrinsicNode;
   });
+
+  // Register signature
+  libSignatures.set(key, `(method) Math.${name}(${sigArgs}): number`);
 }
 
 // Register Standard Math Functions
-['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log', 'sqrt', 'abs', 'ceil', 'floor', 'round', 'max', 'min', 'pow'].forEach(name => {
-  // Cast to any because TS doesn't know dynamic Math access easily
+const unaryMath = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log', 'sqrt', 'abs', 'ceil', 'floor', 'round'];
+unaryMath.forEach(name => {
   const fn = (Math as any)[name];
-  if (fn) registerMath(name, fn);
+  if (fn) registerMath(name, fn, 'x: number');
+});
+
+const binaryMath = ['max', 'min', 'pow'];
+binaryMath.forEach(name => {
+  const fn = (Math as any)[name];
+  if (fn) registerMath(name, fn, 'a: number, b: number');
 });
 
 // Globals
-globalScope.set('Math', { id: 'Math', kind: OpKind.Intrinsic, type: ANY_TYPE, value: 'Math' } as any); // Placeholder?
+globalScope.set('Math', { id: 'Math', kind: OpKind.Intrinsic, type: ANY_TYPE, value: 'Math' } as any);
+libSignatures.set('Math', 'const Math: Math'); // Simplify?
+
 globalScope.set('undefined', { id: 'undefined', kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'undefined' }, value: undefined } as ConstNode);
+libSignatures.set('undefined', 'const undefined: undefined');
+
+// Array Methods (Manual Registration for now)
+libSignatures.set('Array.isArray', '(method) Array.isArray(arg: any): boolean');
+libSignatures.set('Array.push', '(method) Array<T>.push(...items: T[]): number');
+libSignatures.set('Array.map', '(method) Array<T>.map<U>(callbackfn: (value: T, index: number, array: T[]) => U): U[]');
+libSignatures.set('Array.reduce', '(method) Array<T>.reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U');
+
