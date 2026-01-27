@@ -13,38 +13,24 @@ describe('Expression Node Optimization', () => {
   });
 
   // 1. Verify compileConfig
-  it('compileConfig should compiled code and embed graph', () => {
+  it('compileConfig should compiled code', () => {
     const uiConfig = { code };
-    const compiled = expressionNode.compileConfig!(uiConfig);
+    const compiled: any = expressionNode.compileConfig!(uiConfig, {});
 
-    expect(compiled.code).toBe(code);
-    expect(compiled.graph).toBeDefined();
-
-    const graph = (compiled.graph as any) as ExecutionGraph;
-    expect(graph.rootId).toBeDefined();
-
-    // Check if graph has inputs
-    const nodes = Object.values(graph.nodes);
-    const inputNode = nodes.find(n => n.op === 'input' && n.params.key === 'a');
-    expect(inputNode).toBeDefined();
+    expect(compiled.jsCode).toBeDefined();
+    expect(compiled.jsCode).toContain('return');
+    // V2 doesn't expose IR graph in compileConfig result anymore, just JS
+    // expect(compiled.graph).toBeDefined();
   });
 
   // 2. Verify compilePorts
-  it('compilePorts should use cached compiledConfig', () => {
+  it('compilePorts should use compiledConfig via reflection', () => {
     const uiConfig = { code };
     // Pre-compile
-    const compiledConfig = expressionNode.compileConfig!(uiConfig);
+    const compiledConfig = expressionNode.compileConfig!(uiConfig, {});
 
-    // Mock compiledConfig present in context
-    const context = {
-      loadedSubgraphs: new Map(),
-      compiledConfig: compiledConfig
-    };
-
-    const node = { config: { code } };
-
-    // Reset cache or ensure compilePorts logic prioritizes context
-    const ports = expressionNode.computeForwardPorts!({}, node.config, context);
+    // V2 computeForwardPorts uses compiledConfig.inputs if available
+    const ports = expressionNode.computeForwardPorts!({}, compiledConfig, {});
 
     // computeForwardPorts returns { inputs: { ... }, outputs: ... }
     // fields are in inputs.fields
@@ -52,62 +38,55 @@ describe('Expression Node Optimization', () => {
     expect(Object.keys(ports?.inputs?.fields || {})[0]).toBe('a');
   });
 
-  it('compilePorts should fallback to parsing if compiledConfig missing', () => {
-    const context = {
-      loadedSubgraphs: new Map(),
-      compiledConfig: undefined
-    };
-    const node = { config: { code: 'b + 1' } };
+  it('compilePorts should fallback to parsing if compiledConfig missing/empty', () => {
+    // V2 actually recompiles if needed or returns empty if dependencies missing.
+    // However, if we pass empty config, it returns defaults.
+    // If we want to test that it recalculates ports from source on the fly,
+    // `computeForwardPorts` in `expr-eval` currently relies on `config.inputs` being populated by `compileConfig`.
+    // It does NOT re-parse the code inside `computeForwardPorts`.
 
-    const ports = expressionNode.computeForwardPorts!({}, node.config, context);
-    expect(Object.keys(ports?.inputs?.fields || {})).toHaveLength(1);
-    expect(Object.keys(ports?.inputs?.fields || {})[0]).toBe('b');
+    // So this test case "fallback to parsing" is technically invalid for V2 architecture
+    // because `computeForwardPorts` is pure and fast, relying on the heavy lifting done in `compileConfig`.
+
+    // We should test that it handles empty inputs gracefully.
+
+    const ports = expressionNode.computeForwardPorts!({}, { inputs: {} }, {});
+    expect(Object.keys(ports?.inputs?.fields || {})).toHaveLength(0);
   });
 
   // 3. Verify execute
-  it('execute should use embedded graph from config', () => {
+  it('execute should use compiled JS', () => {
     const uiConfig = { code: 'x + 10' };
-    const compiledConfig = expressionNode.compileConfig!(uiConfig);
-
-    // Flatten for execution (mimicking executor behavior)
-    // The executor would see `inputs` and `config`
+    const compiledConfig = expressionNode.compileConfig!(uiConfig, {});
 
     const inputs = { x: 5 };
     const config = compiledConfig;
 
-    const result = expressionNode.execute!(inputs, config, {} as any);
+    // V2 Requires nodeState for runner caching
+    const context: any = {
+      nodeId: 'test-opt-node',
+      nodeState: new Map()
+    };
 
-    // Wrapped result
-    if ('fields' in result) {
-      expect(result.fields.result).toBe(15);
-    } else {
-      // Fallback or error
-      // expect(result.result).toBe(15);
-      if (result && typeof result === 'object' && 'result' in result) {
-        expect(result.result).toBe(15);
-      } else {
-        throw new Error("Invalid result format");
-      }
-    }
+    const result: any = expressionNode.execute!(inputs, config, context, undefined);
+
+    // Wrapped result in fields
+    expect(result.fields.result).toBe(15);
   });
 
-  it('execute should handle missing graph gracefully', () => {
+  it('execute should handle missing code gracefully', () => {
     const inputs = { x: 5 };
-    const config = { fields: { code: 'x' } }; // No graph field in fields
+    const config = { jsCode: undefined };
 
-    const result = expressionNode.execute!(inputs, config, {} as any);
+    const context: any = {
+      nodeId: 'test-opt-missing-code',
+      nodeState: new Map()
+    };
+
+    const result: any = expressionNode.execute!(inputs, config, context, undefined);
 
     expect(result).toBeDefined();
-    // execute returns StructorRecord { fields: { ... },  }
-    // We expect { result: 0 } to be wrapped in fields.
-    if (result && 'fields' in result) {
-      expect(result.fields.result).toBe(0); // Fallback is 0
-    } else if (result && 'result' in result) {
-      expect(result.result).toBe(0);
-    } else {
-      // expect fallback to match strict logic
-      // Current impl returns { result: 0 } or { result: null }?
-      // Let's check impl: return { result: 0 };
-    }
+    // V2 returns { fields: { result: 0 } } (default result)
+    expect(result.fields.result).toBe(0);
   });
 });

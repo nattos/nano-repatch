@@ -186,6 +186,65 @@ describe('Unified Builder', () => {
     expect(outFields['v']).toBeDefined();
     expect(outFields['v'].kind).toBe('struct'); // Nested struct
   });
+  describe('Container Mode (Implicit Return)', () => {
+    it('should wrap expression in return statement (verified via execution)', () => {
+      // 10 + 20 -> 30
+      const res = buildCode({
+        code: '10 + 20',
+        emitJSRunner: true,
+        containerMode: 'expression-like'
+      });
+      // Verification via execution
+      expect(res.outJSRunner!.runner({})).toBe(30);
+    });
+
+    it('should wrap last statement if it is an expression (with local var)', () => {
+      // var x = 10; x * 2
+      const res = buildCode({
+        code: 'var x = 10; x * 2',
+        emitJSRunner: true,
+        containerMode: 'expression-like'
+      });
+      expect(res.outJSRunner!.runner({})).toBe(20);
+    });
+
+    it('should handle trailing semicolons gracefully', () => {
+      // x + 1;
+      const res = buildCode({
+        code: 'x + 1;',
+        emitJS: true,
+        autoInputs: true,
+        containerMode: 'expression-like'
+      });
+      // Code should contain return, and x should be input
+      expect(res.outJS!.code).toContain('return');
+      expect(res.outJS!.code).toContain('input.x');
+      expect(res.injectedInputs).toContain('x');
+    });
+
+    it('should NOT wrap if already has return', () => {
+      const res = buildCode({
+        code: 'return x + 1;',
+        emitJS: true,
+        autoInputs: true,
+        containerMode: 'expression-like'
+      });
+      // Should not have double return like "return (return ...)"
+      expect(res.outJS!.code).not.toMatch(/return\s*\(\s*return/);
+      expect(res.outJS!.code).toContain('return');
+    });
+
+    it('should NOT wrap if not an expression (e.g. if statement)', () => {
+      const res = buildCode({
+        code: 'if (true) { return 1; }',
+        emitJS: true,
+        containerMode: 'expression-like'
+      });
+      expect(res.outJS!.code).not.toContain('return (if');
+    });
+
+    // Removed comment preservation test as IR generation strips comments.
+  });
 });
 
 
