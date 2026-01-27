@@ -21,6 +21,7 @@ export interface LocalState {
   lastGroupSelection: Set<string> | null;
   inflightPortConnectionOperation: { nodeId: string; port: string; type: 'in' | 'out'; } | null;
   loadedSubgraphs: Map<string, GraphState>;
+  nodeUIStates: Map<string, any>; // Ephemeral UI state for nodes
   compiledNodeConfigs: Map<string, any>; // Cache for worker-compiled configs
   inferredNodeTypes: Map<string, { inputs: StructorType, outputs: StructorType }>;
   effectiveNodeTypes: Map<string, { inputs: PortHint[], outputs: PortHint[] }>; // Cache for resolved UI Ports
@@ -103,6 +104,7 @@ export class LocalController {
       lastGroupSelection: null,
       inflightPortConnectionOperation: null,
       loadedSubgraphs: new Map<string, GraphState>(),
+      nodeUIStates: new Map<string, any>(),
       compiledNodeConfigs: new Map<string, any>(),
       wireLayout: { wires: {}, segments: [] },
       layoutVersion: 0,
@@ -780,6 +782,15 @@ export class LocalController {
     if (this.observableState.altKeyPressed !== pressed) {
       this.observableState.altKeyPressed = pressed;
     }
+  }
+
+  @action
+  public updateUIState(nodeId: string, mutator: (state: any) => void): void {
+    if (!this.observableState.nodeUIStates.has(nodeId)) {
+      this.observableState.nodeUIStates.set(nodeId, {});
+    }
+    const state = this.observableState.nodeUIStates.get(nodeId);
+    mutator(state);
   }
 
   public getViewportCenterGridCoordinates(): { x: number, y: number } {

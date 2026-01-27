@@ -45,7 +45,8 @@ export const expressionNode = defineNode({
     jsCode: { ...StringType, optional: true },
     // Forward inputs/outputs through compiled config
     inputs: { kind: 'record', fields: {}, optional: true } as any,
-    outputs: { kind: 'record', fields: {}, optional: true } as any
+    outputs: { kind: 'record', fields: {}, optional: true } as any,
+    diagnostics: { kind: 'atomic', type: 'any', optional: true } as any // Diagnostics array
   },
   outputs: {
     result: AnyType
@@ -135,6 +136,10 @@ export const expressionNode = defineNode({
   },
 
   createState: () => ({}),
+
+  syncUIFromCompiledConfig: (compiledConfig: any, uiState: any) => {
+    uiState.diagnostics = compiledConfig.diagnostics || [];
+  },
 
   execute: (inputs, config: any, context, state: any) => {
     if (!config.jsCode) {

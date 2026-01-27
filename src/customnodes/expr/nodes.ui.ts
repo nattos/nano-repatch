@@ -1,13 +1,37 @@
 import { html } from 'lit';
 import { GridNode } from '../../builder/state';
 import { InspectorChangeHandler } from '../../structor/repository';
-import '../../views/monaco-editor';
+import { localController, runtimeManager } from '../../builder/controllers';
+import '../../views/editor-status-bar';
 
-export const ExpressionInspectorRenderer = (node: GridNode, onchange: InspectorChangeHandler) => html`
-  <div style="height: 300px; width: 100%; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">
-    <monaco-editor-wrapper
-      .value=${node.config.code || ''}
-      @change=${(e: CustomEvent) => onchange({ code: e.detail.value })}
-    ></monaco-editor-wrapper>
+export const ExpressionInspectorRenderer = (node: GridNode, onchange: InspectorChangeHandler) => {
+  const uiState = localController.observableState.nodeUIStates.get(node.id);
+  const diagnostics = uiState?.diagnostics || [];
+
+  // Determine Status
+  let status: 'idle' | 'pending' | 'error' | 'success' = 'success'; // Default success if no diagnostics
+
+  if (runtimeManager.pendingDirtyNodeIds.has(node.id)) {
+    status = 'pending';
+  } else if (diagnostics.some((d: any) => d.severity === 'error')) {
+    status = 'error';
+  } else if (diagnostics.some((d: any) => d.severity === 'warning')) {
+    // Warnings don't block success usually, but we can show success state with warning counts
+    status = 'success';
+  }
+
+  return html`
+  <div style="display: flex; flex-direction: column; gap: 0;">
+    <editor-status-bar
+      .status=${status}
+      .diagnostics=${diagnostics}
+    ></editor-status-bar>
+    <div style="height: 300px; width: 100%; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 4px 4px; overflow: hidden;">
+      <monaco-editor-wrapper
+        .value=${node.config.code || ''}
+        @change=${(e: CustomEvent) => onchange({ code: e.detail.value })}
+      ></monaco-editor-wrapper>
+    </div>
   </div>
 `;
+};

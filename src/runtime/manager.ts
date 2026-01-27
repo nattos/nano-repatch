@@ -39,7 +39,7 @@ export class RuntimeManager {
   private nodeRepository = defaultNodeRepository;
   private realtimeNodeCache = new Map<string, boolean>();
   private hasLoadedGraph = false;
-  private pendingDirtyNodeIds = new Set<string>();
+  public pendingDirtyNodeIds = new Set<string>();
 
   private compilerWorker: Worker;
   private executorWorker: Worker;
@@ -280,6 +280,8 @@ export class RuntimeManager {
           // Cache config for root nodes (matching AppState IDs) for UI use.
           // Subgraph node IDs are prefixed and handled separately by the worker.
           this.localController.observableState.compiledNodeConfigs.set(nodeId, instance.defaultConfig);
+
+          this.syncUIState(nodeId, instance.defaultConfig);
         }
       }
     });
@@ -296,6 +298,8 @@ export class RuntimeManager {
     runInAction(() => {
       for (const [nodeId, config] of Object.entries(msg.configs)) {
         this.localController.observableState.compiledNodeConfigs.set(nodeId, config);
+
+        this.syncUIState(nodeId, config);
 
         // Forward to executor
         const updateMsg: ExecutorWorkerMessage = {
@@ -560,6 +564,18 @@ export class RuntimeManager {
       subgraphs: Object.fromEntries(toJS(subgraphs))
     };
     this.compilerWorker.postMessage(msg);
+  }
+
+  private syncUIState(nodeId: string, config: any) {
+    const node = this.appController.observableState.graph.inner.nodes[nodeId];
+    if (node) {
+      const nodeType = this.nodeRepository.getNodeType(node.config.typeId);
+      if (nodeType && nodeType.syncUIFromCompiledConfig) {
+        this.localController.updateUIState(nodeId, (uiState) => {
+          nodeType.syncUIFromCompiledConfig!(config, uiState);
+        });
+      }
+    }
   }
 }
 

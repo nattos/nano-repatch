@@ -116,6 +116,12 @@ export interface NodeType {
     height: number;
     visibility: RegionVisibility;
   };
+
+  /**
+   * Hook to synchronize UI state from the compiled config.
+   * Runs on the main thread after compilation.
+   */
+  syncUIFromCompiledConfig?: (compiledConfig: any, uiState: any) => void;
 }
 
 export class NodeRepository {

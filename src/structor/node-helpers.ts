@@ -135,6 +135,7 @@ export interface EnhancedNodeOptions<
   inspectInputs?: boolean;
   onMessage?: (state: TState, message: any) => void;
   shouldRecompileOnConfigChange?: (uiConfig: TUIConfig) => boolean;
+  syncUIFromCompiledConfig?: (compiledConfig: TCompiledConfig, uiState: any) => void;
 
   // Re-declare with explicit names
   computeForwardPorts?: (
@@ -182,6 +183,7 @@ export interface EnhancedNodeDefinition extends PrimitiveNodeDefinition {
 
   inspectInputs?: boolean;
   shouldRecompileOnConfigChange?: ((uiConfig: any) => boolean) | ((newConfig: any, oldConfig: any) => boolean);
+  syncUIFromCompiledConfig?: (compiledConfig: any, uiState: any) => void;
   // onMessage is inherited from PrimitiveNodeDefinition
   getChildren?: (node: GridNode, allNodes: Record<string, GridNode>) => string[];
   getRegion?: (config: any) => { x: number; y: number; width: number; height: number };
@@ -297,7 +299,9 @@ export function defineNode<
     shouldRecompileOnConfigChange: options.shouldRecompileOnConfigChange,
     getChildren: options.getChildren,
     getRegion: options.getRegion,
-    usesMidiDeviceIO: options.usesMidiDeviceIO as any
+
+    usesMidiDeviceIO: options.usesMidiDeviceIO as any,
+    syncUIFromCompiledConfig: options.syncUIFromCompiledConfig
   };
 }
 
@@ -352,6 +356,7 @@ export function registerNode(def: PrimitiveNodeDefinition & Partial<EnhancedNode
     shouldRecompileOnConfigChange: def.shouldRecompileOnConfigChange,
     getChildren: def.getChildren,
     getRegion: def.getRegion as any,
+    syncUIFromCompiledConfig: def.syncUIFromCompiledConfig,
   };
 
   // If UI is provided, we need to hook it up.

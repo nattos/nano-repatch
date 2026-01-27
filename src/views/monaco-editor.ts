@@ -1,6 +1,7 @@
 import { LitElement, html, css, PropertyValueMap } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type * as Monaco from 'monaco-editor';
+import { configureMonaco } from './monaco-config';
 
 // Import Monaco CSS as a URL to inject into Shadow DOM
 // This ensures fonts and relative assets are resolved correctly
@@ -95,6 +96,7 @@ export class MonacoEditorWrapper extends LitElement {
     if (this.container) {
       try {
         this.monacoModule = await import('monaco-editor');
+        configureMonaco(this.monacoModule);
         this.isLoading = false;
 
         if (!this.isConnected) return;
