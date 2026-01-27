@@ -88,5 +88,8 @@ export function runCppWithDiagnostics(cppCode: string, input: any): CppExecution
       source: 'runtime'
     });
     return { success: false, diagnostics };
+  } finally {
+    if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
+    if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
   }
 }
