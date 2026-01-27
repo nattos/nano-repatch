@@ -111,5 +111,44 @@ describe('StdLib DTS Generation', () => {
     expect(sinMember.parameters[0].name.getText(sourceFile)).toBe('x');
     expect(sinMember.parameters[0].type?.kind).toBe(ts.SyntaxKind.NumberKeyword);
     expect(sinMember.type?.kind).toBe(ts.SyntaxKind.NumberKeyword); // Return type
+
+  });
+
+  it('should resolve "undefined" in a noLib environment', () => {
+    const dts = generateDTS();
+    const testCode = 'let x = undefined;';
+
+    // Create a program with NO default libs
+    const compilerOptions: ts.CompilerOptions = {
+      noEmit: true,
+      noLib: true, // Critical: simulate DSL environment
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.CommonJS
+    };
+
+    const host = ts.createCompilerHost(compilerOptions);
+    const originalGetSourceFile = host.getSourceFile;
+    host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+      if (fileName === 'stdlib.d.ts') return ts.createSourceFile(fileName, dts, languageVersion);
+      if (fileName === 'test.ts') return ts.createSourceFile(fileName, testCode, languageVersion);
+      return originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
+    };
+
+    // Note: In real Monaco we'd add dts as "extra lib". Here we pass it as source file.
+    const program = ts.createProgram(['stdlib.d.ts', 'test.ts'], compilerOptions, host);
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+
+    // Check for "Cannot find name 'undefined'" errors
+    const errors = diagnostics.filter(d => d.category === ts.DiagnosticCategory.Error);
+    const undefinedErrors = errors.filter(e => e.messageText.toString().includes('undefined'));
+    if (undefinedErrors.length > 0) {
+      console.error(undefinedErrors.map(e => ts.formatDiagnostics([e], {
+        getCanonicalFileName: f => f,
+        getCurrentDirectory: () => '/',
+        getNewLine: () => '\n'
+      })).join('\n'));
+    }
+
+    expect(undefinedErrors.length).toBe(0);
   });
 });

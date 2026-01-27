@@ -374,7 +374,8 @@ globalScope.set('Math', { id: 'Math', kind: OpKind.Intrinsic, type: ANY_TYPE, va
 libSignatures.set('Math', 'const Math: Math'); // Simplify?
 
 globalScope.set('undefined', { id: 'undefined', kind: OpKind.Const, type: { kind: DataTypeKind.Primitive, name: 'undefined' }, value: undefined } as ConstNode);
-libSignatures.set('undefined', 'const undefined: undefined');
+// libSignatures.set('undefined', 'const undefined: undefined'); // Implicit in TS
+
 
 // Array Methods (Manual Registration for now)
 libSignatures.set('Array.isArray', '(method) Array.isArray(arg: any): boolean');
