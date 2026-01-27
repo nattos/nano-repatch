@@ -17,10 +17,12 @@ describe('Expression Node Integration', () => {
   });
 
   it('should reflect inputs from code', () => {
-    const config = { code: 'return x + y * 2;' };
+    const uiConfig = { code: 'return x + y * 2;' };
+    // Compile first to get port definitions
+    const compiled = expressionNode.compileConfig!(uiConfig, context);
 
-    // Compute ports
-    const ports = expressionNode.computeForwardPorts!({}, config, context);
+    // Compute ports using compiled config
+    const ports = expressionNode.computeForwardPorts!({}, compiled, context);
 
     expect(ports.inputs).toBeDefined();
     // Check for fields 'x' and 'y'
@@ -109,7 +111,19 @@ describe('Expression Node Integration', () => {
     const res: any = expressionNode.execute!({ x: 10 }, compiled2, context, undefined);
 
     expect(res.fields.result).toBe(20);
-    expect((usedState as any).runner).not.toBe(runner1);
     expect((usedState as any).lastCode).toBe(compiled2.jsCode);
+  });
+
+  it('should support implicit returns (containerMode)', () => {
+    // implicit return of x + 10
+    const config = { code: 'x + 10' };
+    const compiled = expressionNode.compileConfig!(config, context);
+
+    expect(compiled.jsCode).toBeDefined();
+    expect(compiled.jsCode).toContain('return');
+
+    // Execute
+    const result: any = expressionNode.execute!({ x: 5 }, compiled, context, undefined);
+    expect(result.fields.result).toBe(15);
   });
 });

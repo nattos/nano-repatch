@@ -11,10 +11,6 @@ import type { Diagnostic } from "./v2/ir-types";
 // Wrapper for Lazy Loaded Builder
 let builderWrapper: { buildCode: typeof buildCode } | null = null;
 
-// Cache for port computation to avoid expensive rebuilds if code hasn't changed
-// (Though builder.ts is fast, it helps)
-const portCache = new Map<string, { inputs: Record<string, StructorType>, outputs: Record<string, StructorType> }>();
-
 const ExpressionFields: InspectorFieldDef[] = [
   { type: 'string', label: 'Expression', path: 'code', placeholder: 'e.g. sin(time) * 0.5' }
 ];
@@ -46,8 +42,9 @@ export const expressionNode = defineNode({
   inputs: {}, // Inputs are dynamic
   config: {
     jsCode: { ...StringType, optional: true },
-    // code: StringType // We don't need UI config in runtime schema if defineNode handles it via compileConfig?
-    // Wait, runtime config IS compileConfig result.
+    // Forward inputs/outputs through compiled config
+    inputs: { kind: 'record', fields: {}, optional: true } as any,
+    outputs: { kind: 'record', fields: {}, optional: true } as any
   },
   outputs: {
     result: AnyType
@@ -72,70 +69,55 @@ export const expressionNode = defineNode({
     const code = uiConfig.code || '';
 
     if (!builderWrapper) {
-      return { jsCode: undefined, diagnostics: [] };
+      return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
     }
 
     try {
+      // Single pass: emit JS and discover inputs
       const res = builderWrapper.buildCode({
         code,
         emitJS: true,
-        autoInputs: true
+        autoInputs: true,
+        containerMode: 'expression-like'
       });
 
-      const hasErrors = res.diagnostics.some(d => d.severity === 'error' || (d as any).category === 1 /* DiagnosticCategory.Error */);
+      const hasErrors = res.diagnostics.some(d => d.severity === 'error' || (d as any).category === 1);
+
+      // Map detected inputs to StructorType
+      const inputs: Record<string, StructorType> = {};
+      for (const [name, type] of Object.entries(res.inputs)) {
+        let structorType = anyType;
+        if (type.kind === 'primitive' && type.name === 'number') {
+          structorType = numberType as any;
+        }
+        // TODO: Add support for vectors (float2/3/4) mapping when V2 supports them explicitly in reflection
+
+        inputs[name] = { ...structorType, description: `Variable ${name}` };
+      }
+
+      const outputs = { result: { ...anyType, description: 'Result' } };
 
       return {
         jsCode: hasErrors ? undefined : res.outJS?.code,
-        diagnostics: res.diagnostics
+        diagnostics: res.diagnostics,
+        inputs,
+        outputs
       };
     } catch (e) {
-      return { jsCode: undefined, diagnostics: [] };
+      return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
     }
   },
 
-  computeForwardPorts: (inputTypes, uiConfig: any) => {
-    const code = uiConfig.code || '';
+  computeForwardPorts: (inputTypes, config: any) => {
+    // The "config" here is the COMPILED config returned by compileConfig.
+    // We rely on compileConfig having populated the port definitions.
 
-    // Check cache
-    if (portCache.has(code)) {
-      // We could technically return cached, but we need to match return signature.
-      // computeForwardPorts expects { inputs, outputs }.
-    }
-
-    if (!builderWrapper) {
-      // Fallback if not loaded (should not happen in main flow usually)
-      return {
-        inputs: { kind: 'record', fields: {} },
-        outputs: { kind: 'record', fields: { result: { ...anyType, description: 'Result' } } }
-      };
-    }
-
-    // Build IR to get reflection data
-    const res = builderWrapper.buildCode({
-      code,
-      emitIR: true,
-      autoInputs: true // Important: discover 'x', 'y' etc.
-    });
-
-    // Map V2 DataType to StructorType
-    // For now, simpler mapping:
-    // Primitive 'number' -> numberType
-    // else -> anyType
-    const inputs: Record<string, StructorType> = {};
-
-    for (const [name, type] of Object.entries(res.inputs)) {
-      let structorType = anyType;
-      if (type.kind === 'primitive' && type.name === 'number') {
-        structorType = numberType as any;
-      }
-      // TODO: Deep mapping for structs?
-
-      inputs[name] = { ...structorType, description: `Variable ${name}` };
-    }
+    const inputs = (config && config.inputs) ? config.inputs : {};
+    const outputs = (config && config.outputs) ? config.outputs : { result: anyType };
 
     return {
       inputs: { kind: 'record', fields: inputs },
-      outputs: { kind: 'record', fields: { result: { ...anyType, description: 'Result' } } }
+      outputs: { kind: 'record', fields: outputs }
     };
   },
 
