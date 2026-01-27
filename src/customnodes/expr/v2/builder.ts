@@ -2,7 +2,7 @@ import { compileToIR } from './compiler';
 import { generateJS } from './codegen-js';
 import { generateCPP } from './codegen-cpp';
 import { generateWGSL } from './codegen-wgsl';
-import { IRGraph, Diagnostic, DataType, DiagnosticSeverity } from './ir-types';
+import { IRGraph, Diagnostic, DataType, DiagnosticSeverity, OpKind, IRNode, BlockNode, ReturnNode, IfNode, WhileNode } from './ir-types';
 
 export interface BuildOptions {
   code: string;
@@ -45,6 +45,10 @@ export type BuildResult<T extends BuildOptions> = {
 
   diagnostics: Diagnostic[];
   injectedInputs?: string[]; // Names of auto-injected inputs
+
+  // Reflection Data (Always Available)
+  inputs: Record<string, DataType>;
+  output: DataType;
 };
 
 export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
@@ -101,6 +105,9 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
 
   // Common inputs from IR (merged source + global)
   const inputs: Record<string, DataType> = ir.inputs || {};
+
+  result.inputs = inputs;
+  result.output = (ir.root && inferReturnType(ir.root)) || { kind: 'primitive', name: 'void' } as any;
 
   const mode = opts.debug || 'none';
   const genClean = mode === 'none' || mode === 'both';
@@ -193,4 +200,29 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   }
 
   return result;
+}
+
+function inferReturnType(node: IRNode): DataType | null {
+  if (node.kind === OpKind.Return) {
+    return (node as ReturnNode).value.type;
+  }
+  if (node.kind === OpKind.Block) {
+    const block = node as BlockNode;
+    for (const stmt of block.statements) {
+      const t = inferReturnType(stmt);
+      if (t) return t;
+    }
+  }
+  if (node.kind === OpKind.If) {
+    const ifNode = node as IfNode;
+    const t = inferReturnType(ifNode.thenBlock);
+    if (t) return t;
+    if (ifNode.elseBlock) {
+      return inferReturnType(ifNode.elseBlock);
+    }
+  }
+  if (node.kind === OpKind.While) {
+    return inferReturnType((node as WhileNode).body);
+  }
+  return null;
 }

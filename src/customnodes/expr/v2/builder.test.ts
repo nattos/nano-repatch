@@ -132,5 +132,60 @@ describe('Unified Builder', () => {
       expect(res.diagnostics[0].message).toContain('Unresolved identifier');
     });
   });
+
+  it('should expose inputs and output reflection data', () => {
+    const res = buildCode({
+      code: 'var x: number; return x > 5;',
+      emitIR: true // Or false, reflection should always be there
+    });
+
+    expect(res.inputs).toBeDefined();
+    expect(res.inputs['x']).toBeDefined();
+    expect(res.inputs['x'].kind).toBe('primitive');
+    // @ts-ignore
+    expect(res.inputs['x'].name).toBe('number');
+
+    expect(res.output).toBeDefined();
+    expect(res.output.kind).toBe('primitive');
+    // @ts-ignore
+    expect(res.output.name).toBe('boolean');
+  });
+
+  it('should reflect complex struct types for inputs and outputs', () => {
+    const code = `
+      interface Vector {
+        x: number;
+        y: number;
+      }
+      var v: Vector;
+
+      return { sum: v.x + v.y, v: v };
+    `;
+
+    const res = buildCode({ code, emitIR: true });
+
+    expect(res.diagnostics.length).toBe(0);
+
+    // Verify Input
+    const inputV = res.inputs['v'];
+    expect(inputV).toBeDefined();
+    expect(inputV.kind).toBe('struct');
+
+    const fields = (inputV as any).fields;
+    expect(fields['x'].kind).toBe('primitive'); // number
+    expect(fields['y'].kind).toBe('primitive'); // number
+
+    // Verify Output
+    const output = res.output;
+    expect(output.kind).toBe('struct');
+
+    const outFields = (output as any).fields;
+    expect(outFields['sum']).toBeDefined();
+    expect(outFields['sum'].kind).toBe('primitive'); // number
+
+    expect(outFields['v']).toBeDefined();
+    expect(outFields['v'].kind).toBe('struct'); // Nested struct
+  });
 });
+
 

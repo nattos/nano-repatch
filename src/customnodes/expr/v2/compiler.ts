@@ -459,7 +459,10 @@ function compileNode(node: ts.Node, ctx: CompilerContext): IRNode | null {
           case ts.SyntaxKind.AmpersandAmpersandToken: op = '&&'; break;
           case ts.SyntaxKind.BarBarToken: op = '||'; break;
         }
-        return { id: nextId(), kind: OpKind.Binary, type: NUMBER_TYPE, op, left, right } as BinaryNode;
+
+        const isBool = ['<', '>', '<=', '>=', '==', '!=', '&&', '||'].includes(op);
+        const retType = isBool ? BOOLEAN_TYPE : NUMBER_TYPE; // Simplified. Add vector support later if needed.
+        return { id: nextId(), kind: OpKind.Binary, type: retType, op, left, right } as BinaryNode;
       }
 
       case ts.SyntaxKind.PostfixUnaryExpression:
