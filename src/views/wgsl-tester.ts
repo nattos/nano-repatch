@@ -7,6 +7,10 @@ import { DataTypeKind, PrimitiveType, DataType } from '../customnodes/expr/v2/ir
 import { testCases, TestCase } from '../customnodes/expr/v2/backend-test-cases';
 import { packData, unpackData } from '../customnodes/expr/v2/wgsl-utils';
 
+declare const GPUBufferUsage: any;
+declare const GPUShaderStage: any;
+declare const GPUMapMode: any;
+
 const F32_SIZE = 4;
 
 @customElement('wgsl-tester')
@@ -118,12 +122,12 @@ export class WGSLTester extends MobxLitElement {
 
       this.output += '\nWGSL Generated.\nRunning on GPU...';
 
-      if (!navigator.gpu) {
+      if (!(navigator as any).gpu) {
         this.output += '\nWebGPU not supported in this browser.';
         return 'Error: WebGPU not supported';
       }
 
-      const adapter = await navigator.gpu.requestAdapter();
+      const adapter = await (navigator as any).gpu.requestAdapter();
       if (!adapter) {
         this.output += '\nNo adapter found.';
         return 'Error: No adapter found';

@@ -2,7 +2,7 @@ import { compileToIR } from './compiler';
 import { generateJS } from './codegen-js';
 import { generateCPP } from './codegen-cpp';
 import { generateWGSL } from './codegen-wgsl';
-import { IRGraph, Diagnostic, DataType } from './ir-types';
+import { IRGraph, Diagnostic, DataType, DiagnosticSeverity } from './ir-types';
 
 export interface BuildOptions {
   code: string;
@@ -36,7 +36,9 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   // We default to empty global inputs for now, assuming source verification.
   // TODO: Allow passing input types in options?
   const ir = compileToIR(opts.code, {});
-  diagnostics.push(...ir.diagnostics);
+  if (ir.diagnostics) {
+    diagnostics.push(...ir.diagnostics);
+  }
 
   const result: any = { diagnostics };
 
@@ -45,7 +47,8 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
   }
 
   // Common inputs from IR (merged source + global)
-  const inputs = ir.inputs;
+  // Ensure we have a valid object even if inputs is undefined
+  const inputs: Record<string, DataType> = ir.inputs || {};
 
   if (opts.emitJS || opts.emitJSRunner) {
     try {
@@ -61,13 +64,14 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
       }
 
       if (opts.emitJSRunner) {
+        // Pre-eval: Create functionality
         const body = jsCode.replace('module.exports = { compute };', 'return compute;');
         const factory = new Function(body);
         const runner = factory();
         result.outJSRunner = { runner };
       }
     } catch (e: any) {
-      diagnostics.push({ message: `JS Codegen Error: ${e.message}`, severity: 1, source: 'codegen-js' });
+      diagnostics.push({ message: `JS Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-js' });
     }
   }
 
@@ -76,7 +80,7 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
       const wgslCode = generateWGSL(ir, { inputs, outputType: opts.outputType });
       result.outWGSL = { code: wgslCode };
     } catch (e: any) {
-      diagnostics.push({ message: `WGSL Codegen Error: ${e.message}`, severity: 1, source: 'codegen-wgsl' });
+      diagnostics.push({ message: `WGSL Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-wgsl' });
     }
   }
 
@@ -89,7 +93,7 @@ export function buildCode<T extends BuildOptions>(opts: T): BuildResult<T> {
       });
       result.outCPP = { code: cppCode };
     } catch (e: any) {
-      diagnostics.push({ message: `CPP Codegen Error: ${e.message}`, severity: 1, source: 'codegen-cpp' });
+      diagnostics.push({ message: `CPP Codegen Error: ${e.message}`, severity: DiagnosticSeverity.Error, source: 'codegen-cpp' });
     }
   }
 
