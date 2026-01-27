@@ -6,7 +6,7 @@ import { anyType, numberType } from "../../structor/std-types";
 
 // Import Types Only (to avoid bundling heavy compilers)
 import type { buildCode } from "./v2/builder";
-import type { Diagnostic } from "./v2/ir-types";
+import { Diagnostic, DiagnosticSeverity } from "./v2/ir-types";
 import { CompileContext } from "../../structor/structor";
 
 // Wrapper for Lazy Loaded Builder
@@ -78,7 +78,16 @@ export const expressionNode = defineNode({
     }
 
     if (!builderWrapper) {
-      return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
+      return {
+        jsCode: undefined,
+        diagnostics: [{
+          message: "Compiler not loaded. Please wait...",
+          severity: DiagnosticSeverity.Warning,
+          source: "system"
+        }],
+        inputs: {},
+        outputs: {}
+      };
     }
 
     try {
@@ -118,7 +127,16 @@ export const expressionNode = defineNode({
 
       return compiledConfig;
     } catch (e) {
-      return { jsCode: undefined, diagnostics: [], inputs: {}, outputs: {} };
+      return {
+        jsCode: undefined,
+        diagnostics: [{
+          message: `Internal Compiler Error: ${e}`,
+          severity: DiagnosticSeverity.Error,
+          source: "compiler"
+        }],
+        inputs: {},
+        outputs: {}
+      };
     }
   },
 
