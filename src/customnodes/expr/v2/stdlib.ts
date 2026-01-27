@@ -357,13 +357,13 @@ function registerMath(name: string, func: (...args: number[]) => number, sigArgs
 }
 
 // Register Standard Math Functions
-const unaryMath = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log', 'sqrt', 'abs', 'ceil', 'floor', 'round'];
+const unaryMath = ['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'tanh', 'exp', 'log', 'sqrt', 'abs', 'ceil', 'floor', 'round'];
 unaryMath.forEach(name => {
   const fn = (Math as any)[name];
   if (fn) registerMath(name, fn, 'x: number');
 });
 
-const binaryMath = ['max', 'min', 'pow'];
+const binaryMath = ['max', 'min', 'pow', 'atan2'];
 binaryMath.forEach(name => {
   const fn = (Math as any)[name];
   if (fn) registerMath(name, fn, 'a: number, b: number');
