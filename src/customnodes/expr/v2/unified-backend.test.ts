@@ -10,18 +10,6 @@ import { testCases, TestCase } from './backend-test-cases';
 
 const NUMBER_TYPE: PrimitiveType = { kind: DataTypeKind.Primitive, name: 'number' };
 
-// JS Runner
-function runJS(code: string, inputs: any, debug?: boolean) {
-  const body = code.replace('module.exports = { compute };', 'return compute;');
-  const factory = new Function(body);
-  const compute = factory();
-  const debugOut = debug ? {} : undefined;
-  const res = compute(inputs, debugOut);
-  // Return wrapper with debug if requested?
-  if (debug) return { res, _debug: debugOut };
-  return res;
-}
-
 // C++ Runner
 const TMP_DIR = path.resolve(__dirname, '../../../../tmp');
 

@@ -104,15 +104,33 @@ describe('Unified Builder', () => {
       emitJSRunner: true
     });
     const runner1 = res.outJSRunner!.runner;
-    const runner2 = res.outJSRunner!.runner;
-    // Actually buildCode returns type { runner: ... }
-    // The function 'buildCode' creates a new result object.
-    // But inside the object, 'runner' is a function.
-    // We want to ensure 'runner' is the SAME function (if we called it twice?)
-    // No, the test is: calling 'runner' multiple times should work and not re-eval.
-    // We can't easily spy on 'eval' or 'Function' constructor here without mocking.
-    // But we can verify it works.
-    expect(runner1({}, {})).toBe(42);
     expect(runner1({}, {})).toBe(42);
   });
+
+  describe('Auto Inputs', () => {
+    it('should inject number inputs for unresolved variables', () => {
+      // 'x' is undefined. autoInputs should inject 'var x: number;'
+      const res = buildCode({
+        code: 'return x * 10;',
+        emitIR: true,
+        autoInputs: true
+      });
+
+      expect(res.diagnostics.length).toBe(0);
+      expect(res.injectedInputs).toContain('x');
+      expect(res.outIR!.graph.inputs!['x']).toBeDefined();
+      expect(res.outIR!.graph.inputs!['x'].kind).toBe('primitive'); // number
+    });
+
+    it('should NOT inject inputs if autoInputs is false', () => {
+      const res = buildCode({
+        code: 'return y * 10;',
+        emitIR: true,
+        autoInputs: false
+      });
+      expect(res.diagnostics.length).toBeGreaterThan(0);
+      expect(res.diagnostics[0].message).toContain('Unresolved identifier');
+    });
+  });
 });
+
