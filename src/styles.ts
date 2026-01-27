@@ -67,6 +67,7 @@ export const globalStyles = [
     color: var(--app-text-color2);
     font-family: Questrial, "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 16px;
+    --font-size-xs: 10px;
   }
 
   input[type="text"], input[type="number"], select {

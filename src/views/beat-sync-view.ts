@@ -258,7 +258,7 @@ export class BeatSyncView extends MobxLitElement {
       }
 
       .midi-mapping-label {
-        font-size: 10px;
+        font-size: var(--font-size-xs);
         background: rgba(255,255,255,0.1);
         padding: 2px 6px;
         border-radius: 4px;

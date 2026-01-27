@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import './ui-icon';
 import { Diagnostic } from '../customnodes/expr/v2/ir-types';
 
 export type EditorStatus = 'idle' | 'pending' | 'error' | 'success';
@@ -19,7 +20,7 @@ export class EditorStatusBar extends LitElement {
       gap: 8px;
       padding: 4px 8px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8em;
+      font-size: var(--font-size-xs);
       border-bottom: 1px solid var(--border-color);
       background: var(--panel-header-bg);
       color: var(--text-color);
@@ -27,9 +28,9 @@ export class EditorStatusBar extends LitElement {
       box-sizing: border-box;
     }
 
-    .icon {
-      font-size: 1.2em;
-      line-height: 1;
+    ui-icon {
+      font-size: 1.2em; /* Relative to xs font */
+      --icon-size: 1.2em;
     }
 
     .success { color: #4caf50; }
@@ -44,46 +45,72 @@ export class EditorStatusBar extends LitElement {
 
     .counts {
       display: flex;
-      gap: 12px;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .counts:hover .count-item {
+      text-decoration: underline;
     }
 
     .count-item {
       display: flex;
       align-items: center;
       gap: 4px;
+      font-weight: bold;
     }
   `;
+
+  private handleClick() {
+    this.dispatchEvent(new CustomEvent('show-diagnostics', {
+      bubbles: true,
+      composed: true
+    }));
+  }
 
   render() {
     const errors = this.diagnostics.filter(d => d.severity === 'error').length;
     const warnings = this.diagnostics.filter(d => d.severity === 'warning').length;
 
-    let icon = html`<i class="las la-check-circle success icon"></i>`;
-    let message = html`<span class="success">Compiled</span>`;
+    let icon = html`<ui-icon icon="la-check-circle" class="success"></ui-icon>`;
+    let message = html``;
 
     if (this.status === 'pending') {
-      icon = html`<i class="las la-circle-notch pending icon"></i>`;
-      message = html`<span style="opacity: 0.7">Compiling...</span>`;
-    } else if (errors > 0) {
-      icon = html`<i class="las la-exclamation-circle error icon"></i>`;
-      message = html`<span class="error">${errors} Error${errors > 1 ? 's' : ''}</span>`;
-    } else if (warnings > 0) {
-      icon = html`<i class="las la-exclamation-triangle warning icon"></i>`;
-      message = html`<span class="warning">${warnings} Warning${warnings > 1 ? 's' : ''}</span>`;
+      icon = html`<ui-icon icon="la-circle-notch" class="pending"></ui-icon>`;
+      // Keep "Compiling..." or remove? User said "compiled". Pending is logically different.
+      // But typically "minimal" means minimal. Let's keep Compiling... for detailed feedback or remove if strict.
+      // User said "compiled" (past tense), explicitly referring to the success state text.
+      // I'll leave "Compiling..." for now as it wasn't explicitly forbidden and provides feedback on activity.
+      // Actually, looking at "It should look like the warnings", maybe just the spinner?
+      // Let's remove "Compiling..." to be safe and minimalistic.
+      message = html``;
+    } else if (errors > 0 || warnings > 0) {
+      // If we have errors/warnings, the main "status" icon might be redundant if we just list the counts.
+      // Current logic: Main icon + message. Then EXTRA counts at the end.
+      // New logic: Just list the items.
+
+      // Success Icon: Show ONLY if no errors/warnings and not pending?
+      icon = html``;
+      message = html``;
     }
 
     return html`
-      ${icon}
-      ${message}
-      ${(this.status !== 'pending' && (errors > 0 || warnings > 0)) ? html`
-        <div class="counts">
-           ${warnings > 0 && errors > 0 ? html`
-              <div class="count-item warning">
-                  <i class="las la-exclamation-triangle"></i> ${warnings}
-              </div>
-           ` : ''}
-        </div>
-      ` : ''}
+      ${this.status === 'success' && errors === 0 && warnings === 0 ? html`<ui-icon icon="la-check-circle" class="success"></ui-icon>` : ''}
+      ${this.status === 'pending' ? html`<ui-icon icon="la-circle-notch" class="pending"></ui-icon>` : ''}
+
+      <div class="counts" @click=${this.handleClick}>
+        ${errors > 0 ? html`
+          <div class="count-item error">
+              <ui-icon icon="la-exclamation-circle"></ui-icon> ${errors}
+          </div>
+        ` : ''}
+        ${warnings > 0 ? html`
+          <div class="count-item warning">
+              <ui-icon icon="la-exclamation-triangle"></ui-icon> ${warnings}
+          </div>
+        ` : ''}
+      </div>
     `;
+
   }
 }

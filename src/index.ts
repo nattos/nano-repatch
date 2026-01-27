@@ -5,6 +5,8 @@ import { css, html } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { globalStyles } from './styles';
 import './index.css';
+import './views/ui-button';
+import './views/ui-icon';
 import './customnodes/registration-worker';
 import './customnodes/registration-ui';
 import './views/workspace-layout';
